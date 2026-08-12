@@ -1,0 +1,53 @@
+# Backlog — Ciudadanía Activa
+
+Tablero de trabajo trasladado desde el **Anexo E** de la tesis (Roadmap, backlog MVP y análisis
+de riesgos), con las prioridades originales. Se actualiza a medida que cada ítem se planifica en
+un sprint concreto — ver [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md) y [PROGRESO_SPRINTS.md](PROGRESO_SPRINTS.md).
+
+## Prioridad Alta
+
+| # | Ítem | Sprint(s) | Estado |
+|---|---|---|---|
+| 1 | Configuración base: Django, Next.js, PostgreSQL/PostGIS y CI | S1 | En curso |
+| 2 | Autenticación Google OAuth, roles y permisos | S3 | Pendiente |
+| 3 | Verificación manual con cédula/selfie | S4 | Pendiente |
+| 4 | CRUD de instituciones, categorías y operadores | S2 · S9 | Pendiente |
+| 5 | Creación de reportes, foto, mapa y advertencia de duplicados | S5 · S6 | Pendiente |
+| 6 | Clasificación IA y auditoría | S8 | Pendiente |
+| 7 | Confirmaciones ciudadanas de reportes activos | S7 | Pendiente |
+| 8 | `rewards_app`: puntos pendientes/acreditados, créditos 1:1 y reversión | S2 · S9 · S10 | Pendiente |
+| 9 | Panel institucional: validación, estados, evidencias y administración de recompensa | S9 · S10 | Pendiente |
+| 10 | Ranking mensual y privacidad configurable | S11 | Pendiente |
+| 11 | Canje simulado de 1.000 créditos y límite mensual | S12 | Pendiente |
+
+## Prioridad Media
+
+| # | Ítem | Sprint(s) | Estado |
+|---|---|---|---|
+| 12 | Dashboard institucional con métricas | S13 | Pendiente |
+| 13 | Bot de Telegram y simulación X/Twitter | S13 | Pendiente |
+
+## Prioridad Baja
+
+| # | Ítem | Sprint(s) | Estado |
+|---|---|---|---|
+| 14 | PWA / aplicación móvil | Fuera del MVP | No planificado |
+| 15 | Insignias, niveles, campañas, GPS de proximidad y similitud perceptual | Fuera del MVP | No planificado |
+
+## Riesgos (Anexo E.2)
+
+| Riesgo | Nivel | Mitigación | Seguimiento |
+|---|---|---|---|
+| Alcance excesivo | Alto | Recompensas reales, insignias, campañas y antifraude avanzado quedan fuera del MVP | Todos los sprints |
+| Farming de puntos | Alto | Puntos pendientes, una confirmación por usuario/reporte, autor excluido, validación institucional | S2 · S7 · S9 |
+| Reportes duplicados | Medio | Advertencia de proximidad (`ST_DWithin`) y opción de confirmar el reporte existente | S6 |
+| Fotos repetidas | Medio | Hash exacto (`file_hash` SHA-256) en el MVP; similitud perceptual queda como mejora futura | S6 |
+| Errores de IA | Medio | Revisión humana y auditoría; sin rechazo automático | S8 · S9 |
+| Privacidad del ranking | Medio | Visibilidad opt-in, modo "Usuario privado" | S11 |
+| Costos o cambio de proveedor de IA | Medio | Arquitectura desacoplada (`ai_client_app`) y mocks de prueba | S8 |
+| Privacidad de cédulas/selfies | Alto | HMAC-SHA-256, almacenamiento privado y acceso restringido | S4 |
+| Presupuesto real de recompensas | Alto | El MVP usa vales simulados; convenios reales quedan fuera de alcance | S12 |
+| Inconsistencias de saldos | Medio | Ledger transaccional inmutable y reversiones auditables | S2 · S10 |
+| Rendimiento del mapa/ranking | Medio | Índices GIST/B-tree, caché en Redis y agregaciones acotadas al mes en curso | S5 · S11 · S15 |
+| Dependencia de dos integrantes | Medio | Documentación por sprint, PR con revisión cruzada, este tablero | Todos los sprints |
+| Sprint 16 de solo dos días | Medio | Todo debe cerrarse en el Sprint 15; el 16 es exclusivamente cierre | S15 · S16 |

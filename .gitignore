@@ -1,0 +1,42 @@
+# Entornos y secretos
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Python / Django
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+staticfiles/
+media/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+db.sqlite3
+
+# Node / Next.js
+node_modules/
+frontend/.next/
+frontend/out/
+frontend/next-env.d.ts
+frontend/*.tsbuildinfo
+frontend/.vercel/
+frontend/playwright-report/
+frontend/test-results/
+*.log
+.turbo/
+
+# Editores / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Respaldos lógicos de base de datos (nunca versionar, ver ADR-0003)
+*.sql
+*.dump
+*.pgdump

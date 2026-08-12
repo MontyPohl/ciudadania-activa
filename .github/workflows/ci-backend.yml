@@ -1,0 +1,78 @@
+name: CI Backend
+
+on:
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/ci-backend.yml"
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/ci-backend.yml"
+
+defaults:
+  run:
+    working-directory: backend
+
+env:
+  DJANGO_SECRET_KEY: ci-test-secret-key
+  DJANGO_DEBUG: "False"
+  DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1
+  DATABASE_URL: postgis://ciudadania:ciudadania@localhost:5432/ciudadania_activa
+  REDIS_URL: redis://localhost:6379/0
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      db:
+        image: postgis/postgis:15-3.4
+        env:
+          POSTGRES_USER: ciudadania
+          POSTGRES_PASSWORD: ciudadania
+          POSTGRES_DB: ciudadania_activa
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ciudadania"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Instalar dependencias de sistema (GDAL/GEOS/PROJ)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends gdal-bin libgdal-dev libgeos-dev libproj-dev
+
+      - name: Instalar dependencias Python
+        run: pip install -r requirements/test.txt
+
+      - name: Ruff (lint)
+        run: ruff check .
+
+      - name: Verificar que no faltan migraciones
+        run: python manage.py makemigrations --check --no-input
+
+      - name: Migrar sobre base vacía
+        run: python manage.py migrate --no-input
+
+      - name: Pruebas con cobertura
+        run: pytest --cov=apps --cov-report=term-missing
