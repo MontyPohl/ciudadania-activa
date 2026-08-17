@@ -7,6 +7,8 @@ Universidad Columbia del Paraguay.
 Documentación completa del proyecto en [docs/PLAN_DESARROLLO.md](docs/PLAN_DESARROLLO.md),
 avance por sprint en [docs/PROGRESO_SPRINTS.md](docs/PROGRESO_SPRINTS.md), backlog priorizado en
 [docs/BACKLOG.md](docs/BACKLOG.md) y decisiones de arquitectura en [docs/adr/](docs/adr/).
+Las diferencias entre el prototipo real y lo declarado en la tesis se registran en
+[docs/CAMBIOS_TESIS_PENDIENTES.md](docs/CAMBIOS_TESIS_PENDIENTES.md).
 
 ## Stack
 
@@ -14,7 +16,7 @@ avance por sprint en [docs/PROGRESO_SPRINTS.md](docs/PROGRESO_SPRINTS.md), backl
 |---|---|
 | Frontend | Next.js (App Router) + TypeScript + TailwindCSS |
 | Backend | Python 3.11 + Django + Django REST Framework |
-| Base de datos | PostgreSQL 15 + PostGIS, alojada en **Supabase** |
+| Base de datos | PostgreSQL 17 + PostGIS, alojada en **Supabase** |
 | Almacenamiento | Supabase Storage |
 | Caché / broker | Redis 7 |
 | Asincronía | Celery + Celery Beat |
@@ -50,6 +52,10 @@ cp .env.example .env
 Completar los valores de terceros (Google OAuth, Gemini, Supabase, email) a medida que los
 sprints correspondientes los requieran. `.env` nunca se versiona.
 
+`.env` describe **siempre el entorno local**. Las credenciales de Supabase no van aquí: viven en
+`.env.supabase.local` y solo se usan para verificaciones puntuales (ver
+[Verificación contra Supabase](#verificación-contra-supabase)).
+
 ### 2. Base de datos y Redis (Docker)
 
 ```bash
@@ -60,6 +66,17 @@ Esto expone PostGIS en `localhost:5432` y Redis en `localhost:6379`, según lo d
 
 > Alternativa: `docker compose -f infra/docker-compose.yml up` levanta además los contenedores
 > `backend` y `worker`, útil para reproducir el stack completo sin instalar Python localmente.
+
+El contenedor `db` usa `postgis/postgis:17-3.5`, alineado con el major de PostgreSQL que entrega
+Supabase. **Cambiar el major de PostgreSQL invalida el volumen `infra_postgres_data`**: hay que
+eliminarlo y dejar que se reinicialice (`docker compose -f infra/docker-compose.yml stop db && docker
+volume rm infra_postgres_data`). En local esto no destruye información: los datos se regeneran con
+`migrate` y las cargas de prueba del sprint correspondiente.
+
+> **Aislamiento deliberado:** `infra/docker-compose.yml` fija `DATABASE_URL` al contenedor local en
+> el bloque `environment` de `backend` y `worker`, que tiene precedencia sobre `env_file`. Por eso
+> `docker compose up` **nunca** escribe en Supabase, aunque el `.env` contenga una URL remota. Es
+> intencional y no debe "corregirse" (ADR-0003).
 
 ### 3. Backend (Django)
 
@@ -89,6 +106,55 @@ npm run dev
 La aplicación queda disponible en `http://localhost:3000` y consulta el estado del backend en la
 página de inicio.
 
+## Verificación contra Supabase
+
+El desarrollo normal usa la base local. Para comprobar puntualmente que el backend funciona contra
+la instancia real de Supabase (migraciones, PostGIS, health check) se usa un **contenedor efímero**
+que no pasa por `docker compose`, precisamente para no romper el aislamiento descrito arriba.
+
+1. Crear `.env.supabase.local` en la raíz del repositorio. Está ignorado por Git y **nunca se
+   versiona**. Contiene solo lo necesario para la prueba:
+
+   ```ini
+   DJANGO_SETTINGS_MODULE=config.settings.dev
+   DJANGO_SECRET_KEY=<cualquier valor de desarrollo>
+   DJANGO_DEBUG=True
+   DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1
+   API_VERSION=0.1.0
+   # Session Pooler de Supabase (puerto 5432) + TLS obligatorio.
+   DATABASE_URL=postgis://<usuario>:<password>@<host>.pooler.supabase.com:5432/postgres?sslmode=require
+   DB_SEARCH_PATH=public,gis,extensions
+   REDIS_URL=redis://redis:6379/0
+   ```
+
+   La cadena se copia desde **Supabase → Project Settings → Database → Connection string → Session
+   pooler**. Dos condiciones que no son opcionales:
+
+   - **Session Pooler (puerto 5432)**, no el Transaction Pooler (6543): `psycopg` usa *prepared
+     statements* por defecto y el modo transacción no los soporta, por lo que `migrate` fallaría.
+     La conexión directa (`db.<ref>.supabase.co`) solo resuelve por IPv6 salvo con el add-on IPv4.
+   - **`sslmode=require`**: sin él se usa el `prefer` por defecto, que acepta texto plano de forma
+     silenciosa si el servidor no ofrece TLS.
+   - Si la contraseña tiene caracteres especiales, hay que codificarlos en la URL
+     (`@` → `%40`, `#` → `%23`, `/` → `%2F`, …).
+
+2. Levantar Redis y ejecutar los comandos en un contenedor efímero:
+
+   ```bash
+   docker compose -f infra/docker-compose.yml up -d redis
+   docker compose -f infra/docker-compose.yml build backend
+
+   docker run --rm --network infra_default --env-file .env.supabase.local \
+     -v "$PWD/backend:/app" -w /app infra-backend:latest \
+     python manage.py showmigrations
+   ```
+
+   Sustituyendo el comando final por `migrate --no-input`, `makemigrations --check --no-input` o
+   `check` según lo que se quiera verificar.
+
+> Aplicar migraciones contra Supabase modifica la base real. Antes de una migración destructiva
+> corresponde el respaldo lógico previsto en ADR-0003.
+
 ## Comandos habituales
 
 | Comando | Descripción |
@@ -97,7 +163,7 @@ página de inicio.
 | `cd backend && ruff check .` | Lint del backend |
 | `cd backend && python manage.py makemigrations --check` | Verifica que no falten migraciones |
 | `cd frontend && npm run lint` | Lint del frontend |
-| `cd frontend && npm run typecheck` | Verificación de tipos (`tsc --noEmit`) |
+| `cd frontend && npm run typecheck` | Verificación de tipos (`next typegen && tsc --noEmit`) |
 | `cd frontend && npm run format` | Formatea el frontend con Prettier |
 | `cd frontend && npm run build` | Build de producción |
 

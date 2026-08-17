@@ -241,7 +241,7 @@ Alcance **cerrado** del prototipo, según la tabla 4.6 de la tesis revisada. Nad
 | Frontend | Next.js (React) + TailwindCSS |
 | Backend | Python 3.11 + Django + Django REST Framework |
 | Autenticación | Google OAuth 2.0 + JWT |
-| Base de datos | PostgreSQL 15 + PostGIS, alojado en **Supabase** |
+| Base de datos | PostgreSQL 17 + PostGIS, alojado en **Supabase** (instancia verificada: 17.6; el minor lo administra Supabase) |
 | Almacenamiento | Supabase Storage (buckets privados para verificación, públicos-firmados para fotos) |
 | Caché y broker | Redis 7 |
 | Asincronía | Celery + Celery Beat |
@@ -254,7 +254,9 @@ Alcance **cerrado** del prototipo, según la tabla 4.6 de la tesis revisada. Nad
 
 > Estas tecnologías están fijadas por la documentación del TCC. Cualquier alternativa se registra como observación, nunca como sustitución.
 
-> **Alojamiento de la base de datos (D-03, resuelta).** PostgreSQL 15 + PostGIS se aloja en **Supabase**, que también provee el almacenamiento de archivos. El backend Django y los workers Celery se despliegan en **Railway** y se conectan mediante `DATABASE_URL`. Fundamento: coherencia con la arquitectura documentada en la tesis (4.2.3), soporte nativo de PostGIS, simplificación operativa del prototipo, centralización de base de datos y almacenamiento en un mismo proveedor, y facilidad para inspeccionar y documentar los datos durante el TCC. Ver §33.2.
+> **Alojamiento de la base de datos (D-03, resuelta).** PostgreSQL + PostGIS se aloja en **Supabase**, que también provee el almacenamiento de archivos. El backend Django y los workers Celery se despliegan en **Railway** y se conectan mediante `DATABASE_URL`. Fundamento: coherencia con la arquitectura documentada en la tesis (4.2.3), soporte nativo de PostGIS, simplificación operativa del prototipo, centralización de base de datos y almacenamiento en un mismo proveedor, y facilidad para inspeccionar y documentar los datos durante el TCC. Ver §33.2.
+
+> **Versiones reales de la base de datos (verificadas el 16/08/2026, ADR-0003).** La instancia provisionada por Supabase es **PostgreSQL 17.6**; el major productivo es **17** y el minor lo administra Supabase, que puede actualizarlo sin intervención del equipo. El desarrollo local y el CI usan también **PostgreSQL 17** (`postgis/postgis:17-3.5`) para evitar deriva de major entre entornos. PostGIS productivo es **3.3.7**, instalado en el esquema **`gis`**; el entorno local puede usar una versión posterior (hoy 3.5.2), manteniendo **3.3.7 como piso de compatibilidad**: el código no debe depender de funciones espaciales introducidas después de 3.3. La diferencia de esquemas se neutraliza con `DB_SEARCH_PATH=public,gis,extensions`, versionado en `config/settings/base.py`. La divergencia respecto de «PostgreSQL 15», que declara la tesis, queda registrada en [CAMBIOS_TESIS_PENDIENTES.md](CAMBIOS_TESIS_PENDIENTES.md) (CT-39, CT-40, CT-41).
 
 ### 6.2 Vista lógica
 
@@ -588,7 +590,7 @@ El resto de campos del dominio (`google_oauth_id`, `role`, `verification_status`
 Proyecto Next.js con App Router y TypeScript; TailwindCSS con la paleta y tipografía del proyecto; estructura `app/(public|citizen|operator|admin)`, `features/`, `components/ui/`, `lib/`; cliente HTTP tipado con lectura de `NEXT_PUBLIC_API_URL`; página de inicio que consulta `/health/` y muestra el estado del backend; ESLint y Prettier.
 
 ### Base de datos
-Sin modelos de dominio salvo el esqueleto de `auth_app.User`. Se aprovisiona el proyecto de **Supabase** y su instancia PostgreSQL 15, se habilita PostGIS con `CREATE EXTENSION postgis` y se conecta el backend de Railway mediante `DATABASE_URL`. Se ejecutan las migraciones de Django (`contenttypes`, `auth`, `sessions`, `admin`) junto con **`auth_app.0001_initial`**, que crea la tabla del usuario personalizado. A partir de este punto `AUTH_USER_MODEL` queda fijado y no vuelve a cambiar durante todo el proyecto.
+Sin modelos de dominio salvo el esqueleto de `auth_app.User`. Se aprovisiona el proyecto de **Supabase** y su instancia PostgreSQL 17, se habilita PostGIS con `CREATE EXTENSION postgis` —que en Supabase queda instalada en el esquema `gis`, de modo que la aplicación declara `DB_SEARCH_PATH=public,gis,extensions` para resolver tipos y funciones espaciales— y se conecta el backend de Railway mediante `DATABASE_URL`. Se ejecutan las migraciones de Django (`contenttypes`, `auth`, `sessions`, `admin`) junto con **`auth_app.0001_initial`**, que crea la tabla del usuario personalizado. A partir de este punto `AUTH_USER_MODEL` queda fijado y no vuelve a cambiar durante todo el proyecto.
 
 Se verifica si el plan de Supabase contratado incluye respaldos automáticos. **Si no los incluye**, se documenta y se pone en marcha desde este sprint la rutina de **respaldos lógicos periódicos** (`pg_dump` semanal y antes de cada migración destructiva), con los volcados almacenados fuera del repositorio.
 
@@ -1737,7 +1739,7 @@ Una reversión **siempre debe poder ejecutarse**, aunque los créditos ya hayan 
 **No.** En el MVP el costo de toda recompensa es **fijo en 1.000 créditos**. El campo `credit_cost` se conserva en el modelo con `DEFAULT 1000` por extensibilidad futura, pero **no es editable por el operador**: el serializador descarta cualquier `cost` recibido y el servicio impone la constante del servidor. Implementada en el Sprint 12.
 
 **D-03 · ¿Dónde reside la instancia de PostgreSQL/PostGIS?** ✅ **RESUELTA.**
-**En Supabase.** PostgreSQL 15 + PostGIS se aloja en Supabase, que además continúa proveyendo el almacenamiento de archivos según la arquitectura definida. El backend Django y los workers Celery se despliegan en **Railway** y se conectan mediante `DATABASE_URL`. Fundamento de la decisión:
+**En Supabase.** PostgreSQL + PostGIS se aloja en Supabase, que además continúa proveyendo el almacenamiento de archivos según la arquitectura definida. La instancia real provisionada es **PostgreSQL 17.6** con **PostGIS 3.3.7** en el esquema `gis` (verificado el 16/08/2026); el major productivo es 17 y Supabase administra el minor. El backend Django y los workers Celery se despliegan en **Railway** y se conectan mediante `DATABASE_URL`. Fundamento de la decisión:
 
 - coherencia con la arquitectura documentada en la tesis (4.2.3 y Figura 2);
 - soporte de PostGIS;
