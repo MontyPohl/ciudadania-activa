@@ -28,7 +28,8 @@ jobs:
 
     services:
       db:
-        image: postgis/postgis:15-3.4
+        # Alineado con infra/docker-compose.yml y con el major de Supabase (17). Ver ADR-0003.
+        image: postgis/postgis:17-3.5
         env:
           POSTGRES_USER: ciudadania
           POSTGRES_PASSWORD: ciudadania

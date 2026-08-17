@@ -77,6 +77,16 @@ DATABASES = {
 }
 DATABASES["default"]["ENGINE"] = "django.contrib.gis.db.backends.postgis"
 
+# PostGIS no reside en el mismo esquema en todos los entornos: en Supabase está instalada
+# en `gis` y en el contenedor local de infra/docker-compose.yml en `public` (ADR-0003).
+# Sin `gis` en el search_path, GeoDjango no resuelve el tipo `geometry` ni funciones como
+# postgis_lib_version(), y `connection.ops.spatial_version` falla con ImproperlyConfigured.
+# Se fija de forma explícita para que ambos entornos se comporten igual; PostgreSQL ignora
+# sin error los esquemas de la lista que no existan.
+DB_SEARCH_PATH = env("DB_SEARCH_PATH", default="public,gis,extensions")
+DATABASES["default"].setdefault("OPTIONS", {})
+DATABASES["default"]["OPTIONS"]["options"] = f"-c search_path={DB_SEARCH_PATH}"
+
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
@@ -114,5 +124,8 @@ CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
-# Fijado en el Sprint 1: PostgreSQL/PostGIS reside en Supabase y se conecta
-# siempre mediante DATABASE_URL. No hay lógica que distinga entornos: ver ADR-0003.
+# Fijado en el Sprint 1: PostgreSQL/PostGIS reside en Supabase y se conecta siempre
+# mediante DATABASE_URL. Ninguna rama de código distingue entornos; lo único que varía
+# es el valor de DATABASE_URL (y, si hiciera falta, DB_SEARCH_PATH). Ver ADR-0003.
+# El aislamiento entre la base local y Supabase se resuelve en infra/docker-compose.yml,
+# que fija deliberadamente DATABASE_URL al contenedor local, no aquí.

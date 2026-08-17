@@ -2,6 +2,9 @@
 .env
 .env.local
 .env.*.local
+# Credenciales remotas de Supabase para verificaciones puntuales (ADR-0003). Ya cubierto
+# por `.env.*.local`; se declara aparte para que sea evidente que nunca debe versionarse.
+.env.supabase.local
 !.env.example
 
 # Python / Django

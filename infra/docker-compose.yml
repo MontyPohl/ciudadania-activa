@@ -1,6 +1,12 @@
 services:
   db:
-    image: postgis/postgis:15-3.4
+    # PostgreSQL 17 para alinear el major con la instancia real de Supabase (17.6).
+    # No existe imagen oficial `postgis/postgis:17-3.3`: PostGIS 3.3 es anterior al
+    # soporte de PostgreSQL 17. Entre las disponibles para el major 17, `17-3.4` dejó
+    # de recibir actualizaciones en 2024-10 y `17-3.5` sigue mantenida, por lo que se
+    # elige esta última. PostGIS 3.3.7 (Supabase) queda como piso de compatibilidad:
+    # no deben usarse funciones espaciales introducidas después de 3.3. Ver ADR-0003.
+    image: postgis/postgis:17-3.5
     environment:
       POSTGRES_USER: ciudadania
       POSTGRES_PASSWORD: ciudadania
@@ -31,6 +37,12 @@ services:
       dockerfile: Dockerfile.dev
     env_file:
       - ../.env
+    # AISLAMIENTO DELIBERADO: `environment` tiene precedencia sobre `env_file`, de modo
+    # que `docker compose up` SIEMPRE escribe en la base local aunque el .env contenga
+    # una DATABASE_URL remota. Es intencional y no debe "corregirse": evita que una
+    # credencial de Supabase olvidada en el .env provoque escrituras accidentales en
+    # producción. Para verificar contra Supabase se usa un contenedor efímero con
+    # `--env-file .env.supabase.local` (ver README). Ver ADR-0003.
     environment:
       DATABASE_URL: postgis://ciudadania:ciudadania@db:5432/ciudadania_activa
       REDIS_URL: redis://redis:6379/0
@@ -52,6 +64,7 @@ services:
     command: celery -A config worker -l info
     env_file:
       - ../.env
+    # Mismo aislamiento deliberado que en `backend`: el worker nunca apunta a Supabase.
     environment:
       DATABASE_URL: postgis://ciudadania:ciudadania@db:5432/ciudadania_activa
       REDIS_URL: redis://redis:6379/0
