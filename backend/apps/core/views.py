@@ -17,7 +17,12 @@ def _database_is_up() -> bool:
 
 def _redis_is_up() -> bool:
     try:
-        return bool(redis.from_url(settings.REDIS_URL).ping())
+        client = redis.from_url(
+            settings.REDIS_URL,
+            socket_connect_timeout=2,
+            socket_timeout=2,
+        )
+        return bool(client.ping())
     except redis.RedisError:
         return False
 
