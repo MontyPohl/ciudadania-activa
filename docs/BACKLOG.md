@@ -8,17 +8,25 @@ un sprint concreto — ver [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md) y [PROGRESO_
 
 | # | Ítem | Sprint(s) | Estado |
 |---|---|---|---|
-| 1 | Configuración base: Django, Next.js, PostgreSQL/PostGIS y CI | S1 | En curso |
+| 1 | Configuración base: Django, Next.js, PostgreSQL/PostGIS y CI | S1 | Completado |
 | 2 | Autenticación Google OAuth, roles y permisos | S3 | Pendiente |
 | 3 | Verificación manual con cédula/selfie | S4 | Pendiente |
-| 4 | CRUD de instituciones, categorías y operadores | S2 · S9 | Pendiente |
+| 4 | CRUD de instituciones, categorías y operadores | S2 · S9 | En curso |
 | 5 | Creación de reportes, foto, mapa y advertencia de duplicados | S5 · S6 | Pendiente |
 | 6 | Clasificación IA y auditoría | S8 | Pendiente |
 | 7 | Confirmaciones ciudadanas de reportes activos | S7 | Pendiente |
-| 8 | `rewards_app`: puntos pendientes/acreditados, créditos 1:1 y reversión | S2 · S9 · S10 | Pendiente |
+| 8 | `rewards_app`: puntos pendientes/acreditados, créditos 1:1 y reversión | S2 · S9 · S10 | En curso |
 | 9 | Panel institucional: validación, estados, evidencias y administración de recompensa | S9 · S10 | Pendiente |
 | 10 | Ranking mensual y privacidad configurable | S11 | Pendiente |
 | 11 | Canje simulado de 1.000 créditos y límite mensual | S12 | Pendiente |
+
+> **Estado a 20/08/2026.** El ítem 1 pertenece íntegramente al Sprint 1, cerrado el 20/08/2026. Los
+> ítems 4 y 8 abarcan varios sprints: el Sprint 2 entregó su base de datos —`institutions`,
+> `categories`, `institution_operators` y las tres tablas del ledger, con sus restricciones, índices
+> y catálogos semilla, más el registro en el admin de Django para inspección interna— pero la
+> funcionalidad que describen (gestión de catálogos y operadores según rol; cálculo de puntos
+> pendientes y acreditados, créditos 1:1 y reversión) llega en los Sprints 9 a 11, de modo que
+> siguen **En curso**. Ningún ítem del Sprint 3 en adelante ha comenzado.
 
 ## Prioridad Media
 

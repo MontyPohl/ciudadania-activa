@@ -3,11 +3,14 @@
 **Estado:** Aceptada (decisión D-03, resuelta en la etapa de planificación)
 **Sprint:** 1
 **Fecha:** 2026-08-01
-**Última actualización:** 2026-08-20 — se registra el estado de despliegue (backend y worker en
-Railway, frontend en Vercel), la confirmación de que el plan Free de Supabase no ofrece respaldos
-programados y la política de respaldo manual ya comprobada con una restauración real.
-Actualización previa: 2026-08-16 — versiones reales provisionadas por Supabase, `search_path`
-explícito, aislamiento local/remoto y política de TLS, verificados contra la instancia real.
+**Última actualización:** 2026-08-20 (cierre del Sprint 2) — se registran los snapshots
+conservados PRE/POST Sprint 2 con su restauración verificada, y el orden que impone el
+`migrate --noinput` de pre-deploy de Railway sobre el respaldo previo.
+Actualización previa: 2026-08-20 — estado de despliegue (backend y worker en Railway, frontend en
+Vercel), confirmación de que el plan Free de Supabase no ofrece respaldos programados y política de
+respaldo manual comprobada con una restauración real. Actualización previa: 2026-08-16 — versiones
+reales provisionadas por Supabase, `search_path` explícito, aislamiento local/remoto y política de
+TLS, verificados contra la instancia real.
 
 ## Contexto
 
@@ -160,6 +163,47 @@ límites conocidos del procedimiento, que conviene tener presentes al restaurar:
   lo que el destino adopta la que tenga instalada. Para una restauración fiel a producción, el
   destino debe usar una versión compatible con **3.3.7**, coherente con el piso de compatibilidad
   declarado más arriba.
+
+### Snapshots conservados
+
+La política se aplica por hitos estructurales, no por commit. Del Sprint 2 se conservan dos
+volcados, ambos fuera del repositorio y con permisos restrictivos:
+
+| Clasificación | Archivo | Estado que representa |
+|---|---|---|
+| **BACKUP PRE-SPRINT-2** | `ciudadania_activa_20260820_022332.dump` | anterior a las migraciones estructurales del Sprint 2 |
+| **BACKUP POST-SPRINT-2** | `ciudadania_activa_20260820_042805_post_s2.dump` | posterior a esas migraciones, con las 18 entidades del Anexo A |
+
+Ambos se conservan: el primero es el punto de retorno al estado previo; el segundo, el respaldo
+del esquema ya migrado. El POST-S2 se validó el 20/08/2026 con `pg_restore --list` y con una
+**restauración real** en una instancia PostgreSQL/PostGIS 17 temporal. Se confirmaron los dos
+límites descritos arriba: la restauración completa falla **únicamente** en los tres objetos de
+`supabase_vault`, y excluyendo esos objetos de la lista de restauración —`pg_restore -L` sobre una
+lista filtrada, sin modificar el archivo `.dump`— el proceso termina en **exit 0** sin errores. El
+volcado conserva PostGIS en el esquema `gis`, de modo que sobre la base restaurada las funciones
+espaciales se resuelven con el mismo `search_path` que usa la aplicación.
+
+### Orden del respaldo frente al despliegue automático
+
+El servicio de backend en Railway ejecuta `python manage.py migrate --noinput` como comando de
+**pre-deploy**. La consecuencia operativa es concreta: **un push a `main` que incluya migraciones
+nuevas las aplica a producción de inmediato**, antes incluso de que el workflow de CI termine. En
+el Sprint 2 las nueve migraciones quedaron aplicadas 95 segundos antes de que CI Backend
+concluyera.
+
+Por lo tanto, mientras `migrate` permanezca en el pre-deploy, el respaldo exigido por esta política
+debe generarse **antes del push a `main`**, no después de la validación de CI. Procedimiento:
+
+1. trabajar en rama o *pull request* y esperar **CI en verde**;
+2. generar el **`pg_dump` productivo previo**;
+3. hacer *merge*/push a `main`;
+4. Railway aplica las migraciones en su pre-deploy;
+5. **verificar producción** con consultas de solo lectura;
+6. generar el respaldo posterior si el cambio es estructuralmente relevante.
+
+Si en el futuro se quisiera un gate manual absoluto sobre producción, la alternativa es retirar
+`migrate` del pre-deploy y ejecutarlo como operación autorizada aparte. Esa decisión no se ha
+tomado: el despliegue automático se conserva y el control se ejerce en el orden del procedimiento.
 
 ## Consecuencias
 

@@ -210,6 +210,22 @@ paneles y no se automatiza desde este repositorio.
 Estado del backend: `GET /api/v1/health/` → `{"status":"ok","db":true,"redis":true}`. El backend
 restringe `CORS_ALLOWED_ORIGINS` al dominio del frontend.
 
+### Migraciones estructurales: orden obligatorio
+
+El pre-deploy del backend ejecuta `python manage.py migrate --noinput`, de modo que **un push a
+`main` con migraciones nuevas las aplica a producción de inmediato**, antes incluso de que CI
+termine. Por eso el respaldo previo que exige `ADR-0003` debe generarse **antes** del push, no
+después de ver CI en verde:
+
+1. trabajar en rama o *pull request* y esperar **CI en verde**;
+2. generar el **`pg_dump` productivo previo** (ver [Respaldos de la base de datos](#respaldos-de-la-base-de-datos));
+3. hacer *merge*/push a `main`;
+4. Railway aplica las migraciones en su pre-deploy;
+5. **verificar producción** con consultas de solo lectura (`showmigrations`, esquema, catálogos);
+6. generar un respaldo posterior si el cambio es estructuralmente relevante.
+
+Nunca se ejecuta `migrate` a mano contra Supabase para adelantarse al pre-deploy.
+
 Dos detalles de configuración que no son opcionales y conviene no "simplificar":
 
 - `SECURE_REDIRECT_EXEMPT = [r"^api/v1/health/$"]` en `config/settings/prod.py`. Railway consulta el

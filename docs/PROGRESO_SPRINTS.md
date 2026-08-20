@@ -2,7 +2,7 @@
 
 Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes de iniciar el siguiente.
 
-- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **en curso**: modelo de datos implementado y verificado en local, **pendiente de revisión del diff y de autorización para aplicar las migraciones a Supabase**. Sin decisiones de arquitectura pendientes.
+- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 sin iniciar. Sin decisiones de arquitectura pendientes.
 - **Plan de referencia:** [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md)
 - **Ventana de desarrollo:** 01/08/2026 → 15/11/2026 (16 sprints semanales, Anexo F revisado)
 - **Estados posibles:** `Pendiente` · `En curso` · `Completado` · `Completado con observaciones` · `Bloqueado`
@@ -14,7 +14,7 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 | Sprint | Fechas | Objetivo | Estado |
 |---|---|---|---|
 | 1 | 01/08 – 07/08 | Entorno, repositorio y CI/CD | Completado |
-| 2 | 08/08 – 14/08 | Modelo de datos e incentivos | En curso |
+| 2 | 08/08 – 14/08 | Modelo de datos e incentivos | Completado |
 | 3 | 15/08 – 21/08 | Autenticación, roles y permisos | Pendiente |
 | 4 | 22/08 – 28/08 | Verificación de identidad y privacidad | Pendiente |
 | 5 | 29/08 – 04/09 | Mapa público y geolocalización | Pendiente |
@@ -30,7 +30,7 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 | 15 | 07/11 – 13/11 | Carga, dataset definitivo y documentación | Pendiente |
 | 16 | 14/11 – 15/11 | Cierre y preparación de la defensa | Pendiente |
 
-**Progreso:** 1 / 16 sprints completados (Sprint 1 cerrado el 20/08/2026, con el despliegue en Vercel/Railway/Supabase verificado en producción). Sprint 2 en curso: implementación local terminada y verificada, sin aplicar a Supabase.
+**Progreso:** 2 / 16 sprints completados (Sprint 1 y Sprint 2, ambos cerrados el 20/08/2026). Sprint 3 **no iniciado**: su ventana planificada comienza el 15/08, pero la ejecución real arrastra el desvío de calendario registrado en CT-29 y arranca cuando se autorice.
 
 ### Decisiones que condicionan el avance
 
@@ -162,10 +162,8 @@ El responsable del proyecto realiza y aprueba los commits; ningún cambio se com
 
 **Fechas planificadas:** 08/08/2026 – 14/08/2026
 **Fecha real de inicio:** 20/08/2026
-**Estado:** En curso
-**Fecha real de cierre:** —
-
-> **Qué falta para cerrarlo:** revisión del diff por el responsable del proyecto y **autorización explícita** para aplicar las migraciones a Supabase. La implementación local está terminada y verificada; **nada se ha commiteado ni aplicado a producción**.
+**Estado:** Completado
+**Fecha real de cierre:** 20/08/2026 (implementación, CI, despliegue productivo verificado y respaldos previo y posterior a la migración)
 
 ### Funcionalidades terminadas
 - **Diseño aprobado en dos fases previas** (inspección y addendum) con 16 decisiones cerradas (D2-01 … D2-16) antes de escribir código.
@@ -196,13 +194,36 @@ Todas dentro del contenedor `Dockerfile.dev` contra PostgreSQL 17 + PostGIS 3.5.
 - `python manage.py check`, `python manage.py makemigrations --check --no-input`, `ruff check .` y `ruff format --check .`: sin hallazgos.
 - Frontend: `npm run typecheck`, `npm run lint` y `prettier --check .` en verde.
 
+#### Despliegue productivo y verificación (20/08/2026)
+
+- **Commit desplegado:** `c134ca9` (`feat(data): implementar modelo de dominio del Sprint 2`), 80 archivos, +4.333 líneas.
+- **CI sobre ese commit:** CI Backend **success** (job `test`: Ruff, `makemigrations --check`, `migrate` sobre base vacía y `pytest --cov`) y CI Frontend **success** (job `build`: Prettier, ESLint, `tsc`, `next build`). Sin checks pendientes ni rojos.
+- **Migraciones en Supabase:** las **nueve** del Sprint 2 aplicadas, `django_migrations` con **28 filas** (19 del Sprint 1 + 9 nuevas). Ninguna quedó pendiente y no hubo aplicación parcial.
+- **Esquema productivo verificado** con consultas de solo lectura: las **18 entidades** presentes (17 nuevas más `users`, que ya existía); `reports.location` como `geometry(Point,4326)` con **un único índice GIST**; los B-tree de `status`, `priority` y `created_at`; los cuatro índices nominales del ledger, incluidos los dos únicos parciales de `REPORT_CREATED` y `CONFIRMATION_CREATED`; el `CheckConstraint` de coherencia estado ↔ marca temporal idéntico al validado en local; `document_hmac` NOT NULL y único; `reports.category_id` NOT NULL, `institution_id` nullable, `priority` y `source` NOT NULL; `report_confirmations` **sin** columna `confirmed_at`.
+- **Entorno real:** PostgreSQL **17.6**, PostGIS **3.3.7** en el esquema **`gis`**, `search_path = public,gis,extensions`.
+- **Seed productivo:** 3 instituciones y 10 categorías con el mapeo completo del Anexo A.3, todas con `default_priority = MEDIA`, sin `contact_email` ni `sla_hours`. Las 15 tablas funcionales restantes y `users` quedaron en 0 filas: la migración creó estructura y catálogos, sin datos inesperados.
+- La verificación se ejecutó con la sesión de base de datos fijada en `READ ONLY`, comprobado con un intento de escritura deliberado que PostgreSQL rechazó.
+
+#### Respaldos del Sprint 2
+
+Dos volcados en formato *custom* con `--no-owner --no-acl`, ambos fuera del repositorio, con permisos restrictivos y **ambos conservados**:
+
+| Clasificación | Archivo | Estado que representa |
+|---|---|---|
+| **BACKUP PRE-SPRINT-2** | `ciudadania_activa_20260820_022332.dump` | producción **antes** de las migraciones estructurales del Sprint 2 (solo las 10 tablas del Sprint 1) |
+| **BACKUP POST-SPRINT-2** | `ciudadania_activa_20260820_042805_post_s2.dump` | producción **después** de las migraciones (las 17 tablas nuevas presentes) |
+
+La diferencia entre ambos TOC es exactamente las 17 tablas nuevas: ausentes en el PRE, presentes en el POST. El POST-S2 se validó de extremo a extremo: `pg_restore --list` legible y **restauración real** en una instancia PostgreSQL/PostGIS 17 temporal y desechable. La restauración completa falla en tres objetos de **`supabase_vault`** —extensión propia de Supabase que no existe en PostgreSQL vanilla, límite ya documentado en ADR-0003— y **ninguno** de los errores es atribuible a otra causa; excluyendo únicamente los objetos de `vault` de la lista de restauración, el `pg_restore` termina en **exit 0** sin errores. Sobre la base restaurada se comprobaron las 18 entidades, las 28 migraciones, el GIST, los índices y el `CHECK` del ledger, y los catálogos semilla completos.
+
 ### Problemas encontrados
 - **La base de datos de pruebas no heredaba PostGIS.** La imagen `postgis/postgis` habilita la extensión en la base del proyecto y en `template_postgis`, pero no en `template1`, que es la plantilla que PostgreSQL usa al crear la base de test. Con `reports.location` la creación de la base de pruebas fallaba porque el tipo `geometry` no existía. Se resolvió declarando `DATABASES["default"]["TEST"] = {"TEMPLATE": "template_postgis"}` **solo en `config/settings/test.py`**: la extensión sigue siendo infraestructura provisionada (ADR-0003) y ninguna migración la crea, de modo que el comportamiento en Supabase no cambia. Local y CI usan la misma imagen, así que la plantilla existe en ambos.
 - **`makemigrations` agrupó la ampliación de `users` y `citizen_profiles` en una sola migración.** Se dividió a mano en `0002_user_domain_fields` (tres `AddField`) y `0003_citizen_profile` (`CreateModel`) antes de aplicarlas, para poder revertir el perfil sin deshacer las columnas del usuario. Ninguna migración ya aplicada fue editada.
 - **Archivos generados dentro del contenedor quedaron con propietario `root`** por el volumen montado. Se corrigió la propiedad tras cada generación; no afecta al contenido.
 
 ### Commits relevantes
-_Pendiente: no se ha realizado ningún commit. El responsable del proyecto revisa el diff y decide._
+- `c134ca9` feat(data): implementar modelo de dominio del Sprint 2
+
+El responsable del proyecto revisó el diff y aprobó el commit; ningún cambio se commitea automáticamente. El cierre documental recogido en esta entrada se registra en un commit posterior.
 
 ### Observaciones y desvíos respecto del plan
 - Incorpora las correcciones **C-01** (estado `ANULADO` presente en el enumerado y probado), **C-02** (sin `CHECK` de autoconfirmación, con prueba que lo documenta), **C-06** (el `User` se amplía por migración incremental, no se redefine) y **C-09** (`credited_at`, `voided_at` y `reversed_at` en la migración inicial de `reward_transactions`).
@@ -210,6 +231,9 @@ _Pendiente: no se ha realizado ningún commit. El responsable del proyecto revis
 - **`sla_hours` y `contact_email` quedan vacíos**: la tesis no documenta ningún valor y no se inventó ninguno. Se completarán cuando exista el dato real (métricas del Sprint 13).
 - **Nada de la lógica de negocio se adelantó**: no hay endpoints nuevos, ni servicios de incentivos, confirmación, validación, ranking, canje o IA, ni tareas de Celery, ni signals. El único servicio con cuerpo real es el de auditoría, que el propio Sprint 2 exige tener disponible.
 - El desvío de calendario del Sprint 1 (CT-29) se arrastra: el sprint planificado para el 08/08–14/08 comenzó el 20/08/2026. Es desvío de fechas, no de alcance.
+- **Railway aplica las migraciones automáticamente en el pre-deploy.** El servicio de backend tiene configurado `python manage.py migrate --noinput` como comando de pre-deploy (fijado en el Sprint 1). El push de `c134ca9` disparó ese despliegue y las nueve migraciones quedaron aplicadas en Supabase entre las **07:11:23 y las 07:11:29 UTC** del 20/08/2026, mientras **CI Backend todavía estaba corriendo** —terminó a las **07:13:04 UTC**—. No es un fallo de Django ni de Railway: es una propiedad del pipeline tal como está configurado, y conviene tenerla presente porque significa que **un push a `main` con migraciones nuevas puede modificar producción antes de que CI Backend termine**. El resultado fue correcto y verificado, y el hallazgo no bloqueó el sprint.
+- **Aprendizaje operativo y procedimiento para los sprints siguientes.** Mientras `migrate` permanezca en el pre-deploy de Railway, el respaldo previo a una migración estructural debe generarse **antes** del push a `main`, no después de que CI termine. El flujo preferido queda documentado así: rama o *pull request* → **CI verde** → **`pg_dump` productivo previo** → *merge*/push a `main` → Railway ejecuta `migrate` en el pre-deploy → **verificación productiva** → respaldo posterior si el cambio es estructuralmente relevante. Si en algún momento se quisiera un gate manual absoluto, la alternativa es retirar `migrate` del pre-deploy y ejecutarlo como operación autorizada aparte. **No se modificó la configuración de Railway en este sprint**, ni el esquema de ramas, ni los workflows de CI: por ahora es procedimiento documentado. Ver `ADR-0003` y el `README.md`.
+- En este sprint la secuencia real fue la inversa —respaldo previo tomado a las 05:23 UTC, push a las 07:10, migración automática a las 07:11— así que el punto de retorno anterior a las migraciones existe y está conservado, pero se obtuvo **antes** en el tiempo y no como paso inmediatamente previo al despliegue.
 
 ---
 
