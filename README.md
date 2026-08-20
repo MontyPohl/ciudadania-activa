@@ -94,6 +94,29 @@ python manage.py runserver
 La API queda disponible en `http://localhost:8000/api/v1/`. Endpoint de verificación:
 `GET /api/v1/health/`.
 
+#### Acceso con Google (Sprint 3)
+
+La autenticación usa **Google Identity Services**: el navegador obtiene un ID token y el
+backend lo verifica antes de emitir su propio JWT. Hace falta un **OAuth Client ID** de
+tipo «aplicación web» creado en Google Cloud, con estos orígenes JavaScript autorizados:
+
+- `http://localhost:3000` para desarrollo
+- `https://ciudadania-activa.vercel.app` para producción
+
+**No se configuran redirect URIs ni client secret**: el flujo aprobado es de ID token, no
+de Authorization Code (ver [ADR-0005](docs/adr/ADR-0005-autenticacion-oauth-jwt.md)).
+
+El mismo valor va en dos variables: `GOOGLE_OAUTH_CLIENT_ID` en el backend y
+`NEXT_PUBLIC_GOOGLE_CLIENT_ID` en el frontend. El Client ID **no es un secreto** —viaja al
+navegador por diseño—, pero tampoco se versiona: `.env.example` solo declara los nombres.
+
+Sin esa variable el proyecto **sigue arrancando y compilando**: la pantalla de acceso
+muestra un aviso de que Google no está configurado y el backend rechaza cualquier intento
+de login de forma segura.
+
+Los roles no se asignan desde la interfaz: se otorgan por consola con `promote_user` (ver
+[Comandos habituales](#comandos-habituales)).
+
 #### Catálogos semilla
 
 `migrate` deja cargadas las 3 instituciones y las 10 categorías del MVP mediante la
@@ -181,6 +204,8 @@ que no pasa por `docker compose`, precisamente para no romper el aislamiento des
 | `cd backend && python manage.py makemigrations --check` | Verifica que no falten migraciones |
 | `cd backend && ruff format --check .` | Verifica el formato del backend |
 | `cd backend && python manage.py seed_catalogs` | Recarga los catálogos semilla (idempotente) |
+| `cd backend && python manage.py promote_user <email> --role operator --institution <slug>` | Promueve un usuario existente a operador |
+| `cd backend && python manage.py promote_user <email> --role admin` | Promueve un usuario existente a administrador |
 | `cd frontend && npm run lint` | Lint del frontend |
 | `cd frontend && npm run typecheck` | Verificación de tipos (`next typegen && tsc --noEmit`) |
 | `cd frontend && npm run format` | Formatea el frontend con Prettier |

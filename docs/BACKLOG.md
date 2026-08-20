@@ -9,7 +9,7 @@ un sprint concreto — ver [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md) y [PROGRESO_
 | # | Ítem | Sprint(s) | Estado |
 |---|---|---|---|
 | 1 | Configuración base: Django, Next.js, PostgreSQL/PostGIS y CI | S1 | Completado |
-| 2 | Autenticación Google OAuth, roles y permisos | S3 | Pendiente |
+| 2 | Autenticación Google OAuth, roles y permisos | S3 | En curso |
 | 3 | Verificación manual con cédula/selfie | S4 | Pendiente |
 | 4 | CRUD de instituciones, categorías y operadores | S2 · S9 | En curso |
 | 5 | Creación de reportes, foto, mapa y advertencia de duplicados | S5 · S6 | Pendiente |

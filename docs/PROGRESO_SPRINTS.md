@@ -2,7 +2,7 @@
 
 Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes de iniciar el siguiente.
 
-- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 sin iniciar. Sin decisiones de arquitectura pendientes.
+- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **en curso** desde el 20/08/2026: autenticación con Google, JWT propio, roles y permisos implementados en rama, pendientes de revisión de diff y de PR. Sin decisiones de arquitectura pendientes.
 - **Plan de referencia:** [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md)
 - **Ventana de desarrollo:** 01/08/2026 → 15/11/2026 (16 sprints semanales, Anexo F revisado)
 - **Estados posibles:** `Pendiente` · `En curso` · `Completado` · `Completado con observaciones` · `Bloqueado`
@@ -15,7 +15,7 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 |---|---|---|---|
 | 1 | 01/08 – 07/08 | Entorno, repositorio y CI/CD | Completado |
 | 2 | 08/08 – 14/08 | Modelo de datos e incentivos | Completado |
-| 3 | 15/08 – 21/08 | Autenticación, roles y permisos | Pendiente |
+| 3 | 15/08 – 21/08 | Autenticación, roles y permisos | En curso |
 | 4 | 22/08 – 28/08 | Verificación de identidad y privacidad | Pendiente |
 | 5 | 29/08 – 04/09 | Mapa público y geolocalización | Pendiente |
 | 6 | 05/09 – 11/09 | Creación de reportes y duplicados | Pendiente |
@@ -30,7 +30,7 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 | 15 | 07/11 – 13/11 | Carga, dataset definitivo y documentación | Pendiente |
 | 16 | 14/11 – 15/11 | Cierre y preparación de la defensa | Pendiente |
 
-**Progreso:** 2 / 16 sprints completados (Sprint 1 y Sprint 2, ambos cerrados el 20/08/2026). Sprint 3 **no iniciado**: su ventana planificada comienza el 15/08, pero la ejecución real arrastra el desvío de calendario registrado en CT-29 y arranca cuando se autorice.
+**Progreso:** 2 / 16 sprints completados (Sprint 1 y Sprint 2, ambos cerrados el 20/08/2026). Sprint 3 **en curso** desde el 20/08/2026; la ejecución real arrastra el desvío de calendario registrado en CT-29.
 
 ### Decisiones que condicionan el avance
 
@@ -241,23 +241,127 @@ El responsable del proyecto revisó el diff y aprobó el commit; ningún cambio 
 ## Sprint 3 — Autenticación, roles y permisos
 
 **Fechas planificadas:** 15/08/2026 – 21/08/2026
-**Estado:** Pendiente
+**Fecha real de inicio:** 20/08/2026
+**Estado:** En curso
 **Fecha real de cierre:** —
 
+> **Qué falta para cerrarlo:** revisión del diff, PR con CI en verde y merge a `main`. La
+> implementación local está terminada y validada; **nada se ha commiteado**. No se espera
+> ninguna migración, así que el merge no altera el esquema productivo.
+
 ### Funcionalidades terminadas
-_Pendiente._
+- **Diseño aprobado en dos fases** (Fase A y addendum A.1) con nueve decisiones cerradas
+  antes de escribir código, registradas en `ADR-0005`.
+- **Flujo de Google Identity Services**: el navegador obtiene un ID token y el backend lo
+  verifica con `google-auth` (firma, emisor, `audience`, expiración) y exige `sub`,
+  `email` y `email_verified`. La identidad de confianza es el claim `sub`, que se guarda
+  en `users.google_oauth_id`. Ni el token ni el `sub` se registran en logs.
+- **JWT propio** con `djangorestframework-simplejwt`: access de 15 minutos, refresh de 7
+  días, sin rotación y **sin `token_blacklist`**, de modo que el sprint no crea ninguna
+  tabla. Vista de renovación propia, porque la de SimpleJWT no comprueba `is_active`.
+- **Tres endpoints**, los del plan: `POST /api/v1/auth/google/`,
+  `POST /api/v1/auth/refresh/` y `GET /api/v1/auth/me/`. **No existe `/auth/logout/`** en
+  Django: sin revocación server-side no habría nada que revocar.
+- **Vinculación de cuentas** con los seis casos resueltos (A-F), 409 genérico en los
+  conflictos, reintento controlado ante `IntegrityError` para que dos peticiones
+  simultáneas con el mismo `sub` produzcan un solo usuario, y búsqueda por
+  `email__iexact` para no generar duplicados por capitalización.
+- **Denegación por defecto**: `DEFAULT_PERMISSION_CLASSES = ["apps.core.permissions.DenyAll"]`.
+  Los cinco permisos del plan viven en `core.permissions` y leen el rol de la base de
+  datos en cada petición, nunca de un claim del token.
+- **BFF mínimo de sesión en Next.js**: tres Route Handlers same-origin que guardan el
+  refresh en una cookie `ca_refresh` **first-party** `HttpOnly` y devuelven al navegador
+  solo el access y el usuario. El access vive en memoria; el resto de la API se consume
+  directamente contra Django con `Authorization: Bearer`.
+- **Frontend**: `SessionProvider` con tres estados, botón de Google con el script oficial
+  de GIS y sin dependencia npm nueva, cabecera con estado de sesión y de verificación,
+  pantalla de acceso, guardas por rol para los grupos `(citizen)`, `(operator)` y
+  `(admin)`, y renovación única compartida ante un `401`.
+- **Comando `promote_user`**, única vía de asignación de roles: promueve usuarios
+  existentes, exige institución para `operator` y la rechaza para `admin`, crea o reactiva
+  el vínculo conservando los demás, es idempotente, no toca `verification_status` ni
+  `is_staff`/`is_superuser`, y audita la promoción como acción de sistema.
+- Se retiran de `.env.example` `GOOGLE_OAUTH_CLIENT_SECRET` y `GOOGLE_OAUTH_REDIRECT_URI`:
+  pertenecían al Authorization Code flow descartado y ninguna parte del código las leía.
 
 ### Pruebas realizadas
-_Pendiente._
+Todas dentro del contenedor `Dockerfile.dev` contra PostgreSQL 17 + PostGIS local, con el
+verificador de Google **sustituido por un doble**: ninguna prueba sale a la red y ninguna
+necesita credenciales reales.
+
+- **Baseline previo a tocar código:** 147 pruebas, cobertura **98 %**.
+- **Resultado:** **249 pruebas verdes**, cobertura **99 %**. Los módulos nuevos
+  (`services/google.py`, `services/accounts.py`, `serializers.py`, `views.py`,
+  `core/permissions.py`, `promote_user`) quedan al **100 %**.
+- Verificación del ID token: válido, firma inválida, expirado, `audience` incorrecta,
+  emisor incorrecto, `email_verified` falso, `sub` ausente o vacío, `email` ausente, JWKS
+  inalcanzable (503) y client id sin configurar (503 sin verificar nada).
+- Vinculación: los seis casos A-F, más el reintento tras `IntegrityError`, dos
+  resoluciones del mismo `sub` que producen un único usuario, y el duplicado preexistente
+  por capitalización que devuelve 409 en lugar de elegir una fila.
+- Usuario nuevo: `citizen`, `PENDIENTE`, contraseña inusable y **sin `CitizenProfile`**.
+- Cuenta inactiva: login 401 genérico, refresh 401, `Bearer` rechazado y sin reactivación.
+- `last_login` cambia en el login y **no** cambia al renovar.
+- JWT: `user_id` con la PK UUID, refresh que no rota, refresh que no sirve como access,
+  `user_id` manipulado a un valor no-UUID y claim `role` inyectado que no eleva privilegios.
+- Permisos: `DenyAll` no concede a nadie —tampoco a un superusuario—, una vista sin
+  permiso declarado no responde, el health público sigue accesible, y los cinco permisos
+  con sus combinaciones de rol, vínculo activo e institución del objeto.
+- `promote_user`: operador con vínculo nuevo y reactivado, idempotencia, conservación de
+  otros vínculos, admin sin flags de Django, combinaciones inválidas, usuario inexistente,
+  auditoría como `system` sin datos sensibles y atomicidad entre rol, vínculo y auditoría.
+- `python manage.py check`, `makemigrations --check --no-input`, `ruff check .` y
+  `ruff format --check .` sin hallazgos.
+- Frontend: `npm run typecheck`, `npm run lint`, `prettier --check .` y `npm run build` en
+  verde. El build genera las tres rutas del BFF y la pantalla de acceso.
 
 ### Problemas encontrados
-_Pendiente._
+- **La vista de renovación de SimpleJWT no comprueba `is_active`.** Su serializador valida
+  el refresh sin cargar al usuario, de modo que una cuenta desactivada podría renovar su
+  sesión indefinidamente. Se resolvió con una vista propia que carga el usuario y devuelve
+  401 genérico. Hay una prueba dedicada.
+- **La clave de pruebas era demasiado corta para firmar HS256.** `SECRET_KEY` en
+  `config/settings/test.py` medía 15 bytes y PyJWT emitía 27 advertencias por petición
+  firmada. Se alargó a 43 bytes; solo afecta al entorno de test.
+- **El linter del frontend rechaza mutar un valor devuelto por `useState`.** El access
+  token se guardaba en un objeto creado con `useState`; se cambió a `useRef`, que es el
+  contenedor mutable idiomático y no dispara `react-hooks/immutability`.
 
 ### Commits relevantes
-_Pendiente._
+_Pendiente: no se ha realizado ningún commit. El responsable del proyecto revisa el diff._
 
 ### Observaciones y desvíos respecto del plan
-_Pendiente._
+- **Cero migraciones**, como estaba previsto: no se tocó ningún modelo, `choices`,
+  `default`, `Meta` ni relación, y `token_blacklist` no se instala precisamente para no
+  crear tablas. `makemigrations --check` confirma `No changes detected`.
+- **El flujo de Google es de ID token, no de Authorization Code.** Es lo que describe el
+  Anexo B (entrada `token_google`) y el propio plan («intercambio del token de Google por
+  JWT propio»). Como consecuencia, las variables `GOOGLE_OAUTH_CLIENT_SECRET` y
+  `GOOGLE_OAUTH_REDIRECT_URI`, escritas en el Sprint 1 anticipando el otro flujo, quedaron
+  sin uso y se retiraron de `.env.example`.
+- **Se añade un BFF mínimo de sesión en Next.js**, no previsto explícitamente en el plan.
+  El motivo es concreto: Vercel y Railway son sitios distintos, así que una cookie de
+  refresh emitida por el backend sería *third-party*. Con el BFF la cookie es first-party
+  y no depende de la política de cookies de terceros del navegador. El BFF es solo de
+  sesión: tres Route Handlers, sin proxy general.
+- **`DenyAll` en lugar de `IsAuthenticated` como permiso por defecto.** Es la lectura
+  literal de «toda vista nueva debe declarar explícitamente su permiso»: con
+  `IsAuthenticated`, una vista olvidada seguiría accesible a cualquier autenticado.
+- **Sin revocación server-side del refresh**, y se documenta como limitación en
+  `ADR-0005`: instalar `token_blacklist` habría creado dos tablas. El logout borra la
+  cookie y olvida el access; el corte de emergencia es `is_active = False`.
+- **`role = admin` no implica `is_staff` ni `is_superuser`.** Ninguna fuente los equipara y
+  mezclarlos confundiría dos sistemas de autorización distintos.
+- **Limitación estructural detectada y no corregida en este sprint:** el índice único de
+  `users.email` es sensible a mayúsculas, así que `Persona@x.com` y `persona@x.com` pueden
+  coexistir. Se mitiga en el servicio con `email__iexact` y guardando en minúsculas; un
+  `UniqueConstraint(Lower("email"))` queda como candidato para un sprint futuro, con su
+  respaldo previo. Registrado en `ADR-0005`.
+- **El login no se audita**: el §30 del plan no lo incluye entre las acciones de auditoría
+  obligatoria. Sí se audita la promoción de rol, que cae dentro de «administración de
+  catálogos, operadores y recompensas».
+- **Nada del Sprint 4 se adelantó**: no hay cédula, ni HMAC, ni selfie, ni revisión
+  administrativa, y el login **no** crea `CitizenProfile`.
 
 ---
 
