@@ -2,7 +2,7 @@
 
 Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes de iniciar el siguiente.
 
-- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 sin iniciar. Sin decisiones de arquitectura pendientes.
+- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **en curso**: modelo de datos implementado y verificado en local, **pendiente de revisión del diff y de autorización para aplicar las migraciones a Supabase**. Sin decisiones de arquitectura pendientes.
 - **Plan de referencia:** [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md)
 - **Ventana de desarrollo:** 01/08/2026 → 15/11/2026 (16 sprints semanales, Anexo F revisado)
 - **Estados posibles:** `Pendiente` · `En curso` · `Completado` · `Completado con observaciones` · `Bloqueado`
@@ -14,7 +14,7 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 | Sprint | Fechas | Objetivo | Estado |
 |---|---|---|---|
 | 1 | 01/08 – 07/08 | Entorno, repositorio y CI/CD | Completado |
-| 2 | 08/08 – 14/08 | Modelo de datos e incentivos | Pendiente |
+| 2 | 08/08 – 14/08 | Modelo de datos e incentivos | En curso |
 | 3 | 15/08 – 21/08 | Autenticación, roles y permisos | Pendiente |
 | 4 | 22/08 – 28/08 | Verificación de identidad y privacidad | Pendiente |
 | 5 | 29/08 – 04/09 | Mapa público y geolocalización | Pendiente |
@@ -30,7 +30,7 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 | 15 | 07/11 – 13/11 | Carga, dataset definitivo y documentación | Pendiente |
 | 16 | 14/11 – 15/11 | Cierre y preparación de la defensa | Pendiente |
 
-**Progreso:** 1 / 16 sprints completados (Sprint 1 cerrado el 20/08/2026, con el despliegue en Vercel/Railway/Supabase verificado en producción). Sprint 2 sin iniciar.
+**Progreso:** 1 / 16 sprints completados (Sprint 1 cerrado el 20/08/2026, con el despliegue en Vercel/Railway/Supabase verificado en producción). Sprint 2 en curso: implementación local terminada y verificada, sin aplicar a Supabase.
 
 ### Decisiones que condicionan el avance
 
@@ -161,23 +161,55 @@ El responsable del proyecto realiza y aprueba los commits; ningún cambio se com
 ## Sprint 2 — Modelo de datos e incentivos
 
 **Fechas planificadas:** 08/08/2026 – 14/08/2026
-**Estado:** Pendiente
+**Fecha real de inicio:** 20/08/2026
+**Estado:** En curso
 **Fecha real de cierre:** —
 
+> **Qué falta para cerrarlo:** revisión del diff por el responsable del proyecto y **autorización explícita** para aplicar las migraciones a Supabase. La implementación local está terminada y verificada; **nada se ha commiteado ni aplicado a producción**.
+
 ### Funcionalidades terminadas
-_Pendiente._
+- **Diseño aprobado en dos fases previas** (inspección y addendum) con 16 decisiones cerradas (D2-01 … D2-16) antes de escribir código.
+- **Modelo base transversal** en `core`: `BaseModel` abstracto (PK `UUID`, `created_at`, `updated_at`), enumeraciones compartidas en `core/enums.py` y servicio de auditoría `core.services.audit.log(actor, action, payload)`.
+- **Las 18 entidades del Anexo A materializadas**: 17 tablas nuevas más la ampliación incremental de `users` con `google_oauth_id`, `role` y `verification_status`. `AUTH_USER_MODEL` y `auth_app.0001_initial` no se tocaron (ADR-0014).
+- Distribución por app según §8 del plan: `auth_app` (`citizen_profiles`), `admin_app` (`institutions`, `categories`, `institution_operators`, `audit_logs`), `reports_app` (`reports`, `report_media`, `report_status_history`, `resolution_evidences`, `report_confirmations`), `ai_client_app` (`ai_classifications`), `rewards_app` (`reward_transactions`, `rewards`, `reward_redemptions`), `notifications_app` (`notifications`), `social_ingestion_app` (`telegram_ingested_messages`, `x_mock_messages`). `map_app` y `analytics_app` siguen sin modelos propios.
+- **Enumeraciones como `TextChoices`** sobre `varchar`, sin tipos `ENUM` nativos. El ledger incluye los **cuatro** estados (`PENDIENTE`, `ACREDITADO`, `ANULADO`, `REVERTIDO`) y los seis `event_type`. No existe ningún estado `VALIDADO` del reporte.
+- **`reports.location` como `geometry(Point,4326)`** con índice GIST, más los B-tree de `status`, `priority` y `created_at`; el de `institution_id` lo aporta la clave foránea.
+- **Ledger con sus tres columnas de soporte desde la migración inicial** (`credited_at`, `voided_at`, `reversed_at`), `CheckConstraint` de coherencia estado ↔ marca temporal, e índices únicos parciales que garantizan un solo `REPORT_CREATED` por reporte y un solo `CONFIRMATION_CREATED` por confirmación.
+- **Catálogos semilla** cargados por la migración de datos `admin_app.0002_seed_catalogs` (idempotente y reversible, con copia congelada), más el management command `seed_catalogs` y el envoltorio `scripts/seed_catalogs.py`: 3 instituciones y 10 categorías con el mapeo del Anexo A.3 y `default_priority = MEDIA`.
+- **Esqueleto declarativo de `rewards_app.services.ledger`** con las cinco funciones del contrato del §8, todas levantando `NotImplementedError`: ninguna regla económica está implementada y `reports_app` no las invoca.
+- **Django Admin de inspección**: los 18 modelos registrados; `reward_transactions`, `audit_logs` y `reward_redemptions` en **solo lectura estricta** (sin alta, cambio ni borrado); `credit_cost` de `rewards` como `readonly_fields` sin usar `editable=False` en el modelo; `document_hmac` y `verification_selfie_url` fuera de `list_display` y `search_fields`.
+- **Tipos TypeScript espejo** en `frontend/src/types/domain.ts` (entidades y enumeraciones). Sin pantallas, hooks ni fetching.
+- Documentación: `docs/DICCIONARIO_DATOS.md` nuevo, `ADR-0004-ledger-auditable.md` nuevo, fila **CT-42** en `CAMBIOS_TESIS_PENDIENTES.md` y sección de catálogos semilla en el `README.md`.
 
 ### Pruebas realizadas
-_Pendiente._
+Todas dentro del contenedor `Dockerfile.dev` contra PostgreSQL 17 + PostGIS 3.5.2 de `infra/docker-compose.yml`. **Ninguna se ejecutó contra Supabase.**
+
+- **Baseline previo a tocar código:** `pytest --collect-only -q` → **7 pruebas**; `pytest --cov=apps` → **91 %** (218 sentencias, 20 sin cubrir).
+- **Resultado final:** **147 pruebas verdes**, cobertura **98 %** (1.501 sentencias, 27 sin cubrir). Por encima del baseline, del objetivo práctico del 90 % y del mínimo contractual RNF-04 (80 %).
+- `python manage.py migrate` sobre base vacía creada desde `template_postgis`: aplica las 28 migraciones y crea **las 18 tablas**, con `auth_app.0001_initial` antes de `admin`.
+- **Rollback completo** en orden inverso de dependencias hasta `auth_app 0001`: no queda ninguna tabla de dominio, `users` sobrevive intacta. **Reaplicación** posterior correcta, con el catálogo semilla de nuevo cargado.
+- Seed: la migración de datos deja 3 instituciones y 10 categorías; `seed_catalogs` ejecutado dos veces consecutivas no duplica ni recrea filas (0 nuevas en ambas), y repone el catálogo si se vacía.
+- Verificación geoespacial directa en PostgreSQL: `geometry_columns` devuelve `POINT / 4326 / 2` para `reports.location`; existe un único índice `USING gist` sobre esa columna; `ST_DWithin` con cast a `geography` encuentra el punto a ~35 m y descarta el lejano con radio de 100 m; `ST_DistanceSphere` mide en metros. Todas las funciones usadas existen en PostGIS 3.3.7, el piso de compatibilidad productivo.
+- Constraints ejercitados con pruebas negativas: unicidades (`institutions.name`/`slug`, `categories.name`/`slug`, `citizen_profiles.document_hmac`, `report_confirmations(report_id, citizen_id)`, `reward_redemptions.code`, `users.google_oauth_id` admitiendo varios `NULL`, `UNIQUE(user, institution)` de operadores, `UNIQUE(institution, name)` de recompensas), `CHECK` de `sla_hours`, `credit_cost`, `credits_spent` y `confidence`, y las **11 combinaciones incoherentes** de estado ↔ marca temporal del ledger, junto con los **cinco casos válidos** —incluidos los dos de `REVERTIDO`—.
+- `on_delete` verificado en base de datos: `SET_NULL` en autor, validador y actores de auditoría; `PROTECT` en categorías, instituciones, sujeto del ledger, reportes con historia económica, confirmadores y recompensas canjeadas; `CASCADE` en material asociado al reporte y en el perfil del ciudadano.
+- Prueba explícita de que la base de datos **no** impide confirmar el propio reporte (C-02/CT-16: la regla es del servicio de dominio del Sprint 7) y de que ninguna función del ledger está implementada.
+- `python manage.py check`, `python manage.py makemigrations --check --no-input`, `ruff check .` y `ruff format --check .`: sin hallazgos.
+- Frontend: `npm run typecheck`, `npm run lint` y `prettier --check .` en verde.
 
 ### Problemas encontrados
-_Pendiente._
+- **La base de datos de pruebas no heredaba PostGIS.** La imagen `postgis/postgis` habilita la extensión en la base del proyecto y en `template_postgis`, pero no en `template1`, que es la plantilla que PostgreSQL usa al crear la base de test. Con `reports.location` la creación de la base de pruebas fallaba porque el tipo `geometry` no existía. Se resolvió declarando `DATABASES["default"]["TEST"] = {"TEMPLATE": "template_postgis"}` **solo en `config/settings/test.py`**: la extensión sigue siendo infraestructura provisionada (ADR-0003) y ninguna migración la crea, de modo que el comportamiento en Supabase no cambia. Local y CI usan la misma imagen, así que la plantilla existe en ambos.
+- **`makemigrations` agrupó la ampliación de `users` y `citizen_profiles` en una sola migración.** Se dividió a mano en `0002_user_domain_fields` (tres `AddField`) y `0003_citizen_profile` (`CreateModel`) antes de aplicarlas, para poder revertir el perfil sin deshacer las columnas del usuario. Ninguna migración ya aplicada fue editada.
+- **Archivos generados dentro del contenedor quedaron con propietario `root`** por el volumen montado. Se corrigió la propiedad tras cada generación; no afecta al contenido.
 
 ### Commits relevantes
-_Pendiente._
+_Pendiente: no se ha realizado ningún commit. El responsable del proyecto revisa el diff y decide._
 
 ### Observaciones y desvíos respecto del plan
-_Pendiente. Incorpora las correcciones C-01 (estado `ANULADO`), C-02 (sin `CHECK` de autoconfirmación), C-06 (el `User` se amplía, no se redefine) y C-09 (`credited_at`, `voided_at` y `reversed_at` desde la migración inicial)._
+- Incorpora las correcciones **C-01** (estado `ANULADO` presente en el enumerado y probado), **C-02** (sin `CHECK` de autoconfirmación, con prueba que lo documenta), **C-06** (el `User` se amplía por migración incremental, no se redefine) y **C-09** (`credited_at`, `voided_at` y `reversed_at` en la migración inicial de `reward_transactions`).
+- **Seis divergencias estructurales respecto del Anexo A**, aprobadas en el diseño y consolidadas en la fila **CT-42** de `CAMBIOS_TESIS_PENDIENTES.md`: `is_active` en instituciones y categorías, `reports.rejection_reason`, `citizen_profiles.verified_by`, uso de `created_at` en lugar de una columna `confirmed_at`, y `reports.institution_id` nullable.
+- **`sla_hours` y `contact_email` quedan vacíos**: la tesis no documenta ningún valor y no se inventó ninguno. Se completarán cuando exista el dato real (métricas del Sprint 13).
+- **Nada de la lógica de negocio se adelantó**: no hay endpoints nuevos, ni servicios de incentivos, confirmación, validación, ranking, canje o IA, ni tareas de Celery, ni signals. El único servicio con cuerpo real es el de auditoría, que el propio Sprint 2 exige tener disponible.
+- El desvío de calendario del Sprint 1 (CT-29) se arrastra: el sprint planificado para el 08/08–14/08 comenzó el 20/08/2026. Es desvío de fechas, no de alcance.
 
 ---
 

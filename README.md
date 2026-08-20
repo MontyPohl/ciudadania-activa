@@ -94,6 +94,23 @@ python manage.py runserver
 La API queda disponible en `http://localhost:8000/api/v1/`. Endpoint de verificación:
 `GET /api/v1/health/`.
 
+#### Catálogos semilla
+
+`migrate` deja cargadas las 3 instituciones y las 10 categorías del MVP mediante la
+migración de datos `admin_app.0002_seed_catalogs`, de modo que **no hace falta ningún paso
+extra** en una instalación desde cero.
+
+Para reponer o reparar el catálogo sobre una base ya migrada:
+
+```bash
+python manage.py seed_catalogs      # equivalente: python scripts/seed_catalogs.py
+```
+
+El comando es **idempotente**: identifica cada fila por su `slug`, así que ejecutarlo varias
+veces no duplica ni recrea registros. No escribe `contact_email` ni `sla_hours`, valores que
+la documentación del proyecto todavía no define. El detalle del modelo de datos está en
+[docs/DICCIONARIO_DATOS.md](docs/DICCIONARIO_DATOS.md).
+
 ### 4. Frontend (Next.js)
 
 ```bash
@@ -162,6 +179,8 @@ que no pasa por `docker compose`, precisamente para no romper el aislamiento des
 | `cd backend && pytest --cov=apps` | Pruebas del backend con cobertura |
 | `cd backend && ruff check .` | Lint del backend |
 | `cd backend && python manage.py makemigrations --check` | Verifica que no falten migraciones |
+| `cd backend && ruff format --check .` | Verifica el formato del backend |
+| `cd backend && python manage.py seed_catalogs` | Recarga los catálogos semilla (idempotente) |
 | `cd frontend && npm run lint` | Lint del frontend |
 | `cd frontend && npm run typecheck` | Verificación de tipos (`next typegen && tsc --noEmit`) |
 | `cd frontend && npm run format` | Formatea el frontend con Prettier |
