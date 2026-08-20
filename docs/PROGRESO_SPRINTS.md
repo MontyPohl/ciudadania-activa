@@ -2,7 +2,7 @@
 
 Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes de iniciar el siguiente.
 
-- **Estado general:** Sprint 1 en curso (implementación local completa y backend verificado contra la base real de Supabase; despliegue en Vercel/Railway pendiente de acción manual). Sin decisiones de arquitectura pendientes.
+- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 sin iniciar. Sin decisiones de arquitectura pendientes.
 - **Plan de referencia:** [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md)
 - **Ventana de desarrollo:** 01/08/2026 → 15/11/2026 (16 sprints semanales, Anexo F revisado)
 - **Estados posibles:** `Pendiente` · `En curso` · `Completado` · `Completado con observaciones` · `Bloqueado`
@@ -13,7 +13,7 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 
 | Sprint | Fechas | Objetivo | Estado |
 |---|---|---|---|
-| 1 | 01/08 – 07/08 | Entorno, repositorio y CI/CD | Completado con observaciones |
+| 1 | 01/08 – 07/08 | Entorno, repositorio y CI/CD | Completado |
 | 2 | 08/08 – 14/08 | Modelo de datos e incentivos | Pendiente |
 | 3 | 15/08 – 21/08 | Autenticación, roles y permisos | Pendiente |
 | 4 | 22/08 – 28/08 | Verificación de identidad y privacidad | Pendiente |
@@ -30,7 +30,7 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 | 15 | 07/11 – 13/11 | Carga, dataset definitivo y documentación | Pendiente |
 | 16 | 14/11 – 15/11 | Cierre y preparación de la defensa | Pendiente |
 
-**Progreso:** 0 / 16 sprints completados (Sprint 1 con la implementación local y CI terminadas; pendiente de completar el despliegue en Vercel/Railway/Supabase para cerrarlo formalmente).
+**Progreso:** 1 / 16 sprints completados (Sprint 1 cerrado el 20/08/2026, con el despliegue en Vercel/Railway/Supabase verificado en producción). Sprint 2 sin iniciar.
 
 ### Decisiones que condicionan el avance
 
@@ -38,7 +38,7 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 |---|---|---|---|
 | D-01 | Reversión de una validación cuyos créditos ya fueron canjeados | Sprint 10 · Sprint 12 | **Resuelta** — la reversión siempre se ejecuta; el saldo es la diferencia entre créditos válidos y créditos consumidos y puede resultar negativa, sin penalización adicional; el vale emitido permanece emitido; no se permite otro canje hasta que la diferencia alcance de nuevo el saldo requerido |
 | D-02 | ¿Puede el operador fijar un `credit_cost` distinto de 1.000? | Sprint 12 | **Resuelta** — no. El costo es fijo en 1.000 créditos en el MVP; `credit_cost` se conserva con `DEFAULT 1000` por extensibilidad futura, pero no es editable por el operador |
-| D-03 | ¿Dónde reside la instancia de PostgreSQL/PostGIS? | Sprint 1 · Sprint 15 | **Resuelta** — en **Supabase**, junto con Storage. El backend Django y los workers Celery se despliegan en Railway y se conectan mediante `DATABASE_URL`. Fundamento: coherencia con la arquitectura de la tesis, soporte de PostGIS, simplificación operativa, centralización de base y almacenamiento, y facilidad de inspección y documentación durante el TCC. La latencia Railway ↔ Supabase se mide en el Sprint 15 y no altera la arquitectura. Si el plan contratado no incluye respaldos automáticos, son obligatorios los respaldos lógicos periódicos |
+| D-03 | ¿Dónde reside la instancia de PostgreSQL/PostGIS? | Sprint 1 · Sprint 15 | **Resuelta** — en **Supabase**, junto con Storage. El backend Django y los workers Celery se despliegan en Railway y se conectan mediante `DATABASE_URL`. Fundamento: coherencia con la arquitectura de la tesis, soporte de PostGIS, simplificación operativa, centralización de base y almacenamiento, y facilidad de inspección y documentación durante el TCC. La latencia Railway ↔ Supabase se mide en el Sprint 15 y no altera la arquitectura. Si el plan contratado no incluye respaldos automáticos, son obligatorios los respaldos lógicos periódicos. **Confirmado el 20/08/2026:** el plan Free no ofrece respaldos programados accesibles para este proyecto, por lo que la rutina manual de `pg_dump` queda en vigor y su procedimiento fue comprobado de extremo a extremo |
 
 **No quedan decisiones pendientes.** La planificación está **aprobada** y habilitada para iniciar el Sprint 1. Detalle en la sección 33.2 de [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md).
 
@@ -56,7 +56,7 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 | C-08 | El saldo institucional se define como la **diferencia entre créditos válidos y créditos consumidos**, no como el importe canjeado. El criterio funcional de reversión distingue el caso que vuelve a cero del que queda negativo | S10 · S11 · S12 |
 | C-09 | `voided_at` incorporado junto a `credited_at` y `reversed_at` en la migración inicial de `reward_transactions` y en el diccionario de datos | S2 |
 | C-10 | PostgreSQL/PostGIS alojado en **Supabase** de forma consistente en arquitectura, despliegue, Sprint 1, riesgos y `ADR-0003`. Backend y workers en Railway, conectados por `DATABASE_URL` | S1 · S15 |
-| C-11 | Política de **respaldos lógicos** (`pg_dump` semanal y antes de cada migración destructiva) obligatoria si el plan de Supabase no incluye respaldos automáticos; volcados fuera del repositorio | S1 en adelante |
+| C-11 | Política de **respaldos lógicos** (`pg_dump` semanal y antes de cada migración destructiva) obligatoria si el plan de Supabase no incluye respaldos automáticos; volcados fuera del repositorio. **Condición confirmada el 20/08/2026** (plan Free sin respaldos programados): la política queda activa y el procedimiento verificado | S1 en adelante |
 | C-12 | Medición explícita de la latencia Railway ↔ Supabase incorporada a las pruebas de carga, aislando tiempo de red del tiempo de aplicación | S15 |
 
 ---
@@ -65,8 +65,8 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 
 **Fechas planificadas:** 01/08/2026 – 07/08/2026
 **Fecha real de inicio:** 12/08/2026
-**Estado:** Completado con observaciones (implementación local y CI completos; despliegue en Vercel/Railway/Supabase pendiente de acción manual del responsable del proyecto)
-**Fecha real de cierre:** —  (queda abierto hasta completar el despliegue, ver "Observaciones y desvíos")
+**Estado:** Completado
+**Fecha real de cierre:** 20/08/2026 (cierre técnico y documental: despliegue verificado en producción y procedimiento de respaldo manual comprobado)
 
 ### Funcionalidades terminadas
 - Monorepo creado con `backend/`, `frontend/`, `infra/`, `docs/adr/` y `.github/workflows/` según §7 del plan.
@@ -108,23 +108,53 @@ Ejecutada antes de iniciar el Sprint 2, para confirmar que lo construido en loca
 - **Alineación de entornos.** El PostgreSQL local pasó de 15 a 17 (`postgis/postgis:17-3.5`) y el servicio `db` del CI de backend con él. Regresión local completa en verde tras el cambio: `migrate` desde base limpia, `makemigrations --check`, `manage.py check`, `pytest --cov=apps` (5 pruebas, 90 %), `ruff check`, comprobaciones GeoDjango y health check.
 - **Aislamiento local/remoto.** Verificado que `docker compose up` sigue apuntando a la base local aunque el `.env` declare una `DATABASE_URL` remota (comprobado con un host ficticio). Es un mecanismo deliberado, documentado en ADR-0003 y en el README.
 
+#### Despliegue en producción y verificación de extremo a extremo (20/08/2026)
+
+Completa los puntos que quedaban como acción manual del responsable del proyecto. Con esto el Sprint 1 no conserva observaciones técnicas bloqueantes.
+
+- **Backend en Railway.** Django desplegado en `https://ciudadania-activa-production.up.railway.app`, con `Root Directory: /backend`, Gunicorn escuchando en `0.0.0.0:8000` y `python manage.py migrate --noinput` como comando de pre-deploy. `GET /api/v1/health/` responde **HTTP 200** con `status=ok`, `db=true` y `redis=true`.
+- **Hotfix del healthcheck de Railway.** `SECURE_SSL_REDIRECT=True` hacía que el healthcheck HTTP interno de Railway —que consulta el contenedor por HTTP plano y sin `X-Forwarded-Proto`— recibiera un **301** y el deploy fallara con «Healthcheck failure». Se corrigió con `SECURE_REDIRECT_EXEMPT = [r"^api/v1/health/$"]` en `config/settings/prod.py`, que exime **solo** esa ruta; HTTPS sigue siendo obligatorio para el resto del tráfico. En el mismo cambio, la comprobación de Redis del health check pasó a usar timeouts explícitos de 2 s (`socket_connect_timeout`, `socket_timeout`) y se añadió una prueba de regresión. Commit `0673ef6` (18/08/2026).
+- **Redis en Railway.** Instancia gestionada operativa; el backend reporta `redis=true`.
+- **Worker de Celery en Railway.** Servicio independiente, sin dominio público, sin healthcheck HTTP y sin pre-deploy de migraciones. Start command: `celery -A config.celery:app worker --loglevel=info --concurrency=2`. Conectado correctamente al Redis privado de Railway; log confirmado (`mingle: all alone`, `celery@… ready.`). `--concurrency=2` se fija de forma explícita porque, sin el parámetro, Celery detecta las 48 CPU del host y levanta 48 procesos innecesarios. **Celery Beat no se desplegó:** todavía no existen tareas periódicas reales que lo requieran (la primera está prevista en el Sprint 10).
+- **Frontend en Vercel.** Next.js desplegado en `https://ciudadania-activa.vercel.app`, con `Root Directory: frontend` y la variable pública `NEXT_PUBLIC_API_URL` apuntando al backend de Railway. No se cargan secretos de backend en Vercel.
+- **CORS.** El backend declara `CORS_ALLOWED_ORIGINS=https://ciudadania-activa.vercel.app`. La integración frontend → backend se probó correctamente, de modo que queda cumplido el criterio de aceptación «el frontend desplegado consulta correctamente el backend desplegado».
+- **GitHub Actions.** Verificado en el panel: CI Backend en verde sobre `0673ef6` y sobre `32215e1`; CI Frontend en verde sobre `32215e1`; Dependency Graph en verde. El commit `0673ef6` solo afecta al backend, por lo que no dispara —ni necesita— un run nuevo de frontend.
+
+#### Respaldos: verificación del plan y comprobación del procedimiento manual (20/08/2026)
+
+Cierra el punto 2 de las acciones manuales y el criterio C-11 / D-03.
+
+- **El plan Free de Supabase no ofrece respaldos programados** accesibles para este proyecto. Queda por tanto activa la política de ADR-0003: `pg_dump` manual periódico, respaldo previo a toda migración destructiva o importante, volcados **fuera del repositorio** y **nunca versionados**.
+- **Procedimiento comprobado de extremo a extremo.** Cliente PostgreSQL **17.11** ejecutado mediante contenedor `postgres:17` (la máquina de trabajo no tiene cliente nativo y no se instalaron paquetes en el sistema). Volcado en formato *custom* con `--no-owner --no-acl`, guardado fuera del repositorio y con permisos restrictivos. `pg_dump` terminó con **código 0 y sin advertencias**, y `pg_restore --list` leyó el archivo sin errores: **≈437 entradas de objeto**, las 10 tablas Django del esquema `public` —incluidas las de `auth_app`— y las referencias de PostGIS (esquema `gis`, extensión `postgis`, `spatial_ref_sys`).
+- **Restauración real probada** sobre una instancia PostgreSQL/PostGIS 17 temporal y desechable, eliminada al terminar: las tablas Django se restauraron completas, las 19 migraciones esperadas están presentes (`admin`, `auth`, `auth_app`, `contenttypes`, `sessions`) y PostGIS quedó funcional (GEOS y PROJ operativos, *round-trip* de geometría y `ST_Transform`/`ST_Distance` correctos). **Única incompatibilidad:** la extensión `supabase_vault`, específica del entorno Supabase, no existe en PostgreSQL vanilla, de modo que ni ella ni su tabla de secretos se restauran en ese destino. No es un defecto del volcado.
+- Para una restauración fiel a producción, el destino debe usar una versión de **PostGIS compatible con 3.3.7**: el volcado emite `CREATE EXTENSION` sin versión, por lo que adopta la que el destino tenga instalada.
+- **La base de producción no fue modificada.** Solo se ejecutaron operaciones de lectura (`pg_dump` toma únicamente locks `ACCESS SHARE`) y consultas de catálogo. No se ejecutó ninguna restauración contra Supabase.
+
 ### Problemas encontrados
-- Durante la verificación visual, Docker Desktop quedó con **dos procesos `com.docker.backend` simultáneos** tras un reinicio previo del daemon, lo que dejó la API de Docker respondiendo `500 Internal Server Error` (`docker ps`, `docker compose ps` colgados). Se resolvió terminando todos los procesos `Docker Desktop`/`com.docker.*` y relanzando la aplicación. Mientras el daemon estaba degradado, una captura de pantalla mostró `db`/`redis` en rojo con `status: "ok"` en el pill estático — no es un defecto de la aplicación, sino un efecto de la inestabilidad puntual del motor de Docker en esta máquina; **pendiente de última verificación tras el reinicio** (ver más abajo).
+- Durante la verificación visual, Docker Desktop quedó con **dos procesos `com.docker.backend` simultáneos** tras un reinicio previo del daemon, lo que dejó la API de Docker respondiendo `500 Internal Server Error` (`docker ps`, `docker compose ps` colgados). Se resolvió terminando todos los procesos `Docker Desktop`/`com.docker.*` y relanzando la aplicación. Mientras el daemon estaba degradado, una captura de pantalla mostró `db`/`redis` en rojo con `status: "ok"` en el pill estático — no es un defecto de la aplicación, sino un efecto de la inestabilidad puntual del motor de Docker en esta máquina. **Cerrado:** el health check quedó verificado en producción sobre Railway (`db=true`, `redis=true`).
 - `create-next-app`/`next dev` (Next.js 16) regeneran automáticamente `AGENTS.md` y `CLAUDE.md` en la raíz del frontend en cada arranque. Se desactivó con `agentRules: false` en `next.config.ts`, ya que esos archivos no forman parte de la estructura documentada en el plan.
 - GDAL/GEOS no están disponibles de forma nativa en Windows; siguiendo la mitigación ya prevista en el plan, toda verificación de backend (migraciones, pruebas, lint) se ejecutó dentro del contenedor `Dockerfile.dev`, no en el host.
+- Durante la validación temporal de la restauración del respaldo (20/08/2026) se ejecutó por error `docker volume prune -f` en lugar de una limpieza dirigida al contenedor de prueba. Eliminó **5 volúmenes anónimos huérfanos** del entorno de desarrollo; los volúmenes nombrados de los proyectos permanecieron intactos y no hubo pérdida conocida de información de este proyecto. **Aprendizaje:** para limpiar pruebas se usa `docker rm -f -v` sobre el contenedor concreto y se evita el prune global.
 
 ### Commits relevantes
-_Pendiente — el responsable del proyecto realiza y aprueba los commits. Ningún cambio de este sprint fue commiteado automáticamente._
+- `1698932` chore(init): configurar base técnica de Ciudadanía Activa
+- `dfb2f47` docs: agregar matriz de cambios pendientes de la tesis
+- `d0056c0` fix(infra): alinear PostgreSQL y conexión con Supabase
+- `de0dd87` fix(frontend): generar tipos antes del typecheck
+- `32215e1` docs: actualizar arquitectura Supabase y trazabilidad de tesis
+- `0673ef6` fix(deploy): corregir healthcheck de Railway
+
+El responsable del proyecto realiza y aprueba los commits; ningún cambio se commitea automáticamente. El cierre documental recogido en esta entrada se registra en el commit `docs: cerrar Sprint 1 con despliegue verificado`.
 
 ### Observaciones y desvíos respecto del plan
 - Incorpora la corrección **C-06** (`AUTH_USER_MODEL` y el esqueleto mínimo de `auth_app.User` definidos antes de la primera migración — verificado con `migrate` sobre base vacía) y **C-10** (arquitectura de base de datos consistente: PostGIS en Supabase, backend/workers en Railway, conexión por `DATABASE_URL`; en local, el mismo `DATABASE_URL` apunta al contenedor de `infra/docker-compose.yml` sin ninguna rama de código distinta).
-- **Pendiente de acción manual del responsable del proyecto** (no ejecutable por el asistente sin acceso a las cuentas):
+- **Acciones manuales del responsable del proyecto** (no ejecutables por el asistente sin acceso a las cuentas), **todas completadas**:
   1. ~~Crear el proyecto en **Supabase**, habilitar PostGIS (`CREATE EXTENSION postgis;`) y obtener el `DATABASE_URL` de producción.~~ **Hecho (16/08/2026):** proyecto creado, PostGIS habilitada en el esquema `gis`, conexión verificada por Session Pooler con TLS y migraciones del Sprint 1 aplicadas. Detalle en "Verificación del backend contra la instancia real de Supabase".
-  2. Verificar en el panel de Supabase si el plan contratado incluye **respaldos automáticos** (criterio C-11/D-03). Si no los incluye, iniciar la rutina de `pg_dump` semanal y antes de cada migración destructiva, y registrar aquí la primera ejecución. **Sigue pendiente:** requiere acceso al panel de facturación.
-  3. Crear el proyecto en **Railway** para backend y worker, configurar variables de entorno de producción y conectar el repositorio (`Root Directory: backend`).
-  4. Crear el proyecto en **Vercel**, conectar el repositorio (`Root Directory: frontend`) y configurar `NEXT_PUBLIC_API_URL` apuntando al backend de Railway.
-  5. Con ambos desplegados, verificar el criterio de aceptación "el frontend desplegado consulta correctamente el backend desplegado" y abrir la PR de prueba para confirmar CI en verde antes de cerrar el sprint formalmente.
-  6. Trasladar el backlog de `docs/BACKLOG.md` a la herramienta de tablero que el equipo decida usar (GitHub Projects u otra), si se prefiere una herramienta distinta al archivo versionado.
+  2. ~~Verificar en el panel de Supabase si el plan contratado incluye **respaldos automáticos** (criterio C-11/D-03). Si no los incluye, iniciar la rutina de `pg_dump`.~~ **Hecho (20/08/2026):** el plan Free no ofrece respaldos programados accesibles para este proyecto. La rutina manual queda activa y su procedimiento se comprobó de extremo a extremo, incluida una restauración real. Detalle en "Respaldos: verificación del plan y comprobación del procedimiento manual".
+  3. ~~Crear el proyecto en **Railway** para backend y worker, configurar variables de entorno de producción y conectar el repositorio.~~ **Hecho (verificado el 20/08/2026):** backend y `celery-worker` desplegados como servicios separados, con `Root Directory: /backend` y Redis gestionado. Detalle en "Despliegue en producción y verificación de extremo a extremo".
+  4. ~~Crear el proyecto en **Vercel**, conectar el repositorio (`Root Directory: frontend`) y configurar `NEXT_PUBLIC_API_URL` apuntando al backend de Railway.~~ **Hecho (verificado el 20/08/2026).**
+  5. ~~Con ambos desplegados, verificar el criterio de aceptación "el frontend desplegado consulta correctamente el backend desplegado" y confirmar CI en verde antes de cerrar el sprint formalmente.~~ **Hecho (20/08/2026):** integración frontend → backend probada con `CORS_ALLOWED_ORIGINS` restringido al dominio de Vercel, y CI de backend y frontend en verde. El fallo de healthcheck detectado en el camino se corrigió en `0673ef6`.
+  6. Trasladar el backlog de `docs/BACKLOG.md` a la herramienta de tablero que el equipo decida usar (GitHub Projects u otra), si se prefiere una herramienta distinta al archivo versionado. **Opcional y sin efecto sobre el cierre del sprint:** el backlog ya está trasladado y versionado en el repositorio, que satisface el criterio de aceptación.
 
 ---
 
@@ -496,7 +526,7 @@ Se completa a medida que las mediciones estén disponibles (Sprints 14 y 15).
 |---|---|---|---|
 | ADR-0001 | Monorepo frontend + backend | S1 | Aceptada |
 | ADR-0002 | Django modular por apps de dominio | S1 | Aceptada |
-| ADR-0003 | PostgreSQL + PostGIS y alojamiento en Supabase (documenta D-03, versiones reales, `search_path`, aislamiento local/remoto, TLS y la política de respaldos) | S1 | Aceptada — actualizada el 16/08/2026 con la verificación contra la instancia real; pendiente confirmar en Supabase si el plan incluye respaldos automáticos |
+| ADR-0003 | PostgreSQL + PostGIS y alojamiento en Supabase (documenta D-03, versiones reales, `search_path`, aislamiento local/remoto, TLS y la política de respaldos) | S1 | Aceptada — actualizada el 20/08/2026: plan Free sin respaldos programados, política de respaldo manual verificada con restauración real y despliegue en Railway/Vercel operativo |
 | ADR-0004 | Ledger auditable con importes inmutables | S2 | Pendiente |
 | ADR-0005 | Google OAuth 2.0 + JWT | S3 | Pendiente |
 | ADR-0006 | Identidad HMAC y almacenamiento privado | S4 | Pendiente |

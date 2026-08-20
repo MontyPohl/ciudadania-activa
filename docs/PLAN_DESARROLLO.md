@@ -413,6 +413,10 @@ Frontend Next.js en Vercel (CDN + SSR); backend Django, `rewards_app` y workers 
 
 **Respaldos.** Si el plan de Supabase contratado **no incluye respaldos automáticos**, es obligatorio realizar **respaldos lógicos periódicos** durante todo el desarrollo (`pg_dump` semanal como mínimo, y siempre antes de aplicar migraciones destructivas o de regenerar el dataset sintético). Los volcados se guardan fuera del repositorio y nunca se versionan, ya que pueden contener datos de las cuentas de prueba. La política de respaldos vigente se documenta en `ADR-0003` y su cumplimiento se registra en `PROGRESO_SPRINTS.md`.
 
+> **Ejecución real (verificada el 20/08/2026, ADR-0003).** La condición anterior quedó resuelta: el plan **Free** de Supabase **no ofrece respaldos programados** accesibles para este proyecto, de modo que la rutina de respaldo lógico manual está **activa y es obligatoria**. El procedimiento se comprobó de extremo a extremo —volcado en formato *custom* con `--no-owner --no-acl` fuera del repositorio, validado con `pg_restore --list` y con una **restauración real** sobre una instancia PostgreSQL/PostGIS 17 temporal— con dos límites documentados: la extensión `supabase_vault` no existe en PostgreSQL vanilla, y la versión de PostGIS del destino debe ser compatible con **3.3.7**. Detalle en `ADR-0003` y en el Sprint 1 de [PROGRESO_SPRINTS.md](PROGRESO_SPRINTS.md).
+
+> **Despliegue efectivo (verificado el 20/08/2026).** La vista de despliegue descrita arriba está operativa: backend Django y un servicio separado de **worker de Celery** en Railway, Redis gestionado en Railway, frontend Next.js en Vercel y PostgreSQL/PostGIS más almacenamiento en Supabase, con `CORS_ALLOWED_ORIGINS` restringido al dominio del frontend. **Celery Beat todavía no se despliega**: la primera tarea periódica está prevista en el Sprint 10.
+
 ---
 
 ## 7. Estructura propuesta del repositorio
@@ -560,7 +564,7 @@ Ningún módulo puede desarrollarse aisladamente: `rewards_app` carece de sentid
 - **CI (GitHub Actions):** en cada PR — Ruff + `pytest` con servicios PostGIS y Redis para backend; ESLint + `tsc --noEmit` + `next build` para frontend. La PR no se integra con CI en rojo.
 - **Definición de “hecho” por sprint:** funcionalidad implementada · pruebas del sprint en verde · cobertura del dominio nuevo ≥ 80 % · documentación actualizada · demo reproducible sobre datos semilla · entrada completada en `PROGRESO_SPRINTS.md`.
 - **Entornos:** desarrollo local con `infra/docker-compose.yml` (PostGIS + Redis) en todos los sprints; despliegue continuo desde `main` a partir del Sprint 1, con el frontend en Vercel, el backend y los workers en Railway, y la base de datos PostgreSQL/PostGIS junto con el almacenamiento en Supabase. La conexión se configura siempre mediante `DATABASE_URL`.
-- **Respaldos:** si el plan de Supabase contratado no incluye respaldos automáticos, se ejecuta un respaldo lógico (`pg_dump`) semanal y antes de cada migración destructiva, guardado fuera del repositorio.
+- **Respaldos:** si el plan de Supabase contratado no incluye respaldos automáticos, se ejecuta un respaldo lógico (`pg_dump`) semanal y antes de cada migración destructiva, guardado fuera del repositorio. *Condición confirmada el 20/08/2026: el plan Free no los incluye, por lo que la rutina manual está activa (§6.6).*
 - **Datos:** `scripts/seed_catalogs.py` (instituciones, categorías, operadores) desde el Sprint 2 y `scripts/generate_dataset.py` con semilla fija para el dataset sintético, ampliado sprint a sprint hasta su versión definitiva en el Sprint 15.
 - **Gestión del alcance:** cada sprint declara explícitamente qué queda **fuera**. Ninguna mejora futura se adelanta, aunque sea técnicamente sencilla.
 
@@ -628,6 +632,8 @@ Página pública desplegada que muestra “backend conectado · base de datos OK
 
 ### Fuera de alcance del sprint
 Cualquier otro modelo de dominio, los campos de negocio del usuario (`google_oauth_id`, `role`, `verification_status`), `citizen_profiles`, autenticación real, endpoints de negocio, pantallas del portal e integración con Gemini.
+
+> **Ejecución real.** Esta sección es **planificación y no se reescribe**. El Sprint 1 se ejecutó entre el 12/08/2026 y el 20/08/2026 y quedó **Completado**: todos los criterios de aceptación anteriores están cumplidos, incluidos el despliegue en Railway y Vercel, la verificación del plan de respaldos de Supabase y la puesta en marcha de la rutina manual de `pg_dump`. El desvío de fechas respecto del 01/08–07/08 planificado, junto con las evidencias de cada criterio, se registra en el Sprint 1 de [PROGRESO_SPRINTS.md](PROGRESO_SPRINTS.md) y en [CAMBIOS_TESIS_PENDIENTES.md](CAMBIOS_TESIS_PENDIENTES.md) (CT-29).
 
 ---
 

@@ -3,9 +3,11 @@
 **Estado:** Aceptada (decisión D-03, resuelta en la etapa de planificación)
 **Sprint:** 1
 **Fecha:** 2026-08-01
-**Última actualización:** 2026-08-16 — se incorporan las versiones reales provisionadas por
-Supabase, el `search_path` explícito, la estrategia de aislamiento local/remoto y la política de TLS,
-todo verificado contra la instancia real.
+**Última actualización:** 2026-08-20 — se registra el estado de despliegue (backend y worker en
+Railway, frontend en Vercel), la confirmación de que el plan Free de Supabase no ofrece respaldos
+programados y la política de respaldo manual ya comprobada con una restauración real.
+Actualización previa: 2026-08-16 — versiones reales provisionadas por Supabase, `search_path`
+explícito, aislamiento local/remoto y política de TLS, verificados contra la instancia real.
 
 ## Contexto
 
@@ -100,11 +102,64 @@ de forma silenciosa si el servidor no ofrece TLS. El uso efectivo de TLS se comp
 `PQsslInUse` de libpq, no con `pg_stat_ssl`: a través del pooler, `pg_stat_ssl` refleja el enlace
 interno Supavisor→PostgreSQL y no el del cliente.
 
-**Objetivo preferido para el despliegue en Railway:** `sslmode=verify-full` con el certificado CA de
-Supabase, que además valida la identidad del servidor. Queda pendiente de configurar cuando se
-aprovisione Railway; requiere distribuir el CA al contenedor y apuntar `sslrootcert` a esa ruta.
+**Objetivo preferido:** `sslmode=verify-full` con el certificado CA de Supabase, que además valida
+la identidad del servidor. Railway ya está aprovisionado y opera con TLS sobre el Session Pooler,
+pero `verify-full` **sigue pendiente**: requiere distribuir el CA al contenedor y apuntar
+`sslrootcert` a esa ruta.
 
 El PostgreSQL local de desarrollo no usa TLS y no lo necesita.
+
+## Estado de despliegue (20/08/2026)
+
+La arquitectura decidida está operativa y verificada de extremo a extremo:
+
+| Componente | Proveedor | Estado |
+|---|---|---|
+| PostgreSQL 17.6 + PostGIS 3.3.7 (esquema `gis`) | Supabase | Operativo, conexión por Session Pooler con TLS |
+| Almacenamiento de archivos | Supabase Storage | Aprovisionado; se usa a partir del Sprint 4 |
+| Backend Django | Railway (`Root Directory: /backend`) | Desplegado; `GET /api/v1/health/` responde `status=ok`, `db=true`, `redis=true` |
+| Worker de Celery | Railway (servicio separado) | Desplegado y conectado al Redis privado; sin dominio público ni healthcheck HTTP |
+| Redis (caché y broker) | Railway | Operativo |
+| Frontend Next.js | Vercel (`Root Directory: frontend`) | Desplegado; consume el backend por `NEXT_PUBLIC_API_URL` |
+
+Django se conecta a Supabase exclusivamente por `DATABASE_URL`, con
+`DB_SEARCH_PATH=public,gis,extensions`. **Celery Beat no está desplegado**: todavía no existen
+tareas periódicas que lo justifiquen. El detalle operativo de cada despliegue se registra en
+[PROGRESO_SPRINTS.md](../PROGRESO_SPRINTS.md) — Sprint 1, no en este ADR.
+
+## Política de respaldo manual
+
+El plan **Free** de Supabase **no ofrece respaldos programados** accesibles para este proyecto
+(verificado el 20/08/2026). La política vigente, por tanto, es de respaldo lógico manual:
+
+- `pg_dump` **periódico** durante todo el desarrollo;
+- `pg_dump` **previo a cualquier migración destructiva o importante** y antes de regenerar el
+  dataset sintético;
+- volcados en formato *custom* con `--no-owner --no-acl`, siempre **fuera del repositorio** y con
+  permisos restrictivos;
+- **nunca se versionan**: pueden contener datos de cuentas de prueba. `.gitignore` excluye
+  `*.dump`, `*.sql` y `*.pgdump`.
+
+El cliente de `pg_dump` debe ser del **major 17**, igual o superior al servidor. Si la máquina no
+tiene cliente nativo, se usa un contenedor `postgres:17` en lugar de instalar paquetes en el
+sistema.
+
+### Restaurabilidad verificada
+
+El procedimiento se comprobó de extremo a extremo el 20/08/2026: volcado sin advertencias,
+`pg_restore --list` legible y **restauración real** sobre una instancia PostgreSQL/PostGIS 17
+temporal, con las tablas Django y las migraciones esperadas completas y PostGIS funcional. Dos
+límites conocidos del procedimiento, que conviene tener presentes al restaurar:
+
+- **`supabase_vault` no existe en PostgreSQL vanilla.** Es una extensión propia del entorno
+  Supabase, así que al restaurar en una instancia estándar fallan su `CREATE EXTENSION` y la carga
+  de su tabla de secretos. No es un defecto del volcado y no afecta a los datos de la aplicación:
+  restaurando sobre otro proyecto Supabase el problema no se presenta. Si se busca un destino
+  vanilla limpio, `--exclude-schema=vault` elimina la fricción.
+- **La versión de PostGIS la fija el destino.** `pg_dump` emite `CREATE EXTENSION` sin versión, por
+  lo que el destino adopta la que tenga instalada. Para una restauración fiel a producción, el
+  destino debe usar una versión compatible con **3.3.7**, coherente con el piso de compatibilidad
+  declarado más arriba.
 
 ## Consecuencias
 
@@ -114,14 +169,9 @@ El PostgreSQL local de desarrollo no usa TLS y no lo necesita.
   Railway. Mitigaciones ya incorporadas al diseño: caché en Redis de lecturas frecuentes del mapa
   y del ranking, índices GIST/B-tree dedicados, `select_related`/`prefetch_related` y agrupación
   de las operaciones del ledger en una única transacción.
-- **Respaldos.** Si el plan de Supabase contratado no incluye respaldos automáticos, es
-  obligatorio ejecutar respaldos lógicos (`pg_dump`) semanales y siempre antes de aplicar una
-  migración destructiva o regenerar el dataset sintético. Los volcados se guardan fuera del
-  repositorio (nunca se versionan) porque pueden contener datos de cuentas de prueba.
-  **Verificación pendiente en este sprint:** confirmar en el panel de Supabase si el plan
-  contratado incluye respaldos automáticos y registrar el resultado en
-  `docs/PROGRESO_SPRINTS.md` — Sprint 1; si no los incluye, dejar constancia de la primera
-  ejecución de la rutina de `pg_dump`.
+- **Respaldos.** **Condición resuelta el 20/08/2026:** el plan **Free** de Supabase no ofrece
+  respaldos programados accesibles para este proyecto, de modo que la política de respaldo lógico
+  manual queda **obligatoria y activa** (ver "Política de respaldo manual" más arriba).
 - Habilitar la extensión (`CREATE EXTENSION postgis;`) es un paso manual de aprovisionamiento en
   el proyecto de Supabase, no una migración de Django. Django comprueba `pg_extension` antes de
   intentar crearla, por lo que no requiere permisos de superusuario en Supabase.

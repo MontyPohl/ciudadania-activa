@@ -19,7 +19,7 @@ Las diferencias entre el prototipo real y lo declarado en la tesis se registran 
 | Base de datos | PostgreSQL 17 + PostGIS, alojada en **Supabase** |
 | Almacenamiento | Supabase Storage |
 | Caché / broker | Redis 7 |
-| Asincronía | Celery + Celery Beat |
+| Asincronía | Celery (worker desplegado; Beat previsto para las tareas periódicas del Sprint 10) |
 | Hosting | Vercel (frontend) · Railway (backend + workers) · Supabase (DB + storage) |
 | Calidad | Ruff (Python) · ESLint + Prettier (TypeScript) · GitHub Actions |
 
@@ -153,7 +153,7 @@ que no pasa por `docker compose`, precisamente para no romper el aislamiento des
    `check` según lo que se quiera verificar.
 
 > Aplicar migraciones contra Supabase modifica la base real. Antes de una migración destructiva
-> corresponde el respaldo lógico previsto en ADR-0003.
+> corresponde el respaldo lógico obligatorio: ver [Respaldos de la base de datos](#respaldos-de-la-base-de-datos).
 
 ## Comandos habituales
 
@@ -178,6 +178,47 @@ con los workers de Celery en **Railway**, conectados a la base de datos y el sto
 **Supabase** mediante `DATABASE_URL`. La configuración de estos proveedores (creación de
 proyectos, variables de entorno de producción y conexión del repositorio) se realiza desde sus
 paneles y no se automatiza desde este repositorio.
+
+### Entornos desplegados
+
+| Servicio | Proveedor | URL pública | Notas |
+|---|---|---|---|
+| Frontend | Vercel | `https://ciudadania-activa.vercel.app` | `Root Directory: frontend`; solo la variable pública `NEXT_PUBLIC_API_URL`. **Ningún secreto de backend se carga en Vercel** |
+| Backend | Railway | `https://ciudadania-activa-production.up.railway.app` | `Root Directory: /backend`; Gunicorn en `0.0.0.0:8000`; pre-deploy `python manage.py migrate --noinput` |
+| Worker de Celery | Railway | — | Servicio separado, sin dominio público ni healthcheck HTTP: `celery -A config.celery:app worker --loglevel=info --concurrency=2` |
+| Base de datos y storage | Supabase | — | PostgreSQL 17 + PostGIS en el esquema `gis` |
+
+Estado del backend: `GET /api/v1/health/` → `{"status":"ok","db":true,"redis":true}`. El backend
+restringe `CORS_ALLOWED_ORIGINS` al dominio del frontend.
+
+Dos detalles de configuración que no son opcionales y conviene no "simplificar":
+
+- `SECURE_REDIRECT_EXEMPT = [r"^api/v1/health/$"]` en `config/settings/prod.py`. Railway consulta el
+  healthcheck por HTTP plano y sin `X-Forwarded-Proto`; sin esta exención, `SECURE_SSL_REDIRECT`
+  devuelve `301` y el deploy falla. HTTPS sigue forzado para el resto de las rutas.
+- `--concurrency=2` en el worker. Sin el parámetro, Celery detecta todas las CPU del host y levanta
+  decenas de procesos innecesarios.
+
+## Respaldos de la base de datos
+
+El plan Free de Supabase **no ofrece respaldos programados** para este proyecto, así que el respaldo
+es **manual y obligatorio**: `pg_dump` periódico y siempre antes de una migración destructiva o
+importante. Los volcados van **fuera del repositorio** y **nunca se versionan** (`.gitignore` ya
+excluye `*.dump`, `*.sql` y `*.pgdump`).
+
+```bash
+# Cliente del major 17. Si la máquina no lo tiene, se usa un contenedor en lugar de instalarlo.
+pg_dump --format=custom --no-owner --no-acl \
+  --file ~/backups/ciudadania-activa/ciudadania_activa_$(date +%Y%m%d_%H%M%S).dump "$DATABASE_URL"
+
+pg_restore --list <archivo.dump>   # validación: debe leerse sin errores
+```
+
+Al restaurar en una instancia PostgreSQL estándar, la extensión `supabase_vault` no existe y sus
+objetos fallan: es esperado y no afecta a los datos de la aplicación (`--exclude-schema=vault` lo
+evita). Para una restauración fiel a producción, el destino debe usar una versión de PostGIS
+compatible con **3.3.7**. El procedimiento completo y sus límites están en
+[ADR-0003](docs/adr/ADR-0003-postgis-y-alojamiento-en-supabase.md).
 
 ## Convenciones
 
