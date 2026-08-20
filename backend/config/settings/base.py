@@ -1,3 +1,4 @@
+from datetime import timedelta
 from pathlib import Path
 
 import environ
@@ -14,6 +15,12 @@ ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=[])
 
 AUTH_USER_MODEL = "auth_app.User"
 API_VERSION = env("API_VERSION", default="0.1.0")
+
+# Client ID de Google. No es un secreto: es el `audience` que debe llevar el ID token y
+# viaja al navegador como NEXT_PUBLIC_GOOGLE_CLIENT_ID. Con el valor vacío el backend
+# arranca con normalidad, pero cualquier intento real de login falla de forma segura:
+# `auth_app.services.google` se niega a verificar tokens sin `audience` configurado.
+GOOGLE_OAUTH_CLIENT_ID = env("GOOGLE_OAUTH_CLIENT_ID", default="")
 
 INSTALLED_APPS = [
     "django.contrib.contenttypes",
@@ -108,8 +115,37 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
     "EXCEPTION_HANDLER": "apps.core.exceptions.api_exception_handler",
-    "DEFAULT_AUTHENTICATION_CLASSES": [],
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ],
+    # Denegación por defecto (Sprint 3): una vista que olvide declarar su permiso queda
+    # cerrada, no abierta a cualquier autenticado. Toda vista debe declararlo de forma
+    # explícita: AllowAny, IsAuthenticated, IsVerifiedCitizen, IsAdmin, etc.
+    "DEFAULT_PERMISSION_CLASSES": ["apps.core.permissions.DenyAll"],
     "TEST_REQUEST_DEFAULT_FORMAT": "json",
+}
+
+# JWT propio del sistema, emitido tras verificar el ID token de Google (ADR-0005).
+# `SIGNING_KEY` no se declara: SimpleJWT usa `SECRET_KEY` por defecto, de modo que no se
+# introduce un secreto nuevo. Consecuencia asumida: rotar DJANGO_SECRET_KEY invalida las
+# sesiones vigentes.
+# `token_blacklist` NO se instala: crearía dos tablas y el Sprint 3 no introduce ninguna.
+# Por eso tampoco se rota el refresh: sin blacklist, rotar no revocaría el anterior y daría
+# una falsa sensación de revocación. El Sprint 3 no implementa revocación server-side.
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(
+        minutes=env.int("JWT_ACCESS_TOKEN_LIFETIME_MINUTES", default=15)
+    ),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=env.int("JWT_REFRESH_TOKEN_LIFETIME_DAYS", default=7)),
+    "ROTATE_REFRESH_TOKENS": False,
+    "BLACKLIST_AFTER_ROTATION": False,
+    "AUTH_HEADER_TYPES": ("Bearer",),
+    "ALGORITHM": "HS256",
+    # La clave primaria del usuario es UUID; SimpleJWT la serializa como cadena.
+    "USER_ID_FIELD": "id",
+    "USER_ID_CLAIM": "user_id",
+    # `last_login` se actualiza solo en el login con Google, nunca al renovar el access.
+    "UPDATE_LAST_LOGIN": False,
 }
 
 CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=[])
