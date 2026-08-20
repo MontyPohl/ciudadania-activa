@@ -39,6 +39,7 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 | D-01 | Reversión de una validación cuyos créditos ya fueron canjeados | Sprint 10 · Sprint 12 | **Resuelta** — la reversión siempre se ejecuta; el saldo es la diferencia entre créditos válidos y créditos consumidos y puede resultar negativa, sin penalización adicional; el vale emitido permanece emitido; no se permite otro canje hasta que la diferencia alcance de nuevo el saldo requerido |
 | D-02 | ¿Puede el operador fijar un `credit_cost` distinto de 1.000? | Sprint 12 | **Resuelta** — no. El costo es fijo en 1.000 créditos en el MVP; `credit_cost` se conserva con `DEFAULT 1000` por extensibilidad futura, pero no es editable por el operador |
 | D-03 | ¿Dónde reside la instancia de PostgreSQL/PostGIS? | Sprint 1 · Sprint 15 | **Resuelta** — en **Supabase**, junto con Storage. El backend Django y los workers Celery se despliegan en Railway y se conectan mediante `DATABASE_URL`. Fundamento: coherencia con la arquitectura de la tesis, soporte de PostGIS, simplificación operativa, centralización de base y almacenamiento, y facilidad de inspección y documentación durante el TCC. La latencia Railway ↔ Supabase se mide en el Sprint 15 y no altera la arquitectura. Si el plan contratado no incluye respaldos automáticos, son obligatorios los respaldos lógicos periódicos. **Confirmado el 20/08/2026:** el plan Free no ofrece respaldos programados accesibles para este proyecto, por lo que la rutina manual de `pg_dump` queda en vigor y su procedimiento fue comprobado de extremo a extremo |
+| D-04 | ¿Qué alcance tiene la integración social del MVP? | Sprint 13 · Sprint 15 | **Resuelta el 20/08/2026** — **exclusivamente una simulación interna de publicaciones de X/Twitter**, cargada desde un dataset del propio proyecto y persistida en `x_mock_messages`. **Telegram queda fuera del alcance** (sin Bot API, sin webhook, sin *polling*, sin token) y **no habrá integración real con la API de X** (sin OAuth, sin *scraping*, sin credenciales sociales, sin Celery para la ingesta). Se conservan `XMockMessage`, `source='x_mock'` y la regla RF-45. La eliminación técnica de `TelegramIngestedMessage` se ejecutará al inicio del Sprint 13 con migración controlada y respaldo previo. Ver **CT-43** |
 
 **No quedan decisiones pendientes.** La planificación está **aprobada** y habilitada para iniciar el Sprint 1. Detalle en la sección 33.2 de [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md).
 
@@ -473,6 +474,24 @@ _Pendiente. Incorpora la decisión D-02 (costo fijo de 1.000 créditos, no edita
 **Estado:** Pendiente
 **Fecha real de cierre:** —
 
+> **Alcance revisado el 20/08/2026 (decisión D-04 · CT-43).** La integración social del MVP se
+> limita a una **simulación interna de publicaciones de X/Twitter**, cargada desde un dataset del
+> propio proyecto y persistida en `x_mock_messages`. **Telegram ya no forma parte del MVP** y **no
+> habrá integración real con la API de X**: sin Bot API, sin webhook, sin *polling*, sin tokens, sin
+> OAuth de X, sin *scraping*, sin credenciales sociales y sin Celery para la ingesta. `XMockMessage`
+> y `source='x_mock'` se conservan, igual que la regla RF-45.
+>
+> **Trabajo estructural previsto para el inicio de este sprint:** eliminar `TelegramIngestedMessage`
+> (modelo, admin, pruebas y tipo TypeScript espejo), retirar el valor `telegram` del enumerado
+> `ReportSource`, generar las migraciones correspondientes en `social_ingestion_app` y `reports_app`,
+> y actualizar entonces `DICCIONARIO_DATOS.md` de 18 a 17 entidades. Al ser una migración
+> **destructiva** (`DROP TABLE telegram_ingested_messages`), exige **respaldo productivo previo al
+> push a `main`** según ADR-0003, y verificación productiva y respaldo posterior tras el
+> auto-migrate de Railway.
+>
+> **A día de hoy nada de eso se ha ejecutado:** `TelegramIngestedMessage` sigue en el modelo, la
+> tabla sigue en producción (sin filas) y el esquema conserva **18 entidades**.
+
 ### Funcionalidades terminadas
 _Pendiente._
 
@@ -486,7 +505,7 @@ _Pendiente._
 _Pendiente._
 
 ### Observaciones y desvíos respecto del plan
-_Pendiente. Telegram y X simulado solo se implementan si el núcleo obligatorio está estable; registrar aquí la decisión tomada y su justificación._
+_Pendiente. La parte social se reduce a la simulación de X/Twitter (D-04 · CT-43) y solo se implementa si el núcleo obligatorio está estable; registrar aquí la decisión tomada y su justificación, junto con el resultado de la eliminación de `TelegramIngestedMessage`._
 
 ---
 

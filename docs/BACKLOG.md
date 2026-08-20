@@ -33,7 +33,11 @@ un sprint concreto — ver [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md) y [PROGRESO_
 | # | Ítem | Sprint(s) | Estado |
 |---|---|---|---|
 | 12 | Dashboard institucional con métricas | S13 | Pendiente |
-| 13 | Bot de Telegram y simulación X/Twitter | S13 | Pendiente |
+| 13 | Simulación de publicaciones de X/Twitter | S13 | Pendiente |
+
+> **Alcance revisado el 20/08/2026 (CT-43).** El ítem 13 es una **simulación interna** de
+> publicaciones de X/Twitter, cargada desde un dataset del propio proyecto: no usa la API de X, ni
+> OAuth, ni *scraping*, ni credenciales sociales. **Telegram queda fuera del MVP.**
 
 ## Prioridad Baja
 

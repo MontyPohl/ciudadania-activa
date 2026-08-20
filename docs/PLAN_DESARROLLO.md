@@ -1320,6 +1320,13 @@ Recompensas económicas reales, convenios institucionales, integración con fact
 
 **Fechas:** 24/10/2026 – 30/10/2026
 
+> **Alcance revisado el 20/08/2026.** La integración social del MVP se limita a una **simulación
+> interna de publicaciones de X/Twitter**. **Telegram queda fuera del alcance** y **no habrá
+> integración real con la API de X**. La eliminación técnica de `TelegramIngestedMessage` se
+> realizará al inicio del Sprint 13, mediante migración controlada y respaldo previo. Ver **CT-43**
+> en [CAMBIOS_TESIS_PENDIENTES.md](CAMBIOS_TESIS_PENDIENTES.md). El texto restante de esta sección
+> conserva la planificación original y no se reescribe.
+
 ### Objetivo
 Cerrar el MVP funcional con los dashboards institucional y público, dejar el sistema integrado de punta a punta y, **solo si el núcleo obligatorio está estable**, incorporar la ingesta desde Telegram y la simulación de X/Twitter.
 
