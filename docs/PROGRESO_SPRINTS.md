@@ -2,7 +2,7 @@
 
 Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes de iniciar el siguiente.
 
-- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **en curso** desde el 20/08/2026: autenticación con Google, JWT propio, roles y permisos implementados en rama, pendientes de revisión de diff y de PR. Sin decisiones de arquitectura pendientes.
+- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 sin iniciar. Sin decisiones de arquitectura pendientes.
 - **Plan de referencia:** [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md)
 - **Ventana de desarrollo:** 01/08/2026 → 15/11/2026 (16 sprints semanales, Anexo F revisado)
 - **Estados posibles:** `Pendiente` · `En curso` · `Completado` · `Completado con observaciones` · `Bloqueado`
@@ -15,7 +15,7 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 |---|---|---|---|
 | 1 | 01/08 – 07/08 | Entorno, repositorio y CI/CD | Completado |
 | 2 | 08/08 – 14/08 | Modelo de datos e incentivos | Completado |
-| 3 | 15/08 – 21/08 | Autenticación, roles y permisos | En curso |
+| 3 | 15/08 – 21/08 | Autenticación, roles y permisos | Completado |
 | 4 | 22/08 – 28/08 | Verificación de identidad y privacidad | Pendiente |
 | 5 | 29/08 – 04/09 | Mapa público y geolocalización | Pendiente |
 | 6 | 05/09 – 11/09 | Creación de reportes y duplicados | Pendiente |
@@ -30,7 +30,7 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 | 15 | 07/11 – 13/11 | Carga, dataset definitivo y documentación | Pendiente |
 | 16 | 14/11 – 15/11 | Cierre y preparación de la defensa | Pendiente |
 
-**Progreso:** 2 / 16 sprints completados (Sprint 1 y Sprint 2, ambos cerrados el 20/08/2026). Sprint 3 **en curso** desde el 20/08/2026; la ejecución real arrastra el desvío de calendario registrado en CT-29.
+**Progreso:** 3 / 16 sprints completados (Sprints 1, 2 y 3, los tres cerrados el 20/08/2026). Sprint 4 **no iniciado**; la ejecución real arrastra el desvío de calendario registrado en CT-29.
 
 ### Decisiones que condicionan el avance
 
@@ -242,12 +242,8 @@ El responsable del proyecto revisó el diff y aprobó el commit; ningún cambio 
 
 **Fechas planificadas:** 15/08/2026 – 21/08/2026
 **Fecha real de inicio:** 20/08/2026
-**Estado:** En curso
-**Fecha real de cierre:** —
-
-> **Qué falta para cerrarlo:** revisión del diff, PR con CI en verde y merge a `main`. La
-> implementación local está terminada y validada; **nada se ha commiteado**. No se espera
-> ninguna migración, así que el merge no altera el esquema productivo.
+**Estado:** Completado
+**Fecha real de cierre:** 20/08/2026 (implementación, CI, despliegue en Railway y Vercel, y login real con Google verificado de extremo a extremo)
 
 ### Funcionalidades terminadas
 - **Diseño aprobado en dos fases** (Fase A y addendum A.1) con nueve decisiones cerradas
@@ -315,6 +311,17 @@ necesita credenciales reales.
 - Frontend: `npm run typecheck`, `npm run lint`, `prettier --check .` y `npm run build` en
   verde. El build genera las tres rutas del BFF y la pantalla de acceso.
 
+#### Despliegue productivo y prueba real (20/08/2026)
+
+- **Commit desplegado:** `d375c76` (`feat(auth): implementar autenticación Google y roles`), integrado a `main` mediante *squash and merge* del PR #2, con 43 archivos y +3.245 líneas.
+- **CI sobre el commit de la rama:** CI Backend **success** (Ruff, `makemigrations --check`, `migrate` sobre base vacía y `pytest --cov`) y CI Frontend **success** (Prettier, ESLint, `tsc`, `next build`). En el log de CI: **262 pruebas verdes y 99 % de cobertura**, y `makemigrations --check` con **`No changes detected`**.
+- **Backend en Railway:** desplegado y operativo. `GET /api/v1/health/` responde **HTTP 200** con `status=ok`, `db=true` y `redis=true`. El `migrate --noinput` del pre-deploy fue una operación **sin efecto**: el sprint no introduce ninguna migración.
+- **Endpoints de autenticación verificados en producción**, sin usar ningún token real: `POST /auth/google/` con cuerpo vacío responde **400**; `POST /auth/refresh/` sin refresh, **400**; `GET /auth/me/` sin `Bearer`, **401**; y `POST /auth/logout/` sigue devolviendo **404**, porque Django expone exactamente tres endpoints de autenticación. Ningún 500.
+- **Frontend en Vercel Production:** desplegado sobre el mismo commit. `GET /login` responde **HTTP 200** y el bundle de producción incorpora el Client ID y el script oficial de Google Identity Services.
+- **BFF de sesión verificado en producción:** `POST /api/auth/refresh` sin cookie responde **401**; `POST /api/auth/logout`, **204**, emitiendo la cookie de borrado con `HttpOnly`, `Secure`, `SameSite=Lax` y `Path=/api/auth`; `POST /api/auth/google` con cuerpo vacío, **400**.
+- **Configuración de Google confirmada sin exponer valores.** El Client ID se verificó por comportamiento: una sonda con una cadena que no es un token —jamás un token real— devolvía **503** cuando el backend no tenía el `audience` configurado y devuelve **401** una vez aplicado, lo que prueba que la verificación se ejecuta. En el frontend se comprobó por presencia en el bundle de producción. En ningún momento se leyó, imprimió ni versionó el valor.
+- **Prueba real de extremo a extremo, ejecutada manualmente por el responsable del proyecto:** login con una cuenta de Google habilitada como usuario de prueba, con el botón oficial de Google Identity Services cargado correctamente; el usuario quedó autenticado y **creado con rol `citizen`**; la interfaz mostró el estado de verificación como **pendiente**, es decir identidad sin verificar; **recargar la página mantuvo la sesión**; `POST /api/auth/refresh` respondió **200**; `GET /api/v1/auth/me/` respondió **200**; `POST /api/auth/logout` respondió **204**; y tras el cierre de sesión una nueva recarga dejó al usuario **deslogueado**. El código de estado exacto de la petición inicial a `/api/auth/google` **no quedó registrado**, de modo que no se documenta ninguno: lo verificado es el éxito funcional del flujo completo.
+
 ### Problemas encontrados
 - **La vista de renovación de SimpleJWT no comprueba `is_active`.** Su serializador valida
   el refresh sin cargar al usuario, de modo que una cuenta desactivada podría renovar su
@@ -326,9 +333,23 @@ necesita credenciales reales.
 - **El linter del frontend rechaza mutar un valor devuelto por `useState`.** El access
   token se guardaba en un objeto creado con `useState`; se cambió a `useRef`, que es el
   contenedor mutable idiomático y no dispara `react-hooks/immutability`.
+- **Las variables de entorno no llegaron con el primer despliegue.** Tras el merge, el
+  backend devolvía `503` en el login y el bundle de producción no incorporaba el Client ID:
+  en Railway el cambio quedaba en *staged* y en Vercel la build anterior a configurar la
+  variable no la había incorporado. Se resolvió con un Deploy del backend y un Redeploy de
+  Production, ambos ejecutados por el responsable del proyecto, y se reverificó por sonda.
+  Aprendizaje: una variable de entorno guardada no está activa hasta que hay un despliegue
+  posterior, y en Vercel las `NEXT_PUBLIC_*` se congelan en el momento de la build.
+- **Railway dejó de registrar sus despliegues como *deployments* de GitHub** a partir del
+  commit `5e66f63`. El despliegue sí ocurre —se comprobó por el comportamiento de los
+  endpoints— pero deja de haber señal externa consultable. Queda anotado porque los gates de
+  migraciones de sprints futuros se apoyaban en esa señal; conviene revisar la integración
+  en el panel.
 
 ### Commits relevantes
-_Pendiente: no se ha realizado ningún commit. El responsable del proyecto revisa el diff._
+- `d375c76` feat(auth): implementar autenticación Google y roles — integración a `main` por *squash and merge* del PR #2, cuyo único commit en la rama fue `539eaa3`.
+
+El responsable del proyecto revisó el diff y aprobó el merge; ningún cambio se integra automáticamente. Desde este sprint la implementación no se hace sobre `main`: va en rama propia y llega por Pull Request con CI en verde.
 
 ### Observaciones y desvíos respecto del plan
 - **Cero migraciones**, como estaba previsto: no se tocó ningún modelo, `choices`,
