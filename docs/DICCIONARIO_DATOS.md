@@ -1,7 +1,8 @@
 # Diccionario de datos — Ciudadanía Activa
 
-Estado del modelo de datos **tal como quedó implementado en el Sprint 2**, contrastado
-con el Anexo A de `Tesis_Ciudadania_Activa_Revisada_Recompensas.docx`.
+Estado del modelo de datos **tal como está implementado**, contrastado con el Anexo A de
+`Tesis_Ciudadania_Activa_Revisada_Recompensas.docx`. Las 18 entidades se crearon en el
+Sprint 2; el Sprint 4 añadió una única columna, `citizen_profiles.rejection_reason`.
 
 - **Fuente rectora:** Anexo A (A.1 entidades · A.2 enumeraciones · A.4 diccionario · A.5 índices · A.6 SQL de referencia).
 - **Plan:** [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md) §6.4, §6.5 y §12.
@@ -73,12 +74,36 @@ con el usuario**: nace cuando el ciudadano envía su verificación (Sprint 4).
 | Campo | Tipo | Restricción | `on_delete` | Descripción |
 |---|---|---|---|---|
 | `user_id` | UUID | 1:1, único | `CASCADE` | El perfil es una extensión del usuario |
-| `document_hmac` | `varchar(64)` | **único, not null** | — | HMAC-SHA-256 de la cédula (RF-02/RF-04). La cédula nunca se persiste en claro |
-| `verification_selfie_url` | `text` | blank | — | Bucket privado; no serializable |
-| `verified_at` | `timestamptz` | nullable | — | Fecha de la revisión administrativa |
+| `document_hmac` | `varchar(64)` | **único, not null** | — | HMAC-SHA-256 del **número textual** de la cédula (RF-02/RF-04). Ese número no se persiste en claro en ninguna parte |
+| `verification_selfie_url` | `text` | blank | — | **Clave del objeto** en el bucket privado, no una URL. No serializable |
+| `verified_at` | `timestamptz` | nullable | — | Fecha de la revisión administrativa, se haya aprobado o rechazado |
 | `verified_by_id` | UUID | nullable | `SET_NULL` | Administrador revisor. **No figura en el Anexo A.1** → CT-42 |
+| `rejection_reason` | `text` | **not null** (Sprint 4) | — | Motivo del rechazo en texto libre, **sin catálogo**. Vacío salvo rechazo vigente. **No figura en el Anexo A.1** → CT-44 |
 | `ranking_visibility` | `varchar(20)` | not null, `default 'FULL_NAME'` | — | `RankingVisibility` (RF-07) |
-| `ranking_alias` | `varchar(60)` | blank | — | Alias del ranking |
+| `ranking_alias` | `varchar(60)` | blank | — | Alias del ranking. **No es único**: dos ciudadanos pueden elegir el mismo (ADR-0011) → CT-46 |
+
+**Tres precisiones del Sprint 4 sobre esta tabla:**
+
+1. **`rejection_reason` es `NOT NULL` en PostgreSQL y `default=""` en el modelo Django.**
+   La columna **no conserva un `DEFAULT` persistente** en el motor: Django lo aplica
+   durante el `ALTER` de `auth_app.0004` y a continuación lo retira, que es su
+   comportamiento habitual en un `AddField`. La introspección esperada en producción es
+   por tanto `text · is_nullable NO · sin default`, igual que `verification_selfie_url` y
+   `ranking_alias`. El valor por defecto vive en el modelo, no en el esquema.
+
+2. **`verification_selfie_url` guarda una clave de objeto**, con la forma
+   `verifications/{user_id}/{uuid4}.{ext}`. **No** es una URL pública —el bucket es
+   privado— ni una URL firmada —expiraría en minutos y la columna quedaría con un valor
+   muerto—. La URL firmada la emite el backend en el momento, con 300 segundos de vida y
+   solo para el detalle administrativo. El nombre de la columna se conserva porque es el
+   del Anexo A.
+
+3. **Qué es sensible, con precisión.** El **número de cédula recibido como dato textual**
+   nunca se persiste en claro: solo existe como `document_hmac`. La **selfie es otra
+   cosa**: muestra al ciudadano sosteniendo su cédula, de modo que puede contener
+   visualmente ese número. Que el número textual no se guarde no vuelve inocuo el
+   archivo, y por eso vive en un bucket privado con acceso solo administrativo
+   (ADR-0006).
 
 ### `admin_app`
 
@@ -267,12 +292,14 @@ ningún valor:
 Los `slug` son la slugificación determinista del nombre (`django.utils.text.slugify`) y
 funcionan como clave natural de la carga idempotente.
 
-## Grafo de migraciones del Sprint 2
+## Grafo de migraciones
 
 ```text
 auth_app.0001_initial            (Sprint 1 — intacta)
    └── auth_app.0002_user_domain_fields      +google_oauth_id, +role, +verification_status
           └── auth_app.0003_citizen_profile  citizen_profiles
+                 └── auth_app.0004_citizen_profile_rejection_reason   (Sprint 4)
+                        +rejection_reason · AddField aditivo, no destructivo
 
 admin_app.0001_initial           institutions · categories · institution_operators · audit_logs
    └── admin_app.0002_seed_catalogs          migración de datos (3 + 10), reversible
@@ -288,6 +315,11 @@ reports_app.0001_initial         reports · report_media · report_status_histor
 `reports_app`, `rewards_app`, `notifications_app` y `admin_app` declaran además
 `swappable_dependency(AUTH_USER_MODEL)`; `ai_client_app` y `rewards_app` dependen de
 `admin_app.0001`.
+
+**Inventario acumulado: 11 archivos de migración.** El Sprint 4 aporta exactamente uno,
+`auth_app.0004`; ni `admin_app` ni `notifications_app` añadieron ninguno pese a
+implementar la revisión administrativa y las notificaciones, porque sus tablas ya
+existían desde el Sprint 2 con la forma necesaria.
 
 ---
 

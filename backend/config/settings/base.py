@@ -22,6 +22,56 @@ API_VERSION = env("API_VERSION", default="0.1.0")
 # `auth_app.services.google` se niega a verificar tokens sin `audience` configurado.
 GOOGLE_OAUTH_CLIENT_ID = env("GOOGLE_OAUTH_CLIENT_ID", default="")
 
+# --- Verificación de identidad (Sprint 4) ---------------------------------------
+#
+# Todos con default vacío **a propósito**: `prod.py` no añade ningún RuntimeError por
+# ellos. Backend web y worker de Celery comparten estos ajustes, y el worker no
+# necesita ni la clave HMAC ni la service-role de Storage; exigirlas para arrancar
+# obligaría a copiar credenciales privilegiadas a un servicio que no las usa.
+#
+# El comportamiento con configuración ausente es **fallo cerrado local**: el servicio
+# de identidad y el cliente de Storage levantan su excepción de configuración y la
+# vista responde 503 genérico. Ninguna otra parte del sistema se ve afectada. Que
+# estén presentes en el backend web se verifica en el gate de despliegue.
+
+# Clave del HMAC-SHA-256 del número de cédula. **Cada entorno tiene la suya**:
+# desarrollo la suya, la suite de pruebas una ficticia y producción la real, que no se
+# comparte con desarrollo ni con CI. La de producción debe permanecer **estable** una
+# vez exista la primera identidad verificada real: cambiarla invalida todos los
+# `document_hmac` ya calculados y no hay forma de recalcularlos, porque el número en
+# claro no se persiste en ninguna parte. Ver ADR-0006.
+DOCUMENT_HMAC_SECRET = env("DOCUMENT_HMAC_SECRET", default="")
+
+# Supabase Storage. La service-role es una credencial con privilegios totales sobre el
+# almacenamiento: solo se configura en el backend web, nunca en el worker ni en Vercel.
+SUPABASE_URL = env("SUPABASE_URL", default="")
+SUPABASE_SERVICE_ROLE_KEY = env("SUPABASE_SERVICE_ROLE_KEY", default="")
+SUPABASE_STORAGE_BUCKET_PRIVATE = env("SUPABASE_STORAGE_BUCKET_PRIVATE", default="")
+
+# Límite funcional de la selfie, comprobado sobre `UploadedFile.size`. No se confunde
+# con FILE_UPLOAD_MAX_MEMORY_SIZE, que solo decide memoria frente a archivo temporal,
+# ni con DATA_UPLOAD_MAX_MEMORY_SIZE, que no aplica a campos de archivo en multipart.
+IDENTITY_SELFIE_MAX_BYTES = 5 * 1024 * 1024
+
+# Vida de la URL firmada con la que un administrador ve la selfie. No se persiste.
+IDENTITY_SIGNED_URL_TTL = 300
+
+# --- Email transaccional (notifications_app, Sprint 4) --------------------------
+#
+# Configuración del **worker de Celery**, que es quien envía. El backend web solo crea
+# la fila en `notifications`, así que no necesita credenciales SMTP y `prod.py` no las
+# exige para arrancar: con los valores vacíos el envío falla y la notificación queda en
+# FALLIDO, que es un estado previsto y consultable, no una caída del servicio.
+#
+# `EMAIL_BACKEND` no se declara: se usa el SMTP de Django por defecto. Los ajustes de
+# prueba lo sustituyen por `locmem`, de modo que ninguna prueba envía correo real.
+EMAIL_HOST = env("EMAIL_HOST", default="")
+EMAIL_PORT = env.int("EMAIL_PORT", default=587)
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
+EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="no-reply@ciudadania-activa.local")
+
 INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "django.contrib.auth",
@@ -123,6 +173,11 @@ REST_FRAMEWORK = {
     # explícita: AllowAny, IsAuthenticated, IsVerifiedCitizen, IsAdmin, etc.
     "DEFAULT_PERMISSION_CLASSES": ["apps.core.permissions.DenyAll"],
     "TEST_REQUEST_DEFAULT_FORMAT": "json",
+    # Tarifas con nombre para `ScopedRateThrottle`. **No** se declara
+    # DEFAULT_THROTTLE_CLASSES: el Sprint 4 no introduce throttling global. La única
+    # vista que lo activa es el envío de verificación, declarándolo explícitamente.
+    # Como el endpoint exige autenticación, la clave del contador es el usuario.
+    "DEFAULT_THROTTLE_RATES": {"identity_submit": "5/hour"},
 }
 
 # JWT propio del sistema, emitido tras verificar el ID token de Google (ADR-0005).

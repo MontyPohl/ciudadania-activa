@@ -5,7 +5,9 @@ e incentivos (puntos de impacto y créditos canjeables). Trabajo de Conclusión 
 Universidad Columbia del Paraguay.
 
 Documentación completa del proyecto en [docs/PLAN_DESARROLLO.md](docs/PLAN_DESARROLLO.md),
-avance por sprint en [docs/PROGRESO_SPRINTS.md](docs/PROGRESO_SPRINTS.md), backlog priorizado en
+**contrato de la API en [docs/API.md](docs/API.md)**, modelo de datos en
+[docs/DICCIONARIO_DATOS.md](docs/DICCIONARIO_DATOS.md), avance por sprint en
+[docs/PROGRESO_SPRINTS.md](docs/PROGRESO_SPRINTS.md), backlog priorizado en
 [docs/BACKLOG.md](docs/BACKLOG.md) y decisiones de arquitectura en [docs/adr/](docs/adr/).
 Las diferencias entre el prototipo real y lo declarado en la tesis se registran en
 [docs/CAMBIOS_TESIS_PENDIENTES.md](docs/CAMBIOS_TESIS_PENDIENTES.md).
@@ -194,6 +196,63 @@ que no pasa por `docker compose`, precisamente para no romper el aislamiento des
 
 > Aplicar migraciones contra Supabase modifica la base real. Antes de una migración destructiva
 > corresponde el respaldo lógico obligatorio: ver [Respaldos de la base de datos](#respaldos-de-la-base-de-datos).
+
+## Secretos y configuración por servicio
+
+Ningún valor real vive en el repositorio: `.env.example` declara **solo los nombres** y
+`.env` está en `.gitignore`. Lo importante es que **no todos los servicios necesitan todo**,
+y repartir credenciales de más es un riesgo gratuito.
+
+| Variable | Backend web (Railway) | Worker de Celery | Frontend (Vercel) |
+|---|:--:|:--:|:--:|
+| `DOCUMENT_HMAC_SECRET` | **Sí** | No | No |
+| `SUPABASE_URL` | **Sí** | No | No |
+| `SUPABASE_SERVICE_ROLE_KEY` | **Sí** | No | No |
+| `SUPABASE_STORAGE_BUCKET_PRIVATE` | **Sí** | No | No |
+| `EMAIL_HOST` · `EMAIL_PORT` · `EMAIL_HOST_USER` · `EMAIL_HOST_PASSWORD` · `EMAIL_USE_TLS` · `DEFAULT_FROM_EMAIL` | No | **Sí** | No |
+| `DATABASE_URL` · `REDIS_URL` · `DJANGO_SECRET_KEY` | **Sí** | **Sí** | No |
+| `NEXT_PUBLIC_API_URL` · `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | No | No | **Sí** (públicas) |
+
+El backend web es el único que crea verificaciones y firma imágenes, así que es el único que
+necesita la clave del HMAC y la credencial de Storage. El worker es el único que envía correo,
+así que es el único que necesita SMTP. **Ninguna variable de Supabase llega al frontend**: el
+navegador nunca habla con el almacenamiento.
+
+Sin estas variables la aplicación **arranca igual**. `config/settings/prod.py` no las exige:
+backend web y worker comparten ajustes, y obligar a que estén presentes forzaría a copiar una
+credencial con privilegios totales sobre el almacenamiento a un servicio que no la usa. El
+comportamiento es fallo cerrado **local**: el endpoint que las necesita responde `503` genérico
+y el resto del sistema sigue funcionando.
+
+### `DOCUMENT_HMAC_SECRET`
+
+Clave del HMAC-SHA-256 con el que se guarda la cédula. Tres reglas, detalladas en
+[ADR-0006](docs/adr/ADR-0006-identidad-hmac-y-almacenamiento-privado.md):
+
+- **Una por entorno.** Desarrollo la suya, la suite de pruebas una ficticia versionada,
+  producción la real. La de producción **no se comparte** con desarrollo ni con CI.
+- **Estable en producción** desde que exista la primera identidad verificada real. Cambiarla
+  invalida todos los `document_hmac` ya calculados y **no hay forma de recalcularlos**, porque
+  el número de cédula no se guarda en claro en ninguna parte.
+- **Nunca versionada.** Alta entropía, solo en variables de entorno del proveedor.
+
+### Supabase Storage
+
+Bucket **privado** (`SUPABASE_STORAGE_BUCKET_PRIVATE`, valor previsto `verificaciones`), sin
+acceso anónimo. En PostgreSQL se guarda la **clave del objeto**
+—`verifications/{user_id}/{uuid4}.{ext}`—, nunca una URL. Para ver una selfie, el backend emite
+una **URL firmada de 300 segundos** en el detalle administrativo; no se persiste, no se cachea y
+no se registra en logs.
+
+`SUPABASE_SERVICE_ROLE_KEY` tiene privilegios totales sobre el almacenamiento: solo se configura
+en el backend web.
+
+### Correo transaccional
+
+`EMAIL_*` es configuración del **worker**, que es quien envía. El backend web solo escribe la
+fila en `notifications`, así que no necesita credenciales SMTP. Con el SMTP sin configurar la
+notificación queda en `FALLIDO`, que es un estado previsto y consultable en el admin, no una
+caída del servicio.
 
 ## Comandos habituales
 

@@ -4,6 +4,15 @@ djangorestframework-simplejwt>=5.5,<5.6
 django-cors-headers>=4.4,<4.5
 django-environ>=0.11,<0.12
 google-auth[requests]>=2.56,<3.0
+# Cliente REST de Supabase Storage (Sprint 4). Hoy llega transitivo por
+# google-auth[requests]; se declara explícito porque el proyecto lo usa de forma
+# directa y depender de un transitivo para eso es frágil. No se añade el SDK
+# `supabase`: tres llamadas HTTP no justifican su árbol de dependencias.
+requests>=2.32,<3.0
+# Validación del contenido real de la selfie (Sprint 4): `Image.open` + `verify`
+# determinan el formato de verdad, no la extensión ni el Content-Type del cliente.
+# Se prefiere a python-magic, que exige libmagic como paquete de sistema.
+Pillow>=11.0,<12.0
 psycopg[binary]>=3.2,<3.3
 celery>=5.4,<5.5
 redis>=5.0,<6.0

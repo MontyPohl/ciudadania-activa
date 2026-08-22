@@ -8,7 +8,9 @@ Dos ideas separadas y no intercambiables:
   retirar un rol surte efecto de inmediato y un JWT manipulado no eleva privilegios.
 
 `DenyAll` es el permiso por defecto del proyecto: una vista que olvide declarar el
-suyo queda cerrada. Los cinco nombres restantes son los que fija el plan.
+suyo queda cerrada. Cinco de los nombres restantes son los que fija el plan del
+Sprint 3; `IsCitizen` es una adición del Sprint 4, necesaria porque el envío de la
+verificación de identidad lo hace un ciudadano que todavía **no** está verificado.
 
 Ninguno de estos permisos usa `is_staff` ni `is_superuser`: esos flags gobiernan el
 admin de Django, no la autorización de dominio (ADR-0005).
@@ -23,6 +25,7 @@ __all__ = [
     "DenyAll",
     "IsAdmin",
     "IsAuthenticated",
+    "IsCitizen",
     "IsInstitutionOperator",
     "IsOperatorOfReportInstitution",
     "IsVerifiedCitizen",
@@ -62,6 +65,25 @@ class DenyAll(BasePermission):
 
     def has_object_permission(self, request, view, obj) -> bool:
         return False
+
+
+class IsCitizen(BasePermission):
+    """Ciudadano autenticado, **con o sin** identidad verificada (Sprint 4).
+
+    Existe porque `IsVerifiedCitizen` no sirve para el flujo de verificación: exigir
+    estar verificado para poder verificarse es circular. Este permiso cubre el envío
+    de la verificación, la consulta del estado propio y la preferencia de privacidad
+    del ranking; todo lo que requiere identidad **ya aprobada** sigue usando
+    `IsVerifiedCitizen`, que no cambia.
+
+    No mira `is_staff` ni `is_superuser`: son flags del admin de Django, no
+    autorización de dominio (ADR-0005).
+    """
+
+    message = "Se requiere una cuenta de ciudadano."
+
+    def has_permission(self, request, view) -> bool:
+        return _authenticated_with_role(request, UserRole.CITIZEN)
 
 
 class IsVerifiedCitizen(BasePermission):

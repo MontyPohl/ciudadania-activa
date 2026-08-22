@@ -86,9 +86,19 @@ class CitizenProfile(BaseModel):
         on_delete=models.CASCADE,
         related_name="citizen_profile",
     )
-    # HMAC-SHA-256 de la cédula con clave secreta del servidor (RF-02). La cédula
-    # nunca se persiste en claro. El índice único materializa RF-04.
+    # HMAC-SHA-256 del número de cédula, con clave secreta del servidor (RF-02).
+    # El **número recibido como dato textual** nunca se persiste en claro: solo
+    # existe como esta huella. El índice único materializa RF-04.
     document_hmac = models.CharField(max_length=64, unique=True)
+    # Clave del objeto en el bucket **privado** de Supabase Storage
+    # (`verifications/{user_id}/{uuid4}.{ext}`), no una URL: una URL firmada expira
+    # y una pública no existe para este bucket.
+    #
+    # Precisión de privacidad: la selfie muestra al ciudadano **sosteniendo su
+    # cédula**, de modo que puede contener visualmente el número. Que el número
+    # textual no se guarde en claro no convierte a este archivo en dato inocuo: es
+    # información sensible, vive solo en el bucket privado y únicamente un
+    # administrador la ve, mediante URL firmada efímera.
     verification_selfie_url = models.TextField(blank=True)
     verified_at = models.DateTimeField(null=True, blank=True)
     # Administrador que aprobó o rechazó la verificación. SET_NULL para no bloquear
@@ -100,6 +110,13 @@ class CitizenProfile(BaseModel):
         blank=True,
         related_name="verified_profiles",
     )
+    # Motivo del rechazo, en texto libre y **sin catálogo**: ninguna fuente del
+    # proyecto define uno para identidades. `RejectionReason` de `core.enums`
+    # tipifica el rechazo de *reportes* y no se reutiliza aquí. El mismo motivo se
+    # duplica en `audit_logs.payload` para trazabilidad administrativa; esta columna
+    # existe para que el ciudadano pueda leerlo sin consultar la auditoría, que
+    # §29 del plan reserva a los administradores. Se limpia al reenviar.
+    rejection_reason = models.TextField(blank=True, default="")
     ranking_visibility = models.CharField(
         max_length=20,
         choices=RankingVisibility.choices,
