@@ -143,6 +143,45 @@ no de personas. El motivo se guarda en `citizen_profiles.rejection_reason` —pa
 ciudadano pueda leerlo sin consultar la auditoría, que el §29 reserva a administradores—
 y también en `audit_logs.payload`, para trazabilidad administrativa.
 
+> #### Enmienda del 23/08/2026 — la aprobación exige transcribir la cédula
+>
+> La validación de extremo a extremo en producción destapó un **hueco funcional** en esta
+> sección tal como estaba implementada: el administrador veía la cédula en la selfie, pero
+> no tenía forma de comprobar que ese número fuera el que el ciudadano declaró al enviar
+> la solicitud. Como el número textual no se persiste, la pantalla no podía mostrárselo, y
+> la decisión humana se apoyaba únicamente en «hay una cédula en la foto». RF-04 —una
+> cédula, una identidad— quedaba sostenido solo por el índice único sobre `document_hmac`,
+> que impide duplicados pero no comprueba que el documento exhibido sea el declarado.
+>
+> **Decisión.** Para **aprobar**, el administrador debe transcribir el número que lee en
+> la selfie. El backend lo normaliza con `normalize_document`, calcula su HMAC con
+> `compute_document_hmac` y lo compara contra `citizen_profiles.document_hmac` mediante
+> `hmac.compare_digest`. Sin coincidencia no hay aprobación. Es la misma pieza del envío
+> ciudadano, reutilizada: no existe una segunda normalización en el proyecto, y si la
+> hubiera, la comprobación fallaría sobre entradas legítimas escritas con puntos.
+>
+> **Lo que la enmienda no cambia.** Sigue sin haber OCR, biometría ni consulta a padrón:
+> quien lee la cédula es una persona. El servidor no lee la imagen; solo verifica que lo
+> que la persona leyó corresponde a lo que se declaró. El **rechazo no pide el número**,
+> porque el motivo más frecuente de rechazo es justamente que la cédula no se distingue.
+>
+> **Privacidad.** El número transcrito es un **dato de paso**: vive como parámetro durante
+> la petición, se convierte en HMAC para compararlo y se descarta. No se persiste, no entra
+> en `audit_logs`, no llega a `notifications` ni al correo, no se escribe en ningún log y
+> no vuelve en la respuesta. El error de desajuste es único y genérico: no devuelve el HMAC
+> guardado, ni el número, ni ninguna pista sobre en qué difieren. Un endpoint que dijera
+> «los primeros cuatro dígitos coinciden» sería un oráculo de cédulas.
+>
+> **Concurrencia y fallo cerrado.** La comparación ocurre **dentro del bloqueo** de la
+> revisión, contra el `document_hmac` leído con las filas ya bloqueadas: un reenvío
+> confirmado entre la validación y la escritura no puede hacer que la aprobación recaiga
+> sobre un envío distinto del comprobado. Sin `DOCUMENT_HMAC_SECRET` no se compara nada y
+> no se aprueba nada: rige el mismo fallo cerrado de la sección 2, traducido a `503`.
+>
+> **Alcance.** No hay modelo nuevo, ni columna nueva, ni migración. Solo cambia el contrato
+> de entrada de `PATCH /api/v1/admin/identity/{id}/review/`. Queda registrado como fila
+> **CT-49** de `CAMBIOS_TESIS_PENDIENTES.md`.
+
 ### 8. Retención: no se define en este sprint
 
 **Ningún requisito del proyecto define un plazo de conservación de la selfie** una vez

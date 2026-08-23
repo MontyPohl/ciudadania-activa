@@ -106,16 +106,27 @@ export function getIdentityDetail(id: UUID): Promise<IdentityReviewDetail> {
 /**
  * Aprueba o rechaza una verificación.
  *
- * `reason` solo se envía al rechazar: al aprobar el backend lo ignora y no hay motivo
- * para mandarlo.
+ * Cada decisión manda **solo su campo**, y el otro no viaja siquiera vacío:
+ *
+ * - al rechazar, `reason`, que el ciudadano va a leer;
+ * - al aprobar, `document_number`: el número que el administrador transcribe de la
+ *   cédula que ve en la selfie. El backend lo normaliza, calcula su HMAC y lo compara
+ *   con el del envío; si no coincide, no aprueba. No se persiste en ninguna parte.
+ *
+ * Los dos campos van en un objeto y no como parámetros sueltos: con dos cadenas
+ * opcionales seguidas, invertir el orden en una llamada mandaría la cédula en el motivo
+ * del rechazo, que es el único sitio de este flujo donde el número quedaría **escrito en
+ * claro y a la vista del ciudadano**. El tipo lo vuelve imposible.
  */
 export function reviewIdentity(
   id: UUID,
   decision: IdentityDecision,
-  reason?: string,
+  datos: { reason?: string; documentNumber?: string } = {},
 ): Promise<IdentityReviewResult> {
   const cuerpo =
-    decision === "RECHAZADO" ? { decision, reason: (reason ?? "").trim() } : { decision };
+    decision === "RECHAZADO"
+      ? { decision, reason: (datos.reason ?? "").trim() }
+      : { decision, document_number: (datos.documentNumber ?? "").trim() };
 
   return apiFetch<IdentityReviewResult>(`/api/v1/admin/identity/${id}/review/`, {
     method: "PATCH",

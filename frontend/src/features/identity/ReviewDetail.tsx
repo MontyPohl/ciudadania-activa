@@ -14,6 +14,14 @@
  * Ante un 409 la pantalla no discute con el backend: recarga el detalle y muestra la
  * decisión que quedó. La autoridad sobre la concurrencia es el servidor, que bloquea
  * las filas y relee el estado; el frontend solo refleja el resultado.
+ *
+ * Sobre el número de cédula que se pide para aprobar: lo escribe el administrador
+ * mirando la selfie, y esta pantalla **no puede ayudarlo**. No conoce el número que
+ * declaró el ciudadano, no recibe `document_hmac` y no hay OCR: la comparación la hace
+ * el servidor contra la huella del envío. El valor vive en el estado de este componente
+ * mientras dura la decisión y se borra en cuanto el backend responde. No va a
+ * `localStorage`, `sessionStorage`, cookies ni ningún otro almacenamiento, y tampoco se
+ * manda al rechazar.
  */
 
 import Link from "next/link";
@@ -32,6 +40,14 @@ import type { IdentityReviewDetail } from "@/types/api";
 
 const YA_REVISADA = "Esta verificación ya fue revisada por otra operación. Actualizamos la vista.";
 
+/**
+ * El 400 de la aprobación no distingue —a propósito— entre un número mal escrito y uno
+ * que no coincide: el backend responde igual en los dos casos para no convertirse en un
+ * oráculo de cédulas. El mensaje cubre las dos posibilidades sin insinuar cuál fue.
+ */
+const CEDULA_NO_COINCIDE =
+  "El número no coincide con el de la solicitud, o no es válido. Revisalo contra la selfie.";
+
 type Vista =
   | { fase: "cargando" }
   | { fase: "listo"; detalle: IdentityReviewDetail }
@@ -40,6 +56,7 @@ type Vista =
 export function ReviewDetail({ id }: { id: string }) {
   const [vista, setVista] = useState<Vista>({ fase: "cargando" });
   const [motivo, setMotivo] = useState("");
+  const [cedula, setCedula] = useState("");
   const [rechazando, setRechazando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -73,11 +90,22 @@ export function ReviewDetail({ id }: { id: string }) {
       return;
     }
 
+    if (decision === "APROBADO" && cedula.trim() === "") {
+      setError("Escribí el número de cédula que se ve en la selfie para poder aprobar.");
+      return;
+    }
+
     setEnviando(true);
     setError(null);
     try {
-      await reviewIdentity(id, decision, motivo);
+      // Cada decisión manda solo lo suyo: la cédula no viaja en un rechazo.
+      await reviewIdentity(
+        id,
+        decision,
+        decision === "APROBADO" ? { documentNumber: cedula } : { reason: motivo },
+      );
       setMotivo("");
+      setCedula("");
       setRechazando(false);
       recargar();
     } catch (fallo) {
@@ -85,7 +113,9 @@ export function ReviewDetail({ id }: { id: string }) {
         setError(YA_REVISADA);
         recargar();
       } else {
-        setError(mensajeDeError(fallo));
+        // El número escrito **no** se limpia ante un error: corregir un dígito no
+        // debería obligar a leer la cédula de la foto otra vez desde cero.
+        setError(mensajeDeError(fallo, decision === "APROBADO" ? { 400: CEDULA_NO_COINCIDE } : {}));
       }
     } finally {
       setEnviando(false);
@@ -190,6 +220,31 @@ export function ReviewDetail({ id }: { id: string }) {
         <section className="flex flex-col gap-4 rounded-2xl border border-brand-black/10 px-6 py-5">
           <h2 className="font-semibold">Decisión</h2>
 
+          {!rechazando && (
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="document_number" className="text-sm font-semibold">
+                Número de cédula visible en la selfie
+              </label>
+              <input
+                id="document_number"
+                name="document_number"
+                type="text"
+                inputMode="numeric"
+                autoComplete="off"
+                value={cedula}
+                onChange={(evento) => setCedula(evento.target.value)}
+                disabled={enviando}
+                className="rounded-md border border-brand-black/20 px-3 py-2 text-sm"
+                placeholder="1.234.567"
+              />
+              <p className="text-xs text-brand-black/60">
+                Escribí el número que figura en la cédula mostrada en la selfie. Se usa únicamente
+                para comprobar que coincide con la solicitud: no se guarda en ningún lado. Podés
+                escribirlo con puntos, guiones o espacios.
+              </p>
+            </div>
+          )}
+
           {rechazando && (
             <div className="flex flex-col gap-1.5">
               <label htmlFor="reason" className="text-sm font-semibold">
@@ -253,7 +308,13 @@ export function ReviewDetail({ id }: { id: string }) {
             ) : (
               <button
                 type="button"
-                onClick={() => setRechazando(true)}
+                onClick={() => {
+                  // Al pasar a rechazar, el número transcrito deja de hacer falta y se
+                  // descarta: no hay razón para conservarlo en memoria un instante más.
+                  setRechazando(true);
+                  setCedula("");
+                  setError(null);
+                }}
                 disabled={enviando}
                 className="rounded-md border border-brand-orange px-5 py-2 text-sm font-semibold text-brand-orange disabled:opacity-50"
               >

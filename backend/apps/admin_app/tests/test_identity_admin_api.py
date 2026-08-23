@@ -19,6 +19,7 @@ from apps.admin_app.models import AuditLog
 from apps.admin_app.services import identity_review
 from apps.auth_app.enums import UserRole, VerificationStatus
 from apps.auth_app.models import CitizenProfile
+from apps.auth_app.services import identity as identity_service
 from apps.core.services import storage
 from apps.notifications_app.enums import NotificationStatus, NotificationType
 from apps.notifications_app.models import Notification
@@ -79,8 +80,17 @@ def firma(monkeypatch):
 
 
 @pytest.fixture
-def perfil_factory(user_factory, storage_config):
-    """Perfil ya enviado, en el estado que se pida."""
+def perfil_factory(user_factory, storage_config, document_hmac_secret):
+    """Perfil ya enviado, en el estado que se pida, con el HMAC **real** de su cédula.
+
+    El número queda colgado del objeto como `perfil.cedula`. Es un atributo de la
+    instancia y no una columna: la cédula no se persiste en ninguna parte, y las pruebas
+    lo necesitan solo para poder transcribirla al aprobar, igual que hace el
+    administrador mirando la selfie.
+
+    Cada perfil recibe un número distinto porque `document_hmac` es único: dos perfiles
+    con la misma cédula son, por definición del modelo, la misma identidad.
+    """
     contador = {"n": 0}
 
     def make(email=None, estado=VerificationStatus.PENDIENTE, **extra):
@@ -89,12 +99,17 @@ def perfil_factory(user_factory, storage_config):
         user = user_factory(email=email or f"ciudadano{n}@example.com", full_name=f"Persona {n}")
         user.verification_status = estado
         user.save(update_fields=["verification_status"])
-        return CitizenProfile.objects.create(
+        # Distintiva y con cero inicial: si apareciera en una respuesta, un log o un
+        # correo, la aserción que la busca no puede confundirla con un identificador.
+        cedula = f"{n:02d}845376"
+        perfil = CitizenProfile.objects.create(
             user=user,
-            document_hmac=f"{n:064d}",
+            document_hmac=identity_service.compute_document_hmac(cedula),
             verification_selfie_url=f"verifications/{user.pk}/selfie-{n}.jpg",
             **extra,
         )
+        perfil.cedula = cedula
+        return perfil
 
     return make
 
@@ -303,7 +318,9 @@ def test_aprobar(como, admin_user, perfil_factory):
     perfil = perfil_factory()
 
     respuesta = como(admin_user).patch(
-        f"{COLA_URL}{perfil.pk}/review/", {"decision": "APROBADO"}, format="json"
+        f"{COLA_URL}{perfil.pk}/review/",
+        {"decision": "APROBADO", "document_number": perfil.cedula},
+        format="json",
     )
 
     assert respuesta.status_code == 200
@@ -326,7 +343,11 @@ def test_aprobar_ignora_el_motivo_recibido(como, admin_user, perfil_factory):
 
     como(admin_user).patch(
         f"{COLA_URL}{perfil.pk}/review/",
-        {"decision": "APROBADO", "reason": "esto no debería guardarse"},
+        {
+            "decision": "APROBADO",
+            "reason": "esto no debería guardarse",
+            "document_number": perfil.cedula,
+        },
         format="json",
     )
 
@@ -387,7 +408,11 @@ def test_revisar_una_identidad_inexistente_responde_404(como, admin_user):
     import uuid
 
     respuesta = como(admin_user).patch(
-        f"{COLA_URL}{uuid.uuid4()}/review/", {"decision": "APROBADO"}, format="json"
+        f"{COLA_URL}{uuid.uuid4()}/review/",
+        # Payload completo y válido: el 404 tiene que venir de que la verificación no
+        # existe, no de que falte el número.
+        {"decision": "APROBADO", "document_number": "1234567"},
+        format="json",
     )
 
     assert respuesta.status_code == 404
@@ -398,7 +423,9 @@ def test_revisar_dos_veces_responde_409(como, admin_user, perfil_factory, ya):
     perfil = perfil_factory(estado=ya)
 
     respuesta = como(admin_user).patch(
-        f"{COLA_URL}{perfil.pk}/review/", {"decision": "APROBADO"}, format="json"
+        f"{COLA_URL}{perfil.pk}/review/",
+        {"decision": "APROBADO", "document_number": perfil.cedula},
+        format="json",
     )
 
     assert respuesta.status_code == 409
@@ -407,7 +434,11 @@ def test_revisar_dos_veces_responde_409(como, admin_user, perfil_factory, ya):
 def test_la_segunda_revision_no_pisa_la_primera(como, admin_user, perfil_factory):
     perfil = perfil_factory()
     cliente = como(admin_user)
-    cliente.patch(f"{COLA_URL}{perfil.pk}/review/", {"decision": "APROBADO"}, format="json")
+    cliente.patch(
+        f"{COLA_URL}{perfil.pk}/review/",
+        {"decision": "APROBADO", "document_number": perfil.cedula},
+        format="json",
+    )
 
     cliente.patch(
         f"{COLA_URL}{perfil.pk}/review/",
@@ -428,7 +459,11 @@ def test_la_revision_no_expone_datos_sensibles(como, admin_user, perfil_factory)
 
     cuerpo = (
         como(admin_user)
-        .patch(f"{COLA_URL}{perfil.pk}/review/", {"decision": "APROBADO"}, format="json")
+        .patch(
+            f"{COLA_URL}{perfil.pk}/review/",
+            {"decision": "APROBADO", "document_number": perfil.cedula},
+            format="json",
+        )
         .content.decode()
     )
 
@@ -436,6 +471,208 @@ def test_la_revision_no_expone_datos_sensibles(como, admin_user, perfil_factory)
     assert perfil.verification_selfie_url not in cuerpo
     assert perfil.user.email not in cuerpo
     assert admin_user.email not in cuerpo
+
+
+# --------------------------------------------------------------------------- #
+# La cédula transcrita por el administrador, sobre HTTP
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.parametrize(
+    "plantilla",
+    [
+        pytest.param("{n}", id="exacta"),
+        pytest.param("{a}.{b}", id="con-punto"),
+        pytest.param("{a}-{b}", id="con-guion"),
+        pytest.param("{a} {b}", id="con-espacio"),
+        pytest.param(" {a}.{b} ", id="mezcla-y-bordes"),
+    ],
+)
+def test_aprobar_admite_las_formas_equivalentes_del_numero(
+    como, admin_user, perfil_factory, plantilla
+):
+    perfil = perfil_factory()
+    escrito = plantilla.format(n=perfil.cedula, a=perfil.cedula[:3], b=perfil.cedula[3:])
+
+    respuesta = como(admin_user).patch(
+        f"{COLA_URL}{perfil.pk}/review/",
+        {"decision": "APROBADO", "document_number": escrito},
+        format="json",
+    )
+
+    assert respuesta.status_code == 200
+    perfil.user.refresh_from_db()
+    assert perfil.user.verification_status == VerificationStatus.APROBADO
+
+
+def test_un_numero_que_no_coincide_responde_400_y_no_revisa(como, admin_user, perfil_factory):
+    perfil = perfil_factory()
+
+    respuesta = como(admin_user).patch(
+        f"{COLA_URL}{perfil.pk}/review/",
+        {"decision": "APROBADO", "document_number": "9999999"},
+        format="json",
+    )
+
+    assert respuesta.status_code == 400
+    perfil.refresh_from_db()
+    perfil.user.refresh_from_db()
+    assert perfil.user.verification_status == VerificationStatus.PENDIENTE
+    assert perfil.verified_at is None
+    assert perfil.verified_by is None
+    assert not AuditLog.objects.exists()
+    assert not Notification.objects.exists()
+    assert mail.outbox == []
+
+
+def test_el_400_del_desajuste_no_devuelve_el_hmac_ni_ningun_numero(
+    como, admin_user, perfil_factory
+):
+    """400, no 409: el conflicto está reservado al estado de la verificación."""
+    perfil = perfil_factory()
+
+    respuesta = como(admin_user).patch(
+        f"{COLA_URL}{perfil.pk}/review/",
+        {"decision": "APROBADO", "document_number": "9999999"},
+        format="json",
+    )
+
+    cuerpo = respuesta.content.decode()
+    assert respuesta.status_code == 400
+    assert perfil.document_hmac not in cuerpo
+    assert perfil.cedula not in cuerpo
+    assert "9999999" not in cuerpo
+
+
+@pytest.mark.parametrize("escrito", ["12a3456", "1234567/8", "１２３４５６７", "..."])
+def test_un_numero_con_caracteres_no_admitidos_responde_400(
+    como, admin_user, perfil_factory, escrito
+):
+    perfil = perfil_factory()
+
+    respuesta = como(admin_user).patch(
+        f"{COLA_URL}{perfil.pk}/review/",
+        {"decision": "APROBADO", "document_number": escrito},
+        format="json",
+    )
+
+    assert respuesta.status_code == 400
+    perfil.user.refresh_from_db()
+    assert perfil.user.verification_status == VerificationStatus.PENDIENTE
+    assert not AuditLog.objects.exists()
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"decision": "APROBADO"},
+        {"decision": "APROBADO", "document_number": ""},
+        {"decision": "APROBADO", "document_number": "   "},
+    ],
+)
+def test_aprobar_sin_el_numero_responde_400(como, admin_user, perfil_factory, payload):
+    perfil = perfil_factory()
+
+    respuesta = como(admin_user).patch(f"{COLA_URL}{perfil.pk}/review/", payload, format="json")
+
+    assert respuesta.status_code == 400
+    # El manejador de errores del proyecto envuelve los del serializador en `detail`.
+    assert "document_number" in respuesta.json()["detail"]
+    perfil.user.refresh_from_db()
+    assert perfil.user.verification_status == VerificationStatus.PENDIENTE
+    assert not AuditLog.objects.exists()
+    assert not Notification.objects.exists()
+
+
+def test_rechazar_sigue_sin_pedir_el_numero(como, admin_user, perfil_factory):
+    """El rechazo no cambió: motivo obligatorio y ninguna cédula."""
+    perfil = perfil_factory()
+
+    respuesta = como(admin_user).patch(
+        f"{COLA_URL}{perfil.pk}/review/",
+        {"decision": "RECHAZADO", "reason": "La cédula no se lee en la imagen."},
+        format="json",
+    )
+
+    assert respuesta.status_code == 200
+    perfil.refresh_from_db()
+    perfil.user.refresh_from_db()
+    assert perfil.user.verification_status == VerificationStatus.RECHAZADO
+    assert perfil.rejection_reason == "La cédula no se lee en la imagen."
+
+
+def test_rechazar_ignora_el_numero_si_llegara(como, admin_user, perfil_factory):
+    """Simétrico a que aprobar ignore `reason`. Y no se persiste en ningún campo."""
+    perfil = perfil_factory()
+
+    respuesta = como(admin_user).patch(
+        f"{COLA_URL}{perfil.pk}/review/",
+        {"decision": "RECHAZADO", "reason": "Ilegible.", "document_number": perfil.cedula},
+        format="json",
+    )
+
+    assert respuesta.status_code == 200
+    perfil.refresh_from_db()
+    assert perfil.rejection_reason == "Ilegible."
+    # Relectura desde la base: `perfil.cedula` es un atributo que pone la factoría para
+    # las pruebas, así que mirar la instancia en memoria encontraría siempre el número.
+    guardado = CitizenProfile.objects.get(pk=perfil.pk)
+    assert perfil.cedula not in str(guardado.__dict__)
+    assert perfil.cedula not in str(AuditLog.objects.get().payload)
+
+
+def test_sin_clave_de_hmac_la_aprobacion_responde_503(como, admin_user, perfil_factory, settings):
+    """Fallo cerrado y opaco: el 503 no nombra la variable que falta."""
+    perfil = perfil_factory()
+    settings.DOCUMENT_HMAC_SECRET = ""
+
+    respuesta = como(admin_user).patch(
+        f"{COLA_URL}{perfil.pk}/review/",
+        {"decision": "APROBADO", "document_number": perfil.cedula},
+        format="json",
+    )
+
+    assert respuesta.status_code == 503
+    assert "DOCUMENT_HMAC_SECRET" not in respuesta.content.decode()
+    perfil.user.refresh_from_db()
+    assert perfil.user.verification_status == VerificationStatus.PENDIENTE
+    assert not AuditLog.objects.exists()
+    assert not Notification.objects.exists()
+
+
+def test_una_aprobacion_correcta_no_deja_la_cedula_en_ningun_lado(
+    como, admin_user, perfil_factory, django_capture_on_commit_callbacks, caplog
+):
+    """La respuesta, la auditoría, la notificación, el correo y los logs, de una vez."""
+    perfil = perfil_factory()
+
+    with caplog.at_level(logging.DEBUG), django_capture_on_commit_callbacks(execute=True):
+        respuesta = como(admin_user).patch(
+            f"{COLA_URL}{perfil.pk}/review/",
+            {"decision": "APROBADO", "document_number": perfil.cedula},
+            format="json",
+        )
+
+    assert respuesta.status_code == 200
+    fila = AuditLog.objects.get()
+    correo = mail.outbox[0]
+    # Fila releída de la base, no la instancia de la factoría: esa lleva `cedula` colgada
+    # como atributo de prueba y la aserción se dispararía siempre.
+    guardado = CitizenProfile.objects.get(pk=perfil.pk)
+
+    lugares = [
+        respuesta.content.decode(),
+        str(fila.payload),
+        str(guardado.__dict__),
+        str(Notification.objects.get().__dict__),
+        correo.subject,
+        correo.body,
+        caplog.text,
+    ]
+    for texto in lugares:
+        assert perfil.cedula not in texto
+
+    assert fila.action == identity_review.ACCION_APROBACION
 
 
 # --------------------------------------------------------------------------- #
@@ -447,7 +684,11 @@ def _rutas(perfil):
     return [
         ("get", COLA_URL, None),
         ("get", f"{COLA_URL}{perfil.pk}/", None),
-        ("patch", f"{COLA_URL}{perfil.pk}/review/", {"decision": "APROBADO"}),
+        (
+            "patch",
+            f"{COLA_URL}{perfil.pk}/review/",
+            {"decision": "APROBADO", "document_number": perfil.cedula},
+        ),
     ]
 
 
@@ -535,7 +776,9 @@ def test_si_el_broker_falla_la_revision_sigue_siendo_200(
     perfil = perfil_factory()
 
     respuesta = como(admin).patch(
-        f"{COLA_URL}{perfil.pk}/review/", {"decision": "APROBADO"}, format="json"
+        f"{COLA_URL}{perfil.pk}/review/",
+        {"decision": "APROBADO", "document_number": perfil.cedula},
+        format="json",
     )
 
     assert respuesta.status_code == 200
@@ -550,7 +793,11 @@ def test_si_el_broker_falla_la_decision_y_la_auditoria_persisten(
     admin = user_factory(email="admin-broker2@example.com", role=UserRole.ADMIN)
     perfil = perfil_factory()
 
-    como(admin).patch(f"{COLA_URL}{perfil.pk}/review/", {"decision": "APROBADO"}, format="json")
+    como(admin).patch(
+        f"{COLA_URL}{perfil.pk}/review/",
+        {"decision": "APROBADO", "document_number": perfil.cedula},
+        format="json",
+    )
 
     perfil.user.refresh_from_db()
     assert perfil.user.verification_status == VerificationStatus.APROBADO
@@ -567,7 +814,11 @@ def test_si_el_broker_falla_la_notificacion_queda_fallida(
     admin = user_factory(email="admin-broker3@example.com", role=UserRole.ADMIN)
     perfil = perfil_factory()
 
-    como(admin).patch(f"{COLA_URL}{perfil.pk}/review/", {"decision": "APROBADO"}, format="json")
+    como(admin).patch(
+        f"{COLA_URL}{perfil.pk}/review/",
+        {"decision": "APROBADO", "document_number": perfil.cedula},
+        format="json",
+    )
 
     notificacion = Notification.objects.get()
     assert notificacion.status == NotificationStatus.FALLIDO
@@ -585,7 +836,11 @@ def test_los_logs_del_fallo_de_encolado_no_llevan_datos_sensibles(
     perfil = perfil_factory()
 
     with caplog.at_level(logging.DEBUG):
-        como(admin).patch(f"{COLA_URL}{perfil.pk}/review/", {"decision": "APROBADO"}, format="json")
+        como(admin).patch(
+            f"{COLA_URL}{perfil.pk}/review/",
+            {"decision": "APROBADO", "document_number": perfil.cedula},
+            format="json",
+        )
 
     assert "clave@host" not in caplog.text
     assert perfil.document_hmac not in caplog.text
@@ -603,7 +858,9 @@ def test_con_el_broker_sano_la_revision_entrega_el_correo(como, user_factory, pe
     perfil = perfil_factory()
 
     respuesta = como(admin).patch(
-        f"{COLA_URL}{perfil.pk}/review/", {"decision": "APROBADO"}, format="json"
+        f"{COLA_URL}{perfil.pk}/review/",
+        {"decision": "APROBADO", "document_number": perfil.cedula},
+        format="json",
     )
 
     assert respuesta.status_code == 200
@@ -633,7 +890,9 @@ def test_la_vista_traduce_una_revision_invalida_del_servicio_a_400(
     monkeypatch.setattr(identity_review, "review", rechazar)
 
     respuesta = como(admin_user).patch(
-        f"{COLA_URL}{perfil.pk}/review/", {"decision": "APROBADO"}, format="json"
+        f"{COLA_URL}{perfil.pk}/review/",
+        {"decision": "APROBADO", "document_number": perfil.cedula},
+        format="json",
     )
 
     assert respuesta.status_code == 400
