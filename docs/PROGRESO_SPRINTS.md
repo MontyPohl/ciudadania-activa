@@ -2,7 +2,7 @@
 
 Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes de iniciar el siguiente.
 
-- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 sin iniciar. Sin decisiones de arquitectura pendientes.
+- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 **en curso** desde el 22/08/2026: diseño cerrado en dos fases (A y A.1) con las doce decisiones aprobadas, y fundaciones backend implementadas en rama. Sin decisiones de arquitectura pendientes.
 - **Plan de referencia:** [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md)
 - **Ventana de desarrollo:** 01/08/2026 → 15/11/2026 (16 sprints semanales, Anexo F revisado)
 - **Estados posibles:** `Pendiente` · `En curso` · `Completado` · `Completado con observaciones` · `Bloqueado`
@@ -16,7 +16,7 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 | 1 | 01/08 – 07/08 | Entorno, repositorio y CI/CD | Completado |
 | 2 | 08/08 – 14/08 | Modelo de datos e incentivos | Completado |
 | 3 | 15/08 – 21/08 | Autenticación, roles y permisos | Completado |
-| 4 | 22/08 – 28/08 | Verificación de identidad y privacidad | Pendiente |
+| 4 | 22/08 – 28/08 | Verificación de identidad y privacidad | En curso |
 | 5 | 29/08 – 04/09 | Mapa público y geolocalización | Pendiente |
 | 6 | 05/09 – 11/09 | Creación de reportes y duplicados | Pendiente |
 | 7 | 12/09 – 18/09 | Panel ciudadano y confirmaciones | Pendiente |
@@ -30,7 +30,7 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 | 15 | 07/11 – 13/11 | Carga, dataset definitivo y documentación | Pendiente |
 | 16 | 14/11 – 15/11 | Cierre y preparación de la defensa | Pendiente |
 
-**Progreso:** 3 / 16 sprints completados (Sprints 1, 2 y 3, los tres cerrados el 20/08/2026). Sprint 4 **no iniciado**; la ejecución real arrastra el desvío de calendario registrado en CT-29.
+**Progreso:** 3 / 16 sprints completados (Sprints 1, 2 y 3, los tres cerrados el 20/08/2026). Sprint 4 **en curso** desde el 22/08/2026 y todavía sin cerrar, por lo que no computa; la ejecución real arrastra el desvío de calendario registrado en CT-29.
 
 ### Decisiones que condicionan el avance
 
@@ -389,23 +389,67 @@ El responsable del proyecto revisó el diff y aprobó el merge; ningún cambio s
 ## Sprint 4 — Verificación de identidad y privacidad
 
 **Fechas planificadas:** 22/08/2026 – 28/08/2026
-**Estado:** Pendiente
+**Fecha real de inicio:** 22/08/2026
+**Estado:** En curso
 **Fecha real de cierre:** —
 
+### Avance al 22/08/2026 (implementación local completa, sin desplegar)
+
+El diseño se cerró en dos fases —A y A.1— con **doce decisiones aprobadas** antes de
+escribir código, registradas en `ADR-0006` y `ADR-0011`. La implementación se ejecutó en
+cinco fases sobre la rama `feat/s04-verificacion-identidad`, **sin ningún commit todavía**.
+
+**Terminado y verificado en local:**
+
+- **Fundaciones backend** (Fase B): `citizen_profiles.rejection_reason` y su migración,
+  permiso `IsCitizen`, ajustes de identidad y correo, normalización de la cédula,
+  HMAC-SHA-256, validación de la selfie con Pillow y cliente de Supabase Storage.
+- **Flujo ciudadano** (Fase C): envío, consulta del estado propio, reenvío tras rechazo
+  con bloqueo explícito de filas y relectura bajo el lock, compensación de Storage y
+  *throttle* del envío.
+- **Privacidad del ranking** (Fases C y E.1): las cuatro modalidades se **guardan y se
+  recuperan**; `GET` y `PATCH` sobre la misma ruta.
+- **Revisión administrativa** (Fase D): cola, detalle con URL firmada de 300 s, aprobación
+  y rechazo con motivo, concurrencia entre dos administradores, auditoría y notificación
+  en la misma transacción.
+- **Notificaciones** (Fase D): fila en `notifications`, tarea de Celery idempotente y sin
+  reintentos, dos plantillas de texto plano, y tratamiento de los fallos de broker y de
+  SMTP sin tumbar la revisión.
+- **Frontend** (Fase E): pantallas de verificación, perfil, cola e detalle administrativo,
+  con navegación mínima y sin dependencias npm nuevas.
+- **Documentación**: `docs/API.md` nuevo, `ADR-0006` y `ADR-0011`, diccionario de datos
+  actualizado y cinco filas nuevas en `CAMBIOS_TESIS_PENDIENTES.md` (CT-44 a CT-48).
+
+**Pendiente para cerrar el sprint:**
+
+1. aprovisionar la infraestructura productiva —bucket privado `verificaciones`, variables
+   del backend web, SMTP del worker—;
+2. Pull Request con CI en verde;
+3. respaldo previo y migración productiva de `auth_app.0004` bajo el gate de ADR-0003;
+4. prueba funcional real de extremo a extremo;
+5. cierre documental.
+
 ### Funcionalidades terminadas
-_Pendiente._
+_Pendiente del cierre del sprint._
 
 ### Pruebas realizadas
-_Pendiente._
+_Pendiente del cierre del sprint._ Estado local al 22/08/2026: **582 pruebas verdes** y
+**99 %** de cobertura, con los módulos nuevos al 100 %. Frontend con `format:check`,
+`lint`, `typecheck` y `build` en verde. `makemigrations --check` sin cambios detectados.
 
 ### Problemas encontrados
-_Pendiente._
+_Pendiente del cierre del sprint._
 
 ### Commits relevantes
-_Pendiente._
+_Pendiente._ La rama `feat/s04-verificacion-identidad` todavía no tiene commits.
 
 ### Observaciones y desvíos respecto del plan
-_Pendiente._
+_Pendiente del cierre del sprint._ Anotados hasta ahora: **`IsCitizen` como sexto
+permiso** sobre los cinco que enumera el plan —necesario porque quien envía su
+verificación todavía no está verificado, y sin alterar la matriz rol × capacidad del
+§29—; **`GET /api/v1/admin/identity/{id}/`** y **`GET /api/v1/profile/ranking-visibility/`**
+como adiciones al contrato del Anexo B (CT-47 y CT-48); y la ruta `(citizen)/verificacion`,
+que el §7 del plan no enumeraba.
 
 ---
 
@@ -727,14 +771,14 @@ Se completa a medida que las mediciones estén disponibles (Sprints 14 y 15).
 | ADR-0001 | Monorepo frontend + backend | S1 | Aceptada |
 | ADR-0002 | Django modular por apps de dominio | S1 | Aceptada |
 | ADR-0003 | PostgreSQL + PostGIS y alojamiento en Supabase (documenta D-03, versiones reales, `search_path`, aislamiento local/remoto, TLS y la política de respaldos) | S1 | Aceptada — actualizada el 20/08/2026: plan Free sin respaldos programados, política de respaldo manual verificada con restauración real y despliegue en Railway/Vercel operativo |
-| ADR-0004 | Ledger auditable con importes inmutables | S2 | Pendiente |
-| ADR-0005 | Google OAuth 2.0 + JWT | S3 | Pendiente |
-| ADR-0006 | Identidad HMAC y almacenamiento privado | S4 | Pendiente |
+| ADR-0004 | Ledger auditable con importes inmutables | S2 | Aceptada — el archivo existe desde el cierre del Sprint 2 y declara ese estado; la tabla arrastraba la marca de planificación |
+| ADR-0005 | Google OAuth 2.0 + JWT | S3 | Aceptada — el archivo existe desde el cierre del Sprint 3 y declara ese estado; la tabla arrastraba la marca de planificación |
+| ADR-0006 | Identidad HMAC y almacenamiento privado | S4 | Aceptada — escrita el 22/08/2026 con las doce decisiones cerradas en la Fase A.1 |
 | ADR-0007 | Almacenamiento de fotografías | S6 | Pendiente |
 | ADR-0008 | Integración desacoplada con Gemini | S8 | Pendiente |
 | ADR-0009 | Tareas asíncronas y qué no es asíncrono | S8 | Pendiente |
 | ADR-0010 | Créditos por institución y conversión 1:1 | S9 | Pendiente |
-| ADR-0011 | Privacidad configurable del ranking | S4 | Pendiente |
+| ADR-0011 | Privacidad configurable del ranking | S4 | Aceptada — escrita el 22/08/2026 y ampliada con la recuperación de la preferencia (`GET` + `PATCH`); la resolución del nombre visible es del S11 |
 | ADR-0012 | Detección de duplicados por proximidad | S6 | Pendiente |
 | ADR-0013 | Política de reversión, anulación y saldo negativo | S10 | Pendiente |
 | ADR-0014 | Modelo de usuario personalizado desde la primera migración | S1 | Aceptada |

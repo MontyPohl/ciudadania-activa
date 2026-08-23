@@ -1,0 +1,10 @@
+Hola {{ nombre }}:
+
+Tu verificación de identidad en Ciudadanía Activa no pudo ser aprobada.
+
+Podés consultar el motivo y volver a enviar tu verificación desde tu cuenta en la
+plataforma. El detalle no se envía por correo por razones de privacidad.
+
+--
+Ciudadanía Activa
+Este es un mensaje automático. No respondas a esta dirección.

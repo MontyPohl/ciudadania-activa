@@ -93,8 +93,76 @@ def test_is_authenticated_se_reexporta_de_drf():
 
 
 # --------------------------------------------------------------------------- #
+# IsCitizen (Sprint 4)
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.django_db
+def test_is_citizen_concede_al_ciudadano_sin_verificar(citizen):
+    """El envío de la verificación lo hace quien todavía NO está verificado."""
+    assert citizen.verification_status == VerificationStatus.PENDIENTE
+    assert permissions.IsCitizen().has_permission(_peticion(citizen), None) is True
+
+
+@pytest.mark.django_db
+def test_is_citizen_concede_tambien_al_ciudadano_ya_verificado(user_factory):
+    verificado = user_factory(
+        email="ya-verificado@example.com", verification_status=VerificationStatus.APROBADO
+    )
+
+    assert permissions.IsCitizen().has_permission(_peticion(verificado), None) is True
+
+
+@pytest.mark.django_db
+def test_is_citizen_deniega_a_operador_admin_y_anonimo(operator_user, admin_user):
+    permiso = permissions.IsCitizen()
+
+    assert permiso.has_permission(_peticion(operator_user), None) is False
+    assert permiso.has_permission(_peticion(admin_user), None) is False
+    assert permiso.has_permission(_peticion(None), None) is False
+
+
+@pytest.mark.django_db
+def test_is_citizen_no_se_deduce_de_is_staff_ni_is_superuser(user_factory):
+    """Los flags del admin de Django no otorgan rol de dominio (ADR-0005)."""
+    superusuario = User.objects.create_superuser(
+        email="root-s4@example.com", password="clave-segura-123", role=UserRole.ADMIN
+    )
+    staff = user_factory(email="staff-s4@example.com", role=UserRole.OPERATOR, is_staff=True)
+
+    assert permissions.IsCitizen().has_permission(_peticion(superusuario), None) is False
+    assert permissions.IsCitizen().has_permission(_peticion(staff), None) is False
+
+
+def test_is_citizen_se_exporta_en_all():
+    assert "IsCitizen" in permissions.__all__
+
+
+# --------------------------------------------------------------------------- #
 # IsVerifiedCitizen
 # --------------------------------------------------------------------------- #
+
+
+@pytest.mark.django_db
+def test_is_verified_citizen_no_cambia_con_la_llegada_de_is_citizen(
+    user_factory, citizen, operator_user, admin_user
+):
+    """No-regresión del Sprint 4: `IsCitizen` no relaja `IsVerifiedCitizen`.
+
+    Un ciudadano PENDIENTE pasa el permiso nuevo y sigue sin pasar el antiguo: son
+    dos preguntas distintas y deben responderse distinto.
+    """
+    verificado = user_factory(
+        email="no-regresion@example.com", verification_status=VerificationStatus.APROBADO
+    )
+    verificado_permiso = permissions.IsVerifiedCitizen()
+
+    assert verificado_permiso.has_permission(_peticion(verificado), None) is True
+    assert verificado_permiso.has_permission(_peticion(citizen), None) is False
+    assert verificado_permiso.has_permission(_peticion(operator_user), None) is False
+    assert verificado_permiso.has_permission(_peticion(admin_user), None) is False
+
+    assert permissions.IsCitizen().has_permission(_peticion(citizen), None) is True
 
 
 @pytest.mark.django_db

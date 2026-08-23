@@ -1,0 +1,9 @@
+Hola {{ nombre }}:
+
+Tu verificación de identidad en Ciudadanía Activa fue aprobada.
+
+Tu cuenta ya figura como verificada para las funcionalidades que lo requieren.
+
+--
+Ciudadanía Activa
+Este es un mensaje automático. No respondas a esta dirección.
