@@ -273,6 +273,30 @@ Tres precisiones que ahorran un rato de depuración:
   reencolar la tarea sobre una notificación fallida **no la reenvía**. Los reintentos son
   alcance de los Sprints 12-13.
 
+Para recuperar una notificación fallida hay una puerta explícita y solo una:
+
+```bash
+python manage.py resend_notification <notification_uuid>
+```
+
+Devuelve **esa** notificación de `FALLIDO` a `PENDIENTE`, lo registra en `audit_logs` como
+`notification.resent` y encola el envío. El correo lo entrega el worker por el camino normal;
+el comando no habla con Brevo. Exige que la notificación esté en `FALLIDO`: sobre una
+`PENDIENTE` o `ENVIADO` falla sin tocar nada, porque reactivarla duplicaría el correo. Si el
+broker no responde, la notificación vuelve a `FALLIDO` y basta con repetir el comando.
+
+**Cómo obtener el UUID.** El comando exige que se lo pasen explícitamente: no busca la
+notificación por usuario ni por fecha, a propósito, para que reenviar sea siempre un acto
+dirigido a una fila concreta. El identificador debe averiguarse con una **consulta
+administrativa de solo lectura o una herramienta operativa autorizada**, y pasarse después
+al comando.
+
+No se documenta aquí el admin de Django como vía estándar: `Notification` está registrada
+en él, pero entrar exige `is_staff`, y **el rol de dominio `admin` no lo concede**
+—`promote_user` no toca `is_staff` ni `is_superuser` (ADR-0005 §11)—. Que exista una cuenta
+con acceso al admin en un entorno concreto es una circunstancia de ese entorno, no una
+garantía del sistema.
+
 ## Comandos habituales
 
 | Comando | Descripción |
@@ -284,6 +308,7 @@ Tres precisiones que ahorran un rato de depuración:
 | `cd backend && python manage.py seed_catalogs` | Recarga los catálogos semilla (idempotente) |
 | `cd backend && python manage.py promote_user <email> --role operator --institution <slug>` | Promueve un usuario existente a operador |
 | `cd backend && python manage.py promote_user <email> --role admin` | Promueve un usuario existente a administrador |
+| `cd backend && python manage.py resend_notification <uuid>` | Reencola una notificación que quedó en `FALLIDO` |
 | `cd frontend && npm run lint` | Lint del frontend |
 | `cd frontend && npm run typecheck` | Verificación de tipos (`next typegen && tsc --noEmit`) |
 | `cd frontend && npm run format` | Formatea el frontend con Prettier |

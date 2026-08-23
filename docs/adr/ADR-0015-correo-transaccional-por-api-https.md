@@ -140,6 +140,45 @@ el doble convertiría un olvido en una llamada real a la API. Los ajustes de pru
 apuntan además `BREVO_API_URL` a un host inexistente, de modo que un doble mal puesto se
 manifestaría como error de red y no como un envío real.
 
+### 7. Recuperación manual: `resend_notification`, y nada automático
+
+Cambiar de transporte no rescata los correos que ya fallaron con el anterior. `FALLIDO`
+**sigue siendo terminal**: `dispatch.send()` se retira sin enviar si el estado no es
+`PENDIENTE`, y reencolar la tarea sobre una notificación fallida no la reenvía. Eso no
+cambia, porque es lo que impide que un fallo se convierta en un bucle de correos.
+
+Lo que se añade es una puerta explícita: el comando
+
+```
+python manage.py resend_notification <notification_uuid>
+```
+
+devuelve **una** notificación de `FALLIDO` a `PENDIENTE`, lo registra en `audit_logs`
+como `notification.resent` con `actor_type = system` —mismo patrón que `promote_user`— y
+encola la tarea de siempre en `on_commit`. El envío real lo hace el worker por el camino
+normal. El comando no habla con Brevo.
+
+Es deliberadamente incómodo: hay que entrar por consola y nombrar cada notificación. No
+hay endpoint ni acción en el admin, porque un botón de «reenviar» invita a pulsarlo dos
+veces. El estado se relee con la fila bloqueada, así que dos operadores simultáneos
+producen una sola reactivación, una sola entrada de auditoría y un solo correo.
+
+Si el broker no responde al encolar, la notificación **vuelve a `FALLIDO`** en lugar de
+quedarse en `PENDIENTE` sin nadie que la procese: así el operador arregla el broker y
+repite el mismo comando. La entrada de auditoría del intento se conserva —alguien lo
+intentó, y eso ocurrió—.
+
+El comando **no busca** la notificación: exige el UUID como argumento, de modo que
+reenviar sea siempre un acto dirigido a una fila concreta y no el resultado de un filtro
+que podría abarcar más de lo previsto. El identificador se obtiene con una consulta
+administrativa de solo lectura o una herramienta operativa autorizada. **No se apoya en
+el admin de Django**: `Notification` está registrada en él, pero entrar exige `is_staff`,
+y el rol de dominio `admin` no lo concede (ADR-0005 §11). Dar por hecho ese acceso sería
+documentar como procedimiento algo que el sistema no garantiza.
+
+Esto no adelanta los reintentos automáticos, que siguen siendo alcance de los Sprints
+12-13: la tarea sigue sin `autoretry_for`, sin `retry_backoff` y sin `max_retries`.
+
 ## Consecuencias
 
 **A favor**
