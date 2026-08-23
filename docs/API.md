@@ -346,15 +346,45 @@ no está configurado o no responde.
 
 Aprobación o rechazo manual (RF-03, RF-30). **Permiso `IsAdmin`.**
 
-**Request**
+**Request** — al rechazar
 
 ```json
 { "decision": "RECHAZADO", "reason": "La imagen no permite leer el documento." }
 ```
 
-`decision` ∈ `APROBADO` · `RECHAZADO`. Al aprobar, `reason` se **ignora**. Al rechazar es
-obligatorio, se recorta y no puede quedar vacío. Es **texto libre sin catálogo**: ninguna
-fuente del proyecto define uno para identidades.
+**Request** — al aprobar
+
+```json
+{ "decision": "APROBADO", "document_number": "1.234.567" }
+```
+
+`decision` ∈ `APROBADO` · `RECHAZADO`.
+
+| Campo | Cuándo | Notas |
+|---|---|---|
+| `reason` | **obligatorio** al rechazar · ignorado al aprobar | Se recorta y no puede quedar vacío. **Texto libre sin catálogo**: ninguna fuente del proyecto define uno para identidades |
+| `document_number` | **obligatorio** al aprobar · ignorado al rechazar | El número que el administrador **lee en la selfie** y transcribe. Mismo alfabeto que el envío ciudadano: dígitos, puntos, guiones y espacios |
+
+**Comprobación del número al aprobar.** El backend no aprueba a ciegas. Toma el
+`document_number` transcrito, lo normaliza con **la misma** función que usó el envío
+ciudadano —se eliminan `.`, `-` y espacios; los ceros iniciales se preservan—, calcula su
+HMAC-SHA-256 con el mismo `DOCUMENT_HMAC_SECRET` y lo compara contra
+`citizen_profiles.document_hmac` con `hmac.compare_digest`, en tiempo constante. Solo
+aprueba si coinciden. `1.234.567`, `1234567`, `1 234 567` y `1-234-567` son equivalentes;
+`0123456` y `123456` **no** lo son.
+
+La comparación ocurre **dentro del bloqueo** de la revisión, contra el `document_hmac`
+leído ya con las filas bloqueadas: un reenvío que entrara entre la validación y la
+escritura no puede hacer que la aprobación se aplique sobre un envío distinto del que se
+comprobó.
+
+**El número no se persiste.** Es un dato de paso: no se guarda en ninguna columna, no
+entra en `audit_logs`, no llega a `notifications` ni al correo, no se escribe en ningún
+log y no vuelve en la respuesta. Rechazar **no** lo pide, precisamente porque el motivo
+habitual de un rechazo es que la cédula no se lee en la imagen.
+
+Esto no es OCR, ni biometría, ni consulta a ningún padrón: la lectura la hace una persona
+y el servidor solo comprueba que lo leído corresponde a lo declarado.
 
 **200**
 
@@ -369,9 +399,22 @@ fuente del proyecto define uno para identidades.
 
 `verified_by` es el UUID del administrador, no su correo.
 
-**Errores** — `400` decisión inválida o rechazo sin motivo · `401` · `403` ·
-`404` no existe · `409` **ya fue revisada**, incluida la carrera entre dos
-administradores simultáneos.
+**Errores**
+
+| Código | Caso |
+|---|---|
+| `400` | Decisión inválida · rechazo sin motivo · aprobación **sin** `document_number` · `document_number` con caracteres no admitidos · `document_number` que **no coincide** con la solicitud |
+| `401` | Anónimo |
+| `403` | Rol distinto de `admin` |
+| `404` | No existe esa verificación |
+| `409` | **Ya fue revisada**, incluida la carrera entre dos administradores simultáneos |
+| `503` | El servidor no tiene configurada la verificación de identidad |
+
+El `400` del número que no coincide es deliberadamente **genérico**: dice que no coincide
+y nada más. No devuelve el `document_hmac`, ni el número guardado, ni ninguna pista sobre
+en qué se diferencia. Y es `400`, no `409`: el conflicto queda reservado al estado de la
+verificación. Un número equivocado no modifica nada —ni el perfil, ni el estado, ni la
+auditoría, ni la notificación— y no encola ningún correo.
 
 **Efectos de una revisión, todos en la misma transacción:** cambia
 `verification_status`, se fijan `verified_at` y `verified_by`, se escribe la entrada de

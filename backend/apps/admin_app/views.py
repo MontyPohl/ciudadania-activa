@@ -29,6 +29,7 @@ from apps.admin_app.serializers import (
 from apps.admin_app.services import identity_review
 from apps.auth_app.enums import VerificationStatus
 from apps.auth_app.models import CitizenProfile
+from apps.auth_app.services import identity as identity_service
 from apps.core.permissions import IsAdmin
 from apps.core.services import storage
 
@@ -38,6 +39,13 @@ logger = logging.getLogger(__name__)
 #: ambos casos ni nombra ninguna variable.
 SELFIE_NO_DISPONIBLE = "No se pudo obtener la imagen de verificación. Intentá más tarde."
 VERIFICACION_INEXISTENTE = "No existe esa verificación."
+
+#: Mismo texto y misma opacidad que el 503 del envío ciudadano: sin `DOCUMENT_HMAC_SECRET`
+#: no se puede comprobar la cédula, así que no se aprueba. No se nombra la variable que
+#: falta, para no confirmarle nada a quien sondee el endpoint.
+REVISION_NO_DISPONIBLE = (
+    "La verificación de identidad no está disponible en este momento. Intentá más tarde."
+)
 
 
 def _cola_base():
@@ -123,7 +131,13 @@ class IdentityDetailView(APIView):
 
 
 class IdentityReviewView(APIView):
-    """Aprobación o rechazo manual de una verificación (RF-03, RF-30)."""
+    """Aprobación o rechazo manual de una verificación (RF-03, RF-30).
+
+    Aprobar exige que el administrador transcriba el número de cédula que ve en la
+    selfie: el servicio lo compara contra el `document_hmac` del envío y solo entonces
+    aplica la decisión. Ese número **no vuelve en la respuesta, no se persiste y no se
+    registra en ningún log**; la vista se limita a pasárselo al servicio.
+    """
 
     permission_classes = [IsAdmin]
 
@@ -136,6 +150,7 @@ class IdentityReviewView(APIView):
                 profile_id,
                 decision=entrada.validated_data["decision"],
                 reason=entrada.validated_data.get("reason", ""),
+                document_number=entrada.validated_data.get("document_number", ""),
                 actor=request.user,
             )
         except CitizenProfile.DoesNotExist:
@@ -143,7 +158,15 @@ class IdentityReviewView(APIView):
         except identity_review.AlreadyReviewedError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_409_CONFLICT)
         except identity_review.InvalidReviewError as exc:
+            # Cubre también `DocumentMismatchError`, que es una subclase: una cédula que
+            # no coincide es un 400, nunca el 409 reservado al estado de la verificación.
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        except identity_service.IdentityConfigurationError:
+            # Fallo cerrado, el mismo del envío ciudadano: sin clave no se compara y no
+            # se aprueba. No se distingue de otras faltas de configuración.
+            return Response(
+                {"detail": REVISION_NO_DISPONIBLE}, status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
 
         resultado = {
             "id": perfil.pk,

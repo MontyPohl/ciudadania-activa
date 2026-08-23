@@ -70,6 +70,16 @@ class IdentityReviewInputSerializer(serializers.Serializer):
     establece y la columna es `text`.
 
     Al aprobar, `reason` se ignora: el servicio deja `rejection_reason` vacío.
+
+    `document_number` es el número que el administrador **lee en la selfie** y transcribe
+    para comprobar que coincide con el que el ciudadano declaró al enviar la solicitud.
+    Solo se exige al aprobar; al rechazar se ignora, igual que `reason` al aprobar. Es un
+    dato **de paso**: se compara contra `document_hmac` y se descarta. No se persiste, no
+    entra en la auditoría, no llega a la notificación y no vuelve en la respuesta.
+
+    Aquí no se normaliza ni se valida su alfabeto: eso es competencia del servicio de
+    identidad, que ya define la única normalización del proyecto. El serializador se
+    limita a exigir que venga con contenido cuando la decisión es aprobar.
     """
 
     decision = serializers.ChoiceField(
@@ -79,14 +89,23 @@ class IdentityReviewInputSerializer(serializers.Serializer):
         ]
     )
     reason = serializers.CharField(required=False, allow_blank=True, trim_whitespace=True)
+    document_number = serializers.CharField(required=False, allow_blank=True, trim_whitespace=True)
 
     def validate(self, attrs):
-        """El rechazo exige un motivo con contenido; la aprobación no lo mira."""
-        if attrs["decision"] != VerificationStatus.RECHAZADO:
+        """El rechazo exige un motivo; la aprobación exige el número leído en la selfie."""
+        if attrs["decision"] == VerificationStatus.RECHAZADO:
+            if not (attrs.get("reason") or "").strip():
+                raise serializers.ValidationError({"reason": "El rechazo requiere un motivo."})
             return attrs
 
-        if not (attrs.get("reason") or "").strip():
-            raise serializers.ValidationError({"reason": "El rechazo requiere un motivo."})
+        if not (attrs.get("document_number") or "").strip():
+            raise serializers.ValidationError(
+                {
+                    "document_number": (
+                        "La aprobación requiere el número de cédula que figura en la selfie."
+                    )
+                }
+            )
 
         return attrs
 
