@@ -209,14 +209,14 @@ y repartir credenciales de más es un riesgo gratuito.
 | `SUPABASE_URL` | **Sí** | No | No |
 | `SUPABASE_SERVICE_ROLE_KEY` | **Sí** | No | No |
 | `SUPABASE_STORAGE_BUCKET_PRIVATE` | **Sí** | No | No |
-| `EMAIL_HOST` · `EMAIL_PORT` · `EMAIL_HOST_USER` · `EMAIL_HOST_PASSWORD` · `EMAIL_USE_TLS` · `DEFAULT_FROM_EMAIL` | No | **Sí** | No |
+| `BREVO_API_KEY` · `BREVO_API_URL` · `DEFAULT_FROM_EMAIL` | No | **Sí** | No |
 | `DATABASE_URL` · `REDIS_URL` · `DJANGO_SECRET_KEY` | **Sí** | **Sí** | No |
 | `NEXT_PUBLIC_API_URL` · `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | No | No | **Sí** (públicas) |
 
 El backend web es el único que crea verificaciones y firma imágenes, así que es el único que
 necesita la clave del HMAC y la credencial de Storage. El worker es el único que envía correo,
-así que es el único que necesita SMTP. **Ninguna variable de Supabase llega al frontend**: el
-navegador nunca habla con el almacenamiento.
+así que es el único que necesita la clave de Brevo. **Ninguna variable de Supabase llega al
+frontend**: el navegador nunca habla con el almacenamiento.
 
 Sin estas variables la aplicación **arranca igual**. `config/settings/prod.py` no las exige:
 backend web y worker comparten ajustes, y obligar a que estén presentes forzaría a copiar una
@@ -249,10 +249,29 @@ en el backend web.
 
 ### Correo transaccional
 
-`EMAIL_*` es configuración del **worker**, que es quien envía. El backend web solo escribe la
-fila en `notifications`, así que no necesita credenciales SMTP. Con el SMTP sin configurar la
-notificación queda en `FALLIDO`, que es un estado previsto y consultable en el admin, no una
-caída del servicio.
+**No se usa SMTP.** El plan **Free de Railway no ofrece SMTP saliente**: la conexión no se
+rechaza, se queda colgada hasta agotar el timeout. Eso es exactamente lo que ocurrió en la
+validación E2E productiva del 23/08/2026 —`TimeoutError` tras 135 s, notificación en `FALLIDO`
+y correo que nunca llegó—. El envío va contra la **API HTTPS de correo transaccional de Brevo**,
+`POST https://api.brevo.com/v3/smtp/email`, que sale por el puerto 443 como cualquier otra
+llamada del proyecto. La decisión y sus alternativas están en
+[ADR-0015](docs/adr/ADR-0015-correo-transaccional-por-api-https.md).
+
+`BREVO_API_KEY` es configuración del **worker**, que es quien envía. El backend web solo escribe
+la fila en `notifications`, así que no la necesita. Sin ella el envío **falla cerrado** —no se
+intenta ninguna llamada— y la notificación queda en `FALLIDO`, que es un estado previsto y
+consultable en el admin, no una caída del servicio.
+
+Tres precisiones que ahorran un rato de depuración:
+
+- **La clave de API no es la clave SMTP.** Brevo emite las dos por separado, en la misma
+  pantalla («SMTP & API»). La SMTP no autentica contra la API v3: devuelve `401`.
+- **El remitente debe estar verificado en Brevo.** `DEFAULT_FROM_EMAIL` admite la forma
+  `Nombre <direccion>`; el cliente la separa y la envía como `{"name": ..., "email": ...}`. Si
+  la dirección no figura como remitente verificado, Brevo rechaza el envío con `400`.
+- **No hay reintentos automáticos.** Un fallo deja la notificación en `FALLIDO` y ahí se queda:
+  reencolar la tarea sobre una notificación fallida **no la reenvía**. Los reintentos son
+  alcance de los Sprints 12-13.
 
 ## Comandos habituales
 

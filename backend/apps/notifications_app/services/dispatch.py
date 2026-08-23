@@ -7,7 +7,7 @@ procesos distintos:
   escribe la fila en `notifications`. No habla con ningún servidor de correo, así que no
   puede hacer fallar ni ralentizar la operación de negocio.
 - `send()` — **asíncrono**, desde la tarea de Celery en el worker. Es el único punto que
-  toca SMTP y el único que cambia el estado a ENVIADO o FALLIDO.
+  habla con el proveedor de correo y el único que cambia el estado a ENVIADO o FALLIDO.
 
 Esa separación es lo que hace que una revisión de identidad no dependa de que el correo
 salga: la decisión administrativa queda registrada aunque el proveedor de correo esté
@@ -22,13 +22,12 @@ from __future__ import annotations
 
 import logging
 
-from django.conf import settings
-from django.core.mail import send_mail
 from django.db import transaction
 from django.template.loader import render_to_string
 
 from apps.notifications_app.enums import NotificationChannel, NotificationStatus, NotificationType
 from apps.notifications_app.models import Notification
+from apps.notifications_app.services import brevo
 
 logger = logging.getLogger(__name__)
 
@@ -73,10 +72,11 @@ def send(notification_id) -> Notification | None:
     se adelantó, esta se retira sin enviar. Sin ese bloqueo, dos entregas simultáneas
     del mismo mensaje —algo perfectamente posible en Celery— producirían dos correos.
 
-    Consecuencia asumida: **el lock de la fila dura lo que tarde en responder el
-    servidor SMTP**. Es aceptable en este MVP —el volumen es de unos pocos correos de
-    verificación— y la alternativa sería añadir un estado intermedio `ENVIANDO` al
-    enumerado, es decir, cambiar el esquema para optimizar algo que todavía no duele.
+    Consecuencia asumida: **el lock de la fila dura lo que tarde en responder Brevo**.
+    Es aceptable en este MVP —el volumen es de unos pocos correos de verificación, y el
+    cliente impone un timeout explícito de 15 s— y la alternativa sería añadir un estado
+    intermedio `ENVIANDO` al enumerado, es decir, cambiar el esquema para optimizar algo
+    que todavía no duele.
 
     Sin reintentos: los reintentos automáticos son alcance de los Sprints 12-13. Una
     notificación FALLIDA queda registrada como tal y es visible en el admin.
@@ -104,9 +104,9 @@ def send(notification_id) -> Notification | None:
             # traducirse a FALLIDO. Dejar escapar la excepción dejaría la fila en
             # PENDIENTE para siempre, que es justo el estado que no debe quedar.
             #
-            # Del error se registra **solo el tipo**, nunca su mensaje: un rechazo de
-            # SMTP suele incluir la dirección del destinatario. El id de la notificación
-            # basta para investigar el caso en el admin.
+            # Del error se registra **solo el tipo**, nunca su mensaje: un rechazo del
+            # proveedor suele incluir la dirección del destinatario. El id de la
+            # notificación basta para investigar el caso en el admin.
             notificacion.status = NotificationStatus.FALLIDO
             notificacion.save(update_fields=["status", "updated_at"])
             logger.warning(
@@ -134,10 +134,4 @@ def _enviar_email(notificacion: Notification) -> None:
 
     cuerpo = render_to_string(plantilla, {"nombre": nombre})
 
-    send_mail(
-        subject=asunto,
-        message=cuerpo,
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        recipient_list=[destinatario],
-        fail_silently=False,
-    )
+    brevo.send_email(to=destinatario, subject=asunto, text_content=cuerpo)
