@@ -423,6 +423,14 @@ se crea la notificación por correo. El envío del correo se encola **después**
 si el correo falla, la decisión sigue en pie y la notificación queda registrada como
 fallida.
 
+**Entrega del correo.** La notificación nace en `PENDIENTE`; el worker de Celery la
+entrega por la **API HTTPS de Brevo** —no por SMTP, que el plan Free de Railway no ofrece
+([ADR-0015](adr/ADR-0015-correo-transaccional-por-api-https.md))— y la deja en `ENVIADO`
+o en `FALLIDO`. El endpoint responde `200` igual en los tres casos: el resultado del envío
+no forma parte del contrato de la revisión, y consultarlo es cosa del admin de Django.
+**`FALLIDO` es terminal en este sprint**: no hay reintentos automáticos y reencolar la
+tarea sobre una notificación fallida no la reenvía.
+
 **Concurrencia.** Las filas del perfil y del usuario se bloquean y el estado se relee
 dentro del bloqueo. Con dos administradores simultáneos, uno obtiene `200` y el otro
 `409`; nunca hay dos decisiones, dos entradas de auditoría ni dos correos.

@@ -246,7 +246,7 @@ Alcance **cerrado** del prototipo, según la tabla 4.6 de la tesis revisada. Nad
 | Caché y broker | Redis 7 |
 | Asincronía | Celery + Celery Beat |
 | IA | Google Gemini vía API (modelo por variable de entorno) |
-| Notificaciones | Email (SMTP/servicio transaccional) |
+| Notificaciones | Email por **API HTTPS** de servicio transaccional (Brevo). **SMTP no es viable**: Railway no lo permite en los planes Free/Trial/Hobby (verificado el 23/08/2026, ADR-0015) |
 | Hosting | Vercel (frontend) · Railway (backend + workers) · Supabase (DB + storage) |
 | Pruebas | pytest + pytest-cov · Playwright · k6 |
 | Calidad | Ruff (Python) · ESLint (TypeScript) · GitHub Actions |
@@ -471,7 +471,7 @@ ciudadania-activa/
 ├── docs/
 │   ├── PLAN_DESARROLLO.md
 │   ├── PROGRESO_SPRINTS.md
-│   ├── adr/                    ADR-0001…ADR-0014
+│   ├── adr/                    ADR-0001…ADR-0015
 │   └── (documentación del TCC)
 ├── infra/
 │   ├── docker-compose.yml      postgres+postgis · redis · backend · worker
@@ -1707,6 +1707,7 @@ La trazabilidad es un requisito académico central: la tesis exige poder reconst
 | ADR-0011 | Privacidad configurable del ranking | Cómo se preserva la posición sin revelar identidad |
 | ADR-0012 | Detección de duplicados por proximidad | Criterio 100 m / misma categoría / activos y por qué no bloquea la creación |
 | ADR-0013 | Política de reversión, anulación y saldo negativo | Quién puede revertir, qué se revierte, por qué no hay penalización adicional, distinción entre `ANULADO` y `REVERTIDO`, y por qué se admite saldo institucional negativo |
+| ADR-0015 | Correo transaccional por API HTTPS, no por SMTP | Restricción real del alojamiento contratado: Railway no permite SMTP saliente fuera de Pro. Explica por qué el envío no usa `django.core.mail` y por qué SMTP deja de ser requisito de producción |
 
 Formato sugerido: contexto · decisión · alternativas consideradas · consecuencias · estado. Se escriben en el sprint en que la decisión se toma, no al final.
 

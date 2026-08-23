@@ -19,7 +19,6 @@ import threading
 import uuid
 
 import pytest
-from django.core import mail
 from django.db import connection, transaction
 from django.test.utils import CaptureQueriesContext
 
@@ -38,13 +37,6 @@ MOTIVO = "La cédula está tapada en la foto."
 #: pieza del camino la convirtiera a entero, `0123456` y `123456` colapsarían en la
 #: misma identidad y estas pruebas seguirían pasando sin detectarlo.
 CEDULA = "0123456"
-
-
-@pytest.fixture(autouse=True)
-def bandeja_limpia():
-    mail.outbox.clear()
-    yield
-    mail.outbox.clear()
 
 
 @pytest.fixture
@@ -234,7 +226,7 @@ def test_los_ceros_iniciales_no_se_pierden(citizen, admin_user, document_hmac_se
 
 
 @pytest.mark.django_db
-def test_un_numero_distinto_no_aprueba_ni_escribe_nada(perfil, admin_user, citizen):
+def test_un_numero_distinto_no_aprueba_ni_escribe_nada(perfil, admin_user, citizen, brevo_api):
     with pytest.raises(identity_review.DocumentMismatchError):
         identity_review.review(
             perfil.pk,
@@ -250,7 +242,7 @@ def test_un_numero_distinto_no_aprueba_ni_escribe_nada(perfil, admin_user, citiz
     assert perfil.verified_by is None
     assert not AuditLog.objects.exists()
     assert not Notification.objects.exists()
-    assert not mail.outbox
+    assert brevo_api.envios == 0
 
 
 @pytest.mark.django_db
@@ -432,7 +424,7 @@ def test_la_cedula_no_queda_en_el_perfil_ni_en_la_auditoria(perfil, admin_user):
 
 @pytest.mark.django_db
 def test_la_cedula_no_llega_a_la_notificacion_ni_al_correo(
-    perfil, admin_user, django_capture_on_commit_callbacks
+    perfil, admin_user, django_capture_on_commit_callbacks, brevo_api
 ):
     with django_capture_on_commit_callbacks(execute=True):
         identity_review.review(
@@ -445,10 +437,10 @@ def test_la_cedula_no_llega_a_la_notificacion_ni_al_correo(
     notificacion = Notification.objects.get()
     assert CEDULA not in str(notificacion.__dict__)
 
-    assert len(mail.outbox) == 1
-    correo = mail.outbox[0]
-    assert CEDULA not in correo.subject
-    assert CEDULA not in correo.body
+    assert brevo_api.envios == 1
+    correo = brevo_api.ultimo
+    assert CEDULA not in correo.asunto
+    assert CEDULA not in correo.cuerpo
 
 
 @pytest.mark.django_db
@@ -578,7 +570,9 @@ def test_si_la_transaccion_se_deshace_no_se_encola_nada(perfil, admin_user, monk
 
 
 @pytest.mark.django_db
-def test_el_envio_se_encola_al_confirmar(perfil, admin_user, django_capture_on_commit_callbacks):
+def test_el_envio_se_encola_al_confirmar(
+    perfil, admin_user, django_capture_on_commit_callbacks, brevo_api
+):
     with django_capture_on_commit_callbacks(execute=True) as callbacks:
         identity_review.review(
             perfil.pk,
@@ -586,10 +580,10 @@ def test_el_envio_se_encola_al_confirmar(perfil, admin_user, django_capture_on_c
             document_number=CEDULA,
             actor=admin_user,
         )
-        assert mail.outbox == []  # todavía nada: está encolado, no enviado
+        assert brevo_api.envios == 0  # todavía nada: está encolado, no enviado
 
     assert len(callbacks) == 1
-    assert len(mail.outbox) == 1
+    assert brevo_api.envios == 1
     assert Notification.objects.get().status == NotificationStatus.ENVIADO
 
 
@@ -705,7 +699,9 @@ def test_encolar_envio_absorbe_incluso_el_fallo_al_marcar_fallida(monkeypatch, c
 
 
 @pytest.mark.django_db(transaction=True, serialized_rollback=True)
-def test_dos_admins_concurrentes_dejan_una_sola_decision(user_factory, document_hmac_secret):
+def test_dos_admins_concurrentes_dejan_una_sola_decision(
+    user_factory, document_hmac_secret, brevo_api
+):
     """Uno obtiene su decisión aplicada; el otro, conflicto. Nunca las dos.
 
     Cada administrador pide una decisión **distinta**, de modo que si ambas se
@@ -774,4 +770,4 @@ def test_dos_admins_concurrentes_dejan_una_sola_decision(user_factory, document_
         else identity_review.ACCION_RECHAZO
     )
     assert Notification.objects.count() == 1
-    assert len(mail.outbox) == 1
+    assert brevo_api.envios == 1

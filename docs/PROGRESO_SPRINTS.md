@@ -413,17 +413,20 @@ cinco fases sobre la rama `feat/s04-verificacion-identidad`, **sin ningún commi
   y rechazo con motivo, concurrencia entre dos administradores, auditoría y notificación
   en la misma transacción.
 - **Notificaciones** (Fase D): fila en `notifications`, tarea de Celery idempotente y sin
-  reintentos, dos plantillas de texto plano, y tratamiento de los fallos de broker y de
-  SMTP sin tumbar la revisión.
+  reintentos, dos plantillas de texto plano, y tratamiento de los fallos de broker y del
+  proveedor de correo sin tumbar la revisión. **La entrega se hace por la API HTTPS de
+  Brevo, no por SMTP** (ADR-0015): el plan Free de Railway no ofrece SMTP saliente, y la
+  implementación inicial con `send_mail` se quedaba colgada hasta agotar el timeout.
 - **Frontend** (Fase E): pantallas de verificación, perfil, cola e detalle administrativo,
   con navegación mínima y sin dependencias npm nuevas.
-- **Documentación**: `docs/API.md` nuevo, `ADR-0006` y `ADR-0011`, diccionario de datos
-  actualizado y cinco filas nuevas en `CAMBIOS_TESIS_PENDIENTES.md` (CT-44 a CT-48).
+- **Documentación**: `docs/API.md` nuevo, `ADR-0006`, `ADR-0011` y `ADR-0015`, diccionario
+  de datos actualizado y siete filas nuevas en `CAMBIOS_TESIS_PENDIENTES.md` (CT-44 a
+  CT-50).
 
 **Pendiente para cerrar el sprint:**
 
 1. aprovisionar la infraestructura productiva —bucket privado `verificaciones`, variables
-   del backend web, SMTP del worker—;
+   del backend web, `BREVO_API_KEY` y `DEFAULT_FROM_EMAIL` del worker—;
 2. Pull Request con CI en verde;
 3. respaldo previo y migración productiva de `auth_app.0004` bajo el gate de ADR-0003;
 4. prueba funcional real de extremo a extremo;
@@ -438,7 +441,26 @@ _Pendiente del cierre del sprint._ Estado local al 22/08/2026: **582 pruebas ver
 `lint`, `typecheck` y `build` en verde. `makemigrations --check` sin cambios detectados.
 
 ### Problemas encontrados
-_Pendiente del cierre del sprint._
+_Pendiente del cierre del sprint._ Detectados hasta ahora en la validación E2E productiva
+del **23/08/2026**:
+
+1. **El administrador no podía cotejar la cédula.** Podía leer el número en la selfie pero
+   no tenía forma de comprobar que fuera el declarado, porque el número textual no se
+   persiste. Resuelto exigiendo la transcripción del número en la aprobación y cotejándolo
+   por HMAC (enmienda de ADR-0006, fila CT-49).
+2. **El correo de aprobación no llegó, pese a que la aprobación sí se aplicó.** El
+   `celery-worker` registró `Falló el envío de la notificación … (TimeoutError)` tras
+   **135,7 s**, y la notificación quedó en `FALLIDO`. Causa: **Railway no permite SMTP
+   saliente en los planes Free, Trial ni Hobby**; la conexión no se rechaza, se queda
+   colgada. No era un defecto de la implementación ni de las credenciales: el transporte
+   elegido no existe en el plan contratado. Resuelto sustituyendo **solo el transporte**
+   por la API HTTPS de Brevo, conservando `Notification`, Celery, la tarea, las plantillas
+   y la semántica de estados (ADR-0015, fila CT-50). **Sin migración y sin cambio de
+   esquema.**
+
+   La notificación real que quedó en `FALLIDO` **sigue en ese estado**: `FALLIDO` es
+   terminal en este sprint y reencolar la tarea no la reenvía. Su recuperación se tratará
+   como una operación explícita y auditable al cerrar el sprint.
 
 ### Commits relevantes
 _Pendiente._ La rama `feat/s04-verificacion-identidad` todavía no tiene commits.

@@ -11,7 +11,6 @@ clave del objeto aparecen en ninguna respuesta.
 import logging
 
 import pytest
-from django.core import mail
 from django.utils import timezone
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -37,13 +36,6 @@ CAMPOS_DETALLE = CAMPOS_COLA | {
     "selfie_signed_url",
 }
 CAMPOS_REVIEW = {"id", "verification_status", "reviewed_at", "verified_by"}
-
-
-@pytest.fixture(autouse=True)
-def bandeja_limpia():
-    mail.outbox.clear()
-    yield
-    mail.outbox.clear()
 
 
 @pytest.fixture
@@ -505,7 +497,9 @@ def test_aprobar_admite_las_formas_equivalentes_del_numero(
     assert perfil.user.verification_status == VerificationStatus.APROBADO
 
 
-def test_un_numero_que_no_coincide_responde_400_y_no_revisa(como, admin_user, perfil_factory):
+def test_un_numero_que_no_coincide_responde_400_y_no_revisa(
+    como, admin_user, perfil_factory, brevo_api
+):
     perfil = perfil_factory()
 
     respuesta = como(admin_user).patch(
@@ -522,7 +516,7 @@ def test_un_numero_que_no_coincide_responde_400_y_no_revisa(como, admin_user, pe
     assert perfil.verified_by is None
     assert not AuditLog.objects.exists()
     assert not Notification.objects.exists()
-    assert mail.outbox == []
+    assert brevo_api.envios == 0
 
 
 def test_el_400_del_desajuste_no_devuelve_el_hmac_ni_ningun_numero(
@@ -641,7 +635,7 @@ def test_sin_clave_de_hmac_la_aprobacion_responde_503(como, admin_user, perfil_f
 
 
 def test_una_aprobacion_correcta_no_deja_la_cedula_en_ningun_lado(
-    como, admin_user, perfil_factory, django_capture_on_commit_callbacks, caplog
+    como, admin_user, perfil_factory, django_capture_on_commit_callbacks, caplog, brevo_api
 ):
     """La respuesta, la auditoría, la notificación, el correo y los logs, de una vez."""
     perfil = perfil_factory()
@@ -655,7 +649,7 @@ def test_una_aprobacion_correcta_no_deja_la_cedula_en_ningun_lado(
 
     assert respuesta.status_code == 200
     fila = AuditLog.objects.get()
-    correo = mail.outbox[0]
+    correo = brevo_api.ultimo
     # Fila releída de la base, no la instancia de la factoría: esa lleva `cedula` colgada
     # como atributo de prueba y la aserción se dispararía siempre.
     guardado = CitizenProfile.objects.get(pk=perfil.pk)
@@ -665,8 +659,8 @@ def test_una_aprobacion_correcta_no_deja_la_cedula_en_ningun_lado(
         str(fila.payload),
         str(guardado.__dict__),
         str(Notification.objects.get().__dict__),
-        correo.subject,
-        correo.body,
+        correo.asunto,
+        correo.cuerpo,
         caplog.text,
     ]
     for texto in lugares:
@@ -806,7 +800,7 @@ def test_si_el_broker_falla_la_decision_y_la_auditoria_persisten(
 
 @pytest.mark.django_db(transaction=True, serialized_rollback=True)
 def test_si_el_broker_falla_la_notificacion_queda_fallida(
-    como, user_factory, perfil_factory, broker_caido
+    como, user_factory, perfil_factory, broker_caido, brevo_api
 ):
     """No puede quedarse PENDIENTE para siempre: el fallo tiene que verse."""
     from apps.auth_app.enums import UserRole
@@ -823,7 +817,7 @@ def test_si_el_broker_falla_la_notificacion_queda_fallida(
     notificacion = Notification.objects.get()
     assert notificacion.status == NotificationStatus.FALLIDO
     assert notificacion.notification_type == NotificationType.VERIFICACION_APROBADA
-    assert mail.outbox == []
+    assert brevo_api.envios == 0
 
 
 @pytest.mark.django_db(transaction=True, serialized_rollback=True)
@@ -850,7 +844,9 @@ def test_los_logs_del_fallo_de_encolado_no_llevan_datos_sensibles(
 
 
 @pytest.mark.django_db(transaction=True, serialized_rollback=True)
-def test_con_el_broker_sano_la_revision_entrega_el_correo(como, user_factory, perfil_factory):
+def test_con_el_broker_sano_la_revision_entrega_el_correo(
+    como, user_factory, perfil_factory, brevo_api
+):
     """Contrapunto: con commit real y broker sano, el correo sí sale."""
     from apps.auth_app.enums import UserRole
 
@@ -865,8 +861,8 @@ def test_con_el_broker_sano_la_revision_entrega_el_correo(como, user_factory, pe
 
     assert respuesta.status_code == 200
     assert Notification.objects.get().status == NotificationStatus.ENVIADO
-    assert len(mail.outbox) == 1
-    assert mail.outbox[0].to == [perfil.user.email]
+    assert brevo_api.envios == 1
+    assert brevo_api.destinatario == perfil.user.email
 
 
 # --------------------------------------------------------------------------- #

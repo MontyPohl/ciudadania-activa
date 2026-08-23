@@ -59,17 +59,27 @@ IDENTITY_SIGNED_URL_TTL = 300
 # --- Email transaccional (notifications_app, Sprint 4) --------------------------
 #
 # Configuración del **worker de Celery**, que es quien envía. El backend web solo crea
-# la fila en `notifications`, así que no necesita credenciales SMTP y `prod.py` no las
-# exige para arrancar: con los valores vacíos el envío falla y la notificación queda en
+# la fila en `notifications`, así que no necesita la clave de Brevo y `prod.py` no la
+# exige para arrancar: sin ella el envío falla cerrado y la notificación queda en
 # FALLIDO, que es un estado previsto y consultable, no una caída del servicio.
 #
-# `EMAIL_BACKEND` no se declara: se usa el SMTP de Django por defecto. Los ajustes de
-# prueba lo sustituyen por `locmem`, de modo que ninguna prueba envía correo real.
-EMAIL_HOST = env("EMAIL_HOST", default="")
-EMAIL_PORT = env.int("EMAIL_PORT", default=587)
-EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
-EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
-EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
+# **No se usa SMTP.** El plan Free de Railway no ofrece SMTP saliente: la conexión queda
+# colgada hasta el timeout, que es exactamente lo que se observó en el E2E productivo del
+# 23/08/2026 —TimeoutError tras 135 s—. La entrega se hace contra la API HTTPS de correo
+# transaccional de Brevo, que sale por el 443 como cualquier otra llamada del proyecto.
+# Ver ADR-0015.
+#
+# `BREVO_API_KEY` es una **clave de API v3**, no la clave SMTP: son credenciales
+# distintas del mismo proveedor y la SMTP no autentica contra esta API.
+BREVO_API_KEY = env("BREVO_API_KEY", default="")
+
+# Endpoint del envío. Se declara como ajuste —en lugar de incrustarlo en el código— para
+# poder apuntarlo a un doble en pruebas sin parchear el módulo.
+BREVO_API_URL = env("BREVO_API_URL", default="https://api.brevo.com/v3/smtp/email")
+
+# Remitente. Admite la forma `Nombre <direccion>` de RFC 5322: el cliente la separa con
+# `email.utils.parseaddr` y la envía a Brevo como `{"name": ..., "email": ...}`. La
+# dirección debe ser un **remitente verificado** en Brevo, o el envío se rechaza.
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="no-reply@ciudadania-activa.local")
 
 INSTALLED_APPS = [
