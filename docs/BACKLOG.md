@@ -10,7 +10,7 @@ un sprint concreto — ver [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md) y [PROGRESO_
 |---|---|---|---|
 | 1 | Configuración base: Django, Next.js, PostgreSQL/PostGIS y CI | S1 | Completado |
 | 2 | Autenticación Google OAuth, roles y permisos | S3 | Completado |
-| 3 | Verificación manual con cédula/selfie | S4 | En curso |
+| 3 | Verificación manual con cédula/selfie | S4 | Completado |
 | 4 | CRUD de instituciones, categorías y operadores | S2 · S9 | En curso |
 | 5 | Creación de reportes, foto, mapa y advertencia de duplicados | S5 · S6 | Pendiente |
 | 6 | Clasificación IA y auditoría | S8 | Pendiente |
@@ -26,12 +26,10 @@ un sprint concreto — ver [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md) y [PROGRESO_
 > y catálogos semilla, más el registro en el admin de Django para inspección interna— pero la
 > funcionalidad que describen (gestión de catálogos y operadores según rol; cálculo de puntos
 > pendientes y acreditados, créditos 1:1 y reversión) llega en los Sprints 9 a 11, de modo que
-> siguen **En curso**. El **ítem 3** pasó a **En curso** el 22/08/2026 con la apertura del
-> Sprint 4. Su **implementación local está completa** —backend ciudadano y administrativo,
-> notificaciones, frontend y documentación de API—, pero el ítem sigue **En curso** hasta que
-> se aprovisione la infraestructura productiva, se integre por PR con CI en verde, se aplique
-> la migración en producción y se verifique el flujo real de extremo a extremo. Ningún ítem del
-> Sprint 5 en adelante ha comenzado.
+> siguen **En curso**. El **ítem 3** pasó a **Completado** el 23/08/2026, al
+> cerrarse el Sprint 4: infraestructura productiva aprovisionada, integración por Pull Request
+> con CI en verde, migración aplicada en producción y flujo real verificado de extremo a extremo
+> con una identidad verdadera. Ningún ítem del Sprint 5 en adelante ha comenzado.
 
 ## Prioridad Media
 
