@@ -427,9 +427,12 @@ fallida.
 entrega por la **API HTTPS de Brevo** —no por SMTP, que el plan Free de Railway no ofrece
 ([ADR-0015](adr/ADR-0015-correo-transaccional-por-api-https.md))— y la deja en `ENVIADO`
 o en `FALLIDO`. El endpoint responde `200` igual en los tres casos: el resultado del envío
-no forma parte del contrato de la revisión, y consultarlo es cosa del admin de Django.
+no forma parte del contrato de la revisión, y no se expone por la API. Consultarlo requiere
+una lectura administrativa del registro de notificaciones.
 **`FALLIDO` es terminal en este sprint**: no hay reintentos automáticos y reencolar la
-tarea sobre una notificación fallida no la reenvía.
+tarea sobre una notificación fallida no la reenvía. La única recuperación es manual y por
+consola —`python manage.py resend_notification <uuid>`—, y queda auditada como
+`notification.resent`. No hay endpoint para eso, ni lo habrá en este sprint.
 
 **Concurrencia.** Las filas del perfil y del usuario se bloquean y el estado se relee
 dentro del bloqueo. Con dos administradores simultáneos, uno obtiene `200` y el otro
