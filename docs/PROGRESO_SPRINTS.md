@@ -2,7 +2,7 @@
 
 Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes de iniciar el siguiente.
 
-- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 **en curso** desde el 22/08/2026: diseño cerrado en dos fases (A y A.1) con las doce decisiones aprobadas, y fundaciones backend implementadas en rama. Sin decisiones de arquitectura pendientes.
+- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 **completado** (inicio el 22/08/2026, cierre el 23/08/2026: verificación de identidad con HMAC y almacenamiento privado, revisión administrativa manual con cotejo de la cédula, notificaciones asíncronas entregadas por la API HTTPS de Brevo y privacidad configurable del ranking, todo verificado en producción con una identidad real). Sin decisiones de arquitectura pendientes.
 - **Plan de referencia:** [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md)
 - **Ventana de desarrollo:** 01/08/2026 → 15/11/2026 (16 sprints semanales, Anexo F revisado)
 - **Estados posibles:** `Pendiente` · `En curso` · `Completado` · `Completado con observaciones` · `Bloqueado`
@@ -16,7 +16,7 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 | 1 | 01/08 – 07/08 | Entorno, repositorio y CI/CD | Completado |
 | 2 | 08/08 – 14/08 | Modelo de datos e incentivos | Completado |
 | 3 | 15/08 – 21/08 | Autenticación, roles y permisos | Completado |
-| 4 | 22/08 – 28/08 | Verificación de identidad y privacidad | En curso |
+| 4 | 22/08 – 28/08 | Verificación de identidad y privacidad | Completado |
 | 5 | 29/08 – 04/09 | Mapa público y geolocalización | Pendiente |
 | 6 | 05/09 – 11/09 | Creación de reportes y duplicados | Pendiente |
 | 7 | 12/09 – 18/09 | Panel ciudadano y confirmaciones | Pendiente |
@@ -30,7 +30,7 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 | 15 | 07/11 – 13/11 | Carga, dataset definitivo y documentación | Pendiente |
 | 16 | 14/11 – 15/11 | Cierre y preparación de la defensa | Pendiente |
 
-**Progreso:** 3 / 16 sprints completados (Sprints 1, 2 y 3, los tres cerrados el 20/08/2026). Sprint 4 **en curso** desde el 22/08/2026 y todavía sin cerrar, por lo que no computa; la ejecución real arrastra el desvío de calendario registrado en CT-29.
+**Progreso:** 4 / 16 sprints completados (Sprints 1, 2 y 3 cerrados el 20/08/2026; Sprint 4 el 23/08/2026). La ejecución real arrastra el desvío de calendario registrado en CT-29.
 
 ### Decisiones que condicionan el avance
 
@@ -390,8 +390,8 @@ El responsable del proyecto revisó el diff y aprobó el merge; ningún cambio s
 
 **Fechas planificadas:** 22/08/2026 – 28/08/2026
 **Fecha real de inicio:** 22/08/2026
-**Estado:** En curso
-**Fecha real de cierre:** —
+**Estado:** Completado
+**Fecha real de cierre:** 23/08/2026 (implementación, tres Pull Requests con CI en verde, migración productiva, prueba real de extremo a extremo con una identidad verdadera, migración del transporte de correo a API HTTPS y limpieza de las credenciales SMTP legacy)
 
 ### Avance al 22/08/2026 (implementación local completa, sin desplegar)
 
@@ -423,26 +423,81 @@ cinco fases sobre la rama `feat/s04-verificacion-identidad`, **sin ningún commi
   de datos actualizado y siete filas nuevas en `CAMBIOS_TESIS_PENDIENTES.md` (CT-44 a
   CT-50).
 
-**Pendiente para cerrar el sprint:**
-
-1. aprovisionar la infraestructura productiva —bucket privado `verificaciones`, variables
-   del backend web, `BREVO_API_KEY` y `DEFAULT_FROM_EMAIL` del worker—;
-2. Pull Request con CI en verde;
-3. respaldo previo y migración productiva de `auth_app.0004` bajo el gate de ADR-0003;
-4. prueba funcional real de extremo a extremo;
-5. cierre documental.
+**Los cinco puntos que quedaban para cerrar el sprint se completaron el 23/08/2026:**
+infraestructura productiva aprovisionada —bucket privado `verificaciones`, variables del
+backend web, y `BREVO_API_KEY` / `BREVO_API_URL` / `DEFAULT_FROM_EMAIL` del worker—; tres
+Pull Requests con CI en verde; respaldo previo y migración productiva de `auth_app.0004`
+bajo el gate de ADR-0003; prueba funcional real de extremo a extremo con una identidad
+verdadera; y este cierre documental.
 
 ### Funcionalidades terminadas
-_Pendiente del cierre del sprint._
+- **Verificación de identidad del ciudadano.** El número de cédula se recibe como texto, se
+  normaliza —dígitos ASCII y los separadores `.`, `-` y espacio, con los ceros iniciales
+  preservados— y se persiste **únicamente** como HMAC-SHA-256 con clave del servidor. El
+  número textual no queda en la base, ni en logs, ni en la auditoría, ni en ninguna
+  respuesta. La **selfie sí muestra la cédula**, así que vive en un bucket privado y solo
+  un administrador la ve mediante URL firmada efímera (RF-02, ADR-0006).
+- **Almacenamiento privado validado en producción.** Bucket `verificaciones` privado en
+  Supabase Storage; JPEG o PNG hasta 5 MB con el formato determinado por el **contenido
+  real** y no por el nombre del archivo; URL firmada de **300 s** emitida solo al abrir el
+  detalle administrativo. `SUPABASE_URL` se corrigió a la URL base durante el
+  aprovisionamiento. Se conserva la `service_role` legacy por compatibilidad del cliente;
+  la migración a `sb_secret_*` queda diferida.
+- **Revisión administrativa manual, con cotejo de la cédula.** Cola filtrable, detalle con
+  la selfie firmada, y aprobación o rechazo con motivo en texto libre. Para **aprobar**, el
+  administrador transcribe el número que ve en la selfie: el backend lo normaliza con la
+  **misma** función del envío ciudadano, calcula su HMAC con el mismo secreto y lo compara
+  con `hmac.compare_digest` contra `citizen_profiles.document_hmac`, dentro del bloqueo de
+  la revisión. Sin coincidencia no hay aprobación. El número transcrito **no se persiste,
+  no se audita y no vuelve en la respuesta**. El rechazo no lo pide, porque el motivo más
+  frecuente de un rechazo es que la cédula no se distinga en la imagen.
+- **Reenvío tras rechazo**, con bloqueo explícito de las filas de `citizen_profiles` y
+  `users`, relectura del estado bajo el lock y compensación en Storage.
+- **Notificaciones asíncronas.** Fila en `notifications` dentro de la transacción de la
+  decisión y envío encolado en `on_commit`. Ni un broker caído ni un fallo del proveedor
+  tumban la revisión: la notificación queda en `FALLIDO`, que es un estado consultable.
+- **Correo transaccional por API HTTPS de Brevo**, no por SMTP (ADR-0015). Cliente propio
+  con `requests`, sin SDK, con timeout explícito y fallo cerrado sin clave. Se conservan el
+  modelo, la tarea de Celery, las plantillas de texto plano y la semántica
+  `PENDIENTE`/`ENVIADO`/`FALLIDO`. Sin reintentos automáticos: siguen siendo alcance de
+  S12-S13.
+- **Reenvío manual auditable** de una notificación fallida:
+  `python manage.py resend_notification <uuid>`. Exige `FALLIDO`, devuelve la fila a
+  `PENDIENTE` con la fila bloqueada, lo registra como `notification.resent` con
+  `actor_type = system` y encola el envío en `on_commit`. Sin endpoint y sin acción en el
+  admin, a propósito (CT-51).
+- **Privacidad configurable del ranking**: las cuatro modalidades se guardan y se
+  recuperan mediante `GET` y `PATCH` sobre la misma ruta; el alias no es único a nivel
+  global (ADR-0011).
+- **`IsCitizen`** como sexto permiso de dominio, sin alterar la matriz rol × capacidad.
+- **Frontend**: pantallas de verificación, perfil, cola y detalle administrativo, sin
+  dependencias npm nuevas y sin ninguna variable de Supabase en el navegador.
 
 ### Pruebas realizadas
-_Pendiente del cierre del sprint._ Estado local al 22/08/2026: **582 pruebas verdes** y
-**99 %** de cobertura, con los módulos nuevos al 100 %. Frontend con `format:check`,
-`lint`, `typecheck` y `build` en verde. `makemigrations --check` sin cambios detectados.
+- **Resultado final: 712 pruebas verdes y 99 % de cobertura** (5.509 sentencias, 18 sin
+  cubrir), con `notifications_app` al 100 %. Progresión a lo largo del sprint: 582 al
+  cerrar la implementación local, 627 tras el cotejo de la cédula, 690 tras la migración a
+  Brevo HTTPS y 712 con el reenvío manual.
+- `ruff check`, `ruff format --check` y `makemigrations --check --no-input` en verde en
+  cada uno de los tres Pull Requests. Frontend con `format:check`, `lint`, `typecheck` y
+  `build` en verde.
+- **CI en verde en los tres PR** (#5, #6 y #7), reproduciendo las mismas cifras que en
+  local. `CI Frontend` no se dispara en los PR que no tocan el frontend: el workflow filtra
+  por rutas.
+- **Ninguna prueba sale a la red.** Storage está doblado, la verificación de Google
+  también, y el cliente de Brevo se sustituye con una fixture `autouse` acotada al módulo
+  `brevo` —no al `requests` compartido—, con dos pruebas que fijan ese límite.
+- **Prueba real de extremo a extremo en producción (23/08/2026)** con una identidad
+  verdadera: envío ciudadano, revisión administrativa con cotejo del número, aprobación,
+  y correo de aprobación efectivamente recibido en Gmail. La cuenta administrativa se
+  promovió por consola con `promote_user`, auditada como acción de sistema.
+- **Respaldos lógicos** previos y posteriores validados con `pg_restore --list` y
+  verificados por checksum: tres PRE —uno antes de cada integración— y un POST final tras
+  la recuperación de la notificación.
 
 ### Problemas encontrados
-_Pendiente del cierre del sprint._ Detectados hasta ahora en la validación E2E productiva
-del **23/08/2026**:
+Los tres se detectaron en la validación E2E productiva del **23/08/2026** y los tres
+quedaron resueltos antes del cierre:
 
 1. **El administrador no podía cotejar la cédula.** Podía leer el número en la selfie pero
    no tenía forma de comprobar que fuera el declarado, porque el número textual no se
@@ -458,20 +513,60 @@ del **23/08/2026**:
    y la semántica de estados (ADR-0015, fila CT-50). **Sin migración y sin cambio de
    esquema.**
 
-   La notificación real que quedó en `FALLIDO` **sigue en ese estado**: `FALLIDO` es
-   terminal en este sprint y reencolar la tarea no la reenvía. Su recuperación se tratará
-   como una operación explícita y auditable al cerrar el sprint.
+3. **La notificación fallida no tenía forma de recuperarse.** `FALLIDO` es terminal por
+   diseño —`dispatch.send()` se retira sin enviar si el estado no es `PENDIENTE`— y eso
+   protege de convertir un fallo en un bucle de correos, pero dejaba sin salida al mensaje
+   que ya había fallado: reencolar la tarea no reenvía nada. Resuelto añadiendo
+   `resend_notification`, una puerta explícita, auditada y de una sola notificación por
+   ejecución (ADR-0015 §7, fila CT-51).
+
+   La notificación real de la aprobación se recuperó con ese comando, ejecutado **una sola
+   vez**: pasó a `ENVIADO`, el correo llegó y quedó una única entrada
+   `notification.resent` con `actor_type = system`.
 
 ### Commits relevantes
-_Pendiente._ La rama `feat/s04-verificacion-identidad` todavía no tiene commits.
+- `9234e47` feat(identity): implementar verificación de identidad del Sprint 4 — integración
+  a `main` por *squash and merge* del PR #4, desde `feat/s04-verificacion-identidad`.
+- `66d30f7` fix(identity): verificar cedula al aprobar identidad — PR #5, desde
+  `fix/s04-verificacion-cedula-admin`. Único commit en la rama: `7ab8975`.
+- `92e0d53` fix(notifications): usar Brevo API HTTPS para correo — PR #6, desde
+  `fix/s04-brevo-https-email`. Único commit en la rama: `987b444`.
+- `666cc8c` fix(notifications): agregar reenvio manual auditable — PR #7, desde
+  `fix/s04-resend-notification`. Único commit en la rama: `27cef32`.
+
+Los cuatro llegaron por Pull Request con CI en verde y *squash and merge*, con el SHA
+aprobado fijado explícitamente en el merge. El responsable del proyecto revisó cada diff;
+ningún cambio se integró automáticamente. Ninguna rama se borró tras el merge.
+
+Los tres últimos son **correcciones nacidas de la validación en producción**, no alcance
+nuevo: el sprint se desplegó, se probó de verdad, y lo que la prueba destapó se arregló
+antes de cerrarlo.
 
 ### Observaciones y desvíos respecto del plan
-_Pendiente del cierre del sprint._ Anotados hasta ahora: **`IsCitizen` como sexto
-permiso** sobre los cinco que enumera el plan —necesario porque quien envía su
-verificación todavía no está verificado, y sin alterar la matriz rol × capacidad del
-§29—; **`GET /api/v1/admin/identity/{id}/`** y **`GET /api/v1/profile/ranking-visibility/`**
-como adiciones al contrato del Anexo B (CT-47 y CT-48); y la ruta `(citizen)/verificacion`,
-que el §7 del plan no enumeraba.
+- **`IsCitizen` como sexto permiso** sobre los cinco que enumera el plan —necesario porque
+  quien envía su verificación todavía no está verificado—, sin alterar la matriz rol ×
+  capacidad del §29.
+- **Adiciones al contrato del Anexo B**: `GET /api/v1/admin/identity/{id}/` y
+  `GET /api/v1/profile/ranking-visibility/` (CT-47 y CT-48), más el campo
+  `document_number` en la aprobación (CT-49). La ruta `(citizen)/verificacion` tampoco
+  estaba enumerada en el §7 del plan.
+- **Una sola migración, aditiva**: `auth_app.0004_citizen_profile_rejection_reason`. Los
+  tres hotfixes posteriores no tocaron el esquema: cero migraciones y cero columnas nuevas.
+- **El plan daba SMTP y servicio transaccional por intercambiables; en el alojamiento
+  contratado no lo son.** Railway no permite SMTP saliente en los planes Free, Trial ni
+  Hobby. Es una restricción del proveedor gestionado que el diseño no podía anticipar, de
+  la misma clase que las de CT-39 a CT-41, y quedó registrada en CT-50.
+- **La validación en producción con datos reales fue la que encontró los tres defectos.**
+  Ninguno era visible en local con 582 pruebas en verde: el cotejo ausente de la cédula, el
+  SMTP inalcanzable y la falta de recuperación de una notificación fallida solo aparecen
+  cuando el flujo se ejecuta de punta a punta contra la infraestructura real. Conviene
+  tenerlo presente al planificar los sprints siguientes: el criterio de «terminado» del
+  proyecto incluye la prueba real, no solo la suite.
+- **Limpieza operativa completada**: las cinco variables SMTP legacy se retiraron de
+  Railway y la credencial SMTP antigua se revocó en Brevo, ya con el transporte HTTPS
+  validado en producción. La clave de API HTTPS sigue activa y no se creó ninguna
+  credencial de reemplazo. Queda pendiente, sin urgencia, la migración de la
+  `service_role` legacy de Supabase a `sb_secret_*`.
 
 ---
 

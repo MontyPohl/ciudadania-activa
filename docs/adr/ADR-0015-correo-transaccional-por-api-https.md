@@ -179,6 +179,20 @@ documentar como procedimiento algo que el sistema no garantiza.
 Esto no adelanta los reintentos automáticos, que siguen siendo alcance de los Sprints
 12-13: la tarea sigue sin `autoretry_for`, sin `retry_backoff` y sin `max_retries`.
 
+### Cierre operativo (23/08/2026)
+
+La decisión quedó aplicada de punta a punta, en este orden y no en otro: primero se validó
+el transporte HTTPS en producción —un envío técnico y la recuperación real de la
+notificación de aprobación, ambos recibidos—, y **solo después** se retiró lo viejo. Las
+cinco variables `EMAIL_*` se eliminaron de Railway y la credencial **SMTP** antigua se
+revocó en Brevo. La clave de **API** sigue activa y no se creó ninguna credencial de
+reemplazo: son credenciales independientes, como advierte la sección 3.
+
+El orden importa. Revocar antes de validar habría dejado el proyecto sin ninguna vía de
+correo comprobada, y esta misma decisión nació de descubrir en producción que la vía
+configurada no existía en el plan contratado. SMTP ya no participa de ninguna forma en el
+envío productivo.
+
 ## Consecuencias
 
 **A favor**
