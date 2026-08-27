@@ -2,7 +2,7 @@
 
 Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes de iniciar el siguiente.
 
-- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 **completado** (inicio el 22/08/2026, cierre el 23/08/2026: verificación de identidad con HMAC y almacenamiento privado, revisión administrativa manual con cotejo de la cédula, notificaciones asíncronas entregadas por la API HTTPS de Brevo y privacidad configurable del ranking, todo verificado en producción con una identidad real). Sprint 5 **en curso** desde el 26/08/2026: S5-A y S5-B están integradas y validadas en producción; S5-C está implementada localmente, pendiente de commit, PR e integración.
+- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 **completado** (inicio el 22/08/2026, cierre el 23/08/2026: verificación de identidad con HMAC y almacenamiento privado, revisión administrativa manual con cotejo de la cédula, notificaciones asíncronas entregadas por la API HTTPS de Brevo y privacidad configurable del ranking, todo verificado en producción con una identidad real). Sprint 5 **completado** el 27/08/2026: S5-A, S5-B y S5-C están cerradas, integradas y validadas. El siguiente sprint técnico es S6, que aún no se inició.
 - **Plan de referencia:** [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md)
 - **Ventana de desarrollo:** 01/08/2026 → 15/11/2026 (16 sprints semanales, Anexo F revisado)
 - **Estados posibles:** `Pendiente` · `En curso` · `Completado` · `Completado con observaciones` · `Bloqueado`
@@ -17,7 +17,7 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 | 2 | 08/08 – 14/08 | Modelo de datos e incentivos | Completado |
 | 3 | 15/08 – 21/08 | Autenticación, roles y permisos | Completado |
 | 4 | 22/08 – 28/08 | Verificación de identidad y privacidad | Completado |
-| 5 | 29/08 – 04/09 | Mapa público y geolocalización | En curso |
+| 5 | 29/08 – 04/09 | Mapa público y geolocalización | Completado |
 | 6 | 05/09 – 11/09 | Creación de reportes y duplicados | Pendiente |
 | 7 | 12/09 – 18/09 | Panel ciudadano y confirmaciones | Pendiente |
 | 8 | 19/09 – 25/09 | Clasificación asistida por IA | Pendiente |
@@ -30,7 +30,7 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 | 15 | 07/11 – 13/11 | Carga, dataset definitivo y documentación | Pendiente |
 | 16 | 14/11 – 15/11 | Cierre y preparación de la defensa | Pendiente |
 
-**Progreso:** 4 / 16 sprints completados (Sprints 1, 2 y 3 cerrados el 20/08/2026; Sprint 4 el 23/08/2026). La ejecución real arrastra el desvío de calendario registrado en CT-29.
+**Progreso:** 5 / 16 sprints completados (Sprints 1, 2 y 3 cerrados el 20/08/2026; Sprint 4 el 23/08/2026; Sprint 5 el 27/08/2026). La ejecución real arrastra el desvío de calendario registrado en CT-29.
 
 ### Decisiones que condicionan el avance
 
@@ -573,12 +573,12 @@ antes de cerrarlo.
 ## Sprint 5 — Mapa público y geolocalización
 
 **Fechas planificadas:** 29/08/2026 – 04/09/2026
-**Estado:** En curso
-**Fecha real de cierre:** —
+**Estado:** Completado
+**Fecha real de cierre:** 27/08/2026
 
 ### Funcionalidades terminadas
 
-- **S5-A implementado localmente:** tres rutas anónimas de solo lectura:
+- **S5-A cerrada:** tres rutas anónimas de solo lectura:
   `GET /api/v1/public/reports/`, `GET /api/v1/public/reports/{id}/` y
   `GET /api/v1/public/categories/`.
 - Lista positiva de seis estados publicables; filtros `active`, `resolved` y `all`, con
@@ -596,7 +596,7 @@ antes de cerrarlo.
 - Throttle compartido `public_map = 120/min` y LocMemCache obligatorio en tests.
 - Management command idempotente `seed_reports`: 14 snapshots sintéticos, UUID v5, dos
   por estado, sin usuarios, historiales ni migración de datos.
-- **S5-B implementado localmente:** rutas públicas `/mapa` y `/reporte/[id]`, con acceso
+- **S5-B cerrada:** rutas públicas `/mapa` y `/reporte/[id]`, con acceso
   visible desde la cabecera y sin exigir autenticación.
 - Leaflet 1.9.4 y React Leaflet 5 cargados solo en cliente mediante `next/dynamic` con
   `ssr: false`; tiles HTTPS oficiales de OpenStreetMap, atribución permanente y sin
@@ -613,7 +613,7 @@ antes de cerrarlo.
 - Detalle público sin mapa ni coordenadas numéricas, con estados diferenciados para
   carga, `404`, `429` y error general. S5-B no incorpora acciones de confirmación,
   edición ni voto.
-- **S5-C implementado localmente:** LocationPicker reutilizable y controlado, sin
+- **S5-C cerrada:** LocationPicker reutilizable y controlado, sin
   acoplamiento a Report ni a rutas de creación. Permite seleccionar ubicación exacta
   mediante click en el mapa, marcador arrastrable o campos de latitud/longitud operables
   por teclado.
@@ -640,6 +640,11 @@ antes de cerrarlo.
 - Frontend tras S5-C: **172 pruebas verdes** en 13 archivos, incluidos precisión canónica,
   borradores, selección por click y drag, GPS y carreras asíncronas, control externo,
   accesibilidad, resize y regresión del mapa público.
+- Gate adversarial de S5-C: **95/95 pruebas focalizadas verdes**. CI Frontend ejecutó
+  `next build` con Turbopack y terminó en `SUCCESS`; Vercel Production quedó en `SUCCESS`.
+- Cierre productivo de S5-B: **5/5 reproducciones correctas**, lista recuperada y foco
+  nunca terminado en `body`. El smoke final de `/mapa` no detectó regresiones tras S5-C.
+- Los **31/31 criterios técnicos de S5-C** quedaron aprobados después del merge.
 
 ### Problemas encontrados
 
@@ -664,26 +669,25 @@ antes de cerrarlo.
   no implementa activación robusta por Enter y Space. Para no publicar controles de teclado
   inoperables ni añadir hacks DOM, los iconos quedan pointer-only y la lista textual visible
   ofrece selección y detalle completos mediante teclado.
-- En el entorno local de la auditoría, Turbopack no pudo abrir el puerto interno que usa
-  para comunicar sus workers (`Operation not permitted`). El mismo build de Next 16 se
-  completó con su backend Webpack oficial; el script y CI conservan `next build` para que
-  el gate posterior lo revalide en GitHub Actions sin esta restricción del sandbox.
-- En la revalidación adversarial, el sandbox también bloqueó el subproceso Node con el que
-  Next 16 obtiene `tsc --showConfig`; por eso Webpack no llegó a compilar en esa ejecución.
-  El `typecheck` independiente siguió verde y no se cambió la configuración para omitirlo.
+- El runner restringido de la auditoría bloqueó subprocesses internos de Turbopack y, en
+  otra ejecución, de TypeScript. No eran defectos del código: el build Webpack quedó verde
+  en el host normal y GitHub Actions confirmó `next build` con Turbopack en `SUCCESS`.
 
 ### Commits relevantes
 
 - S5-A integrada a `main` en `d8bfd6f84c62a6427aba67b91f332f6940d5b540` y validada
-  posteriormente en producción.
-- S5-B integrada, corregida y validada en producción; `main` quedó en
-  `27a9e1cd460bb12a81bf71654e4d1f9d8bcab62e`. S5-C permanece local sin commit, push ni PR.
+  posteriormente en producción; S5-A quedó cerrada.
+- S5-B cerrada mediante PR #12, integrada y validada en producción en el squash commit
+  `27a9e1cd460bb12a81bf71654e4d1f9d8bcab62e`.
+- S5-C cerrada mediante PR #13, integrado el 27/08/2026 en el squash commit
+  `0e33ca4bf330b0557f35ee45d302d70b5932ea8b`.
 
 ### Observaciones y desvíos respecto del plan
 
-- S5-A cubre la API backend, S5-B el mapa público y S5-C entrega `LocationPicker`. El
-  Sprint 5 sigue abierto mientras S5-C no atraviese integración, merge y validación; su
-  consumo por el formulario pertenece a S6.
+- Sprint 5 quedó completado con S5-A, S5-B y S5-C cerradas. S6 no se inició.
+- La validación E2E de `LocationPicker` integrado se realizará en S6, cuando exista un
+  consumidor real dentro del flujo de creación de reportes. Esta validación diferida no
+  bloquea el cierre técnico de S5-C ni exige una ruta demo retroactiva.
 - El detalle público y el catálogo de categorías no figuran ambos en el Anexo B; se
   registraron CT-52 y CT-53. La reducción de precisión y la canonización bbox quedaron en
   CT-54.
