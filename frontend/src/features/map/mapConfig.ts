@@ -1,7 +1,3 @@
-export const OSM_TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
-export const OSM_ATTRIBUTION =
-  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
-
 export const INITIAL_BBOX = {
   west: -57.7,
   south: -25.4,

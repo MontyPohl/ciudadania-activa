@@ -2,16 +2,16 @@
 
 import { MapContainer, TileLayer } from "react-leaflet";
 
+import { MapResizeWatcher } from "@/components/maps/MapResizeWatcher";
 import { INITIAL_MAP_BOUNDS, isQueryableBbox, type MapBbox } from "@/features/map/bbox";
 import { MapLegend } from "@/features/map/MapLegend";
 import { MapMarkers } from "@/features/map/MapMarkers";
 import {
   MapDeepLinkFocus,
-  MapResizeWatcher,
   MapViewportEvents,
   type MapFocusTarget,
 } from "@/features/map/MapViewportEvents";
-import { OSM_ATTRIBUTION, OSM_TILE_URL } from "@/features/map/mapConfig";
+import { OSM_ATTRIBUTION, OSM_TILE_URL } from "@/lib/maps/osm";
 import type { PublicReport } from "@/types/api";
 
 interface MapViewProps {
