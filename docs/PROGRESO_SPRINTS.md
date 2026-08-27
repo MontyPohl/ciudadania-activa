@@ -2,7 +2,7 @@
 
 Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes de iniciar el siguiente.
 
-- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 **completado** (inicio el 22/08/2026, cierre el 23/08/2026: verificación de identidad con HMAC y almacenamiento privado, revisión administrativa manual con cotejo de la cédula, notificaciones asíncronas entregadas por la API HTTPS de Brevo y privacidad configurable del ranking, todo verificado en producción con una identidad real). Sprint 5 **en curso** desde el 26/08/2026: S5-A está integrada y validada en producción con 14 reportes sintéticos; S5-B está implementada y validada localmente, pendiente de commit, PR e integración. S5-C todavía no se inició.
+- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 **completado** (inicio el 22/08/2026, cierre el 23/08/2026: verificación de identidad con HMAC y almacenamiento privado, revisión administrativa manual con cotejo de la cédula, notificaciones asíncronas entregadas por la API HTTPS de Brevo y privacidad configurable del ranking, todo verificado en producción con una identidad real). Sprint 5 **en curso** desde el 26/08/2026: S5-A y S5-B están integradas y validadas en producción; S5-C está implementada localmente, pendiente de commit, PR e integración.
 - **Plan de referencia:** [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md)
 - **Ventana de desarrollo:** 01/08/2026 → 15/11/2026 (16 sprints semanales, Anexo F revisado)
 - **Estados posibles:** `Pendiente` · `En curso` · `Completado` · `Completado con observaciones` · `Bloqueado`
@@ -613,6 +613,17 @@ antes de cerrarlo.
 - Detalle público sin mapa ni coordenadas numéricas, con estados diferenciados para
   carga, `404`, `429` y error general. S5-B no incorpora acciones de confirmación,
   edición ni voto.
+- **S5-C implementado localmente:** LocationPicker reutilizable y controlado, sin
+  acoplamiento a Report ni a rutas de creación. Permite seleccionar ubicación exacta
+  mediante click en el mapa, marcador arrastrable o campos de latitud/longitud operables
+  por teclado.
+- La geolocalización se solicita exclusivamente tras pulsar «Usar mi ubicación» mediante
+  getCurrentPosition, con estados diferenciados y recuperación manual. Una selección
+  manual o un cambio externo posterior invalida cualquier respuesta GPS tardía.
+- El valor canónico conserva su precisión; el formato visible no reemplaza coordenadas
+  no editadas. No se usan URL, storage, logs, telemetría ni llamadas al backend.
+- OSM y el observador de resize se extrajeron a módulos neutrales compartidos; el mapa
+  público conserva su semántica y S5-C no incorpora geocoder.
 
 ### Pruebas realizadas
 
@@ -621,11 +632,14 @@ antes de cerrarlo.
 - Regresión completa local: **826 pruebas verdes** y **99 % de cobertura** sobre `apps`.
 - `ruff check .`, `ruff format --check .`, `makemigrations --check --no-input` y
   `git diff --check`: sin hallazgos al cerrar la implementación local.
-- Frontend S5-B: **71 pruebas verdes** en 7 archivos con Vitest y jsdom, cubriendo bbox,
+- Frontend S5-B: **77 pruebas verdes** antes de iniciar S5-C, cubriendo bbox,
   query params, cliente anónimo, paginación, cancelación, clustering, filtros, estados UX,
   ficha, lista accesible y detalle. `npm run format:check`, `npm run lint`,
   `npm run typecheck` en verde; el build de producción con `npm run build -- --webpack`
   quedó verde en la validación local previa al gate adversarial.
+- Frontend tras S5-C: **172 pruebas verdes** en 13 archivos, incluidos precisión canónica,
+  borradores, selección por click y drag, GPS y carreras asíncronas, control externo,
+  accesibilidad, resize y regresión del mapa público.
 
 ### Problemas encontrados
 
@@ -662,18 +676,18 @@ antes de cerrarlo.
 
 - S5-A integrada a `main` en `d8bfd6f84c62a6427aba67b91f332f6940d5b540` y validada
   posteriormente en producción.
-- S5-B pendiente: implementación local deliberadamente sin commit, push ni PR.
+- S5-B integrada, corregida y validada en producción; `main` quedó en
+  `27a9e1cd460bb12a81bf71654e4d1f9d8bcab62e`. S5-C permanece local sin commit, push ni PR.
 
 ### Observaciones y desvíos respecto del plan
 
-- S5-A cubre la API backend y S5-B el mapa público frontend. El Sprint 5 sigue abierto
-  porque **S5-C** (`LocationPicker`) no fue iniciado; tampoco se incorporaron GPS ni
-  geocoder en S5-B.
+- S5-A cubre la API backend, S5-B el mapa público y S5-C entrega `LocationPicker`. El
+  Sprint 5 sigue abierto mientras S5-C no atraviese integración, merge y validación; su
+  consumo por el formulario pertenece a S6.
 - El detalle público y el catálogo de categorías no figuran ambos en el Anexo B; se
   registraron CT-52 y CT-53. La reducción de precisión y la canonización bbox quedaron en
   CT-54.
-- S5-B no toca backend, modelos, tablas, migraciones ni datos productivos. Su validación es
-  únicamente local hasta atravesar los gates posteriores de commit, PR y despliegue.
+- S5-C no toca backend, modelos, tablas, migraciones, datos productivos ni páginas de S6.
 
 ---
 

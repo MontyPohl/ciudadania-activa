@@ -89,6 +89,32 @@ body {
   outline-offset: 2px;
 }
 
+.ca-location-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border: 4px solid #ffffff;
+  border-radius: 9999px;
+  outline: 3px solid var(--color-brand-purple);
+  background: var(--color-brand-orange);
+  color: #ffffff;
+  box-shadow: 0 3px 10px rgb(0 0 0 / 35%);
+  cursor: grab;
+  font-family: var(--font-sans);
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.ca-location-marker:active {
+  cursor: grabbing;
+}
+
+.ca-location-marker--disabled {
+  cursor: default;
+  opacity: 0.75;
+}
+
 @media (max-width: 40rem) {
   .ca-map-legend {
     max-width: calc(100% - 1.5rem);
