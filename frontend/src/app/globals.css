@@ -26,3 +26,71 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
 }
+
+.ca-map-legend {
+  position: absolute;
+  z-index: 500;
+  bottom: 1.75rem;
+  left: 0.75rem;
+}
+
+.ca-cluster-icon,
+.ca-report-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-family: var(--font-sans);
+  font-weight: 700;
+  border: 3px solid #ffffff;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 35%);
+}
+
+.ca-cluster-icon {
+  border-radius: 9999px;
+  background: var(--color-brand-purple);
+}
+
+.ca-report-marker {
+  border-radius: 9999px 9999px 9999px 0;
+  transform: rotate(-45deg);
+}
+
+.ca-report-marker > span {
+  transform: rotate(45deg);
+}
+
+.ca-report-marker--creado {
+  background: var(--color-brand-purple);
+}
+
+.ca-report-marker--clasificado {
+  background: var(--color-brand-pink);
+}
+
+.ca-report-marker--asignado {
+  background: var(--color-brand-orange);
+}
+
+.ca-report-marker--en_proceso {
+  background: #d79b00;
+}
+
+.ca-report-marker--resuelto {
+  background: var(--color-brand-green);
+}
+
+.ca-report-marker--cerrado {
+  background: #4b5563;
+}
+
+.ca-report-marker--selected {
+  outline: 4px solid rgb(105 80 161 / 45%);
+  outline-offset: 2px;
+}
+
+@media (max-width: 40rem) {
+  .ca-map-legend {
+    max-width: calc(100% - 1.5rem);
+  }
+}

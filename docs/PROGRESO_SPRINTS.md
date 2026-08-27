@@ -2,7 +2,7 @@
 
 Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes de iniciar el siguiente.
 
-- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 **completado** (inicio el 22/08/2026, cierre el 23/08/2026: verificación de identidad con HMAC y almacenamiento privado, revisión administrativa manual con cotejo de la cédula, notificaciones asíncronas entregadas por la API HTTPS de Brevo y privacidad configurable del ranking, todo verificado en producción con una identidad real). Sprint 5 **en curso** desde el 26/08/2026: la subtarea backend S5-A está implementada localmente y aún no fue integrada ni desplegada.
+- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 **completado** (inicio el 22/08/2026, cierre el 23/08/2026: verificación de identidad con HMAC y almacenamiento privado, revisión administrativa manual con cotejo de la cédula, notificaciones asíncronas entregadas por la API HTTPS de Brevo y privacidad configurable del ranking, todo verificado en producción con una identidad real). Sprint 5 **en curso** desde el 26/08/2026: S5-A está integrada y validada en producción con 14 reportes sintéticos; S5-B está implementada y validada localmente, pendiente de commit, PR e integración. S5-C todavía no se inició.
 - **Plan de referencia:** [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md)
 - **Ventana de desarrollo:** 01/08/2026 → 15/11/2026 (16 sprints semanales, Anexo F revisado)
 - **Estados posibles:** `Pendiente` · `En curso` · `Completado` · `Completado con observaciones` · `Bloqueado`
@@ -596,6 +596,23 @@ antes de cerrarlo.
 - Throttle compartido `public_map = 120/min` y LocMemCache obligatorio en tests.
 - Management command idempotente `seed_reports`: 14 snapshots sintéticos, UUID v5, dos
   por estado, sin usuarios, historiales ni migración de datos.
+- **S5-B implementado localmente:** rutas públicas `/mapa` y `/reporte/[id]`, con acceso
+  visible desde la cabecera y sin exigir autenticación.
+- Leaflet 1.9.4 y React Leaflet 5 cargados solo en cliente mediante `next/dynamic` con
+  `ssr: false`; tiles HTTPS oficiales de OpenStreetMap, atribución permanente y sin
+  precarga, descarga offline ni proxy.
+- Cliente HTTP público separado, sin JWT, refresh, cookies ni almacenamiento local; bbox
+  limitado a `0.5°`, debounce de 350 ms, cancelación y secuencia contra respuestas tardías.
+- Paginación completa y secuencial con validación same-origin y detección de ciclos;
+  Supercluster directo para marcadores y clusters pointer, acompañado por una lista textual
+  completa como vía principal de teclado.
+- Filtros compartibles `estado`, `categoria` y `reporte`; panel lateral en escritorio,
+  ficha inferior no modal en móvil, restauración de foco, cierre con Escape y lista
+  textual visible de reportes. Un deep-link a un reporte público fuera del bbox inicial
+  consulta su detalle, centra el mapa con sus coordenadas públicas y recarga el listado normal.
+- Detalle público sin mapa ni coordenadas numéricas, con estados diferenciados para
+  carga, `404`, `429` y error general. S5-B no incorpora acciones de confirmación,
+  edición ni voto.
 
 ### Pruebas realizadas
 
@@ -604,6 +621,11 @@ antes de cerrarlo.
 - Regresión completa local: **826 pruebas verdes** y **99 % de cobertura** sobre `apps`.
 - `ruff check .`, `ruff format --check .`, `makemigrations --check --no-input` y
   `git diff --check`: sin hallazgos al cerrar la implementación local.
+- Frontend S5-B: **71 pruebas verdes** en 7 archivos con Vitest y jsdom, cubriendo bbox,
+  query params, cliente anónimo, paginación, cancelación, clustering, filtros, estados UX,
+  ficha, lista accesible y detalle. `npm run format:check`, `npm run lint`,
+  `npm run typecheck` en verde; el build de producción con `npm run build -- --webpack`
+  quedó verde en la validación local previa al gate adversarial.
 
 ### Problemas encontrados
 
@@ -618,19 +640,40 @@ antes de cerrarlo.
   el endpoint mínimo de categorías activas y la divergencia quedó en CT-53.
 - `CACHES` no existía y Redis comparte base lógica con Celery. Producción nunca usa
   `cache.clear()`; la suite quedó aislada con LocMemCache.
+- El primer ajuste de bounds de Leaflet puede producir un viewport distinto según la
+  relación de aspecto del contenedor. La inicialización comprueba `map.getBounds()` y
+  acerca progresivamente hasta respetar el máximo consultable, sin asumir un zoom fijo.
+- Leaflet no puede ejecutarse durante SSR. El Server Component de `/mapa` permanece
+  delgado y un componente cliente concentra la importación dinámica, con skeleton propio
+  mientras carga el chunk.
+- `Marker.keyboard` de Leaflet 1.9.4 agrega foco y semántica de botón a un `DivIcon`, pero
+  no implementa activación robusta por Enter y Space. Para no publicar controles de teclado
+  inoperables ni añadir hacks DOM, los iconos quedan pointer-only y la lista textual visible
+  ofrece selección y detalle completos mediante teclado.
+- En el entorno local de la auditoría, Turbopack no pudo abrir el puerto interno que usa
+  para comunicar sus workers (`Operation not permitted`). El mismo build de Next 16 se
+  completó con su backend Webpack oficial; el script y CI conservan `next build` para que
+  el gate posterior lo revalide en GitHub Actions sin esta restricción del sandbox.
+- En la revalidación adversarial, el sandbox también bloqueó el subproceso Node con el que
+  Next 16 obtiene `tsc --showConfig`; por eso Webpack no llegó a compilar en esa ejecución.
+  El `typecheck` independiente siguió verde y no se cambió la configuración para omitirlo.
 
 ### Commits relevantes
 
-_Pendiente: implementación local deliberadamente sin commit, push ni PR._
+- S5-A integrada a `main` en `d8bfd6f84c62a6427aba67b91f332f6940d5b540` y validada
+  posteriormente en producción.
+- S5-B pendiente: implementación local deliberadamente sin commit, push ni PR.
 
 ### Observaciones y desvíos respecto del plan
 
-- Esta entrega cubre únicamente **S5-A backend**. No implementa `/mapa`, `/reporte/[id]`,
-  Leaflet, `LocationPicker`, GPS ni geocoder; por eso el Sprint 5 sigue abierto.
+- S5-A cubre la API backend y S5-B el mapa público frontend. El Sprint 5 sigue abierto
+  porque **S5-C** (`LocationPicker`) no fue iniciado; tampoco se incorporaron GPS ni
+  geocoder en S5-B.
 - El detalle público y el catálogo de categorías no figuran ambos en el Anexo B; se
   registraron CT-52 y CT-53. La reducción de precisión y la canonización bbox quedaron en
   CT-54.
-- Cero modelos, tablas y migraciones. Sin validación productiva todavía.
+- S5-B no toca backend, modelos, tablas, migraciones ni datos productivos. Su validación es
+  únicamente local hasta atravesar los gates posteriores de commit, PR y despliegue.
 
 ---
 

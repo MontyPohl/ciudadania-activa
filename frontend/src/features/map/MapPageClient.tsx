@@ -1,0 +1,395 @@
+"use client";
+
+import dynamic from "next/dynamic";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+import { isQueryableBbox, serializeBbox, type MapBbox } from "@/features/map/bbox";
+import { MAP_DEBOUNCE_MS } from "@/features/map/mapConfig";
+import { MapFilters } from "@/features/map/MapFilters";
+import { MapLoading } from "@/features/map/MapLoading";
+import { MapResultsStatus, type MapResultsPhase } from "@/features/map/MapResultsStatus";
+import type { MapFocusTarget } from "@/features/map/MapViewportEvents";
+import { parseMapQuery, updateMapQuery } from "@/features/map/queryParams";
+import { ReportList } from "@/features/map/ReportList";
+import { ReportSidePanel } from "@/features/map/ReportSidePanel";
+import {
+  getPublicCategories,
+  getPublicReport,
+  getPublicReports,
+  PublicApiError,
+} from "@/lib/api/publicReports";
+import type { PublicCategory, PublicReport, PublicReportStateFilter } from "@/types/api";
+
+const MapView = dynamic(() => import("@/features/map/MapView"), {
+  ssr: false,
+  loading: () => <MapLoading />,
+});
+
+type CategoriesState =
+  | { phase: "loading"; items: PublicCategory[] }
+  | { phase: "ready"; items: PublicCategory[] }
+  | { phase: "error"; items: PublicCategory[] };
+
+interface Viewport {
+  bbox: MapBbox;
+  zoom: number;
+}
+
+export function MapPageClient() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const query = parseMapQuery(searchParams);
+  const [categories, setCategories] = useState<CategoriesState>({ phase: "loading", items: [] });
+  const [viewport, setViewport] = useState<Viewport | null>(null);
+  const [reports, setReports] = useState<PublicReport[]>([]);
+  const [resultsPhase, setResultsPhase] = useState<MapResultsPhase>("idle");
+  const [deepLinkReport, setDeepLinkReport] = useState<PublicReport | null>(null);
+  const [deepLinkFocus, setDeepLinkFocus] = useState<MapFocusTarget | null>(null);
+  const [deepLinkMessage, setDeepLinkMessage] = useState<string | null>(null);
+  const requestSequence = useRef(0);
+  const lastCompletedKey = useRef<string | null>(null);
+  const attemptedDeepLink = useRef<string | null>(null);
+  const localSelection = useRef<string | null>(null);
+  const restoreFocusTo = useRef<HTMLElement | null>(null);
+
+  const replaceQuery = useCallback(
+    (changes: Parameters<typeof updateMapQuery>[1]) => {
+      const next = updateMapQuery(searchParams.toString(), changes);
+      router.replace(`${pathname}${next}`, { scroll: false });
+    },
+    [pathname, router, searchParams],
+  );
+
+  useEffect(() => {
+    if (query.report === null) {
+      attemptedDeepLink.current = null;
+      localSelection.current = null;
+    }
+  }, [query.report]);
+
+  useEffect(() => {
+    const rawState = searchParams.get("estado");
+    const rawReport = searchParams.get("reporte");
+    const stateInvalid = rawState !== null && !["active", "resolved", "all"].includes(rawState);
+    const reportInvalid = rawReport !== null && query.report === null;
+    if (stateInvalid || reportInvalid) {
+      replaceQuery({
+        ...(stateInvalid ? { estado: "active" as const } : {}),
+        ...(reportInvalid ? { reporte: null } : {}),
+      });
+    }
+  }, [query.report, replaceQuery, searchParams]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    getPublicCategories(controller.signal)
+      .then((items) => setCategories({ phase: "ready", items }))
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setCategories({ phase: "error", items: [] });
+      });
+    return () => controller.abort();
+  }, []);
+
+  const categoryIsKnown =
+    query.category === null || categories.items.some((item) => item.slug === query.category);
+
+  useEffect(() => {
+    if (query.category === null || categories.phase === "loading") return;
+    if (!categoryIsKnown) replaceQuery({ categoria: null });
+  }, [categories.phase, categoryIsKnown, query.category, replaceQuery]);
+
+  const viewportIsQueryable = viewport !== null && isQueryableBbox(viewport.bbox);
+  const serializedViewport = viewportIsQueryable ? serializeBbox(viewport.bbox) : null;
+  const hasViewport = viewport !== null;
+  const effectiveCategory = categoryIsKnown ? query.category : null;
+
+  useEffect(() => {
+    if (!hasViewport) return;
+
+    let disposed = false;
+    const updateResultsSoon = (nextReports: PublicReport[], phase: MapResultsPhase) => {
+      queueMicrotask(() => {
+        if (disposed) return;
+        setReports(nextReports);
+        setResultsPhase(phase);
+      });
+    };
+
+    requestSequence.current += 1;
+    const sequence = requestSequence.current;
+
+    if (!viewportIsQueryable) {
+      lastCompletedKey.current = null;
+      updateResultsSoon([], "too-wide");
+      return () => {
+        disposed = true;
+      };
+    }
+
+    if (serializedViewport === null) return;
+
+    if (query.category !== null && categories.phase === "loading") {
+      updateResultsSoon([], "idle");
+      return () => {
+        disposed = true;
+      };
+    }
+
+    if (query.category !== null && !categoryIsKnown) {
+      updateResultsSoon([], "idle");
+      return () => {
+        disposed = true;
+      };
+    }
+
+    const key = `${serializedViewport}|${query.stateFilter}|${effectiveCategory ?? ""}`;
+    if (lastCompletedKey.current === key) return;
+
+    const controller = new AbortController();
+    updateResultsSoon([], "loading");
+
+    const timer = window.setTimeout(() => {
+      getPublicReports(
+        {
+          bbox: serializedViewport,
+          stateFilter: query.stateFilter,
+          category: effectiveCategory,
+        },
+        controller.signal,
+      )
+        .then((page) => {
+          if (disposed || sequence !== requestSequence.current) return;
+          lastCompletedKey.current = key;
+          setReports(page.results);
+          setResultsPhase(page.results.length === 0 ? "empty" : "ready");
+        })
+        .catch((error: unknown) => {
+          if (disposed || controller.signal.aborted || sequence !== requestSequence.current) return;
+          setReports([]);
+          setResultsPhase(
+            error instanceof PublicApiError && error.status === 429 ? "rate-limited" : "error",
+          );
+        });
+    }, MAP_DEBOUNCE_MS);
+
+    return () => {
+      disposed = true;
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [
+    categories.phase,
+    categoryIsKnown,
+    effectiveCategory,
+    hasViewport,
+    query.category,
+    query.stateFilter,
+    serializedViewport,
+    viewportIsQueryable,
+  ]);
+
+  const reportFromResults = useMemo(
+    () => reports.find((report) => report.id === query.report) ?? null,
+    [query.report, reports],
+  );
+  const activeDeepLinkReport = deepLinkReport?.id === query.report ? deepLinkReport : null;
+  const selectedReport = reportFromResults ?? activeDeepLinkReport;
+
+  useEffect(() => {
+    const reportId = query.report;
+    if (reportId === null || localSelection.current === reportId) return;
+
+    if (reportFromResults !== null) {
+      if (attemptedDeepLink.current !== reportId) {
+        attemptedDeepLink.current = reportId;
+        queueMicrotask(() => {
+          setDeepLinkReport(reportFromResults);
+          setDeepLinkMessage(null);
+        });
+      }
+      return;
+    }
+
+    if (
+      (resultsPhase !== "ready" && resultsPhase !== "empty") ||
+      attemptedDeepLink.current === reportId
+    ) {
+      return;
+    }
+
+    attemptedDeepLink.current = reportId;
+    const controller = new AbortController();
+    let active = true;
+    let settled = false;
+    getPublicReport(reportId, controller.signal)
+      .then((report) => {
+        if (!active) return;
+        settled = true;
+        const reportState =
+          report.status === "RESUELTO" || report.status === "CERRADO" ? "resolved" : "active";
+        const queryChanges: Parameters<typeof updateMapQuery>[1] = {};
+        if (query.stateFilter !== "all" && query.stateFilter !== reportState) {
+          queryChanges.estado = reportState;
+        }
+        if (query.category !== null && query.category !== report.category.slug) {
+          queryChanges.categoria = report.category.slug;
+        }
+
+        setDeepLinkReport(report);
+        setDeepLinkFocus({
+          id: report.id,
+          latitude: report.latitude,
+          longitude: report.longitude,
+        });
+        setDeepLinkMessage(null);
+        if (Object.keys(queryChanges).length > 0) replaceQuery(queryChanges);
+      })
+      .catch((error: unknown) => {
+        if (!active || controller.signal.aborted) return;
+        settled = true;
+        if (error instanceof PublicApiError && error.status === 404) {
+          setDeepLinkMessage("El reporte compartido no existe o no está disponible públicamente.");
+          replaceQuery({ reporte: null });
+        } else if (error instanceof PublicApiError && error.status === 429) {
+          setDeepLinkMessage(
+            "No se pudo abrir el reporte compartido porque se alcanzó el límite de consultas.",
+          );
+        } else {
+          setDeepLinkMessage(
+            "No se pudo abrir el reporte compartido. Intentá nuevamente más tarde.",
+          );
+        }
+      });
+
+    return () => {
+      active = false;
+      controller.abort();
+      if (!settled && attemptedDeepLink.current === reportId) {
+        attemptedDeepLink.current = null;
+      }
+    };
+  }, [
+    query.category,
+    query.report,
+    query.stateFilter,
+    replaceQuery,
+    reportFromResults,
+    resultsPhase,
+  ]);
+
+  const handleViewport = useCallback((bbox: MapBbox, zoom: number) => {
+    setViewport((current) => {
+      if (
+        current !== null &&
+        current.zoom === zoom &&
+        current.bbox.west === bbox.west &&
+        current.bbox.south === bbox.south &&
+        current.bbox.east === bbox.east &&
+        current.bbox.north === bbox.north
+      ) {
+        return current;
+      }
+      return { bbox, zoom };
+    });
+  }, []);
+
+  const handleSelect = useCallback(
+    (report: PublicReport, trigger?: HTMLElement) => {
+      localSelection.current = report.id;
+      restoreFocusTo.current = trigger ?? null;
+      setDeepLinkReport(report);
+      setDeepLinkFocus(null);
+      setDeepLinkMessage(null);
+      replaceQuery({ reporte: report.id });
+    },
+    [replaceQuery],
+  );
+
+  const handleClose = useCallback(() => {
+    localSelection.current = null;
+    attemptedDeepLink.current = null;
+    setDeepLinkReport(null);
+    setDeepLinkFocus(null);
+    replaceQuery({ reporte: null });
+    window.setTimeout(() => restoreFocusTo.current?.focus(), 0);
+  }, [replaceQuery]);
+
+  const detailHref = useCallback(
+    (report: PublicReport) => {
+      const params = new URLSearchParams();
+      if (query.stateFilter !== "active") params.set("estado", query.stateFilter);
+      if (effectiveCategory !== null) params.set("categoria", effectiveCategory);
+      params.set("reporte", report.id);
+      return `/reporte/${report.id}?${params.toString()}`;
+    },
+    [effectiveCategory, query.stateFilter],
+  );
+
+  return (
+    <main className="mx-auto flex w-full max-w-[96rem] flex-1 flex-col gap-5 px-4 py-6 sm:px-6">
+      <header>
+        <p className="text-sm font-semibold text-brand-green">Participación abierta</p>
+        <h1 className="text-3xl font-bold text-brand-purple">Mapa público de reportes</h1>
+        <p className="mt-2 max-w-3xl text-sm text-black/65">
+          Explorá reportes urbanos con ubicación aproximada. Acercá el mapa y usá los filtros para
+          consultar la zona visible.
+        </p>
+      </header>
+
+      <MapFilters
+        stateFilter={query.stateFilter}
+        category={categoryIsKnown ? query.category : null}
+        categories={categories.items}
+        categoriesLoading={categories.phase === "loading"}
+        categoriesError={categories.phase === "error"}
+        onStateChange={(value: PublicReportStateFilter) =>
+          replaceQuery({ estado: value, reporte: null })
+        }
+        onCategoryChange={(value) => replaceQuery({ categoria: value, reporte: null })}
+      />
+
+      <div className="min-h-6 text-sm text-black/70" aria-live="polite">
+        <MapResultsStatus phase={resultsPhase} />
+        {deepLinkMessage !== null && (
+          <p role="alert" className="text-brand-orange">
+            {deepLinkMessage}
+          </p>
+        )}
+      </div>
+
+      <div
+        className={
+          selectedReport === null
+            ? "min-w-0"
+            : "grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_22rem]"
+        }
+      >
+        <MapView
+          reports={reports}
+          viewport={viewport}
+          selectedId={selectedReport?.id ?? null}
+          focusTarget={deepLinkFocus?.id === query.report ? deepLinkFocus : null}
+          onViewport={handleViewport}
+          onSelect={handleSelect}
+        />
+        {selectedReport !== null && (
+          <ReportSidePanel
+            report={selectedReport}
+            detailHref={detailHref(selectedReport)}
+            onClose={handleClose}
+          />
+        )}
+      </div>
+
+      <ReportList
+        reports={reports}
+        selectedId={selectedReport?.id ?? null}
+        detailHref={detailHref}
+        onSelect={handleSelect}
+      />
+    </main>
+  );
+}

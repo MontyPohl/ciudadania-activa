@@ -54,6 +54,44 @@ export interface PaginatedResponse<T> {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Mapa público — contrato anónimo (Sprint 5)                                 */
+/* -------------------------------------------------------------------------- */
+
+export type PublicReportStateFilter = "active" | "resolved" | "all";
+
+export type PublicReportStatus =
+  "CREADO" | "CLASIFICADO" | "ASIGNADO" | "EN_PROCESO" | "RESUELTO" | "CERRADO";
+
+export type PublicReportPriority = "BAJA" | "MEDIA" | "ALTA";
+
+export interface PublicCategory {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+export interface PublicInstitution {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+/** Lista blanca exacta expuesta por la API pública; no contiene autor ni ubicación exacta. */
+export interface PublicReport {
+  id: string;
+  category: PublicCategory;
+  institution: PublicInstitution | null;
+  description: string;
+  status: PublicReportStatus;
+  priority: PublicReportPriority;
+  latitude: number;
+  longitude: number;
+  created_at: string;
+}
+
+export type PublicReportsPage = PaginatedResponse<PublicReport>;
+
+/* -------------------------------------------------------------------------- */
 /* Verificación de identidad — lado ciudadano (Sprint 4)                      */
 /* -------------------------------------------------------------------------- */
 

@@ -16,10 +16,20 @@ export function SessionStatus() {
   const session = useSession();
 
   return (
-    <header className="flex items-center justify-between gap-4 border-b border-[#000000]/10 px-6 py-3 text-sm">
-      <Link href="/" className="font-bold text-[#6950A1]">
-        Ciudadanía Activa
-      </Link>
+    <header className="flex flex-wrap items-center justify-between gap-4 border-b border-[#000000]/10 px-6 py-3 text-sm">
+      <div className="flex items-center gap-5">
+        <Link href="/" className="font-bold text-[#6950A1]">
+          Ciudadanía Activa
+        </Link>
+        <nav aria-label="Navegación pública">
+          <Link
+            href="/mapa"
+            className="font-semibold text-[#00B26B] underline-offset-4 hover:underline"
+          >
+            Mapa público
+          </Link>
+        </nav>
+      </div>
 
       {session.status === "loading" && <span className="text-[#000000]/60">Cargando…</span>}
 
