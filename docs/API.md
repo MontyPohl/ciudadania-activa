@@ -1,7 +1,7 @@
 # API — Ciudadanía Activa
 
 Contrato de la API tal como está **implementada**, no como se planificó. Se amplía en
-cada sprint que añade endpoints; hoy cubre los Sprints 3 y 4.
+cada sprint que añade endpoints; hoy cubre los Sprints 3 y 4 y la subtarea backend S5-A.
 
 - **Plan de referencia:** [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md) §14 (Sprint 4) y §29 (seguridad).
 - **Estado del modelo de datos:** [DICCIONARIO_DATOS.md](DICCIONARIO_DATOS.md).
@@ -63,6 +63,8 @@ desactivada, y el 409 de una cédula ya registrada no revela de quién es.
 ```json
 { "count": 42, "next": "…", "previous": null, "results": [] }
 ```
+
+El servidor no acepta un `page_size` controlado por el cliente.
 
 ---
 
@@ -437,6 +439,159 @@ consola —`python manage.py resend_notification <uuid>`—, y queda auditada co
 **Concurrencia.** Las filas del perfil y del usuario se bloquean y el estado se relee
 dentro del bloqueo. Con dos administradores simultáneos, uno obtiene `200` y el otro
 `409`; nunca hay dos decisiones, dos entradas de auditoría ni dos correos.
+
+---
+
+## 4. Mapa público (Sprint 5-A)
+
+Los tres endpoints de esta sección son anónimos, de solo lectura y declaran
+`authentication_classes = []`: un `Authorization: Bearer` inválido o vencido no convierte una
+ruta pública en `401`. Comparten el scope de throttle `public_map`, fijado en **120 peticiones por
+minuto**. Es un límite básico por IP; la IP efectiva detrás del proxy de Railway debe comprobarse
+durante la futura validación productiva antes de configurar `NUM_PROXIES`.
+
+### 4.1 `GET /api/v1/public/reports/`
+
+Listado paginado de reportes publicables. `bbox` es obligatorio.
+
+```http
+GET /api/v1/public/reports/?bbox=-57.70,-25.35,-57.50,-25.20&category=baches&state_filter=active&page=1
+```
+
+| Parámetro | Contrato |
+|---|---|
+| `bbox` | Obligatorio. `west,south,east,north`; cuatro decimales finitos, sin antimeridiano, con longitudes en `[-180,180]`, latitudes en `[-90,90]` y ancho/alto solicitados de hasta `0.5°` por eje |
+| `state_filter` | Opcional: `active` (default), `resolved` o `all` |
+| `category` | Opcional. `slug` de una categoría activa existente |
+| `page` | Opcional. Entero positivo; tamaño fijo global de 20 |
+
+Mapeo de estados:
+
+- `active`: `CREADO`, `CLASIFICADO`, `ASIGNADO`, `EN_PROCESO`;
+- `resolved`: `RESUELTO`, `CERRADO`;
+- `all`: los seis anteriores, con activos antes de resueltos;
+- `RECHAZADO` nunca es público.
+
+Dentro de cada grupo el orden es `-created_at, -id`, estable entre páginas. La selección de
+estados es una lista positiva: un estado futuro no se publicará por omisión.
+
+**200**
+
+```json
+{
+  "count": 1,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "id": "11111111-1111-1111-1111-111111111111",
+      "category": {
+        "id": "22222222-2222-2222-2222-222222222222",
+        "name": "Baches",
+        "slug": "baches"
+      },
+      "institution": {
+        "id": "33333333-3333-3333-3333-333333333333",
+        "name": "Municipalidad de Asunción",
+        "slug": "municipalidad-de-asuncion"
+      },
+      "description": "Dato sintético S5-A 01: bache de demostración en la calzada.",
+      "status": "CREADO",
+      "priority": "MEDIA",
+      "latitude": -25.264,
+      "longitude": -57.636,
+      "created_at": "2026-08-26T12:00:00Z"
+    }
+  ]
+}
+```
+
+`institution` es `null` cuando el reporte no tiene una asignada; nunca se reemplaza en la salida
+por `category.default_institution`.
+
+La lista blanca termina en esos nueve campos superiores. No devuelve `citizen`, datos del autor,
+`source`, `location`, validadores, motivo de rechazo, marcas internas, media, historial ni
+confirmaciones.
+
+#### Privacidad geográfica y bbox canónico
+
+`Report.location` permanece como `geometry(Point,4326)` exacta. Solo la presentación pública
+calcula `latitude` y `longitude` con `Decimal("0.001")` y `ROUND_HALF_UP`.
+
+Redondear solo la respuesta permitiría sondear la coordenada exacta variando el bbox y observando
+si un UUID aparece. Para cerrar ese oráculo, cada bbox válido se **expande hacia afuera** a las
+fronteras de las celdas públicas. Como el redondeo es `ROUND_HALF_UP`, esas fronteras forman la
+cuadrícula:
+
+```text
+n × 0.001° + 0.0005°
+```
+
+No se ajusta a múltiplos simples de `0.001°`. Por ejemplo, dos consultas estrechas alrededor de
+puntos distintos que se publican como `(-57.636, -25.264)` se convierten en el mismo bbox:
+
+```text
+-57.6365,-25.2645,-57.6355,-25.2635
+```
+
+Los empates no son simétricos: para una celda negativa el borde inferior es abierto y el superior
+cerrado; para una positiva ocurre lo contrario; la celda pública cero es abierta en ambos extremos.
+El envelope mueve cada borde lógicamente abierto al siguiente `double` representable mediante
+`nextafter`. Los límites mundiales `-180/180` y `-90/90` permanecen inclusivos.
+
+El bbox canónico se usa tanto en PostGIS como en la clave de caché. La consulta conserva
+`location && envelope` mediante `location__bboverlaps` como prefiltro GIST y añade
+`ST_Intersects(location, envelope)` como recheck geométrico exacto: las cajas del índice son
+aproximadas a propósito y, por sí solas, pueden incluir un punto situado exactamente sobre un
+borde abierto. No se aplica `Transform`, cast, `ST_X`, `ST_Y` ni redondeo sobre la columna.
+
+La expansión posterior a validar el límite puede llevar una ventana pedida de `0.5°` hasta
+`0.501°`: es el máximo margen de privacidad, no un aumento del límite aceptado al cliente. Los
+enlaces de paginación emiten una representación interior determinista de hasta `0.5°` que, al
+validarse de nuevo, reconstruye el mismo bbox canónico; por eso un enlace `next` siempre es válido.
+
+#### Caché
+
+Solo se cachean listados paginados, durante **60 segundos**, mediante el backend nativo
+`RedisCache`. El detalle no se cachea. La clave incluye generación, origen, bbox canónico, filtro
+efectivo, categoría y página; el material variable se guarda como SHA-256 y no expone el bbox en
+el nombre de la clave. El valor contiene únicamente la respuesta pública ya redondeada.
+
+La invalidación rota una generación en O(1), sin `KEYS`, `cache.clear()` ni `FLUSHDB`. Si Redis no
+responde, la lectura continúa desde PostgreSQL y el log genérico no contiene bbox ni coordenadas.
+
+### 4.2 `GET /api/v1/public/reports/{id}/`
+
+Devuelve directamente el mismo objeto público del listado, sin envoltorio y sin caché. Su queryset
+usa la misma lista positiva de estados. Un UUID inexistente y uno correspondiente a un reporte
+`RECHAZADO` responden exactamente el mismo `404`, sin revelar cuál de los dos casos ocurrió.
+
+### 4.3 `GET /api/v1/public/categories/`
+
+Catálogo completo de categorías activas para construir el filtro sin hardcodearlo ni derivarlo de
+una página parcial de reportes.
+
+```json
+[
+  {
+    "id": "22222222-2222-2222-2222-222222222222",
+    "name": "Baches",
+    "slug": "baches"
+  }
+]
+```
+
+La lista está ordenada establemente por `name, id` y no lleva paginación: el catálogo del MVP es
+pequeño —hoy contiene diez filas— y se necesita completo para el selector. No expone institución
+ni prioridad por defecto, estado interno u otra asociación.
+
+### 4.4 Seed local de demostración
+
+`python manage.py seed_reports` crea o repara 14 snapshots inequívocamente sintéticos: dos por
+cada estado, incluidos dos rechazados. Usa UUID v5 deterministas, los catálogos existentes,
+`citizen = NULL`, `source = platform` y puntos distintos del Gran Asunción. No crea usuarios,
+historiales, media, evidencia ni ledger. Es idempotente, preserva reportes ajenos e invalida la
+caché una vez después del commit. No es una migración ni simula los workflows de S9/S10.
 
 ---
 

@@ -136,6 +136,19 @@ veces no duplica ni recrea registros. No escribe `contact_email` ni `sla_hours`,
 la documentación del proyecto todavía no define. El detalle del modelo de datos está en
 [docs/DICCIONARIO_DATOS.md](docs/DICCIONARIO_DATOS.md).
 
+#### Reportes sintéticos del mapa
+
+Después de disponer de los catálogos, la demostración local del mapa se carga expresamente con:
+
+```bash
+python manage.py seed_reports
+```
+
+El comando no corre con `migrate`. Crea o repara 14 reportes inequívocamente sintéticos, dos por
+estado, con UUID v5 y ubicaciones deterministas del Gran Asunción. Es idempotente, no crea
+usuarios, no borra reportes ajenos y deja `citizen = NULL`. Los estados avanzados son snapshots
+de demostración: no crean historiales ni anticipan los workflows de los Sprints 9 y 10.
+
 ### 4. Frontend (Next.js)
 
 ```bash
@@ -211,6 +224,7 @@ y repartir credenciales de más es un riesgo gratuito.
 | `SUPABASE_STORAGE_BUCKET_PRIVATE` | **Sí** | No | No |
 | `BREVO_API_KEY` · `BREVO_API_URL` · `DEFAULT_FROM_EMAIL` | No | **Sí** | No |
 | `DATABASE_URL` · `REDIS_URL` · `DJANGO_SECRET_KEY` | **Sí** | **Sí** | No |
+| `PUBLIC_MAP_CACHE_TTL_SECONDS` | **Sí** | No | No |
 | `NEXT_PUBLIC_API_URL` · `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | No | No | **Sí** (públicas) |
 
 El backend web es el único que crea verificaciones y firma imágenes, así que es el único que
@@ -306,6 +320,7 @@ garantía del sistema.
 | `cd backend && python manage.py makemigrations --check` | Verifica que no falten migraciones |
 | `cd backend && ruff format --check .` | Verifica el formato del backend |
 | `cd backend && python manage.py seed_catalogs` | Recarga los catálogos semilla (idempotente) |
+| `cd backend && python manage.py seed_reports` | Carga 14 reportes sintéticos del mapa (idempotente; requiere catálogos) |
 | `cd backend && python manage.py promote_user <email> --role operator --institution <slug>` | Promueve un usuario existente a operador |
 | `cd backend && python manage.py promote_user <email> --role admin` | Promueve un usuario existente a administrador |
 | `cd backend && python manage.py resend_notification <uuid>` | Reencola una notificación que quedó en `FALLIDO` |

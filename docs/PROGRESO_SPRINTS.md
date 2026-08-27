@@ -2,7 +2,7 @@
 
 Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes de iniciar el siguiente.
 
-- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 **completado** (inicio el 22/08/2026, cierre el 23/08/2026: verificación de identidad con HMAC y almacenamiento privado, revisión administrativa manual con cotejo de la cédula, notificaciones asíncronas entregadas por la API HTTPS de Brevo y privacidad configurable del ranking, todo verificado en producción con una identidad real). Sin decisiones de arquitectura pendientes.
+- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 **completado** (inicio el 22/08/2026, cierre el 23/08/2026: verificación de identidad con HMAC y almacenamiento privado, revisión administrativa manual con cotejo de la cédula, notificaciones asíncronas entregadas por la API HTTPS de Brevo y privacidad configurable del ranking, todo verificado en producción con una identidad real). Sprint 5 **en curso** desde el 26/08/2026: la subtarea backend S5-A está implementada localmente y aún no fue integrada ni desplegada.
 - **Plan de referencia:** [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md)
 - **Ventana de desarrollo:** 01/08/2026 → 15/11/2026 (16 sprints semanales, Anexo F revisado)
 - **Estados posibles:** `Pendiente` · `En curso` · `Completado` · `Completado con observaciones` · `Bloqueado`
@@ -17,7 +17,7 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 | 2 | 08/08 – 14/08 | Modelo de datos e incentivos | Completado |
 | 3 | 15/08 – 21/08 | Autenticación, roles y permisos | Completado |
 | 4 | 22/08 – 28/08 | Verificación de identidad y privacidad | Completado |
-| 5 | 29/08 – 04/09 | Mapa público y geolocalización | Pendiente |
+| 5 | 29/08 – 04/09 | Mapa público y geolocalización | En curso |
 | 6 | 05/09 – 11/09 | Creación de reportes y duplicados | Pendiente |
 | 7 | 12/09 – 18/09 | Panel ciudadano y confirmaciones | Pendiente |
 | 8 | 19/09 – 25/09 | Clasificación asistida por IA | Pendiente |
@@ -573,23 +573,64 @@ antes de cerrarlo.
 ## Sprint 5 — Mapa público y geolocalización
 
 **Fechas planificadas:** 29/08/2026 – 04/09/2026
-**Estado:** Pendiente
+**Estado:** En curso
 **Fecha real de cierre:** —
 
 ### Funcionalidades terminadas
-_Pendiente._
+
+- **S5-A implementado localmente:** tres rutas anónimas de solo lectura:
+  `GET /api/v1/public/reports/`, `GET /api/v1/public/reports/{id}/` y
+  `GET /api/v1/public/categories/`.
+- Lista positiva de seis estados publicables; filtros `active`, `resolved` y `all`, con
+  activos priorizados, orden estable y `RECHAZADO` opaco como `404` en detalle.
+- Contrato público mediante lista blanca, coordenadas numéricas redondeadas a tres
+  decimales y ninguna información del autor.
+- Bbox obligatorio `west,south,east,north`, máximo `0.5°` por eje y expansión de
+  privacidad a la cuadrícula desplazada medio paso (`n × 0.001° + 0.0005°`).
+- Consulta PostGIS con `location__bboverlaps`/`&&` como prefiltro GIST y
+  `ST_Intersects` como recheck exacto de fronteras, sin transformar ni extraer
+  coordenadas de la columna; prueba separada de elección real con cardinalidad
+  representativa.
+- RedisCache nativo, TTL de 60 segundos, listados solamente, claves generacionales e
+  invalidación O(1) con degradación a PostgreSQL.
+- Throttle compartido `public_map = 120/min` y LocMemCache obligatorio en tests.
+- Management command idempotente `seed_reports`: 14 snapshots sintéticos, UUID v5, dos
+  por estado, sin usuarios, historiales ni migración de datos.
 
 ### Pruebas realizadas
-_Pendiente._
+
+- Suite focalizada `map_app` + `seed_reports`: **114 pruebas verdes** sobre privacidad,
+  bbox, estados, categorías, HTTP, paginación, caché, throttle, seed y planes espaciales.
+- Regresión completa local: **826 pruebas verdes** y **99 % de cobertura** sobre `apps`.
+- `ruff check .`, `ruff format --check .`, `makemigrations --check --no-input` y
+  `git diff --check`: sin hallazgos al cerrar la implementación local.
 
 ### Problemas encontrados
-_Pendiente._
+
+- Redondear solo la respuesta dejaba un oráculo por consultas bbox adaptativas. Se cerró
+  canonizando la consulta a las fronteras half-step de la misma celda pública.
+- El gate adversarial pre-commit detectó que `&&`, al trabajar con cajas aproximadas,
+  incluía algunos empates ubicados sobre un borde lógicamente abierto. Se conservó como
+  prefiltro GIST y se añadió el recheck exacto `ST_Intersects`. El mismo gate corrigió
+  los enlaces de página cuyo bbox canónico podía medir `0.501°` y ser rechazado al
+  reutilizarse.
+- El plan pedía filtro por categoría sin ofrecer un catálogo público completo. Se agregó
+  el endpoint mínimo de categorías activas y la divergencia quedó en CT-53.
+- `CACHES` no existía y Redis comparte base lógica con Celery. Producción nunca usa
+  `cache.clear()`; la suite quedó aislada con LocMemCache.
 
 ### Commits relevantes
-_Pendiente._
+
+_Pendiente: implementación local deliberadamente sin commit, push ni PR._
 
 ### Observaciones y desvíos respecto del plan
-_Pendiente._
+
+- Esta entrega cubre únicamente **S5-A backend**. No implementa `/mapa`, `/reporte/[id]`,
+  Leaflet, `LocationPicker`, GPS ni geocoder; por eso el Sprint 5 sigue abierto.
+- El detalle público y el catálogo de categorías no figuran ambos en el Anexo B; se
+  registraron CT-52 y CT-53. La reducción de precisión y la canonización bbox quedaron en
+  CT-54.
+- Cero modelos, tablas y migraciones. Sin validación productiva todavía.
 
 ---
 
