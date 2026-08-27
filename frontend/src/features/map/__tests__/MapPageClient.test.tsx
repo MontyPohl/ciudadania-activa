@@ -331,6 +331,171 @@ describe("orquestación del viewport", () => {
     expect(screen.getByRole("button", { name: /Baches/ })).toHaveFocus();
   });
 
+  it("espera al nuevo botón antes de consumir la restauración de foco", async () => {
+    vi.useFakeTimers();
+    const report = publicReport();
+    let resolveReload!: (page: ReturnType<typeof emptyPage>) => void;
+    vi.mocked(getPublicReports)
+      .mockResolvedValueOnce(emptyPage([report]))
+      .mockReturnValueOnce(new Promise((resolve) => (resolveReload = resolve)));
+    const view = render(<MapPageClient />);
+    await act(async () => undefined);
+
+    fireEvent.click(screen.getByRole("button", { name: "Emitir viewport válido" }));
+    await act(async () => {
+      vi.advanceTimersByTime(350);
+      await Promise.resolve();
+    });
+
+    const oldButton = screen.getByRole("button", { name: /Baches/ });
+    oldButton.focus();
+    fireEvent.click(oldButton);
+    navigation.search = `reporte=${report.id}`;
+    view.rerender(<MapPageClient />);
+    expect(screen.getByRole("complementary")).toHaveFocus();
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    navigation.search = "";
+    view.rerender(<MapPageClient />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Emitir segundo viewport" }));
+      await Promise.resolve();
+    });
+    expect(oldButton).not.toBeInTheDocument();
+    expect(document.activeElement).toBe(document.body);
+
+    fireEvent.click(screen.getByRole("button", { name: "Emitir viewport válido" }));
+    await act(() => vi.advanceTimersByTime(350));
+    expect(screen.queryByRole("button", { name: /Baches/ })).not.toBeInTheDocument();
+
+    await act(async () => resolveReload(emptyPage([report])));
+    const newButton = screen.getByRole("button", { name: /Baches/ });
+    expect(newButton).not.toBe(oldButton);
+    expect(newButton).toHaveFocus();
+  });
+
+  it("enfoca la lista como fallback si el reporte ya no pertenece a los resultados", async () => {
+    vi.useFakeTimers();
+    const selectedReport = publicReport();
+    const remainingReport = publicReport({
+      id: "22222222-2222-4222-8222-222222222222",
+      category: { ...publicReport().category, name: "Reporte restante" },
+    });
+    vi.mocked(getPublicReports)
+      .mockResolvedValueOnce(emptyPage([selectedReport]))
+      .mockResolvedValueOnce(emptyPage([remainingReport]));
+    const view = render(<MapPageClient />);
+    await act(async () => undefined);
+
+    fireEvent.click(screen.getByRole("button", { name: "Emitir viewport válido" }));
+    await act(async () => {
+      vi.advanceTimersByTime(350);
+      await Promise.resolve();
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Baches/ }));
+    navigation.search = `reporte=${selectedReport.id}`;
+    view.rerender(<MapPageClient />);
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    navigation.search = "";
+    view.rerender(<MapPageClient />);
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Emitir segundo viewport" }));
+      await Promise.resolve();
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(350);
+      await Promise.resolve();
+    });
+
+    expect(screen.queryByRole("button", { name: /Baches/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("region", { name: /Reportes visibles/ })).toHaveFocus();
+    expect(document.activeElement).not.toBe(document.body);
+  });
+
+  it("prioriza la intención de foco de la apertura más reciente", async () => {
+    vi.useFakeTimers();
+    const firstReport = publicReport({
+      category: { ...publicReport().category, name: "Primer reporte" },
+    });
+    const secondReport = publicReport({
+      id: "33333333-3333-4333-8333-333333333333",
+      category: { ...publicReport().category, name: "Segundo reporte" },
+    });
+    vi.mocked(getPublicReports).mockResolvedValue(emptyPage([firstReport, secondReport]));
+    const view = render(<MapPageClient />);
+    await act(async () => undefined);
+
+    fireEvent.click(screen.getByRole("button", { name: "Emitir viewport válido" }));
+    await act(async () => {
+      vi.advanceTimersByTime(350);
+      await Promise.resolve();
+    });
+    const oldSecondButton = screen.getByRole("button", { name: /Segundo reporte/ });
+
+    fireEvent.click(screen.getByRole("button", { name: /Primer reporte/ }));
+    navigation.search = `reporte=${firstReport.id}`;
+    view.rerender(<MapPageClient />);
+    fireEvent.keyDown(window, { key: "Escape" });
+    navigation.search = "";
+    view.rerender(<MapPageClient />);
+
+    fireEvent.click(oldSecondButton);
+    navigation.search = `reporte=${secondReport.id}`;
+    view.rerender(<MapPageClient />);
+    fireEvent.keyDown(window, { key: "Escape" });
+    navigation.search = "";
+    view.rerender(<MapPageClient />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Emitir segundo viewport" }));
+      await Promise.resolve();
+    });
+    expect(oldSecondButton).not.toBeInTheDocument();
+    await act(async () => {
+      vi.advanceTimersByTime(350);
+      await Promise.resolve();
+    });
+
+    const newSecondButton = screen.getByRole("button", { name: /Segundo reporte/ });
+    expect(newSecondButton).not.toBe(oldSecondButton);
+    expect(newSecondButton).toHaveFocus();
+    expect(screen.getByRole("button", { name: /Primer reporte/ })).not.toHaveFocus();
+  });
+
+  it("no intenta restaurar foco después de desmontar el componente", async () => {
+    vi.useFakeTimers();
+    const report = publicReport();
+    let resolveReload!: (page: ReturnType<typeof emptyPage>) => void;
+    vi.mocked(getPublicReports)
+      .mockResolvedValueOnce(emptyPage([report]))
+      .mockReturnValueOnce(new Promise((resolve) => (resolveReload = resolve)));
+    const focusSpy = vi.spyOn(HTMLElement.prototype, "focus");
+    const view = render(<MapPageClient />);
+    await act(async () => undefined);
+
+    fireEvent.click(screen.getByRole("button", { name: "Emitir viewport válido" }));
+    await act(async () => {
+      vi.advanceTimersByTime(350);
+      await Promise.resolve();
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Baches/ }));
+    navigation.search = `reporte=${report.id}`;
+    view.rerender(<MapPageClient />);
+    fireEvent.keyDown(window, { key: "Escape" });
+    navigation.search = "";
+    view.rerender(<MapPageClient />);
+    fireEvent.click(screen.getByRole("button", { name: "Emitir segundo viewport" }));
+    await act(() => vi.advanceTimersByTime(350));
+
+    view.unmount();
+    const focusCallsAfterUnmount = focusSpy.mock.calls.length;
+    await act(async () => resolveReload(emptyPage([report])));
+    expect(focusSpy).toHaveBeenCalledTimes(focusCallsAfterUnmount);
+    focusSpy.mockRestore();
+  });
+
   it("recupera resultados al volver de un bbox transitoriamente no consultable", async () => {
     vi.useFakeTimers();
     const report = publicReport();
