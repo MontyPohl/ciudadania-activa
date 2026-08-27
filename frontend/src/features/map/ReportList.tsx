@@ -32,6 +32,7 @@ export function ReportList({ reports, selectedId, detailHref, onSelect }: Report
           >
             <button
               type="button"
+              data-report-list-trigger={report.id}
               onClick={(event) => onSelect(report, event.currentTarget)}
               className="w-full text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple"
             >

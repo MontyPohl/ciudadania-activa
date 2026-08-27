@@ -49,10 +49,11 @@ export function MapPageClient() {
   const [deepLinkFocus, setDeepLinkFocus] = useState<MapFocusTarget | null>(null);
   const [deepLinkMessage, setDeepLinkMessage] = useState<string | null>(null);
   const requestSequence = useRef(0);
-  const lastCompletedKey = useRef<string | null>(null);
+  const displayedResultsKey = useRef<string | null>(null);
   const attemptedDeepLink = useRef<string | null>(null);
   const localSelection = useRef<string | null>(null);
   const restoreFocusTo = useRef<HTMLElement | null>(null);
+  const restoreFocusReportId = useRef<string | null>(null);
 
   const replaceQuery = useCallback(
     (changes: Parameters<typeof updateMapQuery>[1]) => {
@@ -122,7 +123,7 @@ export function MapPageClient() {
     const sequence = requestSequence.current;
 
     if (!viewportIsQueryable) {
-      lastCompletedKey.current = null;
+      displayedResultsKey.current = null;
       updateResultsSoon([], "too-wide");
       return () => {
         disposed = true;
@@ -132,6 +133,7 @@ export function MapPageClient() {
     if (serializedViewport === null) return;
 
     if (query.category !== null && categories.phase === "loading") {
+      displayedResultsKey.current = null;
       updateResultsSoon([], "idle");
       return () => {
         disposed = true;
@@ -139,6 +141,7 @@ export function MapPageClient() {
     }
 
     if (query.category !== null && !categoryIsKnown) {
+      displayedResultsKey.current = null;
       updateResultsSoon([], "idle");
       return () => {
         disposed = true;
@@ -146,9 +149,10 @@ export function MapPageClient() {
     }
 
     const key = `${serializedViewport}|${query.stateFilter}|${effectiveCategory ?? ""}`;
-    if (lastCompletedKey.current === key) return;
+    if (displayedResultsKey.current === key) return;
 
     const controller = new AbortController();
+    displayedResultsKey.current = null;
     updateResultsSoon([], "loading");
 
     const timer = window.setTimeout(() => {
@@ -162,7 +166,7 @@ export function MapPageClient() {
       )
         .then((page) => {
           if (disposed || sequence !== requestSequence.current) return;
-          lastCompletedKey.current = key;
+          displayedResultsKey.current = key;
           setReports(page.results);
           setResultsPhase(page.results.length === 0 ? "empty" : "ready");
         })
@@ -197,6 +201,21 @@ export function MapPageClient() {
   );
   const activeDeepLinkReport = deepLinkReport?.id === query.report ? deepLinkReport : null;
   const selectedReport = reportFromResults ?? activeDeepLinkReport;
+
+  useEffect(() => {
+    const reportId = restoreFocusReportId.current;
+    if (query.report !== null || resultsPhase !== "ready" || reportId === null) return;
+
+    const previousTrigger = restoreFocusTo.current;
+    const nextTrigger = previousTrigger?.isConnected
+      ? previousTrigger
+      : document.querySelector<HTMLElement>(`[data-report-list-trigger="${reportId}"]`);
+    if (nextTrigger === null) return;
+
+    nextTrigger.focus();
+    restoreFocusTo.current = nextTrigger;
+    restoreFocusReportId.current = null;
+  }, [query.report, reports, resultsPhase]);
 
   useEffect(() => {
     const reportId = query.report;
@@ -300,6 +319,7 @@ export function MapPageClient() {
     (report: PublicReport, trigger?: HTMLElement) => {
       localSelection.current = report.id;
       restoreFocusTo.current = trigger ?? null;
+      restoreFocusReportId.current = report.id;
       setDeepLinkReport(report);
       setDeepLinkFocus(null);
       setDeepLinkMessage(null);
@@ -314,7 +334,6 @@ export function MapPageClient() {
     setDeepLinkReport(null);
     setDeepLinkFocus(null);
     replaceQuery({ reporte: null });
-    window.setTimeout(() => restoreFocusTo.current?.focus(), 0);
   }, [replaceQuery]);
 
   const detailHref = useCallback(
