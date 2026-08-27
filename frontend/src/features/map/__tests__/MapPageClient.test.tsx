@@ -291,6 +291,75 @@ describe("orquestación del viewport", () => {
     expect(listButton).toHaveFocus();
   });
 
+  it("recupera la lista y el foco al cerrar con Escape durante el resize del mapa", async () => {
+    vi.useFakeTimers();
+    const report = publicReport();
+    vi.mocked(getPublicReports).mockResolvedValue(emptyPage([report]));
+    const view = render(<MapPageClient />);
+    await act(async () => undefined);
+
+    fireEvent.click(screen.getByRole("button", { name: "Emitir viewport válido" }));
+    await act(async () => {
+      vi.advanceTimersByTime(350);
+      await Promise.resolve();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Baches/ }));
+    navigation.search = `reporte=${report.id}`;
+    view.rerender(<MapPageClient />);
+    expect(screen.getByRole("complementary")).toHaveFocus();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Emitir segundo viewport" }));
+      await Promise.resolve();
+    });
+    expect(screen.getByRole("status")).toHaveTextContent("Consultando reportes");
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    navigation.search = "";
+    view.rerender(<MapPageClient />);
+    expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Emitir viewport válido" }));
+    await act(async () => {
+      vi.advanceTimersByTime(350);
+      await Promise.resolve();
+    });
+
+    expect(getPublicReports).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole("heading", { name: "Reportes visibles (1)" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Baches/ })).toHaveFocus();
+  });
+
+  it("recupera resultados al volver de un bbox transitoriamente no consultable", async () => {
+    vi.useFakeTimers();
+    const report = publicReport();
+    vi.mocked(getPublicReports).mockResolvedValue(emptyPage([report]));
+    render(<MapPageClient />);
+    await act(async () => undefined);
+
+    fireEvent.click(screen.getByRole("button", { name: "Emitir viewport válido" }));
+    await act(async () => {
+      vi.advanceTimersByTime(350);
+      await Promise.resolve();
+    });
+    expect(screen.getByRole("heading", { name: "Reportes visibles (1)" })).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Emitir viewport amplio" }));
+      await Promise.resolve();
+    });
+    expect(screen.getByRole("status")).toHaveTextContent("Acercá el mapa para consultar");
+
+    fireEvent.click(screen.getByRole("button", { name: "Emitir viewport válido" }));
+    await act(async () => {
+      vi.advanceTimersByTime(350);
+      await Promise.resolve();
+    });
+    expect(getPublicReports).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole("heading", { name: "Reportes visibles (1)" })).toBeInTheDocument();
+  });
+
   it("mantiene visible una selección local aunque el reporte salga del viewport", async () => {
     vi.useFakeTimers();
     const report = publicReport();
