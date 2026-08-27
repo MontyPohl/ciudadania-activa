@@ -1,4 +1,5 @@
 from datetime import timedelta
+from decimal import Decimal
 from pathlib import Path
 
 import environ
@@ -187,7 +188,10 @@ REST_FRAMEWORK = {
     # DEFAULT_THROTTLE_CLASSES: el Sprint 4 no introduce throttling global. La única
     # vista que lo activa es el envío de verificación, declarándolo explícitamente.
     # Como el endpoint exige autenticación, la clave del contador es el usuario.
-    "DEFAULT_THROTTLE_RATES": {"identity_submit": "5/hour"},
+    "DEFAULT_THROTTLE_RATES": {
+        "identity_submit": "5/hour",
+        "public_map": "120/min",
+    },
 }
 
 # JWT propio del sistema, emitido tras verificar el ID token de Google (ADR-0005).
@@ -216,6 +220,20 @@ SIMPLE_JWT = {
 CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=[])
 
 REDIS_URL = env("REDIS_URL", default="redis://localhost:6379/0")
+
+# El backend nativo de Django reutiliza el Redis ya aprovisionado. ``KEY_PREFIX``
+# separa las claves ordinarias de la caché, pero no vuelve seguro ``cache.clear()``:
+# la invalidación del mapa rota una generación y nunca vacía la base compartida.
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": REDIS_URL,
+        "KEY_PREFIX": "ciudadania_activa",
+    }
+}
+
+PUBLIC_MAP_CACHE_TTL_SECONDS = env.int("PUBLIC_MAP_CACHE_TTL_SECONDS", default=60)
+PUBLIC_MAP_MAX_BBOX_SPAN_DEGREES = Decimal("0.5")
 
 CELERY_BROKER_URL = REDIS_URL
 CELERY_RESULT_BACKEND = REDIS_URL

@@ -12,7 +12,7 @@ un sprint concreto — ver [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md) y [PROGRESO_
 | 2 | Autenticación Google OAuth, roles y permisos | S3 | Completado |
 | 3 | Verificación manual con cédula/selfie | S4 | Completado |
 | 4 | CRUD de instituciones, categorías y operadores | S2 · S9 | En curso |
-| 5 | Creación de reportes, foto, mapa y advertencia de duplicados | S5 · S6 | Pendiente |
+| 5 | Creación de reportes, foto, mapa y advertencia de duplicados | S5 · S6 | En curso |
 | 6 | Clasificación IA y auditoría | S8 | Pendiente |
 | 7 | Confirmaciones ciudadanas de reportes activos | S7 | Pendiente |
 | 8 | `rewards_app`: puntos pendientes/acreditados, créditos 1:1 y reversión | S2 · S9 · S10 | En curso |
@@ -29,7 +29,10 @@ un sprint concreto — ver [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md) y [PROGRESO_
 > siguen **En curso**. El **ítem 3** pasó a **Completado** el 23/08/2026, al
 > cerrarse el Sprint 4: infraestructura productiva aprovisionada, integración por Pull Request
 > con CI en verde, migración aplicada en producción y flujo real verificado de extremo a extremo
-> con una identidad verdadera. Ningún ítem del Sprint 5 en adelante ha comenzado.
+> con una identidad verdadera. El **ítem 5** pasó a **En curso** el 26/08/2026 con S5-A:
+> API pública local del mapa, catálogo público de categorías, bbox privado/indexable,
+> caché y seed sintético. La interfaz del mapa y toda la creación de reportes de S6 siguen
+> pendientes; esta implementación local todavía no fue integrada ni desplegada.
 
 ## Prioridad Media
 
@@ -63,6 +66,6 @@ un sprint concreto — ver [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md) y [PROGRESO_
 | Privacidad de cédulas/selfies | Alto | HMAC-SHA-256, almacenamiento privado y acceso restringido | S4 |
 | Presupuesto real de recompensas | Alto | El MVP usa vales simulados; convenios reales quedan fuera de alcance | S12 |
 | Inconsistencias de saldos | Medio | Ledger transaccional inmutable y reversiones auditables | S2 · S10 |
-| Rendimiento del mapa/ranking | Medio | Índices GIST/B-tree, caché en Redis y agregaciones acotadas al mes en curso | S5 · S11 · S15 |
+| Rendimiento del mapa/ranking | Medio | Índices GIST/B-tree, bbox máximo y canónico, caché Redis generacional con TTL de 60 s y agregaciones acotadas al mes en curso | S5 · S11 · S15 |
 | Dependencia de dos integrantes | Medio | Documentación por sprint, PR con revisión cruzada, este tablero | Todos los sprints |
 | Sprint 16 de solo dos días | Medio | Todo debe cerrarse en el Sprint 15; el 16 es exclusivamente cierre | S15 · S16 |

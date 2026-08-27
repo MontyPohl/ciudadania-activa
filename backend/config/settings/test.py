@@ -7,6 +7,15 @@ SECRET_KEY = "clave-de-prueba-solo-para-la-suite-de-tests"  # noqa: S105
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
 CELERY_TASK_ALWAYS_EAGER = True
 
+# La suite nunca usa el Redis compartido con Celery. Además de hacer las pruebas
+# deterministas, esto impide que un ``clear`` legado pueda convertirse en ``FLUSHDB``.
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "ciudadania-activa-tests",
+    }
+}
+
 # El envío del Sprint 4 no pasa por `django.core.mail`, sino por la API HTTPS de Brevo,
 # y la fixture `brevo_api` dobla ese cliente en toda la suite. El backend `locmem` se
 # conserva igualmente como red de seguridad: si algún día una ruta usara `send_mail`, la
