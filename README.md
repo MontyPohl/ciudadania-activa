@@ -159,7 +159,9 @@ npm run dev
 ```
 
 La aplicación queda disponible en `http://localhost:3000` y consulta el estado del backend en la
-página de inicio.
+página de inicio. El mapa público en `/mapa` usa Leaflet y Supercluster con los tiles HTTPS
+oficiales de OpenStreetMap; conserva siempre visible la atribución y solicita únicamente los tiles
+del viewport que el navegador necesita mostrar.
 
 ## Verificación contra Supabase
 
@@ -325,6 +327,7 @@ garantía del sistema.
 | `cd backend && python manage.py promote_user <email> --role admin` | Promueve un usuario existente a administrador |
 | `cd backend && python manage.py resend_notification <uuid>` | Reencola una notificación que quedó en `FALLIDO` |
 | `cd frontend && npm run lint` | Lint del frontend |
+| `cd frontend && npm test` | Pruebas unitarias y de componentes del frontend (Vitest + jsdom) |
 | `cd frontend && npm run typecheck` | Verificación de tipos (`next typegen && tsc --noEmit`) |
 | `cd frontend && npm run format` | Formatea el frontend con Prettier |
 | `cd frontend && npm run build` | Build de producción |
@@ -332,7 +335,7 @@ garantía del sistema.
 ## CI/CD
 
 Cada Pull Request ejecuta `ci-backend.yml` (Ruff + `pytest` con servicios PostGIS y Redis) y
-`ci-frontend.yml` (Prettier + ESLint + `tsc --noEmit` + `next build`) mediante GitHub Actions. La
+`ci-frontend.yml` (Prettier + Vitest + ESLint + `tsc --noEmit` + `next build`) mediante GitHub Actions. La
 rama `main` está protegida: solo se integra con ambos checks en verde.
 
 El despliegue continuo parte de `main`: el frontend se despliega en **Vercel** y el backend junto

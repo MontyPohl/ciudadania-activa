@@ -37,6 +37,9 @@ jobs:
       - name: Formato (Prettier)
         run: npm run format:check
 
+      - name: Pruebas (Vitest)
+        run: npm test
+
       - name: Lint (ESLint)
         run: npm run lint
 
