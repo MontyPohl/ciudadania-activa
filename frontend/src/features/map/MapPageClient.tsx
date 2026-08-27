@@ -36,6 +36,11 @@ interface Viewport {
   zoom: number;
 }
 
+interface FocusOrigin {
+  reportId: string;
+  node: HTMLElement | null;
+}
+
 export function MapPageClient() {
   const router = useRouter();
   const pathname = usePathname();
@@ -52,8 +57,40 @@ export function MapPageClient() {
   const displayedResultsKey = useRef<string | null>(null);
   const attemptedDeepLink = useRef<string | null>(null);
   const localSelection = useRef<string | null>(null);
-  const restoreFocusTo = useRef<HTMLElement | null>(null);
-  const restoreFocusReportId = useRef<string | null>(null);
+  const focusOrigin = useRef<FocusOrigin | null>(null);
+  const pendingFocusReportId = useRef<string | null>(null);
+  const pendingFocusOriginalNode = useRef<HTMLElement | null>(null);
+  const pendingFocusSawReload = useRef(false);
+  const reportTriggerNodes = useRef(new Map<string, HTMLButtonElement>());
+  const reportListRef = useRef<HTMLElement | null>(null);
+  const resultsStatusRef = useRef<HTMLDivElement | null>(null);
+  const queryReportRef = useRef(query.report);
+
+  const clearPendingFocus = useCallback(() => {
+    pendingFocusReportId.current = null;
+    pendingFocusOriginalNode.current = null;
+    pendingFocusSawReload.current = false;
+  }, []);
+
+  const handleReportTriggerRef = useCallback(
+    (reportId: string, node: HTMLButtonElement | null) => {
+      if (node === null) {
+        reportTriggerNodes.current.delete(reportId);
+        return;
+      }
+
+      reportTriggerNodes.current.set(reportId, node);
+      if (
+        pendingFocusReportId.current === reportId &&
+        queryReportRef.current === null &&
+        node !== pendingFocusOriginalNode.current
+      ) {
+        node.focus();
+        clearPendingFocus();
+      }
+    },
+    [clearPendingFocus],
+  );
 
   const replaceQuery = useCallback(
     (changes: Parameters<typeof updateMapQuery>[1]) => {
@@ -64,6 +101,7 @@ export function MapPageClient() {
   );
 
   useEffect(() => {
+    queryReportRef.current = query.report;
     if (query.report === null) {
       attemptedDeepLink.current = null;
       localSelection.current = null;
@@ -203,19 +241,28 @@ export function MapPageClient() {
   const selectedReport = reportFromResults ?? activeDeepLinkReport;
 
   useEffect(() => {
-    const reportId = restoreFocusReportId.current;
-    if (query.report !== null || resultsPhase !== "ready" || reportId === null) return;
+    const reportId = pendingFocusReportId.current;
+    if (reportId === null) return;
 
-    const previousTrigger = restoreFocusTo.current;
-    const nextTrigger = previousTrigger?.isConnected
-      ? previousTrigger
-      : document.querySelector<HTMLElement>(`[data-report-list-trigger="${reportId}"]`);
-    if (nextTrigger === null) return;
+    if (resultsPhase === "idle" || resultsPhase === "loading") {
+      pendingFocusSawReload.current = true;
+      return;
+    }
+    if (query.report !== null) return;
 
-    nextTrigger.focus();
-    restoreFocusTo.current = nextTrigger;
-    restoreFocusReportId.current = null;
-  }, [query.report, reports, resultsPhase]);
+    const trigger = reportTriggerNodes.current.get(reportId);
+    if (trigger !== undefined) {
+      trigger.focus();
+      if (pendingFocusSawReload.current || trigger !== pendingFocusOriginalNode.current) {
+        clearPendingFocus();
+      }
+      return;
+    }
+
+    const fallback = reportListRef.current ?? resultsStatusRef.current;
+    fallback?.focus();
+    clearPendingFocus();
+  }, [clearPendingFocus, query.report, reports, resultsPhase]);
 
   useEffect(() => {
     const reportId = query.report;
@@ -317,18 +364,23 @@ export function MapPageClient() {
 
   const handleSelect = useCallback(
     (report: PublicReport, trigger?: HTMLElement) => {
+      clearPendingFocus();
       localSelection.current = report.id;
-      restoreFocusTo.current = trigger ?? null;
-      restoreFocusReportId.current = report.id;
+      focusOrigin.current = { reportId: report.id, node: trigger ?? null };
       setDeepLinkReport(report);
       setDeepLinkFocus(null);
       setDeepLinkMessage(null);
       replaceQuery({ reporte: report.id });
     },
-    [replaceQuery],
+    [clearPendingFocus, replaceQuery],
   );
 
   const handleClose = useCallback(() => {
+    const origin = focusOrigin.current;
+    focusOrigin.current = null;
+    pendingFocusReportId.current = origin?.reportId ?? null;
+    pendingFocusOriginalNode.current = origin?.node ?? null;
+    pendingFocusSawReload.current = false;
     localSelection.current = null;
     attemptedDeepLink.current = null;
     setDeepLinkReport(null);
@@ -370,7 +422,13 @@ export function MapPageClient() {
         onCategoryChange={(value) => replaceQuery({ categoria: value, reporte: null })}
       />
 
-      <div className="min-h-6 text-sm text-black/70" aria-live="polite">
+      <div
+        ref={resultsStatusRef}
+        tabIndex={-1}
+        aria-label="Estado de resultados del mapa"
+        className="min-h-6 text-sm text-black/70"
+        aria-live="polite"
+      >
         <MapResultsStatus phase={resultsPhase} />
         {deepLinkMessage !== null && (
           <p role="alert" className="text-brand-orange">
@@ -404,10 +462,12 @@ export function MapPageClient() {
       </div>
 
       <ReportList
+        listRef={reportListRef}
         reports={reports}
         selectedId={selectedReport?.id ?? null}
         detailHref={detailHref}
         onSelect={handleSelect}
+        onTriggerRef={handleReportTriggerRef}
       />
     </main>
   );
