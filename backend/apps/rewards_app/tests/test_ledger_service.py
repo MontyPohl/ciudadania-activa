@@ -1,4 +1,4 @@
-"""El contrato de dominio existe, pero el Sprint 2 no implementa el ledger."""
+"""Contrato del ledger: creación implementada en S6 y demás eventos aún declarativos."""
 
 import inspect
 
@@ -14,6 +14,8 @@ FUNCIONES = [
     ("revert_validation", ["report", "actor", "reason"]),
 ]
 
+FUNCIONES_PENDIENTES = FUNCIONES[1:]
+
 
 @pytest.mark.parametrize(("nombre", "parametros"), FUNCIONES)
 def test_las_firmas_del_contrato_estan_declaradas(nombre, parametros):
@@ -22,7 +24,7 @@ def test_las_firmas_del_contrato_estan_declaradas(nombre, parametros):
     assert list(inspect.signature(funcion).parameters) == parametros
 
 
-@pytest.mark.parametrize(("nombre", "parametros"), FUNCIONES)
+@pytest.mark.parametrize(("nombre", "parametros"), FUNCIONES_PENDIENTES)
 def test_ninguna_funcion_del_ledger_esta_implementada(nombre, parametros):
     funcion = getattr(ledger, nombre)
 
@@ -31,10 +33,34 @@ def test_ninguna_funcion_del_ledger_esta_implementada(nombre, parametros):
 
 
 @pytest.mark.django_db
-def test_el_esqueleto_no_escribe_en_el_ledger():
+def test_on_report_created_escribe_y_retorna_el_asiento_exacto(report, citizen):
+    transaction = ledger.on_report_created(report)
+
+    assert transaction.user == citizen
+    assert transaction.report == report
+    assert transaction.event_type == "REPORT_CREATED"
+    assert transaction.impact_delta == 20
+    assert transaction.credit_delta == 20
+    assert transaction.status == "PENDIENTE"
+
+
+@pytest.mark.django_db
+def test_on_report_created_rechaza_explicita_y_sin_escritura_reporte_sin_ciudadano(
+    category,
+):
+    from django.contrib.gis.geos import Point
+
+    from apps.reports_app.models import Report
     from apps.rewards_app.models import RewardTransaction
 
-    with pytest.raises(NotImplementedError):
-        ledger.on_report_created(None)
+    report = Report.objects.create(
+        citizen=None,
+        category=category,
+        description="Reporte sin ciudadano.",
+        location=Point(-57.63, -25.26, srid=4326),
+    )
+
+    with pytest.raises(ValueError, match="exige un reporte con ciudadano"):
+        ledger.on_report_created(report)
 
     assert RewardTransaction.objects.count() == 0

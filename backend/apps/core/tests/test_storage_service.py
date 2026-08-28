@@ -88,6 +88,25 @@ def test_el_bucket_privado_se_lee_de_los_ajustes(storage_config):
     assert storage.private_bucket() == "verificaciones"
 
 
+def test_reports_bucket_es_independiente_del_bucket_de_verificacion(storage_config):
+    assert storage.private_bucket() == "verificaciones"
+    assert storage.reports_bucket() == "reportes"
+
+
+def test_reports_bucket_falla_cerrado_sin_fallback(settings, storage_config):
+    settings.SUPABASE_STORAGE_BUCKET_REPORTS = ""
+
+    with pytest.raises(storage.StorageConfigurationError):
+        storage.reports_bucket()
+
+
+def test_reports_bucket_falla_cerrado_si_el_ajuste_esta_ausente(settings, storage_config):
+    del settings.SUPABASE_STORAGE_BUCKET_REPORTS
+
+    with pytest.raises(storage.StorageConfigurationError):
+        storage.reports_bucket()
+
+
 def test_el_error_de_configuracion_no_revela_que_ajuste_falta(settings, storage_config):
     settings.SUPABASE_SERVICE_ROLE_KEY = ""
 

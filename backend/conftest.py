@@ -151,6 +151,7 @@ def storage_config(settings):
     settings.SUPABASE_URL = "https://proyecto-de-prueba.supabase.co"
     settings.SUPABASE_SERVICE_ROLE_KEY = "service-role-de-prueba"  # noqa: S105
     settings.SUPABASE_STORAGE_BUCKET_PRIVATE = "verificaciones"
+    settings.SUPABASE_STORAGE_BUCKET_REPORTS = "reportes"
     return settings
 
 

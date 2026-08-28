@@ -63,6 +63,14 @@ def private_bucket() -> str:
     return bucket
 
 
+def reports_bucket() -> str:
+    """Nombre del bucket privado de reportes, separado del de verificaciones."""
+    bucket = getattr(settings, "SUPABASE_STORAGE_BUCKET_REPORTS", "")
+    if not bucket:
+        raise StorageConfigurationError("El almacenamiento no está configurado en este servidor.")
+    return bucket
+
+
 def upload(bucket: str, key: str, content: bytes, content_type: str) -> None:
     """Sube un objeto al bucket indicado.
 

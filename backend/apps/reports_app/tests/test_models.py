@@ -73,6 +73,90 @@ def test_media_del_reporte(report, citizen):
     assert str(media) == f"FOTO de {report.pk}"
 
 
+def test_hash_de_foto_es_unico_en_base_de_datos(report, citizen, category):
+    ReportMedia.objects.create(
+        report=report, file_url="reports/uno.jpg", file_hash="f" * 64, uploaded_by=citizen
+    )
+    other = Report.objects.create(
+        citizen=citizen,
+        category=category,
+        description="Otro reporte.",
+        location=Point(-57.64, -25.27, srid=4326),
+    )
+
+    with pytest.raises(IntegrityError) as excinfo:
+        with transaction.atomic():
+            ReportMedia.objects.create(
+                report=other,
+                file_url="reports/dos.jpg",
+                file_hash="f" * 64,
+                uploaded_by=citizen,
+            )
+
+    assert excinfo.value.__cause__.diag.constraint_name == "report_media_foto_hash_unico"
+
+
+def test_fotos_con_hashes_distintos_coexisten(report, citizen, category):
+    other = Report.objects.create(
+        citizen=citizen,
+        category=category,
+        description="Otro reporte.",
+        location=Point(-57.64, -25.27, srid=4326),
+    )
+    ReportMedia.objects.create(
+        report=report, file_url="reports/a.jpg", file_hash="a" * 64, uploaded_by=citizen
+    )
+    ReportMedia.objects.create(
+        report=other, file_url="reports/b.jpg", file_hash="b" * 64, uploaded_by=citizen
+    )
+
+    assert ReportMedia.objects.count() == 2
+
+
+def test_hash_no_es_unico_para_tipo_futuro_distinto(report, citizen, category):
+    other = Report.objects.create(
+        citizen=citizen,
+        category=category,
+        description="Otro reporte.",
+        location=Point(-57.64, -25.27, srid=4326),
+    )
+    for current_report in (report, other):
+        ReportMedia.objects.create(
+            report=current_report,
+            file_url=f"reports/{current_report.id}.bin",
+            file_hash="e" * 64,
+            media_type="FUTURO",
+            uploaded_by=citizen,
+        )
+
+    assert ReportMedia.objects.filter(file_hash="e" * 64).count() == 2
+
+
+def test_foto_y_tipo_futuro_pueden_compartir_hash(report, citizen, category):
+    other = Report.objects.create(
+        citizen=citizen,
+        category=category,
+        description="Otro reporte.",
+        location=Point(-57.64, -25.27, srid=4326),
+    )
+    ReportMedia.objects.create(
+        report=report,
+        file_url="reports/foto.jpg",
+        file_hash="c" * 64,
+        media_type=MediaType.FOTO,
+        uploaded_by=citizen,
+    )
+    ReportMedia.objects.create(
+        report=other,
+        file_url="reports/futuro.bin",
+        file_hash="c" * 64,
+        media_type="FUTURO",
+        uploaded_by=citizen,
+    )
+
+    assert ReportMedia.objects.filter(file_hash="c" * 64).count() == 2
+
+
 def test_historial_de_estados(report, citizen):
     asiento = ReportStatusHistory.objects.create(
         report=report, new_status=ReportStatus.CLASIFICADO, changed_by=citizen

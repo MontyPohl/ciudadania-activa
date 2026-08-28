@@ -4,13 +4,9 @@ from django.db.models import Case, IntegerField, Value, When
 
 from apps.core.enums import ReportStatus
 from apps.reports_app.models import Report
+from apps.reports_app.selectors import ACTIVE_REPORT_STATUSES
 
-ACTIVE_STATUSES = (
-    ReportStatus.CREADO,
-    ReportStatus.CLASIFICADO,
-    ReportStatus.ASIGNADO,
-    ReportStatus.EN_PROCESO,
-)
+ACTIVE_STATUSES = ACTIVE_REPORT_STATUSES
 RESOLVED_STATUSES = (ReportStatus.RESUELTO, ReportStatus.CERRADO)
 PUBLIC_STATUSES = (*ACTIVE_STATUSES, *RESOLVED_STATUSES)
 
