@@ -40,8 +40,8 @@ export function SessionStatus() {
       )}
 
       {session.status === "authenticated" && (
-        <div className="flex items-center gap-3">
-          <span className="text-[#000000]/70">{session.user.email}</span>
+        <div className="flex min-w-0 flex-wrap items-center justify-end gap-3">
+          <span className="max-w-full break-all text-[#000000]/70">{session.user.email}</span>
           <span className="rounded-full bg-[#6950A1]/10 px-2 py-0.5 text-xs text-[#6950A1]">
             {session.user.role}
           </span>

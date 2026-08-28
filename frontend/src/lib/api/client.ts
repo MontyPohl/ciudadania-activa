@@ -130,9 +130,10 @@ export async function apiFetchAuthenticatedNoReplay<T>(
   if (response.ok) {
     return (await response.json()) as T;
   }
-  if (response.status === 401) {
-    provider?.onSessionLost();
-  }
+  // Un 401 posterior al POST se presenta dentro del propio formulario. Cambiar aquí el
+  // estado global a anónimo desmontaría el wizard y destruiría el borrador antes de que
+  // la persona pueda leer el resultado. La siguiente navegación o recarga reconstruye la
+  // sesión normalmente; esta mutación nunca se repite.
   throw new ApiError(
     `API request failed: ${response.status} ${response.statusText}`,
     response.status,

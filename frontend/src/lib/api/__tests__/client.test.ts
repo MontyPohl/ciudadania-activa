@@ -71,7 +71,7 @@ describe("políticas del cliente autenticado", () => {
     ).rejects.toMatchObject({ status: 401 });
     expect(fetch).toHaveBeenCalledOnce();
     expect(refresh).toHaveBeenCalledOnce();
-    expect(onSessionLost).toHaveBeenCalledOnce();
+    expect(onSessionLost).not.toHaveBeenCalled();
     expect(vi.mocked(fetch).mock.calls[0][1]).toMatchObject({
       method: "POST",
       headers: {

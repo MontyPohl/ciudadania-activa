@@ -144,8 +144,10 @@ contradicción 5).
 | `created_at` | `timestamptz` | **índice B-tree** | — | A.5 |
 
 **`report_media`** — `report_id` (`CASCADE`), `file_url` (`text`), `file_hash`
-(`varchar(64)`, SHA-256, **sin índice**: la consulta de archivo idéntico es del Sprint 6),
-`media_type` (`default 'FOTO'`), `uploaded_by_id` (nullable, `SET_NULL`).
+(`varchar(64)`, SHA-256 de los bytes originales), `media_type` (`default 'FOTO'`),
+`uploaded_by_id` (nullable, `SET_NULL`). El índice único parcial
+`report_media_foto_hash_unico` cubre `file_hash` únicamente cuando `media_type = 'FOTO'`:
+impide reutilizar una fotografía exacta sin imponer unicidad a tipos de media futuros.
 
 **`report_status_history`** — `report_id` (`CASCADE`), `previous_status` (blank en el
 asiento inicial), `new_status`, `changed_by_id` (nullable, `SET_NULL`: el cierre automático

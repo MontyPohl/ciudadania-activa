@@ -701,7 +701,7 @@ antes de cerrarlo.
 
 **Fechas planificadas:** 05/09/2026 – 11/09/2026
 **Fecha real de inicio:** 28/08/2026
-**Estado:** En curso — S6-A cerrado; S6-B en curso (B1 integrado, B2 implementado localmente)
+**Estado:** En curso — S6-A cerrado; S6-B en curso (B1 y B2 integrados; B3 implementado localmente)
 **Fecha real de cierre:** —
 
 ### Funcionalidades terminadas
@@ -726,21 +726,29 @@ antes de cerrarlo.
   mapa público, validaciones puras, construcción exacta del multipart, preflight de sesión y
   un único POST sin replay tras 401, errores controlados —incluido resultado incierto—, lock
   `singleFlight`, reducer de cinco pasos y cliente GET cancelable de posibles duplicados.
-- **S6-B2 — wizard frontend de creación: IMPLEMENTADO LOCALMENTE.** Añade la ruta ciudadana
+- **S6-B2 — wizard frontend de creación: INTEGRADO EN MAIN.** Añade la ruta ciudadana
   `/reportes/nuevo`, guards de sesión/rol/verificación, catálogo con retry GET, cinco pasos
   accesibles, foto JPEG/PNG con preview local y revocación de object URLs, `LocationPicker`
   sin pérdida de precisión, confirmación con consulta cancelable de duplicados, submit
-  single-flight, éxito y UX controlada para errores HTTP y resultado incierto. S6-B permanece
-  abierto: B2 todavía no está publicado y el E2E browser pertenece a S6-B3.
+  single-flight, éxito y UX controlada para errores HTTP y resultado incierto.
+- **S6-B3 — browser E2E, integración y documentación: IMPLEMENTADO LOCALMENTE.** Incorpora
+  Playwright 1.62.1 y Chromium con Next/Webpack local, API sintética interceptada, retries en cero
+  y artefactos solo ante fallo. Cubre guards, multipart exacto, foto, GPS permitido/denegado,
+  coordenadas por teclado, click y drag Leaflet, viewport 390 px, duplicados advisory, doble click,
+  Enter repetido, 401/409/429/503, resultado incierto y accesibilidad/foco. El workflow frontend
+  queda preparado con un job `frontend-e2e` separado y sin secretos o servicios productivos.
 
 ### Pruebas realizadas
 
-- Frontend tras S6-B2: **246 pruebas verdes en 20 archivos**; B2 agrega **29 pruebas** de
+- Frontend tras S6-B3: **246 pruebas unitarias/componentes/integración verdes en 20 archivos**;
+  B2 agregó **29 pruebas** de
   guards, transiciones, catálogo, descripción, lifecycle de preview, límite de 5 MiB,
   integración precisa de ubicación, duplicados cancelables/no bloqueantes, doble click, Enter,
-  éxito y errores HTTP/resultado incierto. Prettier, ESLint, TypeScript y build Webpack quedaron
-  verdes. Turbopack volvió a quedar limitado exclusivamente por la descarga bloqueada de
-  Poppins en el runner.
+  éxito y errores HTTP/resultado incierto. S6-B3 añade **22 browser E2E**; dos ejecuciones
+  completas consecutivas terminaron `22/22` en aproximadamente 1,5 minutos cada una, con cero
+  retries y cero flakes. Prettier, ESLint y TypeScript quedaron verdes. El build Webpack no pudo
+  revalidarse en este runner por su restricción de subprocess (`--showConfig`), y la ejecución
+  fuera del sandbox no fue habilitada; la última validación Webpack integrada de B2 sigue verde.
 - Implementación backend: **994 pruebas verdes**, **99 % de cobertura**, `manage.py check`,
   `makemigrations --check`, Ruff y CI Backend en `SUCCESS`.
 - La migración `reports_app.0002_reportmedia_report_media_foto_hash_unico` quedó aplicada
@@ -760,8 +768,14 @@ antes de cerrarlo.
 ### Problemas encontrados
 
 - El build Turbopack local llegó a compilación pero no pudo descargar Poppins desde Google Fonts
-  por la restricción de red del runner. El build Webpack completo terminó correctamente fuera de
-  la restricción de subprocess del sandbox; no se modificó código por esta condición ambiental.
+  por la restricción de red del runner. En B3 el único intento Turbopack reprodujo exclusivamente
+  ese fallo de descarga. Webpack quedó bloqueado localmente al interpretar el subprocess de
+  TypeScript y no se modificaron fuentes para maquillar ninguna de estas condiciones ambientales.
+- El browser real detectó tres defectos frontend que las pruebas de componente no exponían: un
+  `401` posterior al POST desmontaba el wizard y perdía el borrador; aplicar coordenadas manuales
+  lejanas podía dejar el marcador fuera del viewport del mapa; y la fila de sesión autenticada
+  desbordaba a 390 px. Se corrigieron localmente preservando el error dentro del formulario, con
+  recentrado explícito tras Apply y wrapping responsive de la cabecera, respectivamente.
 - El despliegue inicial no tenía creado el bucket `reportes` ni configurada
   `SUPABASE_STORAGE_BUCKET_REPORTS`. Se aprovisionó un bucket privado limitado a JPEG/PNG y
   5 MiB, se configuró únicamente el backend y se validó su uso real sin exponer secretos.
@@ -777,7 +791,10 @@ antes de cerrarlo.
 - PR #17 integrado mediante *squash and merge* en
   `e585c2861c84a972da7adeef8676cd942fec018b`
   (`feat(reports): preparar creación frontend segura`).
-- S6-B2 permanece en la rama local `feat/s06-b2-report-create-wizard`, sin commit, push ni PR.
+- PR #18 integrado mediante *squash and merge* en
+  `5b71036f262c21ce512abc46b8f5aaa945cf58f0`
+  (`feat(reports): implementar wizard de creación`).
+- S6-B3 permanece local en `feat/s06-b3-report-create-e2e`, sin commit, push ni PR.
 
 ### Observaciones y desvíos respecto del plan
 
@@ -789,12 +806,17 @@ antes de cerrarlo.
   Gemini sigue fuera de S6-A y pertenece a Sprint 8.
 - La migración de la credencial legacy `service_role` de Supabase a `sb_secret_*` no se
   inició y permanece fuera de este cierre.
+- Los E2E de S6-B3 usan frontend y Chromium reales, pero interceptan únicamente las fronteras API
+  con identidad, tokens, imágenes, coordenadas y respuestas sintéticas. No conectan a Railway,
+  Supabase o Storage, y no realizan ningún POST remoto.
+- La advertencia de GitHub Actions sobre la transición de Node 20 a 24 permanece como deuda CI no
+  bloqueante. S6-B3 no actualiza `actions/checkout@v4` ni `actions/setup-node@v4` para silenciarla.
 - La consulta backend de posibles duplicados exige `lat`/`lng` precisos en query string. El
   cliente B1 los usa exclusivamente en un `fetch` GET privado y no los coloca en navegación,
   historial, storage ni logs; la exposición potencial en logs de infraestructura pertenece al
   contrato backend ya cerrado y queda como riesgo de privacidad para revisión posterior.
-- Sprint 6 continúa abierto: el cierre de S6-A no adelanta S6-B ni marca el sprint como
-  completado.
+- S6-B3 todavía requiere publicación, merge y un gate productivo posterior. **S6-B sigue abierto y
+  Sprint 6 continúa en curso**; esta implementación local no cierra ninguno de los dos.
 
 ---
 
