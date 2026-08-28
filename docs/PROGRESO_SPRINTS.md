@@ -686,10 +686,10 @@ antes de cerrarlo.
 
 - Al cerrar Sprint 5, S5-A, S5-B y S5-C estaban cerradas y S6 todavía no se había
   iniciado. Desde el 28/08/2026 Sprint 6 está en curso y S6-A quedó cerrado.
-- `LocationPicker` permanece integrado desde S5-C, pero su consumo productivo por un
-  formulario real de creación y el E2E frontend completo siguen pendientes de S6-B. Esta
-  validación diferida no bloqueó el cierre técnico de S5-C ni exigió una ruta demo
-  retroactiva.
+- `LocationPicker` permanece integrado desde S5-C. S6-B2 ya implementa localmente su consumo
+  por el formulario real de creación; la publicación del wizard y el E2E browser siguen
+  pendientes de los gates posteriores de S6-B. Esta validación diferida no bloqueó el cierre
+  técnico de S5-C ni exigió una ruta demo retroactiva.
 - El detalle público y el catálogo de categorías no figuran ambos en el Anexo B; se
   registraron CT-52 y CT-53. La reducción de precisión y la canonización bbox quedaron en
   CT-54.
@@ -701,7 +701,7 @@ antes de cerrarlo.
 
 **Fechas planificadas:** 05/09/2026 – 11/09/2026
 **Fecha real de inicio:** 28/08/2026
-**Estado:** En curso — S6-A cerrado; S6-B en curso (B1 implementado localmente)
+**Estado:** En curso — S6-A cerrado; S6-B en curso (B1 integrado, B2 implementado localmente)
 **Fecha real de cierre:** —
 
 ### Funcionalidades terminadas
@@ -722,19 +722,25 @@ antes de cerrarlo.
 - Tras el commit se invalida la generación de caché pública y se encola
   `ai.classify_report`. La tarea fue recibida y completada en producción, pero en S6 es
   deliberadamente **no-op**: no llama Gemini, no clasifica y no crea `AIClassification`.
-- **S6-B1 — contrato frontend de creación: IMPLEMENTADO LOCALMENTE, pendiente de gate e
-  integración.** Incluye tipos separados del mapa público, validaciones puras, construcción
-  exacta del multipart, preflight de sesión y un único POST sin replay tras 401, errores
-  controlados —incluido resultado incierto—, lock `singleFlight`, reducer de cinco pasos y
-  cliente GET cancelable de posibles duplicados. S6-B permanece abierto: todavía no existen
-  pantalla de creación, consumo productivo de `LocationPicker` ni E2E frontend completo.
+- **S6-B1 — contrato frontend de creación: INTEGRADO EN MAIN.** Incluye tipos separados del
+  mapa público, validaciones puras, construcción exacta del multipart, preflight de sesión y
+  un único POST sin replay tras 401, errores controlados —incluido resultado incierto—, lock
+  `singleFlight`, reducer de cinco pasos y cliente GET cancelable de posibles duplicados.
+- **S6-B2 — wizard frontend de creación: IMPLEMENTADO LOCALMENTE.** Añade la ruta ciudadana
+  `/reportes/nuevo`, guards de sesión/rol/verificación, catálogo con retry GET, cinco pasos
+  accesibles, foto JPEG/PNG con preview local y revocación de object URLs, `LocationPicker`
+  sin pérdida de precisión, confirmación con consulta cancelable de duplicados, submit
+  single-flight, éxito y UX controlada para errores HTTP y resultado incierto. S6-B permanece
+  abierto: B2 todavía no está publicado y el E2E browser pertenece a S6-B3.
 
 ### Pruebas realizadas
 
-- Frontend tras S6-B1: **217 pruebas verdes en 17 archivos**; B1 agrega **45 pruebas** de
-  FormData y precisión completa, validación de categoría/descripción/foto/ubicación, preflight,
-  cero replay de POST, errores HTTP/red, doble submit, reducer, auth y duplicados cancelables.
-  Prettier, ESLint, TypeScript y build Webpack quedaron verdes.
+- Frontend tras S6-B2: **246 pruebas verdes en 20 archivos**; B2 agrega **29 pruebas** de
+  guards, transiciones, catálogo, descripción, lifecycle de preview, límite de 5 MiB,
+  integración precisa de ubicación, duplicados cancelables/no bloqueantes, doble click, Enter,
+  éxito y errores HTTP/resultado incierto. Prettier, ESLint, TypeScript y build Webpack quedaron
+  verdes. Turbopack volvió a quedar limitado exclusivamente por la descarga bloqueada de
+  Poppins en el runner.
 - Implementación backend: **994 pruebas verdes**, **99 % de cobertura**, `manage.py check`,
   `makemigrations --check`, Ruff y CI Backend en `SUCCESS`.
 - La migración `reports_app.0002_reportmedia_report_media_foto_hash_unico` quedó aplicada
@@ -768,6 +774,10 @@ antes de cerrarlo.
 - PR #15 integrado mediante *squash and merge* en
   `17983b28b0d2e60d71d4bb096402869446d6e28b`
   (`feat(reports): implementar creación de reportes`).
+- PR #17 integrado mediante *squash and merge* en
+  `e585c2861c84a972da7adeef8676cd942fec018b`
+  (`feat(reports): preparar creación frontend segura`).
+- S6-B2 permanece en la rama local `feat/s06-b2-report-create-wizard`, sin commit, push ni PR.
 
 ### Observaciones y desvíos respecto del plan
 

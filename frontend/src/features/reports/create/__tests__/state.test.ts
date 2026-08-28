@@ -32,6 +32,9 @@ describe("estado puro del asistente", () => {
   it("impide avanzar con el paso inválido y conserva los datos originales", () => {
     let state = initialCreateReportWizardState();
     expect(createReportWizardReducer(state, { type: "NEXT" })).toBe(state);
+    expect(createReportWizardReducer(state, { type: "GO_TO_STEP", step: "confirmation" })).toBe(
+      state,
+    );
 
     state = createReportWizardReducer(state, { type: "SET_CATEGORY", value: CATEGORY_ID });
     state = createReportWizardReducer(state, { type: "NEXT" });
@@ -49,6 +52,10 @@ describe("estado puro del asistente", () => {
     expect(state.description).toBe("  descripción original\n");
     expect(state.location).toBe(LOCATION);
     expect(canQueryPossibleDuplicates(state)).toBe(true);
+
+    state = createReportWizardReducer(state, { type: "GO_TO_STEP", step: "photo" });
+    expect(state.step).toBe("photo");
+    expect(state.photo).not.toBeNull();
   });
 
   it("solo inicia duplicados en confirmación e invalida candidatos al cambiar la entrada", () => {

@@ -50,6 +50,7 @@ export type CreateReportWizardAction =
   | { type: "SET_DESCRIPTION"; value: string }
   | { type: "SET_PHOTO"; value: File | null }
   | { type: "SET_LOCATION"; value: LocationValue | null }
+  | { type: "GO_TO_STEP"; step: CreateReportStep }
   | { type: "NEXT" }
   | { type: "BACK" }
   | { type: "DUPLICATES_LOADING"; requestKey: string }
@@ -157,6 +158,17 @@ export function createReportWizardReducer(
       location: action.value,
       duplicates: { status: "idle", candidates: [] },
       submission: resetSubmission(),
+    };
+  }
+  if (action.type === "GO_TO_STEP") {
+    const currentIndex = CREATE_REPORT_STEPS.indexOf(state.step);
+    const targetIndex = CREATE_REPORT_STEPS.indexOf(action.step);
+    if (targetIndex >= currentIndex) return state;
+    return {
+      ...state,
+      step: action.step,
+      duplicates:
+        action.step === "confirmation" ? state.duplicates : { status: "idle", candidates: [] },
     };
   }
   if (action.type === "NEXT") {
