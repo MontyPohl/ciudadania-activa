@@ -1,14 +1,9 @@
 """Contrato de dominio entre `reports_app` y `rewards_app` (§8 del plan).
 
-**Esqueleto declarativo del Sprint 2.** Las cinco funciones existen para fijar el
-contrato —`reports_app` nunca escribe en los modelos de `rewards_app`, sino que
-invoca estas funciones dentro de su propia `transaction.atomic()`— pero ninguna
-está implementada todavía, tal como exige el Sprint 2: *"esqueleto de
-`rewards_app.services.ledger` con las funciones de dominio declaradas y sus
-reglas todavía sin conectar a `reports_app`"*.
-
-Cada una levanta `NotImplementedError` de forma deliberada: preferimos un fallo
-explícito a una función que aparente estar implementada y devuelva `None`.
+El Sprint 2 declaró las cinco funciones para fijar el contrato: cada app invoca
+el ledger dentro de su propia `transaction.atomic()` y nunca escribe directamente
+sus modelos. Sprint 6 implementa `on_report_created`; las funciones de sprints
+posteriores continúan levantando `NotImplementedError` de forma deliberada.
 
 Reglas económicas que estas funciones implementarán en su sprint (§6.5, ADR-0004):
 
@@ -37,7 +32,20 @@ _PENDIENTE_DE_SPRINT = (
 
 def on_report_created(report):
     """Registra `REPORT_CREATED` (+20/+20, `PENDIENTE`) para el autor. Sprint 6."""
-    raise NotImplementedError(_PENDIENTE_DE_SPRINT.format(sprint="Sprint 6"))
+    from apps.rewards_app.enums import RewardEventType, RewardTxStatus
+    from apps.rewards_app.models import RewardTransaction
+
+    if report.citizen_id is None:
+        raise ValueError("REPORT_CREATED exige un reporte con ciudadano.")
+
+    return RewardTransaction.objects.create(
+        user=report.citizen,
+        report=report,
+        event_type=RewardEventType.REPORT_CREATED,
+        impact_delta=20,
+        credit_delta=20,
+        status=RewardTxStatus.PENDIENTE,
+    )
 
 
 def on_confirmation_created(confirmation):

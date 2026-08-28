@@ -48,6 +48,7 @@ DOCUMENT_HMAC_SECRET = env("DOCUMENT_HMAC_SECRET", default="")
 SUPABASE_URL = env("SUPABASE_URL", default="")
 SUPABASE_SERVICE_ROLE_KEY = env("SUPABASE_SERVICE_ROLE_KEY", default="")
 SUPABASE_STORAGE_BUCKET_PRIVATE = env("SUPABASE_STORAGE_BUCKET_PRIVATE", default="")
+SUPABASE_STORAGE_BUCKET_REPORTS = env("SUPABASE_STORAGE_BUCKET_REPORTS", default="")
 
 # Límite funcional de la selfie, comprobado sobre `UploadedFile.size`. No se confunde
 # con FILE_UPLOAD_MAX_MEMORY_SIZE, que solo decide memoria frente a archivo temporal,
@@ -185,12 +186,14 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": ["apps.core.permissions.DenyAll"],
     "TEST_REQUEST_DEFAULT_FORMAT": "json",
     # Tarifas con nombre para `ScopedRateThrottle`. **No** se declara
-    # DEFAULT_THROTTLE_CLASSES: el Sprint 4 no introduce throttling global. La única
-    # vista que lo activa es el envío de verificación, declarándolo explícitamente.
-    # Como el endpoint exige autenticación, la clave del contador es el usuario.
+    # DEFAULT_THROTTLE_CLASSES: cada vista protegida activa explícitamente su scope.
+    # En los scopes autenticados la clave del contador es el usuario.
     "DEFAULT_THROTTLE_RATES": {
         "identity_submit": "5/hour",
         "public_map": "120/min",
+        "report_create": "5/hour",
+        "possible_duplicates": "60/min",
+        "reports_mine": "120/hour",
     },
 }
 
@@ -234,6 +237,7 @@ CACHES = {
 
 PUBLIC_MAP_CACHE_TTL_SECONDS = env.int("PUBLIC_MAP_CACHE_TTL_SECONDS", default=60)
 PUBLIC_MAP_MAX_BBOX_SPAN_DEGREES = Decimal("0.5")
+REPORT_DUPLICATE_RADIUS_METERS = env.int("REPORT_DUPLICATE_RADIUS_METERS", default=100)
 
 CELERY_BROKER_URL = REDIS_URL
 CELERY_RESULT_BACKEND = REDIS_URL

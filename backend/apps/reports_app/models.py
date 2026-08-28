@@ -109,6 +109,8 @@ class ReportMedia(BaseModel):
         on_delete=models.CASCADE,
         related_name="media",
     )
+    # Nombre legado: para fotos privadas de reportes contiene un object key de
+    # Storage (`reports/<report>/<media>.ext`), nunca una URL pública o firmada.
     file_url = models.TextField()
     # SHA-256 del archivo (RF-12). Sin índice todavía: la consulta de detección de
     # archivo idéntico se implementa en el Sprint 6.
@@ -129,6 +131,13 @@ class ReportMedia(BaseModel):
     class Meta:
         db_table = "report_media"
         verbose_name_plural = "report media"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["file_hash"],
+                condition=models.Q(media_type=MediaType.FOTO),
+                name="report_media_foto_hash_unico",
+            ),
+        ]
 
     def __str__(self) -> str:
         return f"{self.media_type} de {self.report_id}"
