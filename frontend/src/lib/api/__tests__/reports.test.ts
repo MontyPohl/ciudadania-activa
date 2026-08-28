@@ -109,7 +109,7 @@ describe("cliente de creación de reportes", () => {
     await expect(createReport(input())).rejects.toMatchObject({ code: "SESSION_EXPIRED" });
     expect(fetch).toHaveBeenCalledOnce();
     expect(session.refresh).toHaveBeenCalledOnce();
-    expect(session.onSessionLost).toHaveBeenCalledOnce();
+    expect(session.onSessionLost).not.toHaveBeenCalled();
   });
 
   it.each([

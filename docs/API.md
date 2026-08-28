@@ -1,7 +1,7 @@
 # API — Ciudadanía Activa
 
 Contrato de la API tal como está **implementada**, no como se planificó. Se amplía en
-cada sprint que añade endpoints; hoy cubre los Sprints 3 y 4 y la subtarea backend S5-A.
+cada sprint que añade endpoints; hoy cubre los Sprints 3 a 6.
 
 - **Plan de referencia:** [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md) §14 (Sprint 4) y §29 (seguridad).
 - **Estado del modelo de datos:** [DICCIONARIO_DATOS.md](DICCIONARIO_DATOS.md).
@@ -592,6 +592,114 @@ cada estado, incluidos dos rechazados. Usa UUID v5 deterministas, los catálogos
 `citizen = NULL`, `source = platform` y puntos distintos del Gran Asunción. No crea usuarios,
 historiales, media, evidencia ni ledger. Es idempotente, preserva reportes ajenos e invalida la
 caché una vez después del commit. No es una migración ni simula los workflows de S9/S10.
+
+---
+
+## 5. Creación privada de reportes (Sprint 6)
+
+Las dos rutas exigen `IsVerifiedCitizen`: sesión válida, rol `citizen` e identidad en
+`APROBADO`. Ninguna devuelve ciudadanía, ubicación exacta de otros reportes, media, hashes,
+claves de Storage, historial o ledger.
+
+### 5.1 `POST /api/v1/reports/`
+
+Crea un reporte ciudadano. Tiene throttle `report_create`, actualmente **5 por hora** por
+usuario. La petición es `multipart/form-data` y admite exactamente cinco campos, cada uno una
+sola vez; una clave desconocida o repetida produce `400`.
+
+| Campo | Contrato |
+|---|---|
+| `category` | UUID de una categoría activa |
+| `description` | Texto no vacío; conserva espacios y saltos de línea |
+| `photo` | Un JPEG (`.jpg`/`.jpeg`, `image/jpeg`) o PNG (`.png`, `image/png`), hasta 5 MiB |
+| `lat` | Número finito entre `-90` y `90` |
+| `lng` | Número finito entre `-180` y `180` |
+
+La foto se valida por tamaño real del stream, extensión, MIME declarado y contenido abierto con
+Pillow. El backend corrige orientación, vuelve a codificar sin metadata y deriva extensión/MIME del
+formato real. `file_hash` conserva el SHA-256 de los **bytes originales**; los bytes almacenados
+son los normalizados. El objeto vive en el bucket privado `reportes` con clave
+`reports/{report_id}/{media_id}.{ext}` y no se entrega una URL pública.
+
+El upload ocurre antes de la transacción de base de datos. Después se escriben atómicamente
+`Report`, `ReportMedia`, el historial inicial, la transacción `REPORT_CREATED` pendiente y el
+AuditLog. Si esa persistencia falla, el objeto recién subido se elimina de forma best-effort sin
+ocultar el error original. Tras el commit se invalida la caché pública y se encola la clasificación,
+que en S6 sigue siendo no-op.
+
+**201**
+
+```json
+{
+  "id": "11111111-1111-4111-8111-111111111111",
+  "status": "CREADO",
+  "reward": {
+    "impact_points": 20,
+    "credits": 20,
+    "status": "PENDIENTE"
+  }
+}
+```
+
+La recompensa se acredita después de la validación institucional. No existe contrato
+`Idempotency-Key`. El frontend renueva el access **antes** de la mutación, envía un solo POST y
+nunca hace retry o replay automático tras `401`, timeout o fallo de red; un resultado de red
+incierto se presenta como terminal hasta una reconciliación posterior.
+
+| Código | Caso |
+|---|---|
+| `400` | Campo ausente, extra o repetido; categoría inválida; descripción vacía; coordenada inválida; archivo inválido, vacío o sobredimensionado |
+| `401` | Sin autenticación o token inválido/expirado |
+| `403` | Rol distinto de `citizen` o identidad no aprobada |
+| `409` | El SHA-256 original ya pertenece a otra fotografía `FOTO` |
+| `429` | Throttle de creación superado |
+| `503` | Storage de reportes no configurado o no disponible |
+
+### 5.2 `GET /api/v1/reports/possible-duplicates/`
+
+Consulta privada y advisory que el wizard ejecuta al llegar a confirmación, no durante cada paso
+o movimiento del mapa.
+
+```http
+GET /api/v1/reports/possible-duplicates/?lat=-25.123456789123&lng=-57.987654321987&category_id=11111111-1111-4111-8111-111111111111
+```
+
+Los tres parámetros son obligatorios, estrictos y deben aparecer una sola vez. `lat`/`lng` tienen
+los rangos del POST y `category_id` debe ser una categoría activa. El throttle
+`possible_duplicates` es **60 por minuto** por usuario.
+
+El radio configurable `REPORT_DUPLICATE_RADIUS_METERS` es actualmente **100 m**. La consulta usa
+la misma categoría y los estados `CREADO`, `CLASIFICADO`, `ASIGNADO`, `EN_PROCESO`; ordena por
+distancia y UUID y devuelve como máximo cinco. Un envelope habilita el GIST y `ST_DWithin` sobre
+geography hace el recheck métrico.
+
+**200** — lista sin paginación:
+
+```json
+[
+  {
+    "id": "22222222-2222-4222-8222-222222222222",
+    "category": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "name": "Baches",
+      "slug": "baches"
+    },
+    "institution": null,
+    "description": "Reporte sintético cercano.",
+    "status": "CREADO",
+    "priority": "MEDIA",
+    "created_at": "2026-08-28T12:00:00Z"
+  }
+]
+```
+
+La respuesta lleva `Cache-Control: private, no-store` y no expone distancia ni coordenadas. Un
+resultado, una lista vacía o un fallo dejan el POST disponible. Esta proximidad **no es
+idempotencia**, no busca similitud semántica y no sustituye la restricción exacta de fotografía.
+
+El contrato actual envía coordenadas precisas en el query string privado. El cliente no las copia
+a navegación, historial o storage, pero podrían aparecer en logs de infraestructura; es un riesgo
+de privacidad aceptado y documentado en ADR-0012.
 
 ---
 

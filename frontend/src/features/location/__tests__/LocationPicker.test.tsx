@@ -201,6 +201,10 @@ describe("LocationPicker", () => {
     expect(screen.getByTestId("controlled-marker")).toHaveTextContent(
       "-25.456789123,-57.654321987",
     );
+    expect(recenterLog.at(-1)?.value).toEqual({
+      latitude: -25.456789123,
+      longitude: -57.654321987,
+    });
   });
 
   it("editar solo latitud conserva longitud canónica exacta", async () => {
@@ -361,7 +365,7 @@ describe("LocationPicker", () => {
       deferred.succeed(-24, -56);
       expect(onChange).toHaveBeenCalledOnce();
       expect(onChange).not.toHaveBeenCalledWith({ latitude: -24, longitude: -56 });
-      expect(recenterLog).toHaveLength(0);
+      expect(recenterLog).toHaveLength(method === "apply" ? 1 : 0);
     },
   );
 

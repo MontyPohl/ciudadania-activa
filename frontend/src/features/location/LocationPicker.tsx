@@ -253,7 +253,8 @@ export function LocationPicker({
     };
     lastEmittedValueRef.current = nextValue;
     onChange(nextValue);
-  }, [dirty, disabled, drafts, invalidateGpsRequest, onChange, value]);
+    requestRecenter(nextValue);
+  }, [dirty, disabled, drafts, invalidateGpsRequest, onChange, requestRecenter, value]);
 
   const gpsMessage = gpsStatus === "idle" ? "" : GPS_MESSAGES[gpsStatus];
   const latitudeInputId = generatedId + "-latitude";
