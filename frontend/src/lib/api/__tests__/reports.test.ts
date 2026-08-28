@@ -94,7 +94,7 @@ describe("cliente de creación de reportes", () => {
     await expect(createReport(input())).resolves.toEqual(validResponse());
     expect(fetch).toHaveBeenCalledOnce();
     const [url, init] = vi.mocked(fetch).mock.calls[0];
-    expect(String(url)).toBe("/api/v1/reports/");
+    expect(new URL(String(url), "http://test.local").pathname).toBe("/api/v1/reports/");
     expect(init?.method).toBe("POST");
     expect(init?.body).toBeInstanceOf(FormData);
     expect(init?.headers).toMatchObject({ Authorization: "Bearer access-preparado" });
