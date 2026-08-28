@@ -44,6 +44,22 @@ function renovarUnaVez(): Promise<string | null> {
   return refreshEnCurso;
 }
 
+/**
+ * Prepara una credencial nueva antes de una mutación que no puede repetirse.
+ *
+ * A diferencia del camino normal de `apiFetch`, la renovación ocurre antes de la
+ * petición de dominio. Si no hay sesión renovable, la operación termina aquí y no
+ * llega a Django.
+ */
+async function prepararAccessParaMutacion(): Promise<string> {
+  const access = await renovarUnaVez();
+  if (access === null) {
+    provider?.onSessionLost();
+    throw new ApiError("La sesión expiró.", 401);
+  }
+  return access;
+}
+
 function conAutorizacion(init: RequestInit | undefined, access: string | null): RequestInit {
   const headers: Record<string, string> = {
     Accept: "application/json",
@@ -95,4 +111,30 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
   }
 
   throw new ApiError(`API request failed: ${primera.status} ${primera.statusText}`, primera.status);
+}
+
+/**
+ * Petición autenticada de una sola ejecución para mutaciones no idempotentes.
+ *
+ * Renueva el access **antes** de enviar y nunca aplica refresh + replay después de
+ * recibir un `401`. Esta interfaz separada evita que una creación adopte por accidente
+ * la política general de reintento de `apiFetch`.
+ */
+export async function apiFetchAuthenticatedNoReplay<T>(
+  path: string,
+  init: RequestInit,
+): Promise<T> {
+  const access = await prepararAccessParaMutacion();
+  const response = await fetch(`${API_URL}${path}`, conAutorizacion(init, access));
+
+  if (response.ok) {
+    return (await response.json()) as T;
+  }
+  if (response.status === 401) {
+    provider?.onSessionLost();
+  }
+  throw new ApiError(
+    `API request failed: ${response.status} ${response.statusText}`,
+    response.status,
+  );
 }
