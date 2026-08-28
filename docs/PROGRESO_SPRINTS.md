@@ -2,7 +2,7 @@
 
 Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes de iniciar el siguiente.
 
-- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 **completado** (inicio el 22/08/2026, cierre el 23/08/2026: verificación de identidad con HMAC y almacenamiento privado, revisión administrativa manual con cotejo de la cédula, notificaciones asíncronas entregadas por la API HTTPS de Brevo y privacidad configurable del ranking, todo verificado en producción con una identidad real). Sprint 5 **completado** el 27/08/2026: S5-A, S5-B y S5-C están cerradas, integradas y validadas. Sprint 6 **en curso** desde el 28/08/2026: S6-A está cerrado, desplegado y funcionalmente validado en producción; S6-B está en curso con B1 implementado localmente y pendiente de integración.
+- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 **completado** (inicio el 22/08/2026, cierre el 23/08/2026: verificación de identidad con HMAC y almacenamiento privado, revisión administrativa manual con cotejo de la cédula, notificaciones asíncronas entregadas por la API HTTPS de Brevo y privacidad configurable del ranking, todo verificado en producción con una identidad real). Sprint 5 **completado** el 27/08/2026: S5-A, S5-B y S5-C están cerradas, integradas y validadas. Sprint 6 **completado** el 28/08/2026: S6-A y S6-B están cerrados, con backend y wizard de creación, fotografía privada, PostGIS, duplicados advisory, recompensa pendiente, auditoría/historial, Celery no-op, browser E2E y flujo UI validados en producción.
 - **Plan de referencia:** [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md)
 - **Ventana de desarrollo:** 01/08/2026 → 15/11/2026 (16 sprints semanales, Anexo F revisado)
 - **Estados posibles:** `Pendiente` · `En curso` · `Completado` · `Completado con observaciones` · `Bloqueado`
@@ -18,7 +18,7 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 | 3 | 15/08 – 21/08 | Autenticación, roles y permisos | Completado |
 | 4 | 22/08 – 28/08 | Verificación de identidad y privacidad | Completado |
 | 5 | 29/08 – 04/09 | Mapa público y geolocalización | Completado |
-| 6 | 05/09 – 11/09 | Creación de reportes y duplicados | En curso |
+| 6 | 05/09 – 11/09 | Creación de reportes y duplicados | Completado |
 | 7 | 12/09 – 18/09 | Panel ciudadano y confirmaciones | Pendiente |
 | 8 | 19/09 – 25/09 | Clasificación asistida por IA | Pendiente |
 | 9 | 26/09 – 02/10 | Panel institucional y validación | Pendiente |
@@ -30,7 +30,7 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 | 15 | 07/11 – 13/11 | Carga, dataset definitivo y documentación | Pendiente |
 | 16 | 14/11 – 15/11 | Cierre y preparación de la defensa | Pendiente |
 
-**Progreso:** 5 / 16 sprints completados (Sprints 1, 2 y 3 cerrados el 20/08/2026; Sprint 4 el 23/08/2026; Sprint 5 el 27/08/2026) y Sprint 6 en curso, con S6-A cerrado. La ejecución real arrastra el desvío de calendario registrado en CT-29.
+**Progreso:** 6 / 16 sprints completados (Sprints 1, 2 y 3 cerrados el 20/08/2026; Sprint 4 el 23/08/2026; Sprint 5 el 27/08/2026; Sprint 6 el 28/08/2026). La ejecución real arrastra el desvío de calendario registrado en CT-29. Sprint 7 no está iniciado.
 
 ### Decisiones que condicionan el avance
 
@@ -685,11 +685,10 @@ antes de cerrarlo.
 ### Observaciones y desvíos respecto del plan
 
 - Al cerrar Sprint 5, S5-A, S5-B y S5-C estaban cerradas y S6 todavía no se había
-  iniciado. Desde el 28/08/2026 Sprint 6 está en curso y S6-A quedó cerrado.
-- `LocationPicker` permanece integrado desde S5-C. S6-B2 ya implementa localmente su consumo
-  por el formulario real de creación; la publicación del wizard y el E2E browser siguen
-  pendientes de los gates posteriores de S6-B. Esta validación diferida no bloqueó el cierre
-  técnico de S5-C ni exigió una ruta demo retroactiva.
+  iniciado. Sprint 6 comenzó y quedó cerrado el 28/08/2026 tras completar S6-A y S6-B.
+- `LocationPicker` permanece integrado desde S5-C. En el cierre de S5-C su consumo por el
+  formulario real y el E2E browser se habían diferido a S6-B; ambos quedaron posteriormente
+  integrados y validados sin exigir una ruta demo retroactiva.
 - El detalle público y el catálogo de categorías no figuran ambos en el Anexo B; se
   registraron CT-52 y CT-53. La reducción de precisión y la canonización bbox quedaron en
   CT-54.
@@ -701,8 +700,8 @@ antes de cerrarlo.
 
 **Fechas planificadas:** 05/09/2026 – 11/09/2026
 **Fecha real de inicio:** 28/08/2026
-**Estado:** En curso — S6-A cerrado; S6-B en curso (B1 y B2 integrados; B3 implementado localmente)
-**Fecha real de cierre:** —
+**Estado:** Completado — S6-A y S6-B cerrados, integrados y validados en producción
+**Fecha real de cierre:** 28/08/2026
 
 ### Funcionalidades terminadas
 
@@ -731,7 +730,7 @@ antes de cerrarlo.
   accesibles, foto JPEG/PNG con preview local y revocación de object URLs, `LocationPicker`
   sin pérdida de precisión, confirmación con consulta cancelable de duplicados, submit
   single-flight, éxito y UX controlada para errores HTTP y resultado incierto.
-- **S6-B3 — browser E2E, integración y documentación: IMPLEMENTADO LOCALMENTE.** Incorpora
+- **S6-B3 — browser E2E, integración y documentación: INTEGRADO EN MAIN.** Incorpora
   Playwright 1.62.1 y Chromium con Next/Webpack local, API sintética interceptada, retries en cero
   y artefactos solo ante fallo. Cubre guards, multipart exacto, foto, GPS permitido/denegado,
   coordenadas por teclado, click y drag Leaflet, viewport 390 px, duplicados advisory, doble click,
@@ -746,9 +745,9 @@ antes de cerrarlo.
   integración precisa de ubicación, duplicados cancelables/no bloqueantes, doble click, Enter,
   éxito y errores HTTP/resultado incierto. S6-B3 añade **22 browser E2E**; dos ejecuciones
   completas consecutivas terminaron `22/22` en aproximadamente 1,5 minutos cada una, con cero
-  retries y cero flakes. Prettier, ESLint y TypeScript quedaron verdes. El build Webpack no pudo
-  revalidarse en este runner por su restricción de subprocess (`--showConfig`), y la ejecución
-  fuera del sandbox no fue habilitada; la última validación Webpack integrada de B2 sigue verde.
+  retries y cero flakes. Prettier, ESLint y TypeScript quedaron verdes. Aunque el build Webpack no
+  pudo revalidarse en el runner local restringido, la integración de B3 quedó confirmada por CI:
+  `build` y `frontend-e2e` terminaron en `SUCCESS`, al igual que Vercel.
 - Implementación backend: **994 pruebas verdes**, **99 % de cobertura**, `manage.py check`,
   `makemigrations --check`, Ruff y CI Backend en `SUCCESS`.
 - La migración `reports_app.0002_reportmedia_report_media_foto_hash_unico` quedó aplicada
@@ -757,13 +756,18 @@ antes de cerrarlo.
 - Backend y worker quedaron `Online` en Railway. El pre-deploy ejecutó
   `migrate --noinput` sin migraciones pendientes después de activar la configuración de
   Storage.
-- Se ejecutó **exactamente una** creación productiva controlada: HTTP `201`, estado
+- En el gate de S6-A se ejecutó **exactamente una** creación productiva controlada: HTTP `201`, estado
   `CREADO` y reward +20 puntos/+20 créditos `PENDIENTE`. Los deltas fueron exactamente
   +1 Report, +1 ReportMedia, +1 History, +1 RewardTransaction, +1 AuditLog y +1 objeto PNG
   privado; Notifications y AIClassifications permanecieron sin cambios.
 - PostgreSQL/PostGIS, media, historial, reward, auditoría, rotación de caché y ejecución
   Celery se verificaron de extremo a extremo. El reporte apareció de inmediato en la API
   pública con la whitelist y reducción de precisión previstas, sin datos privados.
+- El gate final de S6-B recorrió el wizard real en `/reportes/nuevo`, incluido el warning advisory
+  de duplicado y la decisión de continuar. Produjo exactamente un submit y un único
+  `POST /api/v1/reports/`, HTTP `201`, sin retry. Se verificaron los mismos deltas unitarios,
+  precisión PostGIS exacta, fotografía en Storage privado, History, Reward, Audit, caché, Celery y
+  API pública privacy-safe; Notifications y AIClassifications permanecieron sin cambios.
 
 ### Problemas encontrados
 
@@ -774,36 +778,48 @@ antes de cerrarlo.
 - El browser real detectó tres defectos frontend que las pruebas de componente no exponían: un
   `401` posterior al POST desmontaba el wizard y perdía el borrador; aplicar coordenadas manuales
   lejanas podía dejar el marcador fuera del viewport del mapa; y la fila de sesión autenticada
-  desbordaba a 390 px. Se corrigieron localmente preservando el error dentro del formulario, con
+  desbordaba a 390 px. Se corrigieron e integraron preservando el error dentro del formulario, con
   recentrado explícito tras Apply y wrapping responsive de la cabecera, respectivamente.
 - El despliegue inicial no tenía creado el bucket `reportes` ni configurada
   `SUPABASE_STORAGE_BUCKET_REPORTS`. Se aprovisionó un bucket privado limitado a JPEG/PNG y
   5 MiB, se configuró únicamente el backend y se validó su uso real sin exponer secretos.
-- Producción no dispone de una identidad QA aprobada. Para esta única prueba se autorizó
-  explícitamente usar la identidad real ya verificada, sin modificarla ni revelar sus
-  credenciales; no se creó ningún usuario o perfil adicional.
+- Producción no dispone de una identidad QA aprobada. Para los gates controlados S6-A y S6-B se
+  autorizó explícitamente usar la misma identidad real ya verificada, sin modificarla ni revelar
+  sus credenciales; no se creó ningún usuario o perfil adicional.
 
 ### Commits relevantes
 
 - PR #15 integrado mediante *squash and merge* en
   `17983b28b0d2e60d71d4bb096402869446d6e28b`
   (`feat(reports): implementar creación de reportes`).
+- PR #16 integrado mediante *squash and merge* en
+  `6971e4d19fd55e1ca02442bdd7a4ecb86e18259f`
+  (`docs(sprint): cerrar S6-A`).
 - PR #17 integrado mediante *squash and merge* en
   `e585c2861c84a972da7adeef8676cd942fec018b`
   (`feat(reports): preparar creación frontend segura`).
 - PR #18 integrado mediante *squash and merge* en
   `5b71036f262c21ce512abc46b8f5aaa945cf58f0`
   (`feat(reports): implementar wizard de creación`).
-- S6-B3 permanece local en `feat/s06-b3-report-create-e2e`, sin commit, push ni PR.
+- PR #19 integrado mediante *squash and merge* en
+  `34290576bb00af2a88bc9c4d26ed1f011f97a263`
+  (`test(reports): completar E2E de creación`).
 
 ### Observaciones y desvíos respecto del plan
 
 - Evidencia productiva conservada intencionalmente: correlación
   `S6A-E2E-20260828-021516`, Report
   `31cb4fe3-ff0f-48dc-ae08-07ae227fd619`. Es un reporte sintético marcado expresamente
-  como «NO ES UNA INCIDENCIA REAL» y corresponde a la única creación de este gate.
-- La creación no produjo Notification, Brevo, email ni push. La clasificación real con
-  Gemini sigue fuera de S6-A y pertenece a Sprint 8.
+  como «NO ES UNA INCIDENCIA REAL» y corresponde a la única creación del gate S6-A.
+- Evidencia productiva de S6-B conservada intencionalmente: correlación
+  `S6B-E2E-20260828-001`, Report `92210415-68d7-44fd-b094-cffbd1d8e181`. Es un reporte
+  sintético que no representa una incidencia real; fue creado desde la UI productiva mediante
+  exactamente un submit y sin retry. La persistencia completa, el objeto privado, la precisión
+  PostGIS, la recompensa `PENDIENTE` 20/20, Audit, History, caché, Celery y privacidad pública
+  quedaron verificados.
+- Ninguno de los dos gates produjo Notification, Brevo, email, push o AIClassification.
+  `ai.classify_report` se publicó, recibió y completó, pero continúa inequívocamente como
+  **no-op**: no invoca Gemini. La clasificación real corresponde al Sprint 8.
 - La migración de la credencial legacy `service_role` de Supabase a `sb_secret_*` no se
   inició y permanece fuera de este cierre.
 - Los E2E de S6-B3 usan frontend y Chromium reales, pero interceptan únicamente las fronteras API
@@ -815,8 +831,8 @@ antes de cerrarlo.
   cliente B1 los usa exclusivamente en un `fetch` GET privado y no los coloca en navegación,
   historial, storage ni logs; la exposición potencial en logs de infraestructura pertenece al
   contrato backend ya cerrado y queda como riesgo de privacidad para revisión posterior.
-- S6-B3 todavía requiere publicación, merge y un gate productivo posterior. **S6-B sigue abierto y
-  Sprint 6 continúa en curso**; esta implementación local no cierra ninguno de los dos.
+- S6-B1, S6-B2 y S6-B3 están integrados; el gate productivo UI fue exitoso. **S6-B y Sprint 6
+  quedan cerrados.** Sprint 7 permanece pendiente y no fue iniciado.
 
 ---
 
@@ -1095,11 +1111,11 @@ Se completa a medida que las mediciones estén disponibles (Sprints 14 y 15).
 | ADR-0004 | Ledger auditable con importes inmutables | S2 | Aceptada — el archivo existe desde el cierre del Sprint 2 y declara ese estado; la tabla arrastraba la marca de planificación |
 | ADR-0005 | Google OAuth 2.0 + JWT | S3 | Aceptada — el archivo existe desde el cierre del Sprint 3 y declara ese estado; la tabla arrastraba la marca de planificación |
 | ADR-0006 | Identidad HMAC y almacenamiento privado | S4 | Aceptada — escrita el 22/08/2026 con las doce decisiones cerradas en la Fase A.1 |
-| ADR-0007 | Almacenamiento de fotografías | S6 | Pendiente |
+| ADR-0007 | Almacenamiento de fotografías | S6 | Aceptada — escrita e integrada el 28/08/2026; fija bucket privado, validación/normalización, hash original y compensación acotada |
 | ADR-0008 | Integración desacoplada con Gemini | S8 | Pendiente |
 | ADR-0009 | Tareas asíncronas y qué no es asíncrono | S8 | Pendiente |
 | ADR-0010 | Créditos por institución y conversión 1:1 | S9 | Pendiente |
 | ADR-0011 | Privacidad configurable del ranking | S4 | Aceptada — escrita el 22/08/2026 y ampliada con la recuperación de la preferencia (`GET` + `PATCH`); la resolución del nombre visible es del S11 |
-| ADR-0012 | Detección de duplicados por proximidad | S6 | Pendiente |
+| ADR-0012 | Detección de duplicados por proximidad | S6 | Aceptada — escrita e integrada el 28/08/2026; warning advisory privacy-safe, radio PostGIS y ausencia explícita de IA |
 | ADR-0013 | Política de reversión, anulación y saldo negativo | S10 | Pendiente |
 | ADR-0014 | Modelo de usuario personalizado desde la primera migración | S1 | Aceptada |
