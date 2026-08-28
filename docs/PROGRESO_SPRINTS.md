@@ -2,7 +2,7 @@
 
 Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes de iniciar el siguiente.
 
-- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 **completado** (inicio el 22/08/2026, cierre el 23/08/2026: verificación de identidad con HMAC y almacenamiento privado, revisión administrativa manual con cotejo de la cédula, notificaciones asíncronas entregadas por la API HTTPS de Brevo y privacidad configurable del ranking, todo verificado en producción con una identidad real). Sprint 5 **completado** el 27/08/2026: S5-A, S5-B y S5-C están cerradas, integradas y validadas. Sprint 6 **en curso** desde el 28/08/2026: S6-A está cerrado, desplegado y funcionalmente validado en producción; S6-B no se inició.
+- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 **completado** (inicio el 22/08/2026, cierre el 23/08/2026: verificación de identidad con HMAC y almacenamiento privado, revisión administrativa manual con cotejo de la cédula, notificaciones asíncronas entregadas por la API HTTPS de Brevo y privacidad configurable del ranking, todo verificado en producción con una identidad real). Sprint 5 **completado** el 27/08/2026: S5-A, S5-B y S5-C están cerradas, integradas y validadas. Sprint 6 **en curso** desde el 28/08/2026: S6-A está cerrado, desplegado y funcionalmente validado en producción; S6-B está en curso con B1 implementado localmente y pendiente de integración.
 - **Plan de referencia:** [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md)
 - **Ventana de desarrollo:** 01/08/2026 → 15/11/2026 (16 sprints semanales, Anexo F revisado)
 - **Estados posibles:** `Pendiente` · `En curso` · `Completado` · `Completado con observaciones` · `Bloqueado`
@@ -701,7 +701,7 @@ antes de cerrarlo.
 
 **Fechas planificadas:** 05/09/2026 – 11/09/2026
 **Fecha real de inicio:** 28/08/2026
-**Estado:** En curso — S6-A cerrado; S6-B no iniciado
+**Estado:** En curso — S6-A cerrado; S6-B en curso (B1 implementado localmente)
 **Fecha real de cierre:** —
 
 ### Funcionalidades terminadas
@@ -722,11 +722,19 @@ antes de cerrarlo.
 - Tras el commit se invalida la generación de caché pública y se encola
   `ai.classify_report`. La tarea fue recibida y completada en producción, pero en S6 es
   deliberadamente **no-op**: no llama Gemini, no clasifica y no crea `AIClassification`.
-- **S6-B: NO INICIADO.** No existe todavía pantalla de creación, consumo productivo de
-  `LocationPicker` por un formulario ni E2E frontend completo.
+- **S6-B1 — contrato frontend de creación: IMPLEMENTADO LOCALMENTE, pendiente de gate e
+  integración.** Incluye tipos separados del mapa público, validaciones puras, construcción
+  exacta del multipart, preflight de sesión y un único POST sin replay tras 401, errores
+  controlados —incluido resultado incierto—, lock `singleFlight`, reducer de cinco pasos y
+  cliente GET cancelable de posibles duplicados. S6-B permanece abierto: todavía no existen
+  pantalla de creación, consumo productivo de `LocationPicker` ni E2E frontend completo.
 
 ### Pruebas realizadas
 
+- Frontend tras S6-B1: **217 pruebas verdes en 17 archivos**; B1 agrega **45 pruebas** de
+  FormData y precisión completa, validación de categoría/descripción/foto/ubicación, preflight,
+  cero replay de POST, errores HTTP/red, doble submit, reducer, auth y duplicados cancelables.
+  Prettier, ESLint, TypeScript y build Webpack quedaron verdes.
 - Implementación backend: **994 pruebas verdes**, **99 % de cobertura**, `manage.py check`,
   `makemigrations --check`, Ruff y CI Backend en `SUCCESS`.
 - La migración `reports_app.0002_reportmedia_report_media_foto_hash_unico` quedó aplicada
@@ -745,6 +753,9 @@ antes de cerrarlo.
 
 ### Problemas encontrados
 
+- El build Turbopack local llegó a compilación pero no pudo descargar Poppins desde Google Fonts
+  por la restricción de red del runner. El build Webpack completo terminó correctamente fuera de
+  la restricción de subprocess del sandbox; no se modificó código por esta condición ambiental.
 - El despliegue inicial no tenía creado el bucket `reportes` ni configurada
   `SUPABASE_STORAGE_BUCKET_REPORTS`. Se aprovisionó un bucket privado limitado a JPEG/PNG y
   5 MiB, se configuró únicamente el backend y se validó su uso real sin exponer secretos.
@@ -768,6 +779,10 @@ antes de cerrarlo.
   Gemini sigue fuera de S6-A y pertenece a Sprint 8.
 - La migración de la credencial legacy `service_role` de Supabase a `sb_secret_*` no se
   inició y permanece fuera de este cierre.
+- La consulta backend de posibles duplicados exige `lat`/`lng` precisos en query string. El
+  cliente B1 los usa exclusivamente en un `fetch` GET privado y no los coloca en navegación,
+  historial, storage ni logs; la exposición potencial en logs de infraestructura pertenece al
+  contrato backend ya cerrado y queda como riesgo de privacidad para revisión posterior.
 - Sprint 6 continúa abierto: el cierre de S6-A no adelanta S6-B ni marca el sprint como
   completado.
 
