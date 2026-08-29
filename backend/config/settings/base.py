@@ -194,6 +194,7 @@ REST_FRAMEWORK = {
         "report_create": "5/hour",
         "possible_duplicates": "60/min",
         "reports_mine": "120/hour",
+        "report_confirm": "30/hour",
     },
 }
 

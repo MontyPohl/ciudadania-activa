@@ -1,7 +1,7 @@
 # API — Ciudadanía Activa
 
 Contrato de la API tal como está **implementada**, no como se planificó. Se amplía en
-cada sprint que añade endpoints; hoy cubre los Sprints 3 a 6.
+cada sprint que añade endpoints; hoy cubre los Sprints 3 a 6 y el backend local S7-A.
 
 - **Plan de referencia:** [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md) §14 (Sprint 4) y §29 (seguridad).
 - **Estado del modelo de datos:** [DICCIONARIO_DATOS.md](DICCIONARIO_DATOS.md).
@@ -562,9 +562,11 @@ responde, la lectura continúa desde PostgreSQL y el log genérico no contiene b
 
 ### 4.2 `GET /api/v1/public/reports/{id}/`
 
-Devuelve directamente el mismo objeto público del listado, sin envoltorio y sin caché. Su queryset
-usa la misma lista positiva de estados. Un UUID inexistente y uno correspondiente a un reporte
-`RECHAZADO` responden exactamente el mismo `404`, sin revelar cuál de los dos casos ocurrió.
+Devuelve directamente el mismo objeto público del listado más `confirmation_count`, sin envoltorio
+y sin caché. Su queryset usa la misma lista positiva de estados. Un UUID inexistente y uno
+correspondiente a un reporte `RECHAZADO` responden exactamente el mismo `404`, sin revelar cuál de
+los dos casos ocurrió. No incluye contexto personal, elegibilidad, identidades, historial ni ledger;
+el listado cacheado del mapa conserva sus nueve campos y no incorpora el contador.
 
 ### 4.3 `GET /api/v1/public/categories/`
 
@@ -700,6 +702,105 @@ idempotencia**, no busca similitud semántica y no sustituye la restricción exa
 El contrato actual envía coordenadas precisas en el query string privado. El cliente no las copia
 a navegación, historial o storage, pero podrían aparecer en logs de infraestructura; es un riesgo
 de privacidad aceptado y documentado en ADR-0012.
+
+---
+
+## 6. Panel ciudadano y confirmaciones — backend local S7-A
+
+Las rutas de esta sección exigen `IsVerifiedCitizen`. S7-A implementa el contrato backend; no
+incluye UI, acreditación, notificaciones, ranking, retiro de confirmaciones ni despliegue.
+
+### 6.1 `GET /api/v1/reports/mine/`
+
+Devuelve únicamente los reportes del ciudadano autenticado, incluidos todos los estados oficiales,
+paginados de 20 en 20 y ordenados por `created_at, id` descendentes. Cada fila contiene `id`,
+`category`, `institution`, `description`, `status`, `priority` y `created_at`; no admite filtros no
+aprobados. Throttle: `reports_mine`, **120/hour** por usuario.
+
+### 6.2 `GET /api/v1/reports/{id}/`
+
+Detalle contextual de un reporte visible. Conserva los campos privacy-safe del detalle público y
+agrega:
+
+```json
+{
+  "confirmation_count": 2,
+  "confirmed_by_me": false,
+  "confirmation_eligibility": {
+    "can_confirm": true,
+    "code": null
+  }
+}
+```
+
+`code` puede ser `REPORT_NOT_ACTIVE`, `SELF_CONFIRMATION_NOT_ALLOWED` o
+`ALREADY_CONFIRMED`, en ese orden de prioridad. Un reporte rechazado o inexistente devuelve `404`.
+El GET no crea confirmaciones ni otra clase de efecto.
+
+### 6.3 `GET /api/v1/reports/{id}/history/`
+
+Historial disponible solo para el autor. Un UUID ajeno e inexistente producen el mismo `404` para
+evitar un oráculo de ownership. La respuesta está en orden cronológico ascendente y cada asiento
+contiene exactamente `previous_status`, `new_status`, `reason` y `created_at`; no expone actor.
+
+### 6.4 `POST /api/v1/reports/{id}/confirm/`
+
+No recibe body. Claves desconocidas producen `400`. El scope `report_confirm` limita a **30/hour**
+por usuario autenticado.
+
+**201**
+
+```json
+{
+  "report_id": "11111111-1111-4111-8111-111111111111",
+  "confirmed_by_me": true,
+  "confirmation_count": 3,
+  "reward": {
+    "impact_points": 10,
+    "status": "PENDIENTE"
+  }
+}
+```
+
+Internamente, la misma transacción crea una `ReportConfirmation`, un movimiento
+`CONFIRMATION_CREATED` con `impact_delta = 10`, `credit_delta = 10` y estado `PENDIENTE`, y el
+AuditLog `report.confirmed`. La respuesta no presenta créditos como disponibles.
+
+**409** conserva la forma normalizada y agrega una clave estable para el consumidor:
+
+```json
+{ "detail": "Ya confirmaste este reporte.", "code": "ALREADY_CONFIRMED" }
+```
+
+Los códigos posibles son `REPORT_NOT_ACTIVE`, `SELF_CONFIRMATION_NOT_ALLOWED` y
+`ALREADY_CONFIRMED`, evaluados en ese orden. No hay idempotencia silenciosa: repetir produce `409`.
+Otros errores: `401` anónimo/token inválido · `403` rol o verificación incorrectos · `404` UUID
+inexistente · `429` más de 30 intentos dentro de la ventana.
+
+### 6.5 `GET /api/v1/citizen/summary/`
+
+```json
+{
+  "reports_by_status": {
+    "CREADO": 2,
+    "CLASIFICADO": 0,
+    "ASIGNADO": 0,
+    "EN_PROCESO": 1,
+    "RESUELTO": 0,
+    "CERRADO": 0,
+    "RECHAZADO": 0
+  },
+  "confirmations_performed": 4,
+  "points": {
+    "pending": 40,
+    "accredited": 30
+  }
+}
+```
+
+Las claves de estado son estables aunque su valor sea cero. Los puntos suman exclusivamente
+`impact_delta`, separados por `PENDIENTE` y `ACREDITADO`; no se devuelven `credit_delta`, saldo,
+movimientos ni IDs del ledger.
 
 ---
 

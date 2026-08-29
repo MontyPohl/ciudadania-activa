@@ -4,11 +4,11 @@ from django.conf import settings
 from django.contrib.gis.db.models import GeometryField, PointField
 from django.contrib.gis.db.models.functions import Distance, Envelope
 from django.contrib.gis.geos import Point
-from django.db.models import Func, Value
+from django.db.models import Count, Exists, Func, OuterRef, Value
 from django.db.models.functions import Cast
 
 from apps.core.enums import ReportStatus
-from apps.reports_app.models import Report
+from apps.reports_app.models import Report, ReportConfirmation
 
 ACTIVE_REPORT_STATUSES = (
     ReportStatus.CREADO,
@@ -16,6 +16,28 @@ ACTIVE_REPORT_STATUSES = (
     ReportStatus.ASIGNADO,
     ReportStatus.EN_PROCESO,
 )
+
+VISIBLE_REPORT_STATUSES = (
+    *ACTIVE_REPORT_STATUSES,
+    ReportStatus.RESUELTO,
+    ReportStatus.CERRADO,
+)
+
+
+def contextual_report_queryset(*, citizen):
+    """Detalle visible con contexto calculado sin exponer identidades."""
+    confirmed_by_citizen = ReportConfirmation.objects.filter(
+        report_id=OuterRef("pk"),
+        citizen=citizen,
+    )
+    return (
+        Report.objects.filter(status__in=VISIBLE_REPORT_STATUSES)
+        .select_related("category", "institution")
+        .annotate(
+            confirmation_count=Count("confirmations"),
+            confirmed_by_me=Exists(confirmed_by_citizen),
+        )
+    )
 
 
 def find_possible_duplicates(

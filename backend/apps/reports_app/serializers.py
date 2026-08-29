@@ -7,6 +7,8 @@ import math
 from rest_framework import serializers
 
 from apps.admin_app.models import Category
+from apps.map_app.serializers import PublicReportDetailSerializer
+from apps.reports_app.services.confirmations import get_confirmation_eligibility
 from apps.reports_app.services.reports import (
     InvalidReportDataError,
     validate_report_description,
@@ -116,3 +118,56 @@ class ReportCreateResponseSerializer(serializers.Serializer):
     id = serializers.UUIDField(read_only=True)
     status = serializers.CharField(read_only=True)
     reward = CreatedRewardSerializer(read_only=True)
+
+
+class ConfirmReportInputSerializer(StrictInputMixin, serializers.Serializer):
+    """Contrato intencionalmente vacío: el reporte y ciudadano vienen de la ruta/auth."""
+
+
+class ConfirmationRewardSerializer(serializers.Serializer):
+    impact_points = serializers.IntegerField(read_only=True)
+    status = serializers.CharField(read_only=True)
+
+
+class ConfirmReportResponseSerializer(serializers.Serializer):
+    report_id = serializers.UUIDField(read_only=True)
+    confirmed_by_me = serializers.BooleanField(read_only=True)
+    confirmation_count = serializers.IntegerField(read_only=True)
+    reward = ConfirmationRewardSerializer(read_only=True)
+
+
+class ConfirmationEligibilitySerializer(serializers.Serializer):
+    can_confirm = serializers.BooleanField(read_only=True)
+    code = serializers.CharField(read_only=True, allow_null=True)
+
+
+class ContextualReportDetailSerializer(PublicReportDetailSerializer):
+    confirmed_by_me = serializers.BooleanField(read_only=True)
+    confirmation_eligibility = serializers.SerializerMethodField()
+
+    def get_confirmation_eligibility(self, report):
+        eligibility = get_confirmation_eligibility(
+            report=report,
+            citizen=self.context["request"].user,
+            already_confirmed=report.confirmed_by_me,
+        )
+        return ConfirmationEligibilitySerializer(eligibility).data
+
+
+class ReportStatusHistorySerializer(serializers.Serializer):
+    previous_status = serializers.CharField(read_only=True)
+    new_status = serializers.CharField(read_only=True)
+    reason = serializers.CharField(read_only=True)
+    created_at = serializers.DateTimeField(read_only=True)
+
+
+class CitizenSummarySerializer(serializers.Serializer):
+    reports_by_status = serializers.DictField(
+        child=serializers.IntegerField(),
+        read_only=True,
+    )
+    confirmations_performed = serializers.IntegerField(read_only=True)
+    points = serializers.DictField(
+        child=serializers.IntegerField(),
+        read_only=True,
+    )

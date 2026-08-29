@@ -14,7 +14,7 @@ FUNCIONES = [
     ("revert_validation", ["report", "actor", "reason"]),
 ]
 
-FUNCIONES_PENDIENTES = FUNCIONES[1:]
+FUNCIONES_PENDIENTES = FUNCIONES[2:]
 
 
 @pytest.mark.parametrize(("nombre", "parametros"), FUNCIONES)
@@ -64,3 +64,23 @@ def test_on_report_created_rechaza_explicita_y_sin_escritura_reporte_sin_ciudada
         ledger.on_report_created(report)
 
     assert RewardTransaction.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_on_confirmation_created_escribe_y_retorna_el_asiento_exacto(report, other_citizen):
+    from apps.reports_app.models import ReportConfirmation
+
+    confirmation = ReportConfirmation.objects.create(
+        report=report,
+        citizen=other_citizen,
+    )
+
+    transaction = ledger.on_confirmation_created(confirmation)
+
+    assert transaction.user == other_citizen
+    assert transaction.report is None
+    assert transaction.confirmation == confirmation
+    assert transaction.event_type == "CONFIRMATION_CREATED"
+    assert transaction.impact_delta == 10
+    assert transaction.credit_delta == 10
+    assert transaction.status == "PENDIENTE"
