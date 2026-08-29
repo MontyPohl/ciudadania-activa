@@ -91,6 +91,11 @@ export interface PublicReport {
   created_at: string;
 }
 
+/** El contador existe solo en el detalle; el listado público cacheado no lo incluye. */
+export interface PublicReportDetailData extends PublicReport {
+  confirmation_count: number;
+}
+
 export type PublicReportsPage = PaginatedResponse<PublicReport>;
 
 /* -------------------------------------------------------------------------- */
@@ -124,6 +129,16 @@ export type ConfirmationEligibilityCode =
 export interface ConfirmationEligibility {
   can_confirm: boolean;
   code: ConfirmationEligibilityCode | null;
+}
+
+export interface ConfirmReportResponse {
+  report_id: UUID;
+  confirmed_by_me: true;
+  confirmation_count: number;
+  reward: {
+    impact_points: 10;
+    status: "PENDIENTE";
+  };
 }
 
 /** Lista blanca contextual: no incluye autor, archivos, auditoría ni reward. */

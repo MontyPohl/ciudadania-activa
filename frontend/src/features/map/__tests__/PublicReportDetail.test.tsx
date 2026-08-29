@@ -1,8 +1,9 @@
 import { render, screen } from "@testing-library/react";
 
 import { PublicReportDetail } from "@/features/map/PublicReportDetail";
+import { useSession } from "@/features/auth/useSession";
 import { PublicApiError, getPublicReport } from "@/lib/api/publicReports";
-import { publicReport } from "@/test/fixtures";
+import { publicReportDetail } from "@/test/fixtures";
 
 vi.mock("next/navigation", () => ({
   useSearchParams: () =>
@@ -22,21 +23,32 @@ vi.mock("@/lib/api/publicReports", () => ({
     }
   },
 }));
+vi.mock("@/features/auth/useSession", () => ({ useSession: vi.fn() }));
 
 const REPORT_ID = "11111111-1111-4111-8111-111111111111";
 
 describe("detalle público", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(useSession).mockReturnValue({
+      status: "unauthenticated",
+      signInWithGoogle: vi.fn(),
+      signOut: vi.fn(),
+    });
   });
 
   it("renderiza el estado ready y preserva filtros al volver", async () => {
-    const report = publicReport();
+    const report = publicReportDetail();
     vi.mocked(getPublicReport).mockResolvedValue(report);
     render(<PublicReportDetail id={REPORT_ID} />);
 
     expect(await screen.findByRole("heading", { name: "Baches" })).toBeInTheDocument();
     expect(screen.getByText(report.description)).toBeInTheDocument();
+    expect(screen.getByText("0 confirmaciones ciudadanas")).toBeVisible();
+    expect(screen.getByRole("link", { name: "Iniciar sesión para confirmar" })).toHaveAttribute(
+      "href",
+      "/login",
+    );
     expect(screen.getByRole("link", { name: /Volver al mapa/ })).toHaveAttribute(
       "href",
       `/mapa?estado=resolved&categoria=baches&reporte=${REPORT_ID}`,
@@ -44,7 +56,7 @@ describe("detalle público", () => {
   });
 
   it("no muestra coordenadas ni campos privados", async () => {
-    const report = publicReport();
+    const report = publicReportDetail();
     vi.mocked(getPublicReport).mockResolvedValue(report);
     render(<PublicReportDetail id={REPORT_ID} />);
     await screen.findByRole("heading", { name: "Baches" });

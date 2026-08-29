@@ -3,9 +3,11 @@ import type {
   PublicReportsPage,
   PublicReportStateFilter,
   PublicReport,
+  PublicReportDetailData,
 } from "@/types/api";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export class PublicApiError extends Error {
   constructor(
@@ -110,8 +112,76 @@ export async function getPublicReports(
   };
 }
 
-export function getPublicReport(id: string, signal?: AbortSignal): Promise<PublicReport> {
-  return publicApiFetch<PublicReport>(`/api/v1/public/reports/${encodeURIComponent(id)}/`, {
-    signal,
-  });
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function hasExactKeys(value: Record<string, unknown>, expected: readonly string[]): boolean {
+  const keys = Object.keys(value);
+  return keys.length === expected.length && expected.every((key) => keys.includes(key));
+}
+
+function isSummary(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    hasExactKeys(value, ["id", "name", "slug"]) &&
+    typeof value.id === "string" &&
+    UUID_PATTERN.test(value.id) &&
+    typeof value.name === "string" &&
+    typeof value.slug === "string"
+  );
+}
+
+function parsePublicReportDetail(value: unknown): PublicReportDetailData {
+  if (
+    !isRecord(value) ||
+    !hasExactKeys(value, [
+      "id",
+      "category",
+      "institution",
+      "description",
+      "status",
+      "priority",
+      "latitude",
+      "longitude",
+      "created_at",
+      "confirmation_count",
+    ]) ||
+    typeof value.id !== "string" ||
+    !UUID_PATTERN.test(value.id) ||
+    !isSummary(value.category) ||
+    !(value.institution === null || isSummary(value.institution)) ||
+    typeof value.description !== "string" ||
+    !["CREADO", "CLASIFICADO", "ASIGNADO", "EN_PROCESO", "RESUELTO", "CERRADO"].includes(
+      String(value.status),
+    ) ||
+    !["BAJA", "MEDIA", "ALTA"].includes(String(value.priority)) ||
+    typeof value.latitude !== "number" ||
+    !Number.isFinite(value.latitude) ||
+    value.latitude < -90 ||
+    value.latitude > 90 ||
+    typeof value.longitude !== "number" ||
+    !Number.isFinite(value.longitude) ||
+    value.longitude < -180 ||
+    value.longitude > 180 ||
+    typeof value.created_at !== "string" ||
+    Number.isNaN(Date.parse(value.created_at)) ||
+    typeof value.confirmation_count !== "number" ||
+    !Number.isInteger(value.confirmation_count) ||
+    value.confirmation_count < 0
+  ) {
+    throw new PublicApiError("La API devolvió un detalle público inválido.", 502);
+  }
+  return value as unknown as PublicReportDetailData;
+}
+
+export async function getPublicReport(
+  id: string,
+  signal?: AbortSignal,
+): Promise<PublicReportDetailData> {
+  const response = await publicApiFetch<unknown>(
+    `/api/v1/public/reports/${encodeURIComponent(id)}/`,
+    { signal },
+  );
+  return parsePublicReportDetail(response);
 }

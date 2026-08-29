@@ -10,7 +10,7 @@ import {
   PublicApiError,
 } from "@/lib/api/publicReports";
 import type { MapBbox } from "@/features/map/bbox";
-import { publicReport } from "@/test/fixtures";
+import { publicReport, publicReportDetail } from "@/test/fixtures";
 import type { PublicReport } from "@/types/api";
 
 const navigation = vi.hoisted(() => ({ search: "", replace: vi.fn() }));
@@ -206,7 +206,7 @@ describe("orquestación del viewport", () => {
     vi.mocked(getPublicReports)
       .mockResolvedValueOnce(emptyPage([]))
       .mockResolvedValueOnce(emptyPage([report]));
-    vi.mocked(getPublicReport).mockResolvedValue(report);
+    vi.mocked(getPublicReport).mockResolvedValue(publicReportDetail(report));
     render(<MapPageClient />);
     await act(async () => undefined);
 
@@ -246,7 +246,7 @@ describe("orquestación del viewport", () => {
       previous: null,
       results: [],
     });
-    vi.mocked(getPublicReport).mockResolvedValue(report);
+    vi.mocked(getPublicReport).mockResolvedValue(publicReportDetail(report));
     render(<MapPageClient />);
     await act(async () => undefined);
     fireEvent.click(screen.getByRole("button", { name: "Emitir viewport válido" }));

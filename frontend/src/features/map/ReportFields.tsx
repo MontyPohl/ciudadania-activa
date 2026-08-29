@@ -1,7 +1,7 @@
 import { PRIORITY_LABELS, STATUS_LABELS, formatPublicDate } from "@/features/map/presentation";
-import type { PublicReport } from "@/types/api";
+import type { PublicReport, PublicReportDetailData } from "@/types/api";
 
-export function ReportFields({ report }: { report: PublicReport }) {
+export function ReportFields({ report }: { report: PublicReport | PublicReportDetailData }) {
   return (
     <dl className="grid gap-4 text-sm sm:grid-cols-2">
       <div>
@@ -28,6 +28,15 @@ export function ReportFields({ report }: { report: PublicReport }) {
         <dt className="font-semibold">Creado</dt>
         <dd>{formatPublicDate(report.created_at)}</dd>
       </div>
+      {"confirmation_count" in report && (
+        <div className="sm:col-span-2">
+          <dt className="font-semibold">Confirmaciones ciudadanas</dt>
+          <dd aria-live="polite">
+            {report.confirmation_count}{" "}
+            {report.confirmation_count === 1 ? "confirmación" : "confirmaciones"} ciudadanas
+          </dd>
+        </div>
+      )}
     </dl>
   );
 }

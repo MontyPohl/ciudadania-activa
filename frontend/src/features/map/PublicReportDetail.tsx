@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
   normalizeCategory,
@@ -10,12 +10,13 @@ import {
   normalizeStateFilter,
 } from "@/features/map/queryParams";
 import { ReportFields } from "@/features/map/ReportFields";
+import { ReportConfirmation } from "@/features/reports/confirmation/ReportConfirmation";
 import { getPublicReport, PublicApiError } from "@/lib/api/publicReports";
-import type { PublicReport } from "@/types/api";
+import type { PublicReportDetailData } from "@/types/api";
 
 type DetailState =
   | { phase: "loading" }
-  | { phase: "ready"; report: PublicReport }
+  | { phase: "ready"; report: PublicReportDetailData }
   | { phase: "not-found" }
   | { phase: "rate-limited" }
   | { phase: "error" };
@@ -38,6 +39,14 @@ export function PublicReportDetail({ id }: { id: string }) {
     const query = params.toString();
     return query === "" ? "/mapa" : `/mapa?${query}`;
   }, [id, searchParams]);
+
+  const updateConfirmationCount = useCallback((confirmationCount: number) => {
+    setState((current) =>
+      current.phase === "ready"
+        ? { ...current, report: { ...current.report, confirmation_count: confirmationCount } }
+        : current,
+    );
+  }, []);
 
   useEffect(() => {
     if (!validId) return;
@@ -107,6 +116,10 @@ export function PublicReportDetail({ id }: { id: string }) {
             {renderedState.report.category.name}
           </h1>
           <ReportFields report={renderedState.report} />
+          <ReportConfirmation
+            reportId={renderedState.report.id}
+            onConfirmationCountChange={updateConfirmationCount}
+          />
         </article>
       )}
     </main>
