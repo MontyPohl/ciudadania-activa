@@ -1,4 +1,4 @@
-import type { PublicReport } from "@/types/api";
+import type { PublicReport, PublicReportDetailData } from "@/types/api";
 
 export function publicReport(overrides: Partial<PublicReport> = {}): PublicReport {
   return {
@@ -21,4 +21,10 @@ export function publicReport(overrides: Partial<PublicReport> = {}): PublicRepor
     created_at: "2026-08-27T12:00:00Z",
     ...overrides,
   };
+}
+
+export function publicReportDetail(
+  overrides: Partial<PublicReportDetailData> = {},
+): PublicReportDetailData {
+  return { ...publicReport(), confirmation_count: 0, ...overrides };
 }

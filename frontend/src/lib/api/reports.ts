@@ -8,6 +8,8 @@ import { isCreateReportInputValid, isUuid } from "@/features/reports/create/vali
 import { ApiError, apiFetch, apiFetchAuthenticatedNoReplay } from "@/lib/api/client";
 import type {
   CitizenSummary,
+  ConfirmationEligibilityCode,
+  ConfirmReportResponse,
   ConfirmationEligibility,
   MyReport,
   MyReportsPage,
@@ -446,12 +448,137 @@ function requireReportId(id: string): void {
   if (!isUuid(id)) throw new CitizenPanelApiError("INVALID_RESPONSE");
 }
 
-export function getReportDetail(id: string, signal?: AbortSignal): Promise<PrivateReportDetail> {
+export async function getReportDetail(
+  id: string,
+  signal?: AbortSignal,
+): Promise<PrivateReportDetail> {
   requireReportId(id);
-  return panelGet(`/api/v1/reports/${id}/`, parsePrivateReportDetail, signal);
+  const detail = await panelGet(`/api/v1/reports/${id}/`, parsePrivateReportDetail, signal);
+  if (detail.id !== id) throw new CitizenPanelApiError("INVALID_RESPONSE");
+  return detail;
 }
 
 export function getReportHistory(id: string, signal?: AbortSignal): Promise<ReportHistoryEntry[]> {
   requireReportId(id);
   return panelGet(`/api/v1/reports/${id}/history/`, parseReportHistory, signal);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Confirmación ciudadana — mutación de una sola ejecución                    */
+/* -------------------------------------------------------------------------- */
+
+export type ConfirmReportErrorCode =
+  | "VALIDATION_ERROR"
+  | "SESSION_EXPIRED"
+  | "FORBIDDEN"
+  | "NOT_FOUND"
+  | ConfirmationEligibilityCode
+  | "RATE_LIMIT"
+  | "SERVER_ERROR"
+  | "INVALID_RESPONSE"
+  | "UNCERTAIN_RESULT"
+  | "UNKNOWN_ERROR";
+
+const CONFIRM_ERROR_MESSAGES: Record<ConfirmReportErrorCode, string> = {
+  VALIDATION_ERROR: "La confirmación no pudo procesarse.",
+  SESSION_EXPIRED: "Tu sesión expiró. Ingresá de nuevo antes de volver a intentarlo.",
+  FORBIDDEN: "No tenés permiso para confirmar este reporte.",
+  NOT_FOUND: "La confirmación ya no está disponible.",
+  REPORT_NOT_ACTIVE: "Este reporte ya no está activo y no puede confirmarse.",
+  SELF_CONFIRMATION_NOT_ALLOWED: "No puedes confirmar tu propio reporte.",
+  ALREADY_CONFIRMED: "Ya confirmaste que este problema sigue ahí.",
+  RATE_LIMIT: "Alcanzaste el límite temporal de confirmaciones. Intentá más tarde.",
+  SERVER_ERROR: "No pudimos registrar la confirmación en este momento.",
+  INVALID_RESPONSE:
+    "El servicio respondió de forma inesperada. Comprobá el estado antes de intentar otra vez.",
+  UNCERTAIN_RESULT:
+    "No pudimos confirmar el resultado. Comprobá el estado antes de intentar otra vez.",
+  UNKNOWN_ERROR: "No se pudo completar la confirmación.",
+};
+
+export class ConfirmReportError extends Error {
+  constructor(
+    public readonly code: ConfirmReportErrorCode,
+    public readonly status?: number,
+  ) {
+    super(CONFIRM_ERROR_MESSAGES[code]);
+    this.name = "ConfirmReportError";
+  }
+}
+
+function parseConfirmReportResponse(value: unknown, reportId: string): ConfirmReportResponse {
+  if (
+    !isRecord(value) ||
+    !hasExactKeys(value, ["report_id", "confirmed_by_me", "confirmation_count", "reward"]) ||
+    value.report_id !== reportId ||
+    !isUuid(value.report_id) ||
+    value.confirmed_by_me !== true ||
+    !isNonNegativeInteger(value.confirmation_count) ||
+    !isRecord(value.reward) ||
+    !hasExactKeys(value.reward, ["impact_points", "status"]) ||
+    value.reward.impact_points !== 10 ||
+    value.reward.status !== "PENDIENTE"
+  ) {
+    throw new ConfirmReportError("INVALID_RESPONSE");
+  }
+  return value as unknown as ConfirmReportResponse;
+}
+
+async function throwConfirmHttpError(response: Response): Promise<never> {
+  if (response.status === 409) {
+    let body: unknown;
+    try {
+      body = await response.json();
+    } catch {
+      throw new ConfirmReportError("INVALID_RESPONSE", 409);
+    }
+    if (
+      !isRecord(body) ||
+      !hasExactKeys(body, ["detail", "code"]) ||
+      typeof body.detail !== "string" ||
+      !ELIGIBILITY_CODES.includes(body.code as (typeof ELIGIBILITY_CODES)[number])
+    ) {
+      throw new ConfirmReportError("INVALID_RESPONSE", 409);
+    }
+    throw new ConfirmReportError(body.code as ConfirmationEligibilityCode, 409);
+  }
+
+  const byStatus: Partial<Record<number, ConfirmReportErrorCode>> = {
+    400: "VALIDATION_ERROR",
+    401: "SESSION_EXPIRED",
+    403: "FORBIDDEN",
+    404: "NOT_FOUND",
+    429: "RATE_LIMIT",
+  };
+  const code =
+    response.status >= 500 ? "SERVER_ERROR" : (byStatus[response.status] ?? "UNKNOWN_ERROR");
+  throw new ConfirmReportError(code, response.status);
+}
+
+/** Preflight de sesión, un único POST vacío y ningún refresh/replay posterior. */
+export async function confirmReport(
+  id: string,
+  signal?: AbortSignal,
+): Promise<ConfirmReportResponse> {
+  if (!isUuid(id)) throw new ConfirmReportError("INVALID_RESPONSE");
+  try {
+    const response = await apiFetchAuthenticatedNoReplay<unknown>(
+      `/api/v1/reports/${id}/confirm/`,
+      { method: "POST", signal },
+      throwConfirmHttpError,
+    );
+    return parseConfirmReportResponse(response, id);
+  } catch (error) {
+    if (error instanceof ConfirmReportError) throw error;
+    if (error instanceof ApiError) {
+      throw new ConfirmReportError(
+        error.status === 401 ? "SESSION_EXPIRED" : "UNKNOWN_ERROR",
+        error.status,
+      );
+    }
+    if (error instanceof DOMException && error.name === "AbortError") throw error;
+    if (error instanceof SyntaxError) throw new ConfirmReportError("INVALID_RESPONSE");
+    if (error instanceof TypeError) throw new ConfirmReportError("UNCERTAIN_RESULT");
+    throw new ConfirmReportError("UNKNOWN_ERROR");
+  }
 }

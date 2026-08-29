@@ -123,6 +123,7 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
 export async function apiFetchAuthenticatedNoReplay<T>(
   path: string,
   init: RequestInit,
+  handleError?: (response: Response) => Promise<never>,
 ): Promise<T> {
   const access = await prepararAccessParaMutacion();
   const response = await fetch(`${API_URL}${path}`, conAutorizacion(init, access));
@@ -130,6 +131,7 @@ export async function apiFetchAuthenticatedNoReplay<T>(
   if (response.ok) {
     return (await response.json()) as T;
   }
+  if (handleError !== undefined) return handleError(response);
   // Un 401 posterior al POST se presenta dentro del propio formulario. Cambiar aquí el
   // estado global a anónimo desmontaría el wizard y destruiría el borrador antes de que
   // la persona pueda leer el resultado. La siguiente navegación o recarga reconstruye la

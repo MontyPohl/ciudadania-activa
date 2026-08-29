@@ -196,7 +196,9 @@ describe("clientes GET del panel ciudadano", () => {
 
   it("rechaza páginas e identificadores inválidos antes de fetch", async () => {
     await expect(getMyReports({ page: 0 })).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
-    expect(() => getReportDetail("no-uuid")).toThrow("respuesta");
+    await expect(getReportDetail("no-uuid")).rejects.toMatchObject({
+      code: "INVALID_RESPONSE",
+    });
     expect(fetch).not.toHaveBeenCalled();
   });
 });

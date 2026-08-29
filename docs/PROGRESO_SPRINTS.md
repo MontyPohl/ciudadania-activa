@@ -2,7 +2,7 @@
 
 Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes de iniciar el siguiente.
 
-- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 **completado** (inicio el 22/08/2026, cierre el 23/08/2026: verificación de identidad con HMAC y almacenamiento privado, revisión administrativa manual con cotejo de la cédula, notificaciones asíncronas entregadas por la API HTTPS de Brevo y privacidad configurable del ranking, todo verificado en producción con una identidad real). Sprint 5 **completado** el 27/08/2026: S5-A, S5-B y S5-C están cerradas, integradas y validadas. Sprint 6 **completado** el 28/08/2026: S6-A y S6-B están cerrados. Sprint 7 está **en curso**: S7-A está integrado en `main` mediante el squash `4ed5a89` del PR #21; S7-B está implementado y validado, publicado en PR #22 y pendiente de merge; S7-C está implementado y sellado localmente, sin publicación ni cierre.
+- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 **completado** (inicio el 22/08/2026, cierre el 23/08/2026: verificación de identidad con HMAC y almacenamiento privado, revisión administrativa manual con cotejo de la cédula, notificaciones asíncronas entregadas por la API HTTPS de Brevo y privacidad configurable del ranking, todo verificado en producción con una identidad real). Sprint 5 **completado** el 27/08/2026: S5-A, S5-B y S5-C están cerradas, integradas y validadas. Sprint 6 **completado** el 28/08/2026: S6-A y S6-B están cerrados. Sprint 7 está **en curso**: S7-A está integrado en `main` mediante el squash `4ed5a89` del PR #21; S7-B está integrado en `main` mediante el squash `9c6a2c9` del PR #22; S7-C está implementado y validado, publicado en el PR #23 y pendiente de merge, sin cierre.
 - **Plan de referencia:** [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md)
 - **Ventana de desarrollo:** 01/08/2026 → 15/11/2026 (16 sprints semanales, Anexo F revisado)
 - **Estados posibles:** `Pendiente` · `En curso` · `Completado` · `Completado con observaciones` · `Bloqueado`
@@ -30,7 +30,7 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 | 15 | 07/11 – 13/11 | Carga, dataset definitivo y documentación | Pendiente |
 | 16 | 14/11 – 15/11 | Cierre y preparación de la defensa | Pendiente |
 
-**Progreso:** 6 / 16 sprints completados (Sprints 1, 2 y 3 cerrados el 20/08/2026; Sprint 4 el 23/08/2026; Sprint 5 el 27/08/2026; Sprint 6 el 28/08/2026). La ejecución real arrastra el desvío de calendario registrado en CT-29. Sprint 7 está en curso; S7-A está integrado en `main`, S7-B está publicado en PR #22 y pendiente de merge, y S7-C está sellado localmente y no publicado. Ninguno está cerrado.
+**Progreso:** 6 / 16 sprints completados (Sprints 1, 2 y 3 cerrados el 20/08/2026; Sprint 4 el 23/08/2026; Sprint 5 el 27/08/2026; Sprint 6 el 28/08/2026). La ejecución real arrastra el desvío de calendario registrado en CT-29. Sprint 7 está en curso; S7-A y S7-B están integrados en `main`, y S7-C está publicado en el PR #23 y pendiente de merge. Ninguno está cerrado.
 
 ### Decisiones que condicionan el avance
 
@@ -839,21 +839,25 @@ antes de cerrarlo.
 ## Sprint 7 — Panel ciudadano y confirmaciones
 
 **Fechas planificadas:** 12/09/2026 – 18/09/2026
-**Estado:** En curso — S7-A integrado en `main`, S7-B publicado en PR #22 y pendiente de merge, S7-C sellado localmente y no publicado
+**Estado:** En curso — S7-A y S7-B integrados en `main`, S7-C publicado en el PR #23 y pendiente de merge
 **Fecha real de cierre:** —
 
 ### Funcionalidades terminadas
 - **S7-A integrado en `main` mediante el PR #21 (squash `4ed5a89894432b2d047ee33fadd376066562aa3f`):** contrato backend de confirmaciones, reward pendiente,
   contador público en detalle, detalle contextual autenticado, history owner-only, resumen
   ciudadano y admin read-only.
-- **S7-B implementado y validado, publicado en PR #22 y pendiente de merge:** ruta `/panel` para ciudadano aprobado con resumen de reportes
+- **S7-B integrado en `main` mediante el PR #22 (squash `9c6a2c9f19809b93cacecb774e1ff2f416c06dca`):** ruta `/panel` para ciudadano aprobado con resumen de reportes
   y puntos de impacto, distribución de todos los estados, confirmaciones realizadas, listado
   paginado de reportes propios y seguimiento contextual con timeline owner-only. Incluye parsing
   estricto de los cuatro contratos GET, estados de auth/loading/empty/error, retry manual,
   cancelación y protección ante respuestas tardías, navegación accesible y layout responsive.
   No incluye la acción social de confirmación ni ninguna llamada `POST`.
-- **S7-C implementado y sellado localmente, no publicado:** permanece fuera de `main` y pendiente
-  de reanclaje.
+- **S7-C implementado y validado, publicado en el PR #23 y pendiente de merge:** el detalle público muestra siempre el contador y mantiene su
+  acceso anónimo. Ciudadanos aprobados consultan el contexto privado de elegibilidad y pueden usar
+  el CTA “Confirmo que el problema sigue ahí”. El POST vacío aplica preflight, single-flight y cero
+  replay; el 201 actualiza contador y muestra +10 puntos pendientes. Errores, conflictos y resultado
+  incierto permanecen controlados, con reconciliación exclusivamente mediante GET seguro. Se
+  añadieron Browser E2E con dos identidades sintéticas, sin cuentas ni servicios productivos.
 
 ### Pruebas realizadas
 - Suite local S7-A sobre PostgreSQL/PostGIS: reglas y prioridad, atomicidad, constraint e
@@ -863,19 +867,25 @@ antes de cerrarlo.
   estados, listado y empty state, paginación, timeline, reintentos, doble acción, presupuesto de
   requests y carrera de selección. Vitest quedó en **280/280** y la regresión browser S6 en
   **22/22**; Prettier, ESLint, TypeScript y el build Webpack canónico terminaron en verde.
+- Frontend tras S7-C: **326/326 Vitest en 27 archivos**. Playwright incorpora **24 escenarios
+  S7-C** y conserva los **22 de S6**; dos corridas completas consecutivas terminaron **46/46**, con
+  `retries=0` y sin flakes. Prettier, ESLint, Next typegen, TypeScript, Webpack y `npm ls --depth=0`
+  quedaron verdes.
 
 ### Problemas encontrados
-_Pendiente._
+- La primera corrida focal S7-C terminó 19/23 porque un test intentaba enviar Enter sobre un botón
+  ya reemplazado tras el primer evento y tres selectores globales confundían el alert de la acción
+  con el route announcer de Next. Se acotaron los selectores a la región semántica y se usó teclado
+  global; los cuatro casos corregidos y las dos suites completas posteriores quedaron verdes.
 
 ### Commits relevantes
 _Pendiente._
 
 ### Observaciones y desvíos respecto del plan
-- S7-B permanece publicado en el PR #22 y pendiente de merge; su rama local
-  `feat/s07-b-citizen-panel` está reanclada sobre el squash integrado de S7-A. S7-C permanece
-  sellado localmente, no publicado y pendiente
-  de reanclaje. S7-D no fue iniciado y Sprint 7 continúa en curso. No hubo cambios adicionales de
-  backend, migraciones ni operaciones manuales sobre servicios productivos.
+- S7-A y S7-B están integrados en `main`. S7-C permanece como un único commit publicado en el PR #23 desde
+  `feat/s07-c-confirmation-ui-e2e`, reanclado sobre el squash `9c6a2c9`, pendiente de merge y
+  no cerrado. S7-D no fue iniciado y Sprint 7 continúa en curso. No hubo backend, migraciones,
+  despliegue ni operaciones manuales sobre servicios productivos en este gate.
 
 ---
 

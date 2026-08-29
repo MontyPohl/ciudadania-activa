@@ -1,4 +1,4 @@
-import { publicReport } from "@/test/fixtures";
+import { publicReport, publicReportDetail } from "@/test/fixtures";
 
 const API_ORIGIN = "https://api.example.test";
 
@@ -55,6 +55,24 @@ describe("cliente de reportes públicos", () => {
     const { getPublicCategories } = await import("@/lib/api/publicReports");
     await getPublicCategories(controller.signal);
     expect(vi.mocked(fetch).mock.calls[0][1]?.signal).toBe(controller.signal);
+  });
+
+  it("valida el contador exclusivo del detalle público", async () => {
+    const detail = publicReportDetail({ confirmation_count: 3 });
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(detail));
+    const { getPublicReport } = await import("@/lib/api/publicReports");
+
+    await expect(getPublicReport(detail.id)).resolves.toEqual(detail);
+  });
+
+  it("rechaza un detalle sin confirmation_count o con campos privados", async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(jsonResponse(publicReport()))
+      .mockResolvedValueOnce(jsonResponse({ ...publicReportDetail(), citizen_id: "privado" }));
+    const { getPublicReport } = await import("@/lib/api/publicReports");
+
+    await expect(getPublicReport("id-1")).rejects.toMatchObject({ status: 502 });
+    await expect(getPublicReport("id-2")).rejects.toMatchObject({ status: 502 });
   });
 
   it.each([
