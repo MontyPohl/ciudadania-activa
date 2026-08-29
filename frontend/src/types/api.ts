@@ -1,6 +1,8 @@
 import type {
   ISODateTime,
   RankingVisibility,
+  ReportPriority,
+  ReportStatus,
   UserRole,
   UUID,
   VerificationStatus,
@@ -90,6 +92,55 @@ export interface PublicReport {
 }
 
 export type PublicReportsPage = PaginatedResponse<PublicReport>;
+
+/* -------------------------------------------------------------------------- */
+/* Panel ciudadano — contrato privado (Sprint 7)                              */
+/* -------------------------------------------------------------------------- */
+
+export interface CitizenSummary {
+  reports_by_status: Record<ReportStatus, number>;
+  confirmations_performed: number;
+  points: {
+    pending: number;
+    accredited: number;
+  };
+}
+
+export interface MyReport {
+  id: UUID;
+  category: PublicCategory;
+  institution: PublicInstitution | null;
+  description: string;
+  status: ReportStatus;
+  priority: ReportPriority;
+  created_at: ISODateTime;
+}
+
+export type MyReportsPage = PaginatedResponse<MyReport>;
+
+export type ConfirmationEligibilityCode =
+  "REPORT_NOT_ACTIVE" | "SELF_CONFIRMATION_NOT_ALLOWED" | "ALREADY_CONFIRMED";
+
+export interface ConfirmationEligibility {
+  can_confirm: boolean;
+  code: ConfirmationEligibilityCode | null;
+}
+
+/** Lista blanca contextual: no incluye autor, archivos, auditoría ni reward. */
+export interface PrivateReportDetail extends MyReport {
+  latitude: number;
+  longitude: number;
+  confirmation_count: number;
+  confirmed_by_me: boolean;
+  confirmation_eligibility: ConfirmationEligibility;
+}
+
+export interface ReportHistoryEntry {
+  previous_status: ReportStatus | "";
+  new_status: ReportStatus;
+  reason: string;
+  created_at: ISODateTime;
+}
 
 /* -------------------------------------------------------------------------- */
 /* Verificación de identidad — lado ciudadano (Sprint 4)                      */

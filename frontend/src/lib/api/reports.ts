@@ -6,6 +6,15 @@ import type {
 } from "@/features/reports/create/types";
 import { isCreateReportInputValid, isUuid } from "@/features/reports/create/validation";
 import { ApiError, apiFetch, apiFetchAuthenticatedNoReplay } from "@/lib/api/client";
+import type {
+  CitizenSummary,
+  ConfirmationEligibility,
+  MyReport,
+  MyReportsPage,
+  PrivateReportDetail,
+  ReportHistoryEntry,
+} from "@/types/api";
+import type { ReportPriority, ReportStatus } from "@/types/domain";
 
 export type CreateReportErrorCode =
   | "VALIDATION_ERROR"
@@ -166,4 +175,283 @@ export async function getPossibleReportDuplicates(
     throw new ApiError("La API devolvió una respuesta de duplicados inválida.", 502);
   }
   return response;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Panel ciudadano — GET privados, cancelables y con parsing estricto         */
+/* -------------------------------------------------------------------------- */
+
+export type CitizenPanelApiErrorCode =
+  | "SESSION_EXPIRED"
+  | "FORBIDDEN"
+  | "NOT_FOUND"
+  | "RATE_LIMIT"
+  | "SERVER_ERROR"
+  | "NETWORK_ERROR"
+  | "INVALID_RESPONSE"
+  | "UNKNOWN_ERROR";
+
+const PANEL_ERROR_MESSAGES: Record<CitizenPanelApiErrorCode, string> = {
+  SESSION_EXPIRED: "Tu sesión expiró. Ingresá de nuevo.",
+  FORBIDDEN: "Necesitás una identidad ciudadana verificada para ver el panel.",
+  NOT_FOUND: "No pudimos encontrar ese seguimiento o no está disponible para tu cuenta.",
+  RATE_LIMIT: "Hiciste demasiadas consultas. Esperá un momento antes de volver a intentar.",
+  SERVER_ERROR: "El servicio no está disponible en este momento. Intentá más tarde.",
+  NETWORK_ERROR: "No pudimos conectarnos. Revisá tu conexión e intentá de nuevo.",
+  INVALID_RESPONSE: "El servicio devolvió una respuesta que no pudimos procesar.",
+  UNKNOWN_ERROR: "No se pudo completar la consulta.",
+};
+
+export class CitizenPanelApiError extends Error {
+  constructor(
+    public readonly code: CitizenPanelApiErrorCode,
+    public readonly status?: number,
+  ) {
+    super(PANEL_ERROR_MESSAGES[code]);
+    this.name = "CitizenPanelApiError";
+  }
+}
+
+const REPORT_STATUSES = [
+  "CREADO",
+  "CLASIFICADO",
+  "ASIGNADO",
+  "EN_PROCESO",
+  "RESUELTO",
+  "CERRADO",
+  "RECHAZADO",
+] as const satisfies readonly ReportStatus[];
+
+const REPORT_PRIORITIES = ["BAJA", "MEDIA", "ALTA"] as const satisfies readonly ReportPriority[];
+const ELIGIBILITY_CODES = [
+  "REPORT_NOT_ACTIVE",
+  "SELF_CONFIRMATION_NOT_ALLOWED",
+  "ALREADY_CONFIRMED",
+] as const;
+
+function invalidResponse(): never {
+  throw new CitizenPanelApiError("INVALID_RESPONSE");
+}
+
+function isNonNegativeInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0;
+}
+
+function isIsoDateTime(value: unknown): value is string {
+  return typeof value === "string" && value.trim() !== "" && !Number.isNaN(Date.parse(value));
+}
+
+function isReportStatus(value: unknown): value is ReportStatus {
+  return REPORT_STATUSES.includes(value as ReportStatus);
+}
+
+function isReportPriority(value: unknown): value is ReportPriority {
+  return REPORT_PRIORITIES.includes(value as ReportPriority);
+}
+
+function isCategory(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    hasExactKeys(value, ["id", "name", "slug"]) &&
+    isUuid(value.id) &&
+    typeof value.name === "string" &&
+    typeof value.slug === "string"
+  );
+}
+
+function isInstitution(value: unknown): boolean {
+  return value === null || isCategory(value);
+}
+
+function isMyReport(value: unknown): value is MyReport {
+  return (
+    isRecord(value) &&
+    hasExactKeys(value, [
+      "id",
+      "category",
+      "institution",
+      "description",
+      "status",
+      "priority",
+      "created_at",
+    ]) &&
+    isUuid(value.id) &&
+    isCategory(value.category) &&
+    isInstitution(value.institution) &&
+    typeof value.description === "string" &&
+    isReportStatus(value.status) &&
+    isReportPriority(value.priority) &&
+    isIsoDateTime(value.created_at)
+  );
+}
+
+function isReportsByStatus(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    hasExactKeys(value, REPORT_STATUSES) &&
+    REPORT_STATUSES.every((status) => isNonNegativeInteger(value[status]))
+  );
+}
+
+function parseCitizenSummary(value: unknown): CitizenSummary {
+  if (
+    !isRecord(value) ||
+    !hasExactKeys(value, ["reports_by_status", "confirmations_performed", "points"]) ||
+    !isReportsByStatus(value.reports_by_status) ||
+    !isNonNegativeInteger(value.confirmations_performed) ||
+    !isRecord(value.points) ||
+    !hasExactKeys(value.points, ["pending", "accredited"]) ||
+    !isNonNegativeInteger(value.points.pending) ||
+    !isNonNegativeInteger(value.points.accredited)
+  ) {
+    invalidResponse();
+  }
+  return value as unknown as CitizenSummary;
+}
+
+function parseMyReportsPage(value: unknown): MyReportsPage {
+  if (
+    !isRecord(value) ||
+    !hasExactKeys(value, ["count", "next", "previous", "results"]) ||
+    !isNonNegativeInteger(value.count) ||
+    !(value.next === null || typeof value.next === "string") ||
+    !(value.previous === null || typeof value.previous === "string") ||
+    !Array.isArray(value.results) ||
+    !value.results.every(isMyReport) ||
+    value.results.length > value.count
+  ) {
+    invalidResponse();
+  }
+  return value as unknown as MyReportsPage;
+}
+
+function isEligibility(value: unknown): value is ConfirmationEligibility {
+  if (
+    !isRecord(value) ||
+    !hasExactKeys(value, ["can_confirm", "code"]) ||
+    typeof value.can_confirm !== "boolean" ||
+    !(
+      value.code === null ||
+      ELIGIBILITY_CODES.includes(value.code as (typeof ELIGIBILITY_CODES)[number])
+    )
+  ) {
+    return false;
+  }
+  return value.can_confirm ? value.code === null : value.code !== null;
+}
+
+function parsePrivateReportDetail(value: unknown): PrivateReportDetail {
+  if (
+    !isRecord(value) ||
+    !hasExactKeys(value, [
+      "id",
+      "category",
+      "institution",
+      "description",
+      "status",
+      "priority",
+      "latitude",
+      "longitude",
+      "created_at",
+      "confirmation_count",
+      "confirmed_by_me",
+      "confirmation_eligibility",
+    ]) ||
+    !isMyReport({
+      id: value.id,
+      category: value.category,
+      institution: value.institution,
+      description: value.description,
+      status: value.status,
+      priority: value.priority,
+      created_at: value.created_at,
+    }) ||
+    typeof value.latitude !== "number" ||
+    !Number.isFinite(value.latitude) ||
+    value.latitude < -90 ||
+    value.latitude > 90 ||
+    typeof value.longitude !== "number" ||
+    !Number.isFinite(value.longitude) ||
+    value.longitude < -180 ||
+    value.longitude > 180 ||
+    !isNonNegativeInteger(value.confirmation_count) ||
+    typeof value.confirmed_by_me !== "boolean" ||
+    !isEligibility(value.confirmation_eligibility)
+  ) {
+    invalidResponse();
+  }
+  return value as unknown as PrivateReportDetail;
+}
+
+function parseReportHistory(value: unknown): ReportHistoryEntry[] {
+  if (
+    !Array.isArray(value) ||
+    !value.every(
+      (entry) =>
+        isRecord(entry) &&
+        hasExactKeys(entry, ["previous_status", "new_status", "reason", "created_at"]) &&
+        (entry.previous_status === "" || isReportStatus(entry.previous_status)) &&
+        isReportStatus(entry.new_status) &&
+        typeof entry.reason === "string" &&
+        isIsoDateTime(entry.created_at),
+    )
+  ) {
+    invalidResponse();
+  }
+  return value as ReportHistoryEntry[];
+}
+
+function panelErrorFromHttp(error: ApiError): CitizenPanelApiError {
+  const byStatus: Partial<Record<number, CitizenPanelApiErrorCode>> = {
+    401: "SESSION_EXPIRED",
+    403: "FORBIDDEN",
+    404: "NOT_FOUND",
+    429: "RATE_LIMIT",
+  };
+  const code = error.status >= 500 ? "SERVER_ERROR" : (byStatus[error.status] ?? "UNKNOWN_ERROR");
+  return new CitizenPanelApiError(code, error.status);
+}
+
+async function panelGet<T>(
+  path: string,
+  parser: (value: unknown) => T,
+  signal?: AbortSignal,
+): Promise<T> {
+  try {
+    return parser(await apiFetch<unknown>(path, { signal }));
+  } catch (error) {
+    if (error instanceof CitizenPanelApiError) throw error;
+    if (error instanceof ApiError) throw panelErrorFromHttp(error);
+    if (error instanceof DOMException && error.name === "AbortError") throw error;
+    if (error instanceof SyntaxError) throw new CitizenPanelApiError("INVALID_RESPONSE");
+    if (error instanceof TypeError) throw new CitizenPanelApiError("NETWORK_ERROR");
+    throw new CitizenPanelApiError("UNKNOWN_ERROR");
+  }
+}
+
+export function getCitizenSummary(signal?: AbortSignal): Promise<CitizenSummary> {
+  return panelGet("/api/v1/citizen/summary/", parseCitizenSummary, signal);
+}
+
+export function getMyReports(
+  { page }: { page: number },
+  signal?: AbortSignal,
+): Promise<MyReportsPage> {
+  if (!Number.isInteger(page) || page < 1)
+    return Promise.reject(new CitizenPanelApiError("INVALID_RESPONSE"));
+  return panelGet(`/api/v1/reports/mine/?page=${page}`, parseMyReportsPage, signal);
+}
+
+function requireReportId(id: string): void {
+  if (!isUuid(id)) throw new CitizenPanelApiError("INVALID_RESPONSE");
+}
+
+export function getReportDetail(id: string, signal?: AbortSignal): Promise<PrivateReportDetail> {
+  requireReportId(id);
+  return panelGet(`/api/v1/reports/${id}/`, parsePrivateReportDetail, signal);
+}
+
+export function getReportHistory(id: string, signal?: AbortSignal): Promise<ReportHistoryEntry[]> {
+  requireReportId(id);
+  return panelGet(`/api/v1/reports/${id}/history/`, parseReportHistory, signal);
 }

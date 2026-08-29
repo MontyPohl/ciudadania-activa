@@ -2,6 +2,7 @@ import { SectionNav } from "@/components/ui/SectionNav";
 import { RoleGuard } from "@/features/auth/RoleGuard";
 
 const LINKS = [
+  { href: "/panel", label: "Panel" },
   { href: "/reportes/nuevo", label: "Crear reporte" },
   { href: "/verificacion", label: "Verificación" },
   { href: "/perfil", label: "Perfil" },
