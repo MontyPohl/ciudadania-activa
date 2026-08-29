@@ -2,7 +2,7 @@
 
 Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes de iniciar el siguiente.
 
-- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 **completado** (inicio el 22/08/2026, cierre el 23/08/2026: verificación de identidad con HMAC y almacenamiento privado, revisión administrativa manual con cotejo de la cédula, notificaciones asíncronas entregadas por la API HTTPS de Brevo y privacidad configurable del ranking, todo verificado en producción con una identidad real). Sprint 5 **completado** el 27/08/2026: S5-A, S5-B y S5-C están cerradas, integradas y validadas. Sprint 6 **completado** el 28/08/2026: S6-A y S6-B están cerrados. Sprint 7 está **en curso**: S7-A está integrado en `main` mediante el squash `4ed5a89` del PR #21; S7-B está integrado en `main` mediante el squash `9c6a2c9` del PR #22; S7-C está implementado y validado, publicado en el PR #23 y pendiente de merge, sin cierre.
+- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 **completado** (inicio el 22/08/2026, cierre el 23/08/2026: verificación de identidad con HMAC y almacenamiento privado, revisión administrativa manual con cotejo de la cédula, notificaciones asíncronas entregadas por la API HTTPS de Brevo y privacidad configurable del ranking, todo verificado en producción con una identidad real). Sprint 5 **completado** el 27/08/2026: S5-A, S5-B y S5-C están cerradas, integradas y validadas. Sprint 6 **completado** el 28/08/2026: S6-A y S6-B están cerrados. Sprint 7 **completado** el 29/08/2026: S7-A, S7-B y S7-C están integrados en `main`, y S7-D quedó probado en producción y cerrado con evidencia funcional y de base de datos en modo solo lectura.
 - **Plan de referencia:** [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md)
 - **Ventana de desarrollo:** 01/08/2026 → 15/11/2026 (16 sprints semanales, Anexo F revisado)
 - **Estados posibles:** `Pendiente` · `En curso` · `Completado` · `Completado con observaciones` · `Bloqueado`
@@ -19,7 +19,7 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 | 4 | 22/08 – 28/08 | Verificación de identidad y privacidad | Completado |
 | 5 | 29/08 – 04/09 | Mapa público y geolocalización | Completado |
 | 6 | 05/09 – 11/09 | Creación de reportes y duplicados | Completado |
-| 7 | 12/09 – 18/09 | Panel ciudadano y confirmaciones | En curso |
+| 7 | 12/09 – 18/09 | Panel ciudadano y confirmaciones | Completado |
 | 8 | 19/09 – 25/09 | Clasificación asistida por IA | Pendiente |
 | 9 | 26/09 – 02/10 | Panel institucional y validación | Pendiente |
 | 10 | 03/10 – 09/10 | Estados, evidencias, auditoría y reversión | Pendiente |
@@ -30,7 +30,7 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 | 15 | 07/11 – 13/11 | Carga, dataset definitivo y documentación | Pendiente |
 | 16 | 14/11 – 15/11 | Cierre y preparación de la defensa | Pendiente |
 
-**Progreso:** 6 / 16 sprints completados (Sprints 1, 2 y 3 cerrados el 20/08/2026; Sprint 4 el 23/08/2026; Sprint 5 el 27/08/2026; Sprint 6 el 28/08/2026). La ejecución real arrastra el desvío de calendario registrado en CT-29. Sprint 7 está en curso; S7-A y S7-B están integrados en `main`, y S7-C está publicado en el PR #23 y pendiente de merge. Ninguno está cerrado.
+**Progreso:** 7 / 16 sprints completados (Sprints 1, 2 y 3 cerrados el 20/08/2026; Sprint 4 el 23/08/2026; Sprint 5 el 27/08/2026; Sprint 6 el 28/08/2026; Sprint 7 el 29/08/2026). La ejecución real arrastra el desvío de calendario registrado en CT-29. S7-A, S7-B y S7-C están integrados en `main`; S7-D y Sprint 7 están cerrados.
 
 ### Decisiones que condicionan el avance
 
@@ -832,15 +832,16 @@ antes de cerrarlo.
   historial, storage ni logs; la exposición potencial en logs de infraestructura pertenece al
   contrato backend ya cerrado y queda como riesgo de privacidad para revisión posterior.
 - S6-B1, S6-B2 y S6-B3 están integrados; el gate productivo UI fue exitoso. **S6-B y Sprint 6
-  quedan cerrados.** Sprint 7 permanece pendiente y no fue iniciado.
+  quedan cerrados.** Al cierre de Sprint 6, Sprint 7 permanecía pendiente y aún no había sido
+  iniciado.
 
 ---
 
 ## Sprint 7 — Panel ciudadano y confirmaciones
 
 **Fechas planificadas:** 12/09/2026 – 18/09/2026
-**Estado:** En curso — S7-A y S7-B integrados en `main`, S7-C publicado en el PR #23 y pendiente de merge
-**Fecha real de cierre:** —
+**Estado:** Completado — S7-A, S7-B y S7-C integrados en `main`; S7-D probado y cerrado en producción
+**Fecha real de cierre:** 29/08/2026
 
 ### Funcionalidades terminadas
 - **S7-A integrado en `main` mediante el PR #21 (squash `4ed5a89894432b2d047ee33fadd376066562aa3f`):** contrato backend de confirmaciones, reward pendiente,
@@ -852,12 +853,19 @@ antes de cerrarlo.
   estricto de los cuatro contratos GET, estados de auth/loading/empty/error, retry manual,
   cancelación y protección ante respuestas tardías, navegación accesible y layout responsive.
   No incluye la acción social de confirmación ni ninguna llamada `POST`.
-- **S7-C implementado y validado, publicado en el PR #23 y pendiente de merge:** el detalle público muestra siempre el contador y mantiene su
+- **S7-C integrado en `main` mediante el PR #23 (squash `832087de937e2e3d75a7353a58eb6bb4de6d99f2`):** el detalle público muestra siempre el contador y mantiene su
   acceso anónimo. Ciudadanos aprobados consultan el contexto privado de elegibilidad y pueden usar
   el CTA “Confirmo que el problema sigue ahí”. El POST vacío aplica preflight, single-flight y cero
   replay; el 201 actualiza contador y muestra +10 puntos pendientes. Errores, conflictos y resultado
   incierto permanecen controlados, con reconciliación exclusivamente mediante GET seguro. Se
   añadieron Browser E2E con dos identidades sintéticas, sin cuentas ni servicios productivos.
+- **S7-D completado en producción:** se incorporó y verificó una segunda identidad ciudadana real e
+  independiente mediante el flujo oficial de alta, solicitud y aprobación; ambos actores quedaron
+  listos y distintos. El preflight corregido S7-D-R0b seleccionó un reporte sintético activo del
+  ciudadano propietario y congeló los baselines sin mutaciones de dominio. S7-D-W1 ejecutó una sola
+  confirmación del ciudadano confirmador, con HTTP 201 y cero retry. S7-D-R1 verificó el estado
+  funcional posterior y los tres agregados internos mediante una transacción productiva
+  explícitamente `READ ONLY`, finalizada con `ROLLBACK` y sin escrituras.
 
 ### Pruebas realizadas
 - Suite local S7-A sobre PostgreSQL/PostGIS: reglas y prioridad, atomicidad, constraint e
@@ -871,21 +879,52 @@ antes de cerrarlo.
   S7-C** y conserva los **22 de S6**; dos corridas completas consecutivas terminaron **46/46**, con
   `retries=0` y sin flakes. Prettier, ESLint, Next typegen, TypeScript, Webpack y `npm ls --depth=0`
   quedaron verdes.
+- Gate productivo S7-D: S7-D-R0b quedó **GO** con ambos actores listos e independientes, ownership
+  demostrado sobre el reporte sintético `31cb4fe3-ff0f-48dc-ae08-07ae227fd619`, estado baseline
+  `CREADO`, `confirmation_count=0`, `confirmed_by_me=false`,
+  `can_confirm=true`, `eligibility.code=null`, `confirmations_performed=0`,
+  `points.pending=0` y `points.accredited=0`.
+- La única confirmación productiva terminó con HTTP 201: `confirmation_count` cambió de 0 a 1,
+  `confirmed_by_me` de `false` a `true`, `can_confirm` de `true` a `false` y el código a
+  `ALREADY_CONFIRMED`; `confirmations_performed` pasó de 0 a 1, `points.pending` de 0 a 10 y
+  `points.accredited` permaneció en 0. El reporte continuó `CREADO`.
+- S7-D-R1 quedó **PASS** y `READY_FOR_S7_D_CLOSURE=true`. La evidencia SQL productiva confirmó, en
+  modo `READ ONLY`, exactamente un `ReportConfirmation`, un `RewardTransaction` y un
+  `AuditLog` `report.confirmed`, con referencias cruzadas consistentes y cero escrituras. El reward
+  es `CONFIRMATION_CREATED`, 10/10 y `PENDIENTE`; su `report_id` es `NULL` por diseño y los 10 de
+  `credit_delta` son ledger técnico, no créditos disponibles ni acreditados.
 
 ### Problemas encontrados
 - La primera corrida focal S7-C terminó 19/23 porque un test intentaba enviar Enter sobre un botón
   ya reemplazado tras el primer evento y tres selectores globales confundían el alert de la acción
   con el route announcer de Next. Se acotaron los selectores a la región semántica y se usó teclado
   global; los cuatro casos corregidos y las dos suites completas posteriores quedaron verdes.
+- El primer S7-D-R0 terminó **NO-GO** con `POST_COUNT_NONZERO_AUTH_REFRESH`: el frontend renovó la
+  sesión mediante el POST técnico `/api/auth/refresh`, sin mutación de dominio. El protocolo se
+  corrigió separando `AUTH_REFRESH` de `DOMAIN_MUTATION`; el resultado inicial no se reinterpretó
+  retroactivamente y S7-D-R0b repitió el preflight con baselines frescos antes de quedar GO.
 
 ### Commits relevantes
-_Pendiente._
+- PR #21 integrado mediante *squash and merge* en
+  `4ed5a89894432b2d047ee33fadd376066562aa3f`.
+- PR #22 integrado mediante *squash and merge* en
+  `9c6a2c9f19809b93cacecb774e1ff2f416c06dca`.
+- PR #23 integrado mediante *squash and merge* en
+  `832087de937e2e3d75a7353a58eb6bb4de6d99f2`.
 
 ### Observaciones y desvíos respecto del plan
-- S7-A y S7-B están integrados en `main`. S7-C permanece como un único commit publicado en el PR #23 desde
-  `feat/s07-c-confirmation-ui-e2e`, reanclado sobre el squash `9c6a2c9`, pendiente de merge y
-  no cerrado. S7-D no fue iniciado y Sprint 7 continúa en curso. No hubo backend, migraciones,
-  despliegue ni operaciones manuales sobre servicios productivos en este gate.
+- S7-D-I realizó tres escrituras productivas de identidad estrictamente acotadas: alta mediante
+  Google, solicitud de verificación y aprobación administrativa individual. La documentación no
+  conserva PII, credenciales, identificadores de actores ni documentos.
+- S7-D-W1 realizó exactamente una confirmación productiva y cero retry. R1 no creó una segunda
+  confirmación ni ejecutó POST de dominio, PUT, PATCH o DELETE; tampoco realizó acreditaciones,
+  rewards manuales ni cambios de identidad posteriores.
+- La evidencia de base de datos usó únicamente `SELECT` dentro de una transacción `READ ONLY` y
+  terminó con `ROLLBACK`: cero `INSERT`, `UPDATE`, `DELETE` o DDL. Confirmó un agregado de cada tipo
+  y que el payload de auditoría contiene exclusivamente `report_id` y `confirmation_id`, sin
+  exponer este último.
+- S7-A, S7-B y S7-C están integrados en `main`; S7-D está completado y
+  `READY_FOR_S7_D_CLOSURE=true`. **Sprint 7 queda cerrado.**
 
 ---
 
