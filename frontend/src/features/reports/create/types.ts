@@ -1,5 +1,5 @@
 import type { LocationValue } from "@/features/location/location";
-import type { SessionUser } from "@/types/api";
+import { citizenAccess, type CitizenAccess } from "@/features/auth/citizenAccess";
 
 export interface CreateReportInput {
   categoryId: string;
@@ -43,14 +43,11 @@ export interface PossibleDuplicatesInput {
   location: LocationValue;
 }
 
-export type ReportCreationAccess =
-  "anonymous" | "wrong-role" | "citizen-unverified" | "citizen-verified";
+export type ReportCreationAccess = CitizenAccess;
 
 /** Traduce la sesión ya resuelta por SessionProvider al acceso que necesitará B2. */
 export function reportCreationAccess(
-  user: Pick<SessionUser, "role" | "verification_status"> | null,
+  user: Parameters<typeof citizenAccess>[0],
 ): ReportCreationAccess {
-  if (user === null) return "anonymous";
-  if (user.role !== "citizen") return "wrong-role";
-  return user.verification_status === "APROBADO" ? "citizen-verified" : "citizen-unverified";
+  return citizenAccess(user);
 }
