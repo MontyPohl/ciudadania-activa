@@ -71,6 +71,12 @@ class PublicReportSerializer(serializers.Serializer):
         return round_public_coordinate(report.location.x)
 
 
+class PublicReportDetailSerializer(PublicReportSerializer):
+    """Extensión mínima del detalle; el listado cacheado conserva su contrato."""
+
+    confirmation_count = serializers.IntegerField(read_only=True)
+
+
 def round_public_coordinate(value: float) -> float:
     """Reduce precisión en presentación sin modificar la geometría persistida."""
     return float(public_coordinate_decimal(value))

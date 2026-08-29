@@ -18,6 +18,7 @@ from apps.map_app.cache import (
 from apps.map_app.selectors import public_report_detail_queryset, public_reports
 from apps.map_app.serializers import (
     PublicCategorySerializer,
+    PublicReportDetailSerializer,
     PublicReportQuerySerializer,
     PublicReportSerializer,
 )
@@ -93,7 +94,7 @@ class PublicReportDetailView(RetrieveAPIView):
     permission_classes = [AllowAny]
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "public_map"
-    serializer_class = PublicReportSerializer
+    serializer_class = PublicReportDetailSerializer
     lookup_url_kwarg = "report_id"
     queryset = public_report_detail_queryset()
 

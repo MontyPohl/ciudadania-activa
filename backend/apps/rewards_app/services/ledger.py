@@ -50,7 +50,17 @@ def on_report_created(report):
 
 def on_confirmation_created(confirmation):
     """Registra `CONFIRMATION_CREATED` (+10/+10, `PENDIENTE`). Sprint 7."""
-    raise NotImplementedError(_PENDIENTE_DE_SPRINT.format(sprint="Sprint 7"))
+    from apps.rewards_app.enums import RewardEventType, RewardTxStatus
+    from apps.rewards_app.models import RewardTransaction
+
+    return RewardTransaction.objects.create(
+        user=confirmation.citizen,
+        confirmation=confirmation,
+        event_type=RewardEventType.CONFIRMATION_CREATED,
+        impact_delta=10,
+        credit_delta=10,
+        status=RewardTxStatus.PENDIENTE,
+    )
 
 
 def on_report_validated(report, institution, actor):

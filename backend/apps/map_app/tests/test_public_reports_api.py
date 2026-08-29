@@ -8,6 +8,7 @@ from django.utils import timezone
 from apps.admin_app.models import Category
 from apps.core.enums import ReportStatus
 from apps.map_app.tests.conftest import PUBLIC_BBOX
+from apps.reports_app.models import ReportConfirmation
 
 pytestmark = pytest.mark.django_db
 
@@ -185,6 +186,49 @@ def test_detalle_publico_no_acepta_escritura(api_client, public_report_factory):
     report = public_report_factory()
 
     assert api_client.patch(f"{LIST_URL}{report.pk}/", {}).status_code == 405
+
+
+def test_detalle_publico_agrega_solo_confirmation_count(
+    api_client,
+    public_report_factory,
+    citizen,
+    other_citizen,
+    django_assert_num_queries,
+):
+    report = public_report_factory(citizen=citizen)
+    ReportConfirmation.objects.create(report=report, citizen=other_citizen)
+
+    with django_assert_num_queries(1):
+        detail = api_client.get(f"{LIST_URL}{report.pk}/")
+
+    assert detail.status_code == 200
+    assert detail.json()["confirmation_count"] == 1
+    assert set(detail.json()) == {
+        "id",
+        "category",
+        "institution",
+        "description",
+        "status",
+        "priority",
+        "latitude",
+        "longitude",
+        "created_at",
+        "confirmation_count",
+    }
+    serialized = str(detail.json())
+    for private in ("confirmed_by_me", "eligibility", "citizen", "history", "reward"):
+        assert private not in serialized
+
+
+def test_listado_publico_cacheado_no_agrega_confirmation_count(
+    api_client, public_report_factory, citizen, other_citizen
+):
+    report = public_report_factory(citizen=citizen)
+    ReportConfirmation.objects.create(report=report, citizen=other_citizen)
+
+    item = _list(api_client).json()["results"][0]
+
+    assert "confirmation_count" not in item
 
 
 def test_jwt_invalido_no_oculta_el_405_de_escritura(api_client):

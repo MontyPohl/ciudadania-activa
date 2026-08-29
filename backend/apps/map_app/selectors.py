@@ -1,14 +1,14 @@
 """Consultas públicas de solo lectura sobre ``reports_app``."""
 
-from django.db.models import Case, IntegerField, Value, When
+from django.db.models import Case, Count, IntegerField, Value, When
 
 from apps.core.enums import ReportStatus
 from apps.reports_app.models import Report
-from apps.reports_app.selectors import ACTIVE_REPORT_STATUSES
+from apps.reports_app.selectors import ACTIVE_REPORT_STATUSES, VISIBLE_REPORT_STATUSES
 
 ACTIVE_STATUSES = ACTIVE_REPORT_STATUSES
 RESOLVED_STATUSES = (ReportStatus.RESUELTO, ReportStatus.CERRADO)
-PUBLIC_STATUSES = (*ACTIVE_STATUSES, *RESOLVED_STATUSES)
+PUBLIC_STATUSES = VISIBLE_REPORT_STATUSES
 
 FILTER_STATUSES = {
     "active": ACTIVE_STATUSES,
@@ -50,6 +50,8 @@ def public_reports(params):
 
 def public_report_detail_queryset():
     """Misma lista positiva que el listado: rechazado e inexistente son un 404."""
-    return Report.objects.filter(status__in=PUBLIC_STATUSES).select_related(
-        "category", "institution"
+    return (
+        Report.objects.filter(status__in=PUBLIC_STATUSES)
+        .select_related("category", "institution")
+        .annotate(confirmation_count=Count("confirmations"))
     )
