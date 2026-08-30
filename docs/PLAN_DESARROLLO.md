@@ -999,8 +999,22 @@ Tarea Celery `classify_report(report_id)` encolada por `create_report`: persiste
 
 Modo **mock** activable por configuración para desarrollo, pruebas y CI, sin consumir la API.
 
+### Contrato cerrado (S8-A)
+El contrato completo está versionado en [AI_CLASSIFICATION_CONTRACT.md](AI_CLASSIFICATION_CONTRACT.md) (v1, cerrado el 29/08/2026) y es normativo para el resto del sprint. Sus puntos vinculantes:
+
+- **Salida por slugs del catálogo cerrado**, no por nombres libres: `category_slug`, `institution_slug`, `priority`, `confidence`, `inconsistency` y `justification`. Un esquema con campos desconocidos se rechaza. La IA **no crea** categorías ni instituciones: un valor fuera del catálogo deja el campo en `NULL` y marca revisión humana.
+- **`AI_CONFIDENCE_THRESHOLD = 0.75`.** La sugerencia solo es elegible para aplicación automática asistida si la confianza alcanza el umbral, no hay inconsistencia y todos los valores mapean. Es una métrica por caso y no debe confundirse con el 85 % de concordancia agregada de RNF-05.
+- **`CLASIFICADO` significa «hay un resultado de IA persistido y auditable»**, se aplique o no la sugerencia. Baja confianza e inconsistencia son desenlaces legítimos, no fallos. Si el proveedor no responde tras los reintentos, o falla el broker, el reporte permanece `CREADO`.
+- **`hubo_cambio` lo deriva el backend** comparando la sugerencia con el estado del reporte; no se pide al modelo ni se persiste. Es la única desviación respecto del Anexo H.3, junto con el uso de slugs.
+- **Prompt versionado** en `backend/apps/ai_client_app/prompts/classification_v1.txt` como `s8-classification-v1`. La auditoría guarda `prompt_version`, `model_name`, `raw_response` y la decisión aplicada, **no** una copia del prompt renderizado: replicarlo duplicaría la descripción del ciudadano en `audit_logs` en cada invocación y cada reproceso.
+- **`raw_response` va al payload de `audit_logs`, no a una columna de `ai_classifications`**, con un máximo de 8.000 caracteres. La migración futura de `ai_classifications` añade exactamente `justification` y `model_name`, sin unicidad por reporte para no impedir el reproceso.
+- **Reintentos acotados**: `AI_MAX_RETRIES = 3` con retroceso exponencial y *jitter* solo para errores transitorios; los no transitorios no se reintentan. `AI_REQUEST_TIMEOUT_SECONDS = 20`.
+- **Idempotencia obligatoria** de la clasificación inicial: `select_for_update` sobre el reporte y guarda de estado, de modo que una reentrega de Celery no aplique la sugerencia dos veces ni duplique historial o auditoría.
+
 ### Frontend
 En el detalle del reporte visible para operadores y administradores: bloque “Clasificación asistida por IA” con la sugerencia, la confianza, la justificación y, si corresponde, el aviso destacado **“Requiere revisión humana”**. El ciudadano no ve el detalle interno de la clasificación.
+
+**Diferido al Sprint 9 (S8-A).** Ese bloque vive dentro del detalle de reporte para operadores, que es entregable del Sprint 9 junto con la bandeja institucional. El Sprint 8 entrega backend, persistencia, auditoría, API y evaluación, y no adelanta pantallas de operador; mientras tanto, el resultado se inspecciona por el admin de Django. **No cuenta como deuda de S8.**
 
 ### Base de datos
 Filas en `ai_classifications` y entradas de IA en `audit_logs`. Reportes que avanzan a `CLASIFICADO` con su historial correspondiente.
@@ -1012,7 +1026,7 @@ Filas en `ai_classifications` y entradas de IA en `audit_logs`. Reportes que ava
 A la API externa se envían **únicamente** descripción, categoría, institución elegida e imagen: ningún dato identificatorio del ciudadano. La clave de Gemini vive solo en variables de entorno del backend. Solo operadores y administradores consultan el detalle de la clasificación. La IA no puede cambiar el estado a `RECHAZADO` bajo ninguna circunstancia.
 
 ### Pruebas
-Unitarias del parser con respuestas válidas, JSON malformado, campos faltantes y valores fuera de dominio. Unitarias de la regla de umbral de confianza y del marcado de inconsistencia. Integración con el cliente mockeado sobre el flujo completo de creación. Concordancia ≥ 85 % contra las etiquetas de oro del dataset sintético. Prueba explícita de que un resultado de IA nunca produce un rechazo automático. Prueba de que un fallo de la API externa no impide crear el reporte ni pierde los 20 puntos pendientes.
+Unitarias del parser con respuestas válidas, JSON malformado, campos faltantes y valores fuera de dominio. Unitarias de la regla de umbral de confianza y del marcado de inconsistencia. Integración con el cliente mockeado sobre el flujo completo de creación. Concordancia ≥ 85 % contra las etiquetas de oro del dataset sintético. Prueba explícita de que un resultado de IA nunca produce un rechazo automático. Prueba de que un fallo de la API externa no impide crear el reporte ni pierde los 20 puntos pendientes. **El proveedor real nunca se invoca desde la CI**: las pruebas usan el cliente falso, y la concordancia contra Gemini se mide en un gate separado, fuera de la suite.
 
 ### Dependencias
 Sprint 6 (reportes con foto y descripción) y Sprint 2 (`ai_classifications`).
@@ -1021,14 +1035,14 @@ Sprint 6 (reportes con foto y descripción) y Sprint 2 (`ai_classifications`).
 - Al crear un reporte se encola y ejecuta la clasificación sin bloquear la respuesta HTTP.
 - El resultado queda persistido con confianza y justificación, y auditado.
 - Un caso inconsistente se marca para revisión humana y conserva los datos del ciudadano.
-- La concordancia sobre el dataset sintético alcanza al menos el 85 %.
+- La concordancia sobre el dataset sintético alcanza al menos el 85 %, **medida contra el proveedor real** en un gate propio antes del cierre del sprint. Alcanzar ese valor con el cliente falso valida el medidor, no el modelo.
 - Con la API caída, la creación de reportes sigue funcionando.
 
 ### Resultado demostrable
 Creación de un reporte mal categorizado a propósito y visualización de cómo la IA sugiere la corrección, y de un caso incoherente que queda marcado para revisión humana.
 
 ### Documentación
-`ADR-0008-integracion-gemini-desacoplada.md` y `ADR-0009-tareas-asincronas-celery.md`. Prompt versionado en el repositorio. Registro del modelo y los umbrales utilizados para el informe de resultados.
+[ADR-0008](adr/ADR-0008-integracion-gemini-desacoplada.md) y [ADR-0009](adr/ADR-0009-clasificacion-asincrona-celery.md), ambos escritos en S8-A. Contrato en [AI_CLASSIFICATION_CONTRACT.md](AI_CLASSIFICATION_CONTRACT.md) y prompt versionado en `backend/apps/ai_client_app/prompts/classification_v1.txt`. Registro del modelo y los umbrales utilizados para el informe de resultados.
 
 ### Riesgos
 Costo y cuotas de la API (mitigación: dataset de 20 reportes, modo mock en CI y caché de resultados). Variabilidad de la salida del LLM (mitigación: parser estricto y `temperature` baja). Latencia del worker.

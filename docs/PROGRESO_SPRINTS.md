@@ -20,7 +20,7 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 | 5 | 29/08 – 04/09 | Mapa público y geolocalización | Completado |
 | 6 | 05/09 – 11/09 | Creación de reportes y duplicados | Completado |
 | 7 | 12/09 – 18/09 | Panel ciudadano y confirmaciones | Completado |
-| 8 | 19/09 – 25/09 | Clasificación asistida por IA | Pendiente |
+| 8 | 19/09 – 25/09 | Clasificación asistida por IA | En curso |
 | 9 | 26/09 – 02/10 | Panel institucional y validación | Pendiente |
 | 10 | 03/10 – 09/10 | Estados, evidencias, auditoría y reversión | Pendiente |
 | 11 | 10/10 – 16/10 | Créditos, ranking del mes en curso y privacidad | Pendiente |
@@ -30,7 +30,7 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 | 15 | 07/11 – 13/11 | Carga, dataset definitivo y documentación | Pendiente |
 | 16 | 14/11 – 15/11 | Cierre y preparación de la defensa | Pendiente |
 
-**Progreso:** 7 / 16 sprints completados (Sprints 1, 2 y 3 cerrados el 20/08/2026; Sprint 4 el 23/08/2026; Sprint 5 el 27/08/2026; Sprint 6 el 28/08/2026; Sprint 7 el 29/08/2026). La ejecución real arrastra el desvío de calendario registrado en CT-29. S7-A, S7-B y S7-C están integrados en `main`; S7-D y Sprint 7 están cerrados.
+**Progreso:** 7 / 16 sprints completados (Sprints 1, 2 y 3 cerrados el 20/08/2026; Sprint 4 el 23/08/2026; Sprint 5 el 27/08/2026; Sprint 6 el 28/08/2026; Sprint 7 el 29/08/2026). La ejecución real arrastra el desvío de calendario registrado en CT-29. S7-A, S7-B y S7-C están integrados en `main`; S7-D y Sprint 7 están cerrados. El Sprint 8 está **iniciado documentalmente**: S8-A cerró el contrato de clasificación IA en local, sin integración con el proveedor.
 
 ### Decisiones que condicionan el avance
 
@@ -931,23 +931,66 @@ antes de cerrarlo.
 ## Sprint 8 — Clasificación asistida por IA
 
 **Fechas planificadas:** 19/09/2026 – 25/09/2026
-**Estado:** Pendiente
+**Estado:** En curso — S8-A con el contrato cerrado localmente; S8-B a S8-E pendientes
 **Fecha real de cierre:** —
 
 ### Funcionalidades terminadas
-_Pendiente._
+- **S8-A — contrato cerrado localmente (29/08/2026), sin integrar.** Gate exclusivamente
+  documental: cierra por escrito el contrato de clasificación IA antes de escribir código de
+  integración. Entrega [AI_CLASSIFICATION_CONTRACT.md](AI_CLASSIFICATION_CONTRACT.md) v1 con
+  las veinte decisiones cerradas, el prompt versionado como `s8-classification-v1` en
+  `backend/apps/ai_client_app/prompts/classification_v1.txt`,
+  [ADR-0008](adr/ADR-0008-integracion-gemini-desacoplada.md) y
+  [ADR-0009](adr/ADR-0009-clasificacion-asincrona-celery.md), y la especificación de la
+  migración futura en el diccionario de datos.
+
+  Puntos vinculantes: salida por slugs de catálogo cerrado con rechazo de campos
+  desconocidos · `AI_CONFIDENCE_THRESHOLD = 0.75` · `CLASIFICADO` como «resultado de IA
+  persistido y auditable» · fallo del proveedor deja el reporte en `CREADO` · la IA nunca
+  produce `RECHAZADO` · auditoría por `prompt_version` en vez de prompt renderizado ·
+  `raw_response` en el payload de `audit_logs` y no como columna · migración futura limitada
+  a `justification` y `model_name` · UI de operador diferida al Sprint 9 · proveedor real
+  fuera de la CI.
+
+- S8-B a S8-E: _pendientes._
 
 ### Pruebas realizadas
-_Pendiente._
+_Ninguna._ S8-A no modifica código funcional ni añade pruebas. La suite existente no se vio
+afectada: el único archivo bajo `backend/` es el prompt versionado, que es texto y no se
+importa desde ningún módulo.
 
 ### Problemas encontrados
-_Pendiente._
+- La auditoría previa al gate reportó como incorrecta la referencia «Anexo H.3» del prompt
+  base en `PLAN_DESARROLLO.md`. **La verificación documental la desmintió.** El
+  `.docx` revisado —fuente normativa del proyecto— numera H.2 como escenarios del módulo de
+  incentivos y H.3 como prompt base para IA, de modo que la referencia del plan es correcta.
+  El PDF versionado es la versión anterior, sin ese H.2, y por eso desplaza toda la
+  numeración un lugar. **No se corrigió ninguna referencia**; la tabla de equivalencia entre
+  ambas numeraciones quedó documentada en el contrato.
+- `PLAN_DESARROLLO.md` citaba el ADR-0009 como `ADR-0009-tareas-asincronas-celery.md`. El
+  archivo se creó como `ADR-0009-clasificacion-asincrona-celery.md` y la referencia se
+  ajustó al nombre real.
 
 ### Commits relevantes
-_Pendiente._
+- S8-A: commit local `docs(ai): cerrar contrato S8-A` sobre
+  `810bb14a49e52d377818e4fde2cc78d4c76731eb`. **No publicado**: sin push, sin PR y sin merge.
 
 ### Observaciones y desvíos respecto del plan
-_Pendiente._
+- **Sprint 8 queda iniciado documentalmente, no técnicamente.** `ai.classify_report` sigue
+  siendo un no-op, no hay SDK de Gemini instalado, no hay secretos configurados, no se creó
+  ninguna migración, ningún endpoint y ningún componente de frontend.
+- Ninguna llamada al proveedor de IA, ni real ni de prueba. Cero contacto con Railway,
+  Vercel, Supabase, Redis o producción.
+- La UI del bloque «Clasificación asistida por IA» se difiere al Sprint 9 por decisión
+  explícita del contrato (D18): vive dentro del detalle de reporte para operadores, que es
+  entregable de ese sprint. **No debe contabilizarse como deuda de S8.**
+- CA-4 sigue siendo requisito real del Sprint 8, pero su medición contra el proveedor real
+  queda fuera de la CI y exige un gate propio antes del cierre. Alcanzar el 85 % con el
+  cliente falso validaría el medidor, no el modelo.
+- La migración de la credencial legacy `service_role` de Supabase a `sb_secret_*` sigue sin
+  iniciarse y permanece fuera del alcance del Sprint 8.
+- La advertencia de GitHub Actions sobre la transición de Node 20 a 24 continúa como deuda
+  de CI no bloqueante y fuera de este sprint.
 
 ---
 
@@ -1181,8 +1224,8 @@ Se completa a medida que las mediciones estén disponibles (Sprints 14 y 15).
 | ADR-0005 | Google OAuth 2.0 + JWT | S3 | Aceptada — el archivo existe desde el cierre del Sprint 3 y declara ese estado; la tabla arrastraba la marca de planificación |
 | ADR-0006 | Identidad HMAC y almacenamiento privado | S4 | Aceptada — escrita el 22/08/2026 con las doce decisiones cerradas en la Fase A.1 |
 | ADR-0007 | Almacenamiento de fotografías | S6 | Aceptada — escrita e integrada el 28/08/2026; fija bucket privado, validación/normalización, hash original y compensación acotada |
-| ADR-0008 | Integración desacoplada con Gemini | S8 | Pendiente |
-| ADR-0009 | Tareas asíncronas y qué no es asíncrono | S8 | Pendiente |
+| ADR-0008 | Integración Gemini desacoplada mediante adapter de IA | S8 | Aceptada — escrita en S8-A el 29/08/2026; fija la frontera del proveedor, el fake con la misma interfaz y la prohibición del proveedor real en CI |
+| ADR-0009 | Clasificación IA asíncrona mediante Celery | S8 | Aceptada — escrita en S8-A el 29/08/2026; distingue los cinco modos de fallo y fija idempotencia, reintentos acotados y la semántica de `CLASIFICADO` |
 | ADR-0010 | Créditos por institución y conversión 1:1 | S9 | Pendiente |
 | ADR-0011 | Privacidad configurable del ranking | S4 | Aceptada — escrita el 22/08/2026 y ampliada con la recuperación de la preferencia (`GET` + `PATCH`); la resolución del nombre visible es del S11 |
 | ADR-0012 | Detección de duplicados por proximidad | S6 | Aceptada — escrita e integrada el 28/08/2026; warning advisory privacy-safe, radio PostGIS y ausencia explícita de IA |

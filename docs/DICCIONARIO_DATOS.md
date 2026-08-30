@@ -167,8 +167,26 @@ trigger; vive en el servicio de dominio del Sprint 7 (C-02, CT-16).
 **`ai_classifications`** — `report_id` (`CASCADE`, sin unicidad: el Sprint 8 admite
 reproceso), `suggested_category_id` y `suggested_institution_id` (nullables, `PROTECT`),
 `suggested_priority` (blank), `confidence` (`numeric(4,3)`, nullable, `CHECK 0 ≤ x ≤ 1`),
-`inconsistency_flag` (`default false`). Solo los campos del Anexo A: `raw_response` y
-`justification` se evaluarán en el Sprint 8.
+`inconsistency_flag` (`default false`). Estos son **los campos que existen hoy**: solo los
+del Anexo A.
+
+**Previsto para S8-B/S8-C, aún no implementado.** El contrato cerrado en S8-A
+([AI_CLASSIFICATION_CONTRACT.md](AI_CLASSIFICATION_CONTRACT.md), D17) resuelve la
+evaluación que este diccionario dejaba abierta y fija una migración aditiva con
+exactamente dos columnas nuevas:
+
+| Campo previsto | Tipo previsto | Semántica | Filas existentes |
+|---|---|---|---|
+| `justification` | `TextField` | justificación normalizada de la clasificación (CA-2) | `blank` / vacío |
+| `model_name` | `CharField(100)` | modelo del proveedor efectivamente usado (CT-32, O-05) | `blank` / vacío |
+
+**`raw_response` y `prompt_version` no serán columnas de esta tabla**: viajan en el payload
+de `audit_logs` (D15 y D16 del contrato), con `raw_response` truncada a 8.000 caracteres. La
+tabla **no** recibe unicidad por `report_id`, porque el reproceso manual debe seguir siendo
+posible. Tampoco se añaden `hubo_cambio` —lo deriva el backend—, estado de clasificación,
+error de IA, `task_id` ni `provider_request_id`.
+
+La migración no está creada: S8-A es un gate documental.
 
 ### `rewards_app`
 

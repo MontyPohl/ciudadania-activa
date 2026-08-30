@@ -13,7 +13,7 @@ un sprint concreto — ver [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md) y [PROGRESO_
 | 3 | Verificación manual con cédula/selfie | S4 | Completado |
 | 4 | CRUD de instituciones, categorías y operadores | S2 · S9 | En curso |
 | 5 | Creación de reportes, foto, mapa y advertencia de duplicados | S5 · S6 | En curso |
-| 6 | Clasificación IA y auditoría | S8 | Pendiente |
+| 6 | Clasificación IA y auditoría | S8 | En curso |
 | 7 | Confirmaciones ciudadanas de reportes activos | S7 | Pendiente |
 | 8 | `rewards_app`: puntos pendientes/acreditados, créditos 1:1 y reversión | S2 · S9 · S10 | En curso |
 | 9 | Panel institucional: validación, estados, evidencias y administración de recompensa | S9 · S10 | Pendiente |
@@ -33,6 +33,10 @@ un sprint concreto — ver [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md) y [PROGRESO_
 > API pública local del mapa, catálogo público de categorías, bbox privado/indexable,
 > caché y seed sintético. La interfaz del mapa y toda la creación de reportes de S6 siguen
 > pendientes; esta implementación local todavía no fue integrada ni desplegada.
+> El **ítem 6** pasó a **En curso** el 29/08/2026 con S8-A: contrato de clasificación IA
+> cerrado por escrito, prompt versionado y ADR-0008 y ADR-0009 escritos. Es un avance
+> **documental**: no hay integración con Gemini, ni SDK, ni migración, ni endpoints, y
+> `ai.classify_report` sigue siendo un no-op.
 
 ## Prioridad Media
 
