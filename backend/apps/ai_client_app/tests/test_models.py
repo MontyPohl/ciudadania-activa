@@ -61,8 +61,15 @@ def test_borrar_el_reporte_arrastra_su_clasificacion(report):
     assert AiClassification.objects.count() == 0
 
 
-def test_solo_estan_los_campos_del_anexo_a(report):
-    """D2-14: nada de `raw_response` ni `justification` en el Sprint 2."""
+def test_el_conjunto_de_campos_esta_congelado(report):
+    """Los del Anexo A más los dos que añadió el Sprint 8, y ninguno más.
+
+    La comparación sigue siendo por igualdad exacta: cualquier columna nueva rompe
+    esta prueba a propósito, para que ningún campo entre sin una decisión escrita.
+    `justification` y `model_name` se incorporaron en S8-C conforme al contrato
+    S8-A (D17); `raw_response` y el prompt siguen fuera, porque viajan en el
+    payload de `audit_logs` y no como columnas (D15 y D16).
+    """
     campos = {field.name for field in AiClassification._meta.fields}
 
     assert campos == {
@@ -75,4 +82,21 @@ def test_solo_estan_los_campos_del_anexo_a(report):
         "suggested_priority",
         "confidence",
         "inconsistency_flag",
+        "justification",
+        "model_name",
     }
+
+
+def test_los_campos_nuevos_admiten_las_filas_previas(report):
+    """Aditivos y con default vacío: la migración no invalida el histórico."""
+    clasificacion = AiClassification.objects.create(report=report)
+
+    assert clasificacion.justification == ""
+    assert clasificacion.model_name == ""
+
+
+def test_raw_response_y_prompt_no_son_columnas(report):
+    """D15 y D16: no se duplica el texto del ciudadano en cada reproceso."""
+    campos = {field.name for field in AiClassification._meta.fields}
+
+    assert campos.isdisjoint({"raw_response", "prompt", "prompt_version", "hubo_cambio"})
