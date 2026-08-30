@@ -14,16 +14,31 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal
 
+from django.conf import settings
+
 from apps.admin_app.models import Category, Institution
 from apps.core.enums import ReportPriority
 
 from .catalog_mapping import resolve_category, resolve_institution
 from .contracts import ParsedClassification
 
-# Constante offline y deliberada: S8-B no lee `settings` ni variables de entorno.
-# El cableado a configuración pertenece a S8-C; el valor lo fija el contrato
-# S8-A (D5) y no se renegocia aquí.
-AI_CONFIDENCE_THRESHOLD = Decimal("0.75")
+# Valor del contrato S8-A (D5). Es el respaldo cuando no hay configuración, no una
+# segunda fuente: `confidence_threshold()` es la única que consulta la política, de
+# modo que no puede haber dos umbrales divergiendo en silencio.
+DEFAULT_AI_CONFIDENCE_THRESHOLD = Decimal("0.75")
+
+# Nombre conservado por compatibilidad con el contrato escrito y con las pruebas
+# que fijan el valor por defecto.
+AI_CONFIDENCE_THRESHOLD = DEFAULT_AI_CONFIDENCE_THRESHOLD
+
+
+def confidence_threshold() -> Decimal:
+    """Umbral efectivo: el configurado, o el del contrato si no hay ninguno."""
+    configured = getattr(settings, "AI_CONFIDENCE_THRESHOLD", None)
+    if configured is None:
+        return DEFAULT_AI_CONFIDENCE_THRESHOLD
+    return configured if isinstance(configured, Decimal) else Decimal(str(configured))
+
 
 _PRIORITIES: frozenset[str] = frozenset(ReportPriority.values)
 
@@ -59,7 +74,7 @@ def resolve_classification(parsed: ParsedClassification) -> ResolvedClassificati
     effective_inconsistency = parsed.inconsistency or unresolved
 
     eligible = (
-        parsed.confidence >= AI_CONFIDENCE_THRESHOLD
+        parsed.confidence >= confidence_threshold()
         and not parsed.inconsistency
         and category is not None
         and institution is not None

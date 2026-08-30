@@ -46,6 +46,10 @@ class ClassificationRequest:
     allowed_institution_slugs: tuple[str, ...]
     allowed_priorities: tuple[str, ...]
     image_bytes: bytes
+    # Metadata técnica de la imagen, necesaria porque la pipeline admite JPEG y PNG
+    # y el proveedor debe saber cuál recibe. `None` cuando no hay imagen. No es una
+    # ruta ni una URL: no dice dónde vive el objeto, solo qué es.
+    image_mime_type: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

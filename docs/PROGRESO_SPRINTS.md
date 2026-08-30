@@ -931,7 +931,7 @@ antes de cerrarlo.
 ## Sprint 8 — Clasificación asistida por IA
 
 **Fechas planificadas:** 19/09/2026 – 25/09/2026
-**Estado:** En curso — S8-A y S8-B integrados en `main`; S8-C implementado y validado localmente, pendiente de publicación; S8-D y S8-E pendientes
+**Estado:** En curso — S8-A, S8-B y S8-C integrados en `main`; S8-D implementado y validado localmente contra dobles, pendiente de publicación y sin proveedor real probado; S8-E pendiente
 **Fecha real de cierre:** —
 
 ### Funcionalidades terminadas
@@ -976,8 +976,7 @@ antes de cerrarlo.
   historial y no modifica `Report`, `Category` ni `Institution`. `ai.classify_report` sigue
   siendo un no-op.
 
-- **S8-C — persistencia y orquestación implementadas y validadas localmente
-  (29/08/2026), sin publicar.** Cierra el ciclo completo de clasificación sobre el núcleo
+- **S8-C — integrado en `main` mediante el PR #27 (squash `7ad54dcc96d066c5cc89642e4855e8f43ba0e251`).** Cierra el ciclo completo de clasificación sobre el núcleo
   de S8-B: `orchestration.py` une parser, mapeo y política con la persistencia, la
   transición de estado y la auditoría; `tasks.py` implementa `ai.classify_report` de
   verdad; y la migración `0002` añade `justification` y `model_name` a
@@ -1005,7 +1004,44 @@ antes de cerrarlo.
   Fuera de S8-C por decisión explícita: descarga de la imagen desde Storage —`image_bytes`
   viaja vacío—, política de reintentos del proveedor, endpoints y frontend.
 
-- S8-D y S8-E: _pendientes._
+- **S8-D — adaptador de Gemini implementado y validado localmente (30/08/2026), sin
+  publicar y sin haberse probado contra el proveedor real.** Integra el SDK oficial
+  `google-genai` 2.20.0 mediante la **Interactions API** (`client.interactions.create`), no
+  la API legada `generate_content` ni el paquete `google-generativeai`. Pide salida
+  estructurada con el esquema JSON del contrato —seis campos exactos,
+  `additionalProperties: false`, enum de prioridad y confianza acotada— y envía
+  `store=False` para no pedir al proveedor que conserve la interacción.
+
+  **La clasificación sigue apagada.** `AI_CLASSIFICATION_ENABLED` vale `false` por
+  defecto y hacen falta las tres condiciones —interruptor, clave y modelo— para que
+  `get_runtime_adapter()` devuelva algo. El interruptor está separado de la credencial a
+  propósito: sin él, una `GEMINI_API_KEY` olvidada en las variables de un entorno
+  bastaría para que un despliegue empezara a clasificar incidencias reales sin que nadie
+  lo hubiese decidido.
+
+  **Los reintentos viven en una sola capa.** El cliente del SDK se construye con
+  `HttpRetryOptions(attempts=1)` —cero reintentos internos, verificado contra la
+  documentación del propio tipo instalado— de modo que Celery es quien reintenta:
+  `AI_MAX_RETRIES = 3` posteriores al intento original, con un máximo estricto de cuatro
+  llamadas al proveedor por ejecución, retroceso exponencial y *jitter*. Solo se
+  reintenta lo transitorio: timeout, corte de transporte, 408, 429 y 5xx. Credencial,
+  permisos, modelo inexistente, petición malformada y respuesta que no valida no se
+  reintentan. El timeout contractual son 20 segundos, expresados como 20.000 en
+  `HttpOptions.timeout`, que en esta versión del SDK está en milisegundos.
+
+  **La imagen viaja inline.** `storage.download_private()` la descarga desde el bucket
+  privado con la credencial del servidor y los bytes van en base64 dentro de la petición.
+  No se genera ninguna URL firmada ni pública, no se usa la File API del proveedor y ni
+  la clave del objeto ni el bucket salen del backend. Los bytes ya están normalizados por
+  la pipeline de S6 —solo JPEG y PNG, formato verificado con Pillow, recodificados sin
+  metadata—, así que la imagen enviada no arrastra EXIF ni geolocalización de cámara.
+
+  El prompt `s8-classification-v1` queda **byte-idéntico**: ya contenía las instrucciones
+  de contenido no confiable y de no devolver datos personales que este gate exigía. Un
+  reporte con evidencia registrada que no se puede leer **no** se clasifica en silencio
+  sin ella.
+
+- S8-E: _pendiente._
 
 ### Pruebas realizadas
 - **S8-A:** ninguna. El gate no modifica código funcional. El único archivo bajo `backend/`
@@ -1048,6 +1084,32 @@ antes de cerrarlo.
   check .` y `ruff format --check .` limpios. `makemigrations --check`: *No changes
   detected*. `manage.py check`: sin incidencias. Sin red externa y sin contacto con ningún
   proveedor de IA.
+- **S8-D:** 110 pruebas nuevas en cinco archivos, más las de la descarga privada y el
+  umbral configurable; la suite pasa de 1323 a 1451. **Todas contra dobles.** El cliente del SDK y el
+  almacenamiento están sustituidos por completo: se captura lo que el adaptador *habría*
+  enviado y se afirma sobre ello.
+
+  Cubren el uso de la Interactions API y la ausencia de `generate_content`; `store=False`;
+  el esquema estructurado completo; el timeout de 20 s y los reintentos internos del SDK
+  desactivados; la traducción de 408, 429 y 5xx a transitorio y de 400, 401, 403, 404 y
+  422 a permanente; timeout y corte de transporte; salida vacía o no textual; interacción
+  no completada; imagen inline en base64 frente a petición solo de texto; descarga privada
+  con sus fallos transitorio y permanente; y las tres condiciones del runtime por
+  separado.
+
+  Invariantes de privacidad: ni el identificador del reporte, ni el del ciudadano, ni las
+  coordenadas, ni la clave del objeto, ni el hash llegan al proveedor, verificado además
+  sobre el conjunto exacto de claves de la petición. Un intento de inyección en la
+  descripción viaja delimitado como contenido no confiable y no altera esquema, catálogos
+  ni parámetros. El parser sigue rechazando una respuesta con campo de más aunque el
+  esquema estructurado la hubiese pedido bien.
+
+  Suite backend completa en verde: **1451 pruebas, 0 fallos**, cobertura 99 %. `ruff
+  check .` y `ruff format --check .` limpios. `makemigrations --check`: *No changes
+  detected* —S8-D no crea ninguna migración—. `manage.py check`: sin incidencias.
+
+  **Cero llamadas reales**: ninguna petición a Gemini, ninguna descarga real de Supabase,
+  ninguna clave de API real y ningún consumo de cuota.
 
 ### Problemas encontrados
 - La auditoría previa al gate reportó como incorrecta la referencia «Anexo H.3» del prompt

@@ -29,16 +29,14 @@ from apps.core.services import audit
 from apps.reports_app.models import Report, ReportStatusHistory
 
 from .contracts import ClassificationRequest
+from .exceptions import AiIntegrationError
+from .media import load_report_image
 from .models import AiClassification
 from .parser import ClassificationParseError, parse_classification_response
 from .policy import derive_has_changes, resolve_classification
+from .prompts import PROMPT_VERSION
 
 logger = logging.getLogger(__name__)
-
-# Identificador del prompt versionado en el repositorio (D15). Se audita esto y no
-# el prompt renderizado: replicarlo duplicaría la descripción del ciudadano en
-# `audit_logs` en cada clasificación y en cada reproceso.
-PROMPT_VERSION = "s8-classification-v1"
 
 # Tope defensivo del contrato (D16).
 MAX_RAW_RESPONSE_CHARS = 8000
@@ -64,10 +62,18 @@ def process_report_classification(report_id, *, adapter, model_name: str) -> boo
     if report is None:
         return False
 
-    request = _build_request(report)
+    # La descarga y la llamada al proveedor ocurren aquí, antes de abrir la
+    # transacción: sostener un `select_for_update` durante una lectura de Storage y
+    # una petición de red de veinte segundos convertiría un servicio lento en un
+    # bloqueo de fila prolongado.
+    image = load_report_image(report)
+    request = _build_request(report, image)
 
     try:
         raw_response = adapter.classify(request)
+    except AiIntegrationError:
+        # Transitorio o permanente: lo decide la tarea, que es quien reintenta.
+        raise
     except Exception:
         # El proveedor no forma parte de la atomicidad del reporte. No se registra
         # la excepción con su contenido: podría arrastrar el cuerpo de la petición.
@@ -175,16 +181,16 @@ def _load_pending_report(report_id) -> Report | None:
         return None
 
 
-def _build_request(report: Report) -> ClassificationRequest:
+def _build_request(report: Report, image=None) -> ClassificationRequest:
     """Construye la petición con la lista blanca del contrato (D1).
 
     Se enumeran los campos uno a uno a propósito: nada del ciudadano, ninguna
     coordenada y ningún identificador interno pueden colarse por serializar el
     reporte entero.
 
-    `image_bytes` va vacío en S8-C. Leer la fotografía exige descargarla del bucket
-    privado, y ese trabajo pertenece al gate en el que exista un proveedor que
-    pueda recibirla (D11).
+    La fotografía llega ya descargada del bucket privado y viaja como bytes. No se
+    incluye su clave, su bucket ni ninguna URL: el proveedor recibe la imagen, no
+    la forma de conseguirla (D11).
     """
     return ClassificationRequest(
         description=report.description,
@@ -199,5 +205,6 @@ def _build_request(report: Report) -> ClassificationRequest:
             .values_list("slug", flat=True)
         ),
         allowed_priorities=tuple(ReportPriority.values),
-        image_bytes=b"",
+        image_bytes=image.content if image is not None else b"",
+        image_mime_type=image.mime_type if image is not None else None,
     )

@@ -73,6 +73,25 @@ IDENTITY_SIGNED_URL_TTL = 300
 #
 # `BREVO_API_KEY` es una **clave de API v3**, no la clave SMTP: son credenciales
 # distintas del mismo proveedor y la SMTP no autentica contra esta API.
+# --- Clasificación asistida por IA (Sprint 8) ---
+# Interruptor deliberado y separado de la credencial. Con la clave presente pero el
+# flag apagado no se clasifica nada: sin él, una `GEMINI_API_KEY` olvidada en un
+# entorno bastaría para que un despliegue empezara a clasificar reportes reales.
+AI_CLASSIFICATION_ENABLED = env.bool("AI_CLASSIFICATION_ENABLED", default=False)
+# Secreto del backend y del worker. Nunca se registra, no viaja en respuestas y no
+# se audita (contrato S8-A, D14).
+GEMINI_API_KEY = env("GEMINI_API_KEY", default="")
+# Sin valor por defecto a propósito: el modelo se documenta junto a la medición de
+# concordancia (CT-32, O-05) y fijar aquí uno concreto lo escondería.
+GEMINI_MODEL = env("GEMINI_MODEL", default="")
+# Umbral de aplicación automática asistida (contrato S8-A, D5).
+AI_CONFIDENCE_THRESHOLD = Decimal(env("AI_CONFIDENCE_THRESHOLD", default="0.75"))
+# Reintentos **posteriores** al intento original: como máximo cuatro llamadas al
+# proveedor por ejecución lógica. Los reintentos internos del SDK van deshabilitados
+# para que esta sea la única capa que reintenta.
+AI_MAX_RETRIES = env.int("AI_MAX_RETRIES", default=3)
+AI_REQUEST_TIMEOUT_SECONDS = env.int("AI_REQUEST_TIMEOUT_SECONDS", default=20)
+
 BREVO_API_KEY = env("BREVO_API_KEY", default="")
 
 # Endpoint del envío. Se declara como ajuste —en lugar de incrustarlo en el código— para

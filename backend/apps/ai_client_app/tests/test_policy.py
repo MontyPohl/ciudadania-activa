@@ -48,11 +48,41 @@ def test_el_umbral_es_el_del_contrato():
     assert AI_CONFIDENCE_THRESHOLD == Decimal("0.75")
 
 
-def test_el_umbral_no_se_lee_de_settings():
-    """S8-B es offline: el cableado a configuración es de S8-C."""
-    assert "django.conf" not in imported_names(policy_module)
-    assert "settings" not in imported_names(policy_module)
-    assert code_identifiers(policy_module).isdisjoint({"settings", "environ", "getenv"})
+def test_el_umbral_por_defecto_es_el_del_contrato():
+    """S8-D cableó la configuración; el valor del contrato sigue siendo el respaldo."""
+    assert policy_module.DEFAULT_AI_CONFIDENCE_THRESHOLD == Decimal("0.75")
+    assert policy_module.confidence_threshold() == Decimal("0.75")
+
+
+@pytest.mark.parametrize("valor", [Decimal("0.9"), "0.6", 0.85])
+def test_el_umbral_configurado_manda(settings, valor):
+    """Acepta Decimal, cadena o número, y siempre devuelve Decimal."""
+    settings.AI_CONFIDENCE_THRESHOLD = valor
+
+    resultado = policy_module.confidence_threshold()
+
+    assert isinstance(resultado, Decimal)
+    assert resultado == Decimal(str(valor))
+
+
+def test_sin_configuracion_cae_al_valor_del_contrato(settings):
+    del settings.AI_CONFIDENCE_THRESHOLD
+
+    assert policy_module.confidence_threshold() == Decimal("0.75")
+
+
+def test_hay_una_sola_fuente_efectiva_del_umbral(settings):
+    """Dos umbrales capaces de divergir en silencio serían peor que ninguno."""
+    settings.AI_CONFIDENCE_THRESHOLD = Decimal("0.99")
+
+    resuelta = resolve_classification(parsed(confidence=Decimal("0.95")))
+
+    assert resuelta.eligible_for_auto_apply is False, "la policy ignoró el umbral configurado"
+
+
+def test_el_umbral_no_se_lee_del_entorno_directamente():
+    """La configuración entra por `settings`, no leyendo variables a mano."""
+    assert code_identifiers(policy_module).isdisjoint({"environ", "getenv", "os"})
 
 
 @pytest.mark.parametrize("valor", ["0.75", "0.751", "0.87", "0.95", "1", "1.0"])

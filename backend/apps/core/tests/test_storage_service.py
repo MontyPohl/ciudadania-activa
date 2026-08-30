@@ -24,11 +24,12 @@ CUERPO_SENSIBLE = {"error": "s3 bucket ciudadania-prod ruta interna /var/lib/sto
 class RespuestaFalsa:
     """Mínimo de la interfaz de `requests.Response` que usa el cliente."""
 
-    def __init__(self, status_code=200, payload=None, texto=""):
+    def __init__(self, status_code=200, payload=None, texto="", contenido=b""):
         self.status_code = status_code
         self.ok = 200 <= status_code < 300
         self._payload = payload
         self.text = texto
+        self.content = contenido
         self.cerrada = False
 
     def json(self):
@@ -326,3 +327,88 @@ def test_la_url_firmada_no_se_registra(storage_config, espia, caplog):
         storage.create_signed_url("verificaciones", CLAVE, 300)
 
     assert "jwt-secreto-de-prueba" not in caplog.text
+
+
+# --------------------------------------------------------------------------- #
+# Descarga privada server-side (Sprint 8)
+# --------------------------------------------------------------------------- #
+
+
+def test_download_private_devuelve_los_bytes(storage_config, espia):
+    """Sin URL firmada: el destinatario es el backend, no un navegador."""
+    llamadas = espia(RespuestaFalsa(200, contenido=b"bytes-normalizados"))
+
+    contenido = storage.download_private("reportes", "reports/a/b.jpg")
+
+    assert contenido == b"bytes-normalizados"
+    assert llamadas[0]["method"] == "GET"
+    assert "/object/reportes/reports/a/b.jpg" in llamadas[0]["url"]
+
+
+def test_download_private_autoriza_con_la_service_role(storage_config, espia):
+    llamadas = espia(RespuestaFalsa(200, contenido=b"x"))
+
+    storage.download_private("reportes", "reports/a/b.jpg")
+
+    cabeceras = llamadas[0]["headers"]
+    assert cabeceras["Authorization"].startswith("Bearer ")
+    assert "apikey" in cabeceras
+
+
+def test_download_private_no_genera_url_firmada(storage_config, espia):
+    llamadas = espia(RespuestaFalsa(200, contenido=b"x"))
+
+    storage.download_private("reportes", "reports/a/b.jpg")
+
+    assert "/object/sign/" not in llamadas[0]["url"]
+    assert "token" not in llamadas[0]["url"]
+
+
+def test_download_private_cierra_la_respuesta(storage_config, espia):
+    respuesta = RespuestaFalsa(200, contenido=b"x")
+    espia(respuesta)
+
+    storage.download_private("reportes", "reports/a/b.jpg")
+
+    assert respuesta.cerrada
+
+
+def test_download_private_distingue_el_objeto_ausente(storage_config, espia):
+    """404 no mejora al reintentarlo; 503 sí puede."""
+    espia(RespuestaFalsa(404))
+
+    with pytest.raises(storage.StorageObjectNotFoundError):
+        storage.download_private("reportes", "reports/a/b.jpg")
+
+
+@pytest.mark.parametrize("estado", [500, 502, 503, 504])
+def test_download_private_trata_los_5xx_como_indisponibilidad(storage_config, espia, estado):
+    espia(RespuestaFalsa(estado))
+
+    with pytest.raises(storage.StorageUnavailableError):
+        storage.download_private("reportes", "reports/a/b.jpg")
+
+
+def test_download_private_traduce_el_fallo_de_red(storage_config, espia):
+    espia(error=storage.requests.ConnectionError("sin ruta"))
+
+    with pytest.raises(storage.StorageUnavailableError):
+        storage.download_private("reportes", "reports/a/b.jpg")
+
+
+def test_download_private_no_registra_la_clave_completa(storage_config, espia, caplog):
+    espia(RespuestaFalsa(404))
+    clave = "reports/11111111-2222-3333-4444-555555555555/foto.jpg"
+
+    with pytest.raises(storage.StorageObjectNotFoundError):
+        storage.download_private("reportes", clave)
+
+    assert "11111111-2222-3333-4444-555555555555" not in caplog.text
+
+
+def test_el_404_sigue_siendo_indisponibilidad_para_las_demas_operaciones(storage_config, espia):
+    """El nuevo tipo de error solo lo recibe quien lo pide: nada más cambia."""
+    espia(RespuestaFalsa(404))
+
+    with pytest.raises(storage.StorageUnavailableError):
+        storage.delete("reportes", "reports/a/b.jpg")
