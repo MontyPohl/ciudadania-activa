@@ -931,11 +931,11 @@ antes de cerrarlo.
 ## Sprint 8 — Clasificación asistida por IA
 
 **Fechas planificadas:** 19/09/2026 – 25/09/2026
-**Estado:** En curso — S8-A con el contrato cerrado localmente; S8-B a S8-E pendientes
+**Estado:** En curso — S8-A integrado en `main`; S8-B implementado y validado localmente, pendiente de publicación; S8-C a S8-E pendientes
 **Fecha real de cierre:** —
 
 ### Funcionalidades terminadas
-- **S8-A — contrato cerrado localmente (29/08/2026), sin integrar.** Gate exclusivamente
+- **S8-A — integrado en `main` mediante el PR #25 (squash `abd7c671de3329b0d00730d35b7dcbe54b4d1792`).** Gate exclusivamente
   documental: cierra por escrito el contrato de clasificación IA antes de escribir código de
   integración. Entrega [AI_CLASSIFICATION_CONTRACT.md](AI_CLASSIFICATION_CONTRACT.md) v1 con
   las veinte decisiones cerradas, el prompt versionado como `s8-classification-v1` en
@@ -952,12 +952,50 @@ antes de cerrarlo.
   a `justification` y `model_name` · UI de operador diferida al Sprint 9 · proveedor real
   fuera de la CI.
 
-- S8-B a S8-E: _pendientes._
+- **S8-B — núcleo offline implementado y validado localmente (29/08/2026), sin publicar.**
+  Implementa el contrato de S8-A sin tocar ningún proveedor: `contracts.py` con
+  `ClassificationRequest` —lista blanca cerrada, sin PII ni coordenadas— y
+  `ParsedClassification`; `parser.py` con validación estricta de las seis claves exactas;
+  `catalog_mapping.py` con resolución exacta por slug contra categorías e instituciones
+  activas; `policy.py` con el umbral, `ResolvedClassification` y `derive_has_changes`; y
+  `adapters/` con el `Protocol` del proveedor y un adaptador falso determinista.
+
+  El parser rechaza lo que el JSON estándar aceptaría de más: `NaN`, `Infinity`,
+  `-Infinity`, claves duplicadas, cualquier top-level que no sea objeto, vallas Markdown,
+  texto suelto alrededor del objeto, campos faltantes o desconocidos y toda coerción de
+  tipos. `AI_CONFIDENCE_THRESHOLD = Decimal("0.75")` vive como constante del módulo: S8-B
+  no lee `settings` ni variables de entorno, y el cableado a configuración queda para S8-C.
+
+  Un slug que no existe, que está dado de baja o que llega en `null` produce
+  `effective_inconsistency` y revisión humana, aunque el modelo se declare coherente. No
+  hay normalización de mayúsculas, ni de acentos, ni coincidencia aproximada, ni respaldo
+  silencioso en `Category.default_institution`. `hubo_cambio` lo deriva el backend y no se
+  acepta del modelo.
+
+  Nada de esto persiste: el núcleo no crea `AiClassification`, no escribe `AuditLog` ni
+  historial y no modifica `Report`, `Category` ni `Institution`. `ai.classify_report` sigue
+  siendo un no-op.
+
+- S8-C a S8-E: _pendientes._
 
 ### Pruebas realizadas
-_Ninguna._ S8-A no modifica código funcional ni añade pruebas. La suite existente no se vio
-afectada: el único archivo bajo `backend/` es el prompt versionado, que es texto y no se
-importa desde ningún módulo.
+- **S8-A:** ninguna. El gate no modifica código funcional. El único archivo bajo `backend/`
+  es el prompt versionado, que es texto y no se importa desde ningún módulo.
+- **S8-B:** 225 pruebas nuevas en `apps/ai_client_app/tests/` —parser, adaptador falso,
+  mapeo de catálogos y política—, todas offline. Cubren el camino feliz, los tres desenlaces
+  con resultado, la frontera exacta del umbral en 0.75, cada campo obligatorio ausente por
+  separado, cada tipo incorrecto por campo, las constantes no representables, las claves
+  duplicadas, la valla Markdown, el texto antes y después del objeto, y que los mensajes de
+  error no filtren la respuesta cruda ni la descripción del ciudadano.
+
+  Invariantes verificadas sobre el AST y no sobre el texto fuente: ningún módulo del núcleo
+  importa `ReportStatus` ni escribe `RECHAZADO`, el adaptador falso no importa azar, reloj,
+  UUID, entorno ni cliente HTTP alguno, y `policy` no consulta `settings`.
+
+  Suite backend completa en verde: **1265 pruebas, 0 fallos**, cobertura 99 %.
+  `ruff check .` y `ruff format --check .` limpios. `makemigrations --check`: *No changes
+  detected*. Ejecutado con PostGIS y Redis locales de `infra/docker-compose.yml`; sin red
+  externa y sin contacto con ningún proveedor de IA.
 
 ### Problemas encontrados
 - La auditoría previa al gate reportó como incorrecta la referencia «Anexo H.3» del prompt
