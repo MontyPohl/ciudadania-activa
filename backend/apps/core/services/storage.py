@@ -37,6 +37,8 @@ logger = logging.getLogger(__name__)
 #: problema de Supabase en una petición bloqueada del ciudadano.
 _TIMEOUT_CORTO = (5, 10)
 _TIMEOUT_SUBIDA = (5, 30)
+# Descarga server-side de una foto ya normalizada (máximo 5 MiB por el contrato de S6).
+_TIMEOUT_LECTURA = (5, 30)
 
 
 class StorageError(Exception):
@@ -48,6 +50,14 @@ class StorageConfigurationError(StorageError):
 
     Es el fallo cerrado: sin `SUPABASE_URL`, sin service-role o sin bucket, no se
     intenta ninguna llamada. Se traduce a 503 y no revela qué ajuste falta.
+    """
+
+
+class StorageObjectNotFoundError(StorageError):
+    """El objeto no existe. A diferencia de la indisponibilidad, no es transitorio.
+
+    Se distingue porque quien lee un objeto necesita saber si conviene reintentar:
+    un 404 no cambia por insistir.
     """
 
 
@@ -89,6 +99,33 @@ def upload(bucket: str, key: str, content: bytes, content_type: str) -> None:
         key=key,
     )
     respuesta.close()
+
+
+def download_private(bucket: str, key: str) -> bytes:
+    """Descarga los bytes de un objeto privado desde el servidor.
+
+    Es la alternativa a `create_signed_url` cuando el destinatario es el propio
+    backend y no un navegador: no genera credencial temporal alguna, de modo que no
+    hay URL que registrar, cachear o dejar caducar en una tabla de auditoría.
+
+    Un objeto ausente levanta `StorageObjectNotFoundError`; cualquier otro fallo,
+    `StorageUnavailableError`. La diferencia importa: solo el segundo merece un
+    reintento.
+    """
+    base, cabeceras = _configuracion()
+    respuesta = _peticion(
+        "GET",
+        f"{base}/object/{_ruta(bucket, key)}",
+        headers=cabeceras,
+        timeout=_TIMEOUT_LECTURA,
+        operacion="download",
+        key=key,
+        excepcion_no_encontrado=StorageObjectNotFoundError,
+    )
+    try:
+        return respuesta.content
+    finally:
+        respuesta.close()
 
 
 def create_signed_url(bucket: str, key: str, expires_in: int) -> str:
@@ -179,7 +216,15 @@ def redact_key(key: str) -> str:
     return f"{primero}/…" if "/" in key else "…"
 
 
-def _peticion(method: str, url: str, *, operacion: str, key: str, **kwargs):
+def _peticion(
+    method: str,
+    url: str,
+    *,
+    operacion: str,
+    key: str,
+    excepcion_no_encontrado: type[StorageError] | None = None,
+    **kwargs,
+):
     """Ejecuta la llamada y traduce cualquier fallo a una excepción propia.
 
     Ni el cuerpo de la respuesta de Supabase ni la clave completa llegan al log o al
@@ -197,6 +242,13 @@ def _peticion(method: str, url: str, *, operacion: str, key: str, **kwargs):
     if not respuesta.ok:
         estado = respuesta.status_code
         respuesta.close()
+        if estado == 404 and excepcion_no_encontrado is not None:
+            logger.error(
+                "Storage no encontró el objeto en la operación %s sobre %s.",
+                operacion,
+                redact_key(key),
+            )
+            raise excepcion_no_encontrado("El objeto no existe en el almacenamiento.")
         logger.error(
             "Storage respondió %s en la operación %s sobre %s.",
             estado,
