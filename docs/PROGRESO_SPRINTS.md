@@ -931,7 +931,7 @@ antes de cerrarlo.
 ## Sprint 8 — Clasificación asistida por IA
 
 **Fechas planificadas:** 19/09/2026 – 25/09/2026
-**Estado:** En curso — S8-A integrado en `main`; S8-B implementado y validado localmente, pendiente de publicación; S8-C a S8-E pendientes
+**Estado:** En curso — S8-A y S8-B integrados en `main`; S8-C implementado y validado localmente, pendiente de publicación; S8-D y S8-E pendientes
 **Fecha real de cierre:** —
 
 ### Funcionalidades terminadas
@@ -952,7 +952,7 @@ antes de cerrarlo.
   a `justification` y `model_name` · UI de operador diferida al Sprint 9 · proveedor real
   fuera de la CI.
 
-- **S8-B — núcleo offline implementado y validado localmente (29/08/2026), sin publicar.**
+- **S8-B — integrado en `main` mediante el PR #26 (squash `31a4429ca511d5fa1f7fe92222b1edad624673fb`).**
   Implementa el contrato de S8-A sin tocar ningún proveedor: `contracts.py` con
   `ClassificationRequest` —lista blanca cerrada, sin PII ni coordenadas— y
   `ParsedClassification`; `parser.py` con validación estricta de las seis claves exactas;
@@ -976,7 +976,36 @@ antes de cerrarlo.
   historial y no modifica `Report`, `Category` ni `Institution`. `ai.classify_report` sigue
   siendo un no-op.
 
-- S8-C a S8-E: _pendientes._
+- **S8-C — persistencia y orquestación implementadas y validadas localmente
+  (29/08/2026), sin publicar.** Cierra el ciclo completo de clasificación sobre el núcleo
+  de S8-B: `orchestration.py` une parser, mapeo y política con la persistencia, la
+  transición de estado y la auditoría; `tasks.py` implementa `ai.classify_report` de
+  verdad; y la migración `0002` añade `justification` y `model_name` a
+  `ai_classifications`, los dos únicos campos que el contrato aprobó (D17).
+
+  **El proveedor sigue deshabilitado.** `adapters/runtime.get_runtime_adapter()` devuelve
+  `None`, de modo que la tarea sale antes de tocar la base de datos y ninguna instalación
+  clasifica nada. Es deliberado: la creación de reportes encola `ai.classify_report` en
+  producción desde el Sprint 6, y dejar el adaptador falso activo por defecto habría
+  bastado para clasificar incidencias ciudadanas reales con datos inventados. Habilitar un
+  proveedor y decidir de dónde sale su configuración es trabajo de S8-D.
+
+  El flujo llama al proveedor **fuera** de la transacción —sostener un `select_for_update`
+  durante una petición de red convertiría una API lenta en un bloqueo de fila prolongado—
+  y comprueba el estado del reporte dos veces: antes de llamar, para no gastar cuota en
+  una reentrega, y otra vez ya dentro del lock, que es la única lectura con autoridad.
+
+  Todo resultado que valide se persiste y transiciona `CREADO → CLASIFICADO`, se aplique o
+  no la sugerencia: baja confianza, inconsistencia y slug no resoluble son desenlaces
+  legítimos con revisión humana pendiente, no fallos. La sugerencia solo se escribe sobre
+  `category`, `institution` y `priority`, y solo cuando la política lo permite. Una
+  respuesta que no valida no persiste nada y deja el reporte en `CREADO`. Ninguna ruta
+  produce `RECHAZADO`.
+
+  Fuera de S8-C por decisión explícita: descarga de la imagen desde Storage —`image_bytes`
+  viaja vacío—, política de reintentos del proveedor, endpoints y frontend.
+
+- S8-D y S8-E: _pendientes._
 
 ### Pruebas realizadas
 - **S8-A:** ninguna. El gate no modifica código funcional. El único archivo bajo `backend/`
@@ -996,6 +1025,29 @@ antes de cerrarlo.
   `ruff check .` y `ruff format --check .` limpios. `makemigrations --check`: *No changes
   detected*. Ejecutado con PostGIS y Redis locales de `infra/docker-compose.yml`; sin red
   externa y sin contacto con ningún proveedor de IA.
+- **S8-C:** 61 pruebas nuevas —la suite pasa de 1265 a 1323, tras sustituir las tres del
+  no-op anterior—. Cubren la aplicación automática y su frontera exacta en
+  0.75; los seis casos de revisión humana —confianza baja, inconsistencia, slug
+  desconocido y slug nulo por cada campo—; las ocho formas de respuesta inválida; el fallo
+  del proveedor; el reporte inexistente; el identificador que no es un UUID; los seis
+  estados distintos de `CREADO`; y la ausencia de proveedor configurado.
+
+  Idempotencia probada de tres maneras: reentrega secuencial —que además comprueba que el
+  proveedor no se llama por segunda vez—, la ventana exacta entre la comprobación previa y
+  el lock forzada de forma determinista, y **dos hilos compitiendo de verdad contra
+  PostgreSQL**, siguiendo el patrón ya establecido en `test_identity_concurrency.py`. En
+  los tres casos el resultado es una clasificación, un asiento de historial y una entrada
+  de auditoría.
+
+  Invariantes verificadas: la auditoría no filtra descripción, ciudadano ni coordenadas;
+  la respuesta cruda se trunca a 8.000 caracteres; ninguna ruta produce `RECHAZADO`; la
+  clasificación no crea ni altera transacciones del ledger; y un slug inventado no da de
+  alta la categoría.
+
+  Suite backend completa en verde: **1323 pruebas, 0 fallos**, cobertura 99 %. `ruff
+  check .` y `ruff format --check .` limpios. `makemigrations --check`: *No changes
+  detected*. `manage.py check`: sin incidencias. Sin red externa y sin contacto con ningún
+  proveedor de IA.
 
 ### Problemas encontrados
 - La auditoría previa al gate reportó como incorrecta la referencia «Anexo H.3» del prompt
