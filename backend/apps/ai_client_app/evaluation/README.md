@@ -341,16 +341,37 @@ preservado fuera de `/tmp` junto a un manifiesto y sus SHA-256.
 Los campos que vivían solo en el JSON —predicciones, coincidencias por campo,
 `duration_ms` individuales— **no se infieren ni se reconstruyen**.
 
-**Motivo técnico adicional: `CLIENT_TIMEOUT_CONFIRMED_FOR_10_CASES`.** 10 de las
-14 llamadas terminaron con el diagnóstico «no respondió a tiempo» y duraciones que
-alcanzaron aproximadamente el límite configurado de 20 s. **Cero** casos dieron
-«respondió 429»: el pacing resolvió el límite de tasa, y el obstáculo cambió de
-naturaleza. Por tanto **20 s resultó operacionalmente insuficiente para R1**. Esto
-**no** afirma que `gemini-3.6-flash` necesite siempre más de 20 s.
+**Motivo técnico adicional: `TRANSPORT_OR_TIMEOUT_FAILURE_CONFIRMED_FOR_10_CASES`.**
 
-Esta es la primera vez que el diagnóstico es inequívoco, y lo es porque la
-instrumentación de R1 conserva el mensaje sanitizado. En la corrida canónica la
-misma pregunta quedó sin respuesta.
+Lo que la evidencia permite afirmar:
+
+- las 10 llamadas fallidas entraron por la **ruta transporte/timeout** del
+  adaptador;
+- **cero** errores quedaron registrados como «respondió 429», es decir, en el lote
+  de R1 no se observaron rechazos por cuota bajo el pacing prerregistrado;
+- la duración máxima observada fue **20 270 ms** contra un deadline configurado de
+  **20 000 ms**, de modo que el patrón es **compatible con presión del timeout**;
+- **20 s resultó operacionalmente inadecuado para completar R1**.
+
+Lo que la evidencia **no** permite afirmar: la clase original de cada uno de los
+10 errores. Una versión anterior de este documento decía
+`CLIENT_TIMEOUT_CONFIRMED_FOR_10_CASES`, y eso iba más allá del dato.
+
+El motivo es que `_es_fallo_de_transporte` acepta `httpx.TimeoutException` **o**
+`httpx.TransportError` —y la primera es subclase de la segunda—, y ambas rutas
+terminan en el mismo mensaje, «El proveedor de IA no respondió a tiempo.». Un
+corte de conexión, un error de protocolo o un fallo de proxy producen ese texto
+igual que un deadline agotado. El mensaje conserva la distinción frente a un 429,
+que es la que hacía falta, pero **no** distingue timeout de otros fallos de
+transporte.
+
+Tampoco se afirma que el pacing haya resuelto definitivamente el límite de tasa:
+lo observado es la ausencia de 429 en **este** lote, con **este** pacing.
+
+Aun así, subir el timeout a 60 s en R2 sigue siendo una corrección técnica
+justificada y prerregistrada: el deadline es el único parámetro que el patrón
+observado señala, y aumentarlo no puede empeorar un fallo de transporte que no
+fuera de tiempo.
 
 ## La evidencia no vive en `/tmp`
 
@@ -414,14 +435,33 @@ R1 respondió se vuelven a pedir.
 
 ### Por qué 60 s, y por qué eso no elige el resultado
 
-R1 devolvió 10 de 14 casos con «no respondió a tiempo» y duraciones que llegaron
-al límite de 20 s. La insuficiencia de los 20 s es un hecho observado sobre el
-**transporte**, no sobre la capacidad del modelo: un caso que agota el tiempo no
-produce clasificación, así que no aporta ni acierto ni fallo a CA-4.
+R1 devolvió 10 de 14 casos por la ruta transporte/timeout, con una duración máxima
+de 20 270 ms frente a un deadline de 20 000 ms. La inadecuación de los 20 s es un
+hecho observado sobre el **transporte**, no sobre la capacidad del modelo: un caso
+que no obtiene respuesta no produce clasificación, así que no aporta ni acierto ni
+fallo a CA-4.
+
+No hace falta demostrar que los 10 fueron timeouts para justificar el cambio: el
+deadline es el único parámetro que el patrón observado señala, y ampliarlo no
+puede empeorar un fallo de transporte que no fuera de tiempo.
 
 Los 60 s quedan fijados **aquí, antes de R2**, y no podrán ajustarse después de
 ver resultados. No se cambia el modelo, ni el prompt, ni la configuración de
 *thinking*, ni el pacing, y no se introducen reintentos.
+
+### El timeout de la evidencia es el de la petición
+
+`RecoveryProtocol` declara `request_timeout_seconds`, pero el timeout que gobierna
+de verdad la llamada se fija al construir el cliente del SDK. Con dos fuentes
+independientes, una corrida podía archivar `60` mientras el cliente esperaba `20`:
+la evidencia describiría un experimento que no ocurrió, y nada en ella lo
+delataría.
+
+`evaluation/execution.py` cierra eso. `run_recovery_batch` deriva **el modelo y el
+timeout del mismo `protocol`** que después valida el lote, y rechaza recibir
+`model_name`, `request_timeout_seconds`, `inter_request_delay_seconds` o
+`dataset_sha256` a mano. `protocol` es obligatorio y sin valor por omisión, así que
+ejecutar R2 no puede degradar en silencio a R1.
 
 `RecoveryProtocol` mantiene R1 y R2 como instancias congeladas e independientes:
 un lote de R1 no puede combinarse bajo R2 ni al revés, porque su estado no

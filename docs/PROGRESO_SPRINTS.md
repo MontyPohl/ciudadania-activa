@@ -1182,14 +1182,29 @@ antes de cerrarlo.
   `/tmp` con un manifiesto y sus SHA-256. Los campos que vivían solo en el JSON
   —predicciones, coincidencias por campo, `duration_ms` individuales— **no se reconstruyen**.
 
-  Diagnóstico técnico adicional: **`CLIENT_TIMEOUT_CONFIRMED_FOR_10_CASES`**. Cero casos
-  dieron «respondió 429», así que el pacing resolvió el límite de tasa y el obstáculo cambió
-  de naturaleza: **20 s resultó operacionalmente insuficiente para R1**. Esto **no** afirma
-  que el modelo necesite siempre más de 20 s. Es la primera vez que el diagnóstico es
-  inequívoco, y lo es gracias a la instrumentación de este mismo gate.
+  Diagnóstico técnico adicional: **`TRANSPORT_OR_TIMEOUT_FAILURE_CONFIRMED_FOR_10_CASES`**.
+  Los 10 fallos entraron por la ruta transporte/timeout del adaptador; **cero** quedaron
+  registrados como «respondió 429», es decir, en este lote no se observaron rechazos por
+  cuota bajo el pacing prerregistrado; y la duración máxima observada fue de 20 270 ms contra
+  un deadline configurado de 20 000 ms, de modo que el patrón es **compatible con presión del
+  timeout**. Por tanto **20 s resultó operacionalmente inadecuado para completar R1**.
+
+  Lo que **no** es demostrable es la clase original de cada uno de los 10 errores. Una
+  versión anterior de esta entrada decía `CLIENT_TIMEOUT_CONFIRMED_FOR_10_CASES`, y eso iba
+  más allá del dato: `_es_fallo_de_transporte` acepta `httpx.TimeoutException` **o**
+  `httpx.TransportError` —la primera es subclase de la segunda— y ambas rutas terminan en el
+  mismo mensaje, así que un corte de conexión produce «no respondió a tiempo» igual que un
+  deadline agotado. El mensaje distingue del 429, que es la distinción que hacía falta, pero
+  no separa timeout de otros fallos de transporte. Tampoco se afirma que el pacing haya
+  resuelto definitivamente el límite de tasa: lo observado es la ausencia de 429 en **este**
+  lote con **este** pacing.
+
+  Subir el timeout a 60 s en R2 sigue siendo una corrección técnica justificada: el deadline
+  es el único parámetro que el patrón señala, y ampliarlo no puede empeorar un fallo de
+  transporte que no fuera de tiempo.
 
   `RUN_VALID_FOR_CA4 = NO`, `CA4_RESULT = NOT_DEMONSTRATED`. Los 4 aciertos no se convierten
-  en porcentaje: son los casos que sobrevivieron al timeout, una muestra seleccionada por el
+  en porcentaje: son los casos que obtuvieron respuesta, una muestra seleccionada por el
   propio fallo.
 
 - **S8-E2-R2 — recuperación prerregistrada, NO EJECUTADA (local, sin publicar).**
@@ -1209,6 +1224,15 @@ antes de cerrarlo.
   valores absolutos que cada prerregistro fijó y que se pasan explícitamente al validar. Un
   lote de R1 no puede combinarse bajo R2 ni al revés, porque su estado no coincide. R1 queda
   como registro histórico, sin reinterpretar.
+
+  **El timeout de la evidencia es el de la petición.** `RecoveryProtocol` declara
+  `request_timeout_seconds`, pero el timeout que gobierna la llamada se fija al construir el
+  cliente del SDK. Con dos fuentes independientes, una corrida podía archivar 60 s mientras
+  el cliente esperaba 20: la evidencia describiría un experimento que no ocurrió y nada en
+  ella lo delataría. `evaluation/execution.py` cierra eso — `run_recovery_batch` deriva el
+  modelo y el timeout del **mismo** `protocol` que después valida el lote, rechaza recibirlos
+  a mano, y exige `protocol` sin valor por omisión para que ejecutar R2 no pueda degradar en
+  silencio a R1.
 
   **La evidencia deja de vivir en `/tmp`.** `/tmp` no es almacenamiento autoritativo en este
   proyecto: es tmpfs, y ya destruyó los artefactos de dos corridas. R2 escribirá en un

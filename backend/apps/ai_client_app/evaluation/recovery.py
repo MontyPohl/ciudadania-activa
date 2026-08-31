@@ -7,14 +7,15 @@ protocolo original era **inejecutable por construcción**: 28 solicitudes seguid
 no caben en una cuota diaria de 20, y lanzarlas sin pausa excede 5 por minuto.
 
 **R1** añadió pacing de 20 s y partición en dos lotes, y quedó `ABORTED`. Su lote
-1 se ejecutó una vez: 14 intentos, 4 respuestas y 10 tiempos agotados. Su
-evidencia JSON se perdió de forma irrecuperable —se escribió dentro de un
-contenedor efímero—, de modo que no puede combinarse ni auditarse por caso.
+1 se ejecutó una vez: 14 intentos, 4 respuestas y 10 fallos por la ruta
+transporte/timeout. Su evidencia JSON se perdió de forma irrecuperable —se escribió
+dentro de un contenedor efímero—, de modo que no puede combinarse ni auditarse por
+caso.
 
 **R2** es una corrida nueva y completa de los 28, no una continuación de R1 ni un
 rerun selectivo, y no reutiliza ninguno de sus resultados. Su único cambio técnico
-es el timeout: 60 s en lugar de 20, porque los 10 fallos de R1 llevaban el
-diagnóstico «no respondió a tiempo» con duraciones que alcanzaban el límite.
+es el timeout: 60 s en lugar de 20, porque la duración máxima observada en R1
+—20 270 ms frente a un deadline de 20 000— es compatible con presión del timeout.
 
 Lo que se enmienda en ambas es exclusivamente el transporte del experimento.
 Modelo, dataset, etiquetas de oro, prompt, scoring y umbral quedan intactos:
@@ -117,9 +118,9 @@ _MODEL_NAME = "gemini-3.6-flash"
 _PACING_SECONDS = 20
 
 #: R1: protocolo **histórico**. Quedó `ABORTED`. Su lote 1 se ejecutó una vez —14
-#: intentos, 10 tiempos agotados— y su evidencia JSON se perdió de forma
-#: irrecuperable, así que no puede combinarse ni auditarse por caso. Se conserva
-#: intacto para que el registro de lo que se prerregistró siga siendo legible.
+#: intentos, 10 fallos de transporte/timeout— y su evidencia JSON se perdió de
+#: forma irrecuperable, así que no puede combinarse ni auditarse por caso. Se
+#: conserva intacto para que el registro de lo que se prerregistró siga legible.
 R1 = RecoveryProtocol(
     version="s8-e2-r1",
     model_name=_MODEL_NAME,
@@ -134,12 +135,14 @@ R1 = RecoveryProtocol(
 #: R2: corrida **nueva y completa** de los 28 casos. No es continuación de R1, no
 #: reutiliza ninguno de sus resultados y no es un rerun selectivo.
 #:
-#: Único cambio técnico frente a R1: el timeout pasa de 20 s a 60 s. R1 devolvió
-#: 10 de 14 casos con el diagnóstico «El proveedor de IA no respondió a tiempo.» y
-#: duraciones que alcanzaron el límite configurado, de modo que 20 s quedó
-#: demostrado como operacionalmente insuficiente. Esto **no** afirma que el modelo
-#: necesite siempre más de 20 s. Los 60 s se fijan aquí, antes de R2, y no podrán
-#: ajustarse después de ver resultados.
+#: Único cambio técnico frente a R1: el timeout pasa de 20 s a 60 s. R1 devolvió 10
+#: de 14 casos por la ruta transporte/timeout, con una duración máxima de 20 270 ms
+#: frente a un deadline de 20 000, de modo que 20 s quedó demostrado como
+#: operacionalmente inadecuado para completar la corrida. El mensaje del adaptador
+#: no separa timeout de otros fallos de transporte, así que **no** se afirma que
+#: los 10 fueran deadlines agotados ni que el modelo necesite siempre más de 20 s:
+#: el deadline es el único parámetro que el patrón señala. Los 60 s se fijan aquí,
+#: antes de R2, y no podrán ajustarse después de ver resultados.
 R2 = RecoveryProtocol(
     version="s8-e2-r2",
     model_name=_MODEL_NAME,
