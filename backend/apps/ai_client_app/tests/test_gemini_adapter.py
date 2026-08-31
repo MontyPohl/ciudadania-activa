@@ -14,6 +14,7 @@ import httpx
 import pytest
 from google.genai import errors as genai_errors
 from google.genai import types as genai_types
+from google.genai._gaos.lib import compat_errors
 
 from apps.ai_client_app.adapters import gemini as gemini_module
 from apps.ai_client_app.adapters.base import AiClassificationAdapter
@@ -272,6 +273,7 @@ def test_la_clave_no_queda_como_atributo_del_adaptador():
 
 @pytest.mark.parametrize("code", [408, 429, 500, 502, 503, 504])
 def test_los_codigos_transitorios_permiten_reintentar(code):
+    """Jerarquía legacy `google.genai.errors`, con el código en `.code`."""
     adapter, _ = build_adapter(error=genai_errors.APIError(code, {"error": {"message": "x"}}))
 
     with pytest.raises(TransientAiProviderError):
@@ -286,6 +288,78 @@ def test_los_codigos_permanentes_no_se_reintentan(code):
         adapter.classify(build_request())
 
 
+# --------------------------------------------------------------------------- #
+# Errores REALES de la Interactions API
+#
+# La primera medición contra el proveedor devolvió 404 en los 28 casos y ninguno
+# se clasificó: estas excepciones no heredan de `google.genai.errors.APIError`,
+# de modo que el `except APIError` de entonces las dejaba pasar enteras. Estas
+# pruebas usan las clases que el SDK instalado lanza de verdad.
+# --------------------------------------------------------------------------- #
+
+
+def interaction_error(clase, status):
+    """Construye una excepción real de Interactions con su respuesta HTTP."""
+    peticion = httpx.Request("POST", "https://ejemplo.invalido/v1/interactions")
+    respuesta = httpx.Response(status_code=status, request=peticion)
+    return clase("error del proveedor", response=respuesta, body=None)
+
+
+def test_las_excepciones_de_interactions_no_heredan_de_la_jerarquia_legacy():
+    """El hallazgo que motivó esta corrección, fijado como prueba."""
+    assert not issubclass(compat_errors.NotFoundError, genai_errors.APIError)
+    assert not issubclass(compat_errors.RateLimitError, genai_errors.APIError)
+    assert compat_errors.NotFoundError.status_code == 404
+
+
+@pytest.mark.parametrize(
+    ("clase", "status"),
+    [
+        (compat_errors.NotFoundError, 404),
+        (compat_errors.BadRequestError, 400),
+        (compat_errors.AuthenticationError, 401),
+        (compat_errors.PermissionDeniedError, 403),
+        (compat_errors.UnprocessableEntityError, 422),
+    ],
+)
+def test_los_errores_permanentes_de_interactions_se_clasifican(clase, status):
+    adapter, _ = build_adapter(error=interaction_error(clase, status))
+
+    with pytest.raises(PermanentAiProviderError, match=str(status)):
+        adapter.classify(build_request())
+
+
+@pytest.mark.parametrize(
+    ("clase", "status"),
+    [
+        (compat_errors.RateLimitError, 429),
+        (compat_errors.InternalServerError, 500),
+        (compat_errors.InternalServerError, 503),
+        (compat_errors.APIStatusError, 408),
+    ],
+)
+def test_los_errores_transitorios_de_interactions_se_clasifican(clase, status):
+    adapter, _ = build_adapter(error=interaction_error(clase, status))
+
+    with pytest.raises(TransientAiProviderError, match=str(status)):
+        adapter.classify(build_request())
+
+
+def test_el_404_real_que_provoco_el_fallo_de_s8_e2_es_permanente():
+    """Reproduce exactamente lo ocurrido en la corrida canónica."""
+    adapter, _ = build_adapter(error=interaction_error(compat_errors.NotFoundError, 404))
+
+    with pytest.raises(PermanentAiProviderError) as exc:
+        adapter.classify(build_request())
+
+    assert "404" in str(exc.value)
+
+
+# --------------------------------------------------------------------------- #
+# Transporte: directo y envuelto por el SDK
+# --------------------------------------------------------------------------- #
+
+
 @pytest.mark.parametrize(
     "error",
     [httpx.TimeoutException("agotado"), httpx.ConnectError("sin ruta")],
@@ -295,6 +369,53 @@ def test_timeout_y_corte_de_transporte_son_transitorios(error):
     adapter, _ = build_adapter(error=error)
 
     with pytest.raises(TransientAiProviderError):
+        adapter.classify(build_request())
+
+
+@pytest.mark.parametrize(
+    "original",
+    [httpx.TimeoutException("agotado"), httpx.ConnectError("sin ruta")],
+    ids=["timeout", "conexión"],
+)
+def test_un_error_de_transporte_envuelto_por_el_sdk_sigue_siendo_transitorio(original):
+    """`APITimeoutError` no es `httpx.TimeoutException`: hay que seguir la causa."""
+    peticion = httpx.Request("POST", "https://ejemplo.invalido/v1/interactions")
+    envuelto = compat_errors.APITimeoutError(request=peticion)
+    envuelto.__cause__ = original
+
+    adapter, _ = build_adapter(error=envuelto)
+
+    with pytest.raises(TransientAiProviderError):
+        adapter.classify(build_request())
+
+
+# --------------------------------------------------------------------------- #
+# Errores sin código reconocible
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.parametrize(
+    "error",
+    [RuntimeError("algo raro"), ValueError("otra cosa"), KeyError("clave")],
+    ids=["runtime", "value", "key"],
+)
+def test_un_error_sin_codigo_no_se_clasifica_falsamente(error):
+    """Inventarle categoría llevaría a reintentar a ciegas o a descartar lo recuperable."""
+    adapter, _ = build_adapter(error=error)
+
+    with pytest.raises(type(error)):
+        adapter.classify(build_request())
+
+
+def test_un_booleano_en_el_atributo_de_estado_no_se_toma_por_codigo():
+    """`bool` es subclase de `int`: un True se leería como el código 1."""
+
+    class ErrorRaro(Exception):
+        status_code = True
+
+    adapter, _ = build_adapter(error=ErrorRaro("raro"))
+
+    with pytest.raises(ErrorRaro):
         adapter.classify(build_request())
 
 
