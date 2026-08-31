@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { MapFilters } from "@/features/map/MapFilters";
+import { MapLegend } from "@/features/map/MapLegend";
 import { MapResultsStatus, type MapResultsPhase } from "@/features/map/MapResultsStatus";
 import { ReportList } from "@/features/map/ReportList";
 import { ReportSidePanel } from "@/features/map/ReportSidePanel";
@@ -58,6 +59,18 @@ describe("filtros públicos", () => {
       />,
     );
     expect(screen.getByRole("alert")).toHaveTextContent("catálogo");
+  });
+});
+
+describe("leyenda del mapa público", () => {
+  it("renderiza exclusivamente los seis estados visibles sin depender del catálogo privado", () => {
+    render(<MapLegend />);
+
+    const legend = screen.getByRole("region", { name: "Leyenda de estados" });
+    expect(legend).toBeVisible();
+    expect(legend.querySelectorAll("li")).toHaveLength(6);
+    expect(screen.getByText("Cerrado")).toBeVisible();
+    expect(screen.queryByText("Rechazado")).not.toBeInTheDocument();
   });
 });
 
