@@ -34,6 +34,16 @@ from .scoring import CA4_MIN_CONCORDANCE_PCT, CaseResult, percentage
 
 PROTOCOL_VERSION = "s8-e2-r1"
 
+#: Modelo prerregistrado. Se fija aquí como valor absoluto, no como «el que traiga
+#: el lote»: comprobar solo que los dos lotes coincidan entre sí dejaría pasar una
+#: corrida entera hecha con otro modelo.
+MODEL_NAME = "gemini-3.6-flash"
+
+#: Dataset prerregistrado. `PROMPT_VERSION` no se duplica: su fuente canónica es
+#: `apps.ai_client_app.prompts`, y copiar el literal aquí crearía dos verdades.
+DATASET_VERSION = "s8-evaluation-v1"
+DATASET_SHA256 = "3bc54d591dc104aeabeecb2f5cc7c7a38e70ba042e7f045321ab33ae9b5efad4"
+
 #: Los 28 casos congelados del dataset `s8-evaluation-v1`.
 TOTAL_CASES = 28
 
@@ -153,7 +163,22 @@ def evaluate_batch(
 
     No reintenta, no sustituye casos y no decide nada: un fallo se registra y el
     lote continúa, igual que en la corrida canónica.
+
+    Los parámetros se validan **antes** de la primera llamada. `combine_batches`
+    volvería a rechazarlos, pero lo haría después de haber gastado 14 unidades de
+    una cuota diaria de 20 —el recurso escaso que obligó a partir la corrida—, y
+    esa ventana ya no se recupera.
     """
+    _exigir("model_name", model_name, MODEL_NAME)
+    _exigir("dataset_version", dataset.dataset_version, DATASET_VERSION)
+    _exigir("dataset_sha256", dataset_sha256, DATASET_SHA256)
+    _exigir("request_timeout_seconds", request_timeout_seconds, REQUEST_TIMEOUT_SECONDS)
+    _exigir(
+        "inter_request_delay_seconds",
+        inter_request_delay_seconds,
+        INTER_REQUEST_DELAY_SECONDS,
+    )
+
     casos = select_batch(dataset, batch_number)
     run = run_evaluation(
         dataset,
@@ -220,7 +245,9 @@ def combine_batches(
         protocol_version=PROTOCOL_VERSION,
         report=report,
         diagnostics=diagnosticos,
-        batch_numbers=tuple(lote.batch_number for lote in lotes),
+        # Ordenados, no en orden de llegada: la evidencia combinada debe ser
+        # idéntica se entreguen los lotes como se entreguen.
+        batch_numbers=tuple(sorted(lote.batch_number for lote in lotes)),
         minimum_concordant_cases=minimo,
         run_valid_for_ca4=valida,
         ca4_result=resultado,
@@ -273,35 +300,82 @@ def _dump(datos: dict) -> str:
     return json.dumps(datos, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
 
 
+def _exigir(campo: str, obtenido: object, esperado: object) -> None:
+    """Impone un valor absoluto del prerregistro, no un acuerdo entre lotes."""
+    if obtenido != esperado:
+        raise RecoveryProtocolError(
+            f"R1 prerregistró `{campo}` = {esperado!r}; se recibió {obtenido!r}."
+        )
+
+
+def _campos_prerregistrados() -> tuple[tuple[str, object], ...]:
+    """Campos de `BatchEvaluation` cuyo valor fijó el prerregistro.
+
+    `adapter_name` queda fuera a propósito: el prerregistro no fija qué adaptador
+    se usa —el falso sirve para ensayar la maquinaria—, solo exige que los dos
+    lotes usen el mismo.
+    """
+    return (
+        ("protocol_version", PROTOCOL_VERSION),
+        ("status", STATUS_IN_PROGRESS),
+        ("model_name", MODEL_NAME),
+        ("dataset_version", DATASET_VERSION),
+        ("dataset_sha256", DATASET_SHA256),
+        ("prompt_version", PROMPT_VERSION),
+        ("request_timeout_seconds", REQUEST_TIMEOUT_SECONDS),
+        ("inter_request_delay_seconds", INTER_REQUEST_DELAY_SECONDS),
+    )
+
+
+def expected_case_ids(dataset: EvaluationDataset, batch_number: int) -> tuple[str, ...]:
+    """IDs que le corresponden al lote, en el orden exacto del dataset."""
+    return tuple(case.id for case in select_batch(dataset, batch_number))
+
+
 def _validar_lotes(dataset: EvaluationDataset, lotes: tuple[BatchEvaluation, ...]) -> None:
+    """Comprueba que los lotes sean **el** experimento R1, no un experimento coherente.
+
+    Cada campo se compara contra el valor absoluto del prerregistro. La versión
+    anterior solo exigía que los dos lotes coincidieran entre sí, y eso admitía una
+    corrida completa hecha con otro modelo, sin pacing o contra otro dataset: basta
+    con equivocarse igual dos veces.
+
+    La partición se valida por `batch_number` contra los IDs esperados en orden
+    exacto, así que da igual en qué orden lleguen los lotes al combinador. Esa
+    igualdad de tuplas subsume por sí sola la ausencia de duplicados, de faltantes
+    y de reordenaciones, y también descarta cualquier partición arbitraria cuya
+    unión sumase 28 por casualidad: no hay que comprobarlas por separado.
+    """
     numeros = tuple(lote.batch_number for lote in lotes)
     if sorted(numeros) != sorted(BATCH_NUMBERS):
         raise RecoveryProtocolError(
             f"R1 exige exactamente los lotes {BATCH_NUMBERS}; se recibieron {numeros}."
         )
 
-    for campo in (
-        "protocol_version",
-        "model_name",
-        "dataset_version",
-        "prompt_version",
-        "dataset_sha256",
-        "request_timeout_seconds",
-        "inter_request_delay_seconds",
-    ):
-        valores = {getattr(lote, campo) for lote in lotes}
-        if len(valores) != 1:
-            raise RecoveryProtocolError(
-                f"Los lotes no comparten `{campo}`: la corrida R1 queda invalidada."
-            )
+    for lote in lotes:
+        for campo, esperado in _campos_prerregistrados():
+            _exigir(f"lote {lote.batch_number}.{campo}", getattr(lote, campo), esperado)
 
-    ids_por_lote = [{resultado.id for resultado in lote.results} for lote in lotes]
-    if ids_por_lote[0] & ids_por_lote[1]:
-        raise RecoveryProtocolError("Hay casos repetidos entre lotes: no se puede combinar.")
-
-    union = ids_por_lote[0] | ids_por_lote[1]
-    esperados = {case.id for case in dataset.cases}
-    if union != esperados:
+    adaptadores = {lote.adapter_name for lote in lotes}
+    if len(adaptadores) != 1:
         raise RecoveryProtocolError(
-            "Los lotes no cubren el dataset exactamente una vez: la corrida R1 no es válida."
+            f"Los lotes usan adaptadores distintos {sorted(adaptadores)}: no se pueden combinar."
+        )
+
+    for lote in lotes:
+        esperados = expected_case_ids(dataset, lote.batch_number)
+        if len(esperados) != BATCH_SIZE:
+            raise RecoveryProtocolError(
+                f"El lote {lote.batch_number} debería abarcar {BATCH_SIZE} casos."
+            )
+        _exigir(f"lote {lote.batch_number}.batch_case_ids", lote.batch_case_ids, esperados)
+        _exigir(
+            f"lote {lote.batch_number}.results",
+            tuple(resultado.id for resultado in lote.results),
+            esperados,
+        )
+        _exigir(
+            f"lote {lote.batch_number}.diagnostics",
+            tuple(diagnostico.id for diagnostico in lote.diagnostics),
+            esperados,
         )

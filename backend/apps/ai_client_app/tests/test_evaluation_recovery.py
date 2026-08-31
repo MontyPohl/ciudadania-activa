@@ -16,7 +16,10 @@ from apps.ai_client_app.evaluation.dataset import load_dataset
 from apps.ai_client_app.evaluation.recovery import (
     BATCH_NUMBERS,
     BATCH_SIZE,
+    DATASET_SHA256,
+    DATASET_VERSION,
     INTER_REQUEST_DELAY_SECONDS,
+    MODEL_NAME,
     PROTOCOL_VERSION,
     REQUEST_TIMEOUT_SECONDS,
     STATUS_IN_PROGRESS,
@@ -26,6 +29,7 @@ from apps.ai_client_app.evaluation.recovery import (
     combine_batches,
     combined_to_json,
     evaluate_batch,
+    expected_case_ids,
     minimum_concordant_cases,
     select_batch,
 )
@@ -40,7 +44,8 @@ from apps.ai_client_app.evaluation.sanitization import (
 
 from ._ast_checks import code_identifiers
 
-DATASET_SHA256 = "3bc54d591dc104aeabeecb2f5cc7c7a38e70ba042e7f045321ab33ae9b5efad4"
+# El SHA no se copia aquí: su fuente canónica es `recovery.DATASET_SHA256`, y un
+# literal duplicado en la prueba dejaría de detectar que el módulo lo cambió.
 
 # Con la forma de una clave de Google pero inventada: la suite nunca ve una real.
 CLAVE_FALSA = "AIzaSyD9fakeKEYfakeKEYfakeKEY0123456789x"
@@ -485,6 +490,181 @@ def test_combinar_el_mismo_lote_dos_veces_se_rechaza(dataset):
 
     with pytest.raises(RecoveryProtocolError):
         combine_batches(dataset, [primero, primero])
+
+
+# --------------------------------------------------------------------------- #
+# Hardening: coincidir entre lotes no basta; hay que coincidir con el protocolo
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.parametrize(
+    ("campo", "valor"),
+    [
+        ("model_name", "gemini-2.5-flash"),
+        ("protocol_version", "s8-e2-r2"),
+        ("prompt_version", "s8-classification-v2"),
+        ("dataset_version", "s8-evaluation-v2"),
+        ("dataset_sha256", "0" * 64),
+        ("request_timeout_seconds", 60),
+        ("inter_request_delay_seconds", 0),
+        ("status", "COMPLETED"),
+    ],
+)
+def test_los_dos_lotes_equivocados_igual_no_pasan(dataset, campo, valor):
+    """Equivocarse igual dos veces no convierte el error en protocolo.
+
+    Es el agujero exacto que este hardening cierra: antes bastaba con que los dos
+    lotes coincidieran entre sí, así que una corrida completa con otro modelo, sin
+    pacing o contra otro dataset se combinaba sin protestar.
+    """
+    lotes = [replace(lote, **{campo: valor}) for lote in _dos_lotes(dataset)]
+
+    with pytest.raises(RecoveryProtocolError):
+        combine_batches(dataset, lotes)
+
+
+def test_se_rechazan_adaptadores_distintos(dataset):
+    primero, segundo = _dos_lotes(dataset)
+
+    with pytest.raises(RecoveryProtocolError):
+        combine_batches(dataset, [primero, replace(segundo, adapter_name="otro-adaptador")])
+
+
+def test_se_rechazan_los_batch_case_ids_alterados(dataset):
+    primero, segundo = _dos_lotes(dataset)
+    revueltos = tuple(reversed(primero.batch_case_ids))
+
+    with pytest.raises(RecoveryProtocolError):
+        combine_batches(dataset, [replace(primero, batch_case_ids=revueltos), segundo])
+
+
+def test_se_rechazan_los_resultados_intercambiados_entre_lotes(dataset):
+    """Cada `batch_number` tiene una partición fija: no se pueden permutar."""
+    primero, segundo = _dos_lotes(dataset)
+    cruzados = [
+        replace(primero, results=segundo.results, diagnostics=segundo.diagnostics),
+        replace(segundo, results=primero.results, diagnostics=primero.diagnostics),
+    ]
+
+    with pytest.raises(RecoveryProtocolError):
+        combine_batches(dataset, cruzados)
+
+
+def test_se_rechaza_una_particion_arbitraria_que_cubra_los_28(dataset):
+    """7+21, 14+14 desplazado, cualquier reparto: la unión no basta."""
+    primero, segundo = _dos_lotes(dataset)
+    todos_resultados = primero.results + segundo.results
+    todos_diagnosticos = primero.diagnostics + segundo.diagnostics
+    corte = 7
+
+    arbitrarios = [
+        replace(
+            primero,
+            batch_case_ids=tuple(r.id for r in todos_resultados[:corte]),
+            results=todos_resultados[:corte],
+            diagnostics=todos_diagnosticos[:corte],
+        ),
+        replace(
+            segundo,
+            batch_case_ids=tuple(r.id for r in todos_resultados[corte:]),
+            results=todos_resultados[corte:],
+            diagnostics=todos_diagnosticos[corte:],
+        ),
+    ]
+
+    assert {r.id for r in todos_resultados} == {c.id for c in dataset.cases}
+    with pytest.raises(RecoveryProtocolError):
+        combine_batches(dataset, arbitrarios)
+
+
+def test_se_rechaza_un_resultado_duplicado(dataset):
+    primero, segundo = _dos_lotes(dataset)
+    duplicado = primero.results[:-1] + (primero.results[0],)
+
+    with pytest.raises(RecoveryProtocolError):
+        combine_batches(dataset, [replace(primero, results=duplicado), segundo])
+
+
+def test_se_rechaza_un_resultado_faltante(dataset):
+    primero, segundo = _dos_lotes(dataset)
+
+    with pytest.raises(RecoveryProtocolError):
+        combine_batches(dataset, [replace(primero, results=primero.results[:-1]), segundo])
+
+
+def test_se_rechaza_un_diagnostico_faltante(dataset):
+    primero, segundo = _dos_lotes(dataset)
+
+    with pytest.raises(RecoveryProtocolError):
+        combine_batches(dataset, [replace(primero, diagnostics=primero.diagnostics[:-1]), segundo])
+
+
+def test_se_rechaza_un_diagnostico_con_id_equivocado(dataset):
+    primero, segundo = _dos_lotes(dataset)
+    torcido = (replace(primero.diagnostics[0], id="S8-EVAL-999"),) + primero.diagnostics[1:]
+
+    with pytest.raises(RecoveryProtocolError):
+        combine_batches(dataset, [replace(primero, diagnostics=torcido), segundo])
+
+
+def test_el_orden_de_entrega_al_combinador_sigue_siendo_indiferente(dataset):
+    """El hardening fija el contenido de cada lote, no el orden en que llegan."""
+    primero, segundo = _dos_lotes(dataset)
+
+    directo = combine_batches(dataset, [primero, segundo])
+    invertido = combine_batches(dataset, [segundo, primero])
+
+    assert combined_to_json(directo) == combined_to_json(invertido)
+
+
+def test_los_ids_esperados_son_la_particion_prerregistrada(dataset):
+    assert expected_case_ids(dataset, 1) == tuple(c.id for c in dataset.cases[:14])
+    assert expected_case_ids(dataset, 2) == tuple(c.id for c in dataset.cases[14:])
+
+
+# --------------------------------------------------------------------------- #
+# Hardening: el lote se rechaza ANTES de gastar cuota
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "descripcion"),
+    [
+        ({"model_name": "gemini-2.5-flash"}, "modelo no prerregistrado"),
+        ({"dataset_sha256": "0" * 64}, "dataset distinto del congelado"),
+        ({"request_timeout_seconds": 60}, "timeout alterado"),
+        ({"inter_request_delay_seconds": 0}, "sin pacing"),
+    ],
+)
+def test_un_lote_mal_parametrizado_no_llega_a_llamar_al_adaptador(dataset, kwargs, descripcion):
+    """Rechazar después de las 14 llamadas gastaría una ventana de cuota irrecuperable."""
+    adapter = AdapterCorrecto(dataset, casos=select_batch(dataset, 1))
+    base = {
+        "batch_number": 1,
+        "adapter_name": "doble",
+        "model_name": MODEL_NAME,
+        "dataset_sha256": DATASET_SHA256,
+        "sleep": _sleep_espia()[0],
+        "monotonic_ns": RelojFalso(),
+    }
+
+    with pytest.raises(RecoveryProtocolError):
+        evaluate_batch(dataset, adapter, **{**base, **kwargs})
+
+    assert adapter.llamadas == 0, descripcion
+
+
+def test_las_constantes_del_protocolo_son_las_prerregistradas():
+    assert PROTOCOL_VERSION == "s8-e2-r1"
+    assert MODEL_NAME == "gemini-3.6-flash"
+    assert DATASET_VERSION == "s8-evaluation-v1"
+    assert DATASET_SHA256 == ("3bc54d591dc104aeabeecb2f5cc7c7a38e70ba042e7f045321ab33ae9b5efad4")
+    assert REQUEST_TIMEOUT_SECONDS == 20
+    assert INTER_REQUEST_DELAY_SECONDS == 20
+    assert STATUS_IN_PROGRESS == "R1_IN_PROGRESS"
+    assert TOTAL_CASES == 28
+    assert BATCH_SIZE == 14
+    assert BATCH_NUMBERS == (1, 2)
 
 
 def test_cada_caso_se_pide_exactamente_una_vez(dataset):
