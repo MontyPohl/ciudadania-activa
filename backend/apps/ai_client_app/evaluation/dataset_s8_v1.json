@@ -1,0 +1,386 @@
+{
+  "dataset_version": "s8-evaluation-v1",
+  "description": "Dataset sintetico congelado para medir la concordancia de la clasificacion asistida por IA (CA-4 / RNF-05). Todos los casos son inventados para el benchmark: no proceden de reportes reales ni contienen datos de ninguna persona.",
+  "catalog": {
+    "category_slugs": [
+      "agua-potable-perdidas",
+      "alumbrado-publico",
+      "arbol-caido",
+      "baches",
+      "basura-acumulada",
+      "cables-expuestos-riesgo-electrico",
+      "drenaje-desague-cloaca",
+      "escombros",
+      "otros",
+      "semaforos"
+    ],
+    "institution_slugs": ["ande", "essap", "municipalidad-de-asuncion"],
+    "priorities": ["BAJA", "MEDIA", "ALTA"]
+  },
+  "cases": [
+    {
+      "id": "S8-EVAL-001",
+      "description": "Un bache profundo ocupa medio carril de una avenida de doble sentido. Varios vehiculos frenan de golpe para esquivarlo y una moto ya volco por su causa.",
+      "current_category_slug": "baches",
+      "current_institution_slug": "municipalidad-de-asuncion",
+      "expected": {
+        "category_slug": "baches",
+        "institution_slug": "municipalidad-de-asuncion",
+        "priority": "ALTA",
+        "inconsistency": false
+      },
+      "notes": "Categoria e institucion correctas. Riesgo de accidente ya materializado en via principal: prioridad alta."
+    },
+    {
+      "id": "S8-EVAL-002",
+      "description": "Hay un hueco pequeno en el asfalto de una calle residencial poco transitada. Tiene el tamano de un plato y no impide el paso de los vehiculos.",
+      "current_category_slug": "baches",
+      "current_institution_slug": "municipalidad-de-asuncion",
+      "expected": {
+        "category_slug": "baches",
+        "institution_slug": "municipalidad-de-asuncion",
+        "priority": "BAJA",
+        "inconsistency": false
+      },
+      "notes": "Mismo tipo que el 001 pero sin riesgo: contrasta la asignacion de prioridad."
+    },
+    {
+      "id": "S8-EVAL-003",
+      "description": "Se acumulan bolsas de basura domiciliaria en la esquina de una plaza publica desde hace mas de una semana. Hay olor fuerte y presencia de roedores.",
+      "current_category_slug": "basura-acumulada",
+      "current_institution_slug": "municipalidad-de-asuncion",
+      "expected": {
+        "category_slug": "basura-acumulada",
+        "institution_slug": "municipalidad-de-asuncion",
+        "priority": "ALTA",
+        "inconsistency": false
+      },
+      "notes": "Riesgo sanitario declarado."
+    },
+    {
+      "id": "S8-EVAL-004",
+      "description": "Quedaron dos bolsas de residuos junto a un contenedor de una calle residencial. El contenedor tiene espacio y el camion pasa manana.",
+      "current_category_slug": "basura-acumulada",
+      "current_institution_slug": "municipalidad-de-asuncion",
+      "expected": {
+        "category_slug": "basura-acumulada",
+        "institution_slug": "municipalidad-de-asuncion",
+        "priority": "BAJA",
+        "inconsistency": false
+      },
+      "notes": "Contraste de prioridad dentro de la misma categoria."
+    },
+    {
+      "id": "S8-EVAL-005",
+      "description": "Cuatro farolas consecutivas de una avenida permanecen apagadas durante toda la noche. El tramo quedo completamente a oscuras y es paso habitual de peatones.",
+      "current_category_slug": "alumbrado-publico",
+      "current_institution_slug": "ande",
+      "expected": {
+        "category_slug": "alumbrado-publico",
+        "institution_slug": "ande",
+        "priority": "ALTA",
+        "inconsistency": false
+      },
+      "notes": "Categoria de competencia de ANDE, correctamente elegida."
+    },
+    {
+      "id": "S8-EVAL-006",
+      "description": "Una sola farola de una calle interior parpadea de forma intermitente. El resto del tramo mantiene iluminacion suficiente.",
+      "current_category_slug": "alumbrado-publico",
+      "current_institution_slug": "ande",
+      "expected": {
+        "category_slug": "alumbrado-publico",
+        "institution_slug": "ande",
+        "priority": "BAJA",
+        "inconsistency": false
+      },
+      "notes": "Prioridad baja: falla aislada sin perdida de iluminacion del tramo."
+    },
+    {
+      "id": "S8-EVAL-007",
+      "description": "Brota agua potable de forma continua bajo el pavimento de una calle. El chorro lleva dos dias corriendo hacia el desague y la presion de las viviendas bajo notablemente.",
+      "current_category_slug": "agua-potable-perdidas",
+      "current_institution_slug": "essap",
+      "expected": {
+        "category_slug": "agua-potable-perdidas",
+        "institution_slug": "essap",
+        "priority": "ALTA",
+        "inconsistency": false
+      },
+      "notes": "Competencia de ESSAP, correctamente elegida. Perdida continua de agua."
+    },
+    {
+      "id": "S8-EVAL-008",
+      "description": "Una canilla publica de una plaza gotea de forma constante. El goteo es lento y no afecta al suministro de las viviendas cercanas.",
+      "current_category_slug": "agua-potable-perdidas",
+      "current_institution_slug": "essap",
+      "expected": {
+        "category_slug": "agua-potable-perdidas",
+        "institution_slug": "essap",
+        "priority": "BAJA",
+        "inconsistency": false
+      },
+      "notes": "Contraste de prioridad en la misma competencia."
+    },
+    {
+      "id": "S8-EVAL-009",
+      "description": "Una boca de tormenta desborda y expulsa aguas servidas a la calzada. El olor es intenso y el liquido alcanza la vereda por donde caminan los vecinos.",
+      "current_category_slug": "drenaje-desague-cloaca",
+      "current_institution_slug": "essap",
+      "expected": {
+        "category_slug": "drenaje-desague-cloaca",
+        "institution_slug": "essap",
+        "priority": "ALTA",
+        "inconsistency": false
+      },
+      "notes": "Cloaca desbordada con contacto peatonal."
+    },
+    {
+      "id": "S8-EVAL-010",
+      "description": "La rejilla de un sumidero esta parcialmente obstruida por hojas secas. El agua drena mas lento de lo habitual pero no se acumula en la calzada.",
+      "current_category_slug": "drenaje-desague-cloaca",
+      "current_institution_slug": "essap",
+      "expected": {
+        "category_slug": "drenaje-desague-cloaca",
+        "institution_slug": "essap",
+        "priority": "BAJA",
+        "inconsistency": false
+      },
+      "notes": "Obstruccion menor sin anegamiento."
+    },
+    {
+      "id": "S8-EVAL-011",
+      "description": "El semaforo de un cruce de dos avenidas esta completamente apagado en hora pico. Los vehiculos cruzan sin senalizacion y se produjeron varios frenazos.",
+      "current_category_slug": "semaforos",
+      "current_institution_slug": "municipalidad-de-asuncion",
+      "expected": {
+        "category_slug": "semaforos",
+        "institution_slug": "municipalidad-de-asuncion",
+        "priority": "ALTA",
+        "inconsistency": false
+      },
+      "notes": "Cruce sin senalizacion en hora pico."
+    },
+    {
+      "id": "S8-EVAL-012",
+      "description": "Un semaforo peatonal de una calle secundaria tiene la carcasa rajada. Las luces funcionan con normalidad y el cruce opera sin problemas.",
+      "current_category_slug": "semaforos",
+      "current_institution_slug": "municipalidad-de-asuncion",
+      "expected": {
+        "category_slug": "semaforos",
+        "institution_slug": "municipalidad-de-asuncion",
+        "priority": "BAJA",
+        "inconsistency": false
+      },
+      "notes": "Dano estetico sin afectar la funcion."
+    },
+    {
+      "id": "S8-EVAL-013",
+      "description": "Una obra particular dejo una pila de escombros y restos de mamposteria ocupando por completo la vereda. Los peatones deben bajar a la calzada para pasar.",
+      "current_category_slug": "escombros",
+      "current_institution_slug": "municipalidad-de-asuncion",
+      "expected": {
+        "category_slug": "escombros",
+        "institution_slug": "municipalidad-de-asuncion",
+        "priority": "ALTA",
+        "inconsistency": false
+      },
+      "notes": "Vereda bloqueada obliga a caminar por la calzada."
+    },
+    {
+      "id": "S8-EVAL-014",
+      "description": "Quedaron unos ladrillos sueltos en el borde de un terreno baldio. No obstruyen el paso ni la circulacion.",
+      "current_category_slug": "escombros",
+      "current_institution_slug": "municipalidad-de-asuncion",
+      "expected": {
+        "category_slug": "escombros",
+        "institution_slug": "municipalidad-de-asuncion",
+        "priority": "BAJA",
+        "inconsistency": false
+      },
+      "notes": "Contraste de prioridad."
+    },
+    {
+      "id": "S8-EVAL-015",
+      "description": "Un arbol de gran porte cayo tras la tormenta y quedo atravesado sobre ambos carriles de una calle. Ningun vehiculo puede circular por el tramo.",
+      "current_category_slug": "arbol-caido",
+      "current_institution_slug": "municipalidad-de-asuncion",
+      "expected": {
+        "category_slug": "arbol-caido",
+        "institution_slug": "municipalidad-de-asuncion",
+        "priority": "ALTA",
+        "inconsistency": false
+      },
+      "notes": "Via completamente bloqueada."
+    },
+    {
+      "id": "S8-EVAL-016",
+      "description": "Se desprendio una rama mediana de un arbol de la plaza y quedo sobre el cesped. No obstruye senderos ni la calzada.",
+      "current_category_slug": "arbol-caido",
+      "current_institution_slug": "municipalidad-de-asuncion",
+      "expected": {
+        "category_slug": "arbol-caido",
+        "institution_slug": "municipalidad-de-asuncion",
+        "priority": "BAJA",
+        "inconsistency": false
+      },
+      "notes": "Contraste de prioridad."
+    },
+    {
+      "id": "S8-EVAL-017",
+      "description": "Cables electricos sueltos cuelgan a la altura de la cabeza sobre la vereda de una calle residencial. Uno de ellos toca una reja metalica y se escuchan chispazos.",
+      "current_category_slug": "cables-expuestos-riesgo-electrico",
+      "current_institution_slug": "ande",
+      "expected": {
+        "category_slug": "cables-expuestos-riesgo-electrico",
+        "institution_slug": "ande",
+        "priority": "ALTA",
+        "inconsistency": false
+      },
+      "notes": "Riesgo electrico inmediato, competencia de ANDE."
+    },
+    {
+      "id": "S8-EVAL-018",
+      "description": "Un cable de telecomunicaciones quedo descolgado y cuelga por encima de un muro, a mas de cuatro metros de altura. No hay chispas ni contacto con estructuras metalicas.",
+      "current_category_slug": "cables-expuestos-riesgo-electrico",
+      "current_institution_slug": "ande",
+      "expected": {
+        "category_slug": "cables-expuestos-riesgo-electrico",
+        "institution_slug": "ande",
+        "priority": "MEDIA",
+        "inconsistency": false
+      },
+      "notes": "Cable descolgado sin riesgo inmediato: prioridad intermedia."
+    },
+    {
+      "id": "S8-EVAL-019",
+      "description": "Un banco de una plaza publica tiene los listones de madera partidos y los tornillos a la vista. No corresponde a ninguna categoria especifica del catalogo.",
+      "current_category_slug": "otros",
+      "current_institution_slug": "municipalidad-de-asuncion",
+      "expected": {
+        "category_slug": "otros",
+        "institution_slug": "municipalidad-de-asuncion",
+        "priority": "BAJA",
+        "inconsistency": false
+      },
+      "notes": "Uso legitimo de la categoria residual del catalogo."
+    },
+    {
+      "id": "S8-EVAL-020",
+      "description": "El tobogan de una plaza infantil tiene un tornillo salido que engancha la ropa de los ninos. No encaja en las categorias de infraestructura vial ni de servicios.",
+      "current_category_slug": "otros",
+      "current_institution_slug": "municipalidad-de-asuncion",
+      "expected": {
+        "category_slug": "otros",
+        "institution_slug": "municipalidad-de-asuncion",
+        "priority": "MEDIA",
+        "inconsistency": false
+      },
+      "notes": "Segundo caso de categoria residual, con prioridad distinta."
+    },
+    {
+      "id": "S8-EVAL-021",
+      "description": "El ciudadano informa que se rompio un cano de agua potable y el agua corre por la calle desde la manana. La perdida es continua y visible.",
+      "current_category_slug": "baches",
+      "current_institution_slug": "municipalidad-de-asuncion",
+      "expected": {
+        "category_slug": "agua-potable-perdidas",
+        "institution_slug": "essap",
+        "priority": "ALTA",
+        "inconsistency": true
+      },
+      "notes": "Correccion de categoria e institucion. La descripcion contradice la categoria elegida: inconsistencia."
+    },
+    {
+      "id": "S8-EVAL-022",
+      "description": "El ciudadano describe que las luminarias de toda una cuadra llevan tres noches sin encender y la calle queda oscura.",
+      "current_category_slug": "otros",
+      "current_institution_slug": "municipalidad-de-asuncion",
+      "expected": {
+        "category_slug": "alumbrado-publico",
+        "institution_slug": "ande",
+        "priority": "MEDIA",
+        "inconsistency": false
+      },
+      "notes": "Correccion de categoria e institucion sin contradiccion: el ciudadano uso la categoria residual por imprecision, no por error de hecho."
+    },
+    {
+      "id": "S8-EVAL-023",
+      "description": "El ciudadano informa que hay cables de energia caidos sobre la vereda y que uno emite chispas al tocar el suelo mojado.",
+      "current_category_slug": "escombros",
+      "current_institution_slug": "municipalidad-de-asuncion",
+      "expected": {
+        "category_slug": "cables-expuestos-riesgo-electrico",
+        "institution_slug": "ande",
+        "priority": "ALTA",
+        "inconsistency": true
+      },
+      "notes": "La descripcion contradice frontalmente la categoria elegida."
+    },
+    {
+      "id": "S8-EVAL-024",
+      "description": "El ciudadano relata que una boca de desague expulsa liquido con olor a cloaca hacia la calzada tras cada lluvia.",
+      "current_category_slug": "basura-acumulada",
+      "current_institution_slug": "municipalidad-de-asuncion",
+      "expected": {
+        "category_slug": "drenaje-desague-cloaca",
+        "institution_slug": "essap",
+        "priority": "ALTA",
+        "inconsistency": true
+      },
+      "notes": "Contradiccion entre categoria elegida y hecho descrito."
+    },
+    {
+      "id": "S8-EVAL-025",
+      "description": "El ciudadano indica que un arbol se desplomo sobre la calzada y bloquea el paso de los vehiculos en ambos sentidos.",
+      "current_category_slug": "semaforos",
+      "current_institution_slug": null,
+      "expected": {
+        "category_slug": "arbol-caido",
+        "institution_slug": "municipalidad-de-asuncion",
+        "priority": "ALTA",
+        "inconsistency": true
+      },
+      "notes": "Institucion actual nula. La descripcion contradice la categoria elegida."
+    },
+    {
+      "id": "S8-EVAL-026",
+      "description": "El ciudadano informa que el pavimento se hundio y formo un pozo de gran tamano en el centro de la calzada, donde ya encallo un vehiculo.",
+      "current_category_slug": "alumbrado-publico",
+      "current_institution_slug": "ande",
+      "expected": {
+        "category_slug": "baches",
+        "institution_slug": "municipalidad-de-asuncion",
+        "priority": "ALTA",
+        "inconsistency": true
+      },
+      "notes": "Correccion de categoria e institucion, con contradiccion explicita."
+    },
+    {
+      "id": "S8-EVAL-027",
+      "description": "El ciudadano describe una acumulacion de residuos en un terreno baldio que atrae insectos, pero eligio la categoria de semaforos al crear el reporte.",
+      "current_category_slug": "semaforos",
+      "current_institution_slug": "municipalidad-de-asuncion",
+      "expected": {
+        "category_slug": "basura-acumulada",
+        "institution_slug": "municipalidad-de-asuncion",
+        "priority": "MEDIA",
+        "inconsistency": true
+      },
+      "notes": "Correccion de categoria conservando institucion. Contradiccion clara."
+    },
+    {
+      "id": "S8-EVAL-028",
+      "description": "El ciudadano reporta escombros de una demolicion apilados sobre la calzada que reducen el ancho util de la via a un solo carril.",
+      "current_category_slug": "otros",
+      "current_institution_slug": null,
+      "expected": {
+        "category_slug": "escombros",
+        "institution_slug": "municipalidad-de-asuncion",
+        "priority": "MEDIA",
+        "inconsistency": false
+      },
+      "notes": "Institucion actual nula y categoria residual imprecisa, sin contradiccion de hecho."
+    }
+  ]
+}
