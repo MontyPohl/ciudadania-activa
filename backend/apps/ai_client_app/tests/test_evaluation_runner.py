@@ -89,12 +89,22 @@ def test_el_runner_usa_el_parser_real():
 
 
 def test_el_runner_no_introduce_datos_variables():
-    """Sin relojes ni azar: dos mediciones deben ser comparables."""
+    """Sin azar ni reloj de pared: dos informes deben seguir siendo comparables.
+
+    S8-E2-R1 añadió la medición de duración por caso, así que el runner sí importa
+    `time`: hace falta un reloj monotónico, y `sleep` es el punto de inyección del
+    pacing. Lo que sigue prohibido es todo lo que haría variar el **informe**
+    —`datetime`, `random`, `uuid`, `os`—, porque la duración vive deliberadamente
+    fuera de él, en `EvaluationRun.diagnostics`.
+    """
     importados = imported_names(runner_module)
     identificadores = code_identifiers(runner_module)
 
-    assert importados.isdisjoint({"datetime", "time", "random", "uuid", "os"})
-    assert identificadores.isdisjoint({"now", "utcnow", "uuid4", "getenv"})
+    assert importados.isdisjoint({"datetime", "random", "uuid", "os"})
+    assert identificadores.isdisjoint({"now", "utcnow", "uuid4", "getenv", "gmtime", "strftime"})
+    # El reloj es monotónico, no de pared: `time()` mediría algo que un ajuste de
+    # hora del sistema podría volver negativo.
+    assert "perf_counter_ns" in identificadores
 
 
 # --------------------------------------------------------------------------- #
