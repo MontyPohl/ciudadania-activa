@@ -16,28 +16,35 @@ alcanza el 85 % no demuestra CA-4»*.
 Con el adaptador falso el resultado actual es **bajo a propósito**: ese adaptador
 repite la categoría que eligió el ciudadano y propone siempre prioridad `MEDIA`,
 así que falla en casi todos los casos que exigen corregir. **El dataset no fue
-diseñado para maximizar su puntuación.** Si algún día la superase sin cambiar de
-comportamiento, habría que sospechar del dataset, no celebrar el número.
+diseñado para maximizar su puntuación.** Si algún día superase el umbral sin
+cambiar de comportamiento, habría que sospechar del dataset, no celebrar el
+número.
 
 ## Métrica
 
-La documentación del proyecto **no define la fórmula**. El contrato S8-A y RNF-05
-fijan el umbral y la fuente; el Anexo H de la tesis acota el alcance a
-«categoria/institucion/prioridad», sin decir si el acierto se cuenta por caso o
-por campo.
+### Oficial: CA-4
 
-Ante esa ausencia se adopta la definición **conservadora**, y se registra la
-discrepancia en lugar de esconderla:
+**`ca4_concordance_pct`.** Un caso concuerda cuando coinciden exactamente
+`category_slug`, `institution_slug` y `priority`.
 
-- **`concordance_pct` (primaria).** Un caso concuerda solo si coinciden
-  exactamente los cuatro campos etiquetables: `category_slug`,
-  `institution_slug`, `priority` e `inconsistency`.
-- **`thesis_concordance_pct` (contraste).** El criterio del Anexo H: los tres
-  primeros campos, sin `inconsistency`.
+La fuente es el **Anexo H de la tesis**: *«Exactitud esperada >= 85% sobre
+categoria/institucion/prioridad»*. Es el criterio normativo y **la única métrica a
+la que se aplica el umbral del 85 %**.
 
-La primaria es **más estricta**, así que un resultado que la supera también
-supera el criterio del Anexo. Ambas se reportan para que la comparación sea
-posible sin reejecutar nada.
+### Diagnóstico: concordancia estricta
+
+**`strict_concordance_pct`.** Añade `inconsistency` a la comparación: exige que el
+modelo, además de clasificar bien, haya reconocido cuándo la descripción
+contradice lo que el ciudadano eligió.
+
+**No es CA-4 y no tiene umbral propio**, porque no es un criterio de aceptación de
+la tesis. Sirve para interpretar el resultado: un caso puede cumplir CA-4 y fallar
+la estricta; lo contrario es imposible, porque la estricta es CA-4 más una
+condición.
+
+`inconsistency` conserva su etiqueta de oro y su exactitud propia
+(`inconsistency_accuracy_pct`). Queda fuera del criterio oficial, no de la
+medición.
 
 ### Qué queda fuera, y por qué
 

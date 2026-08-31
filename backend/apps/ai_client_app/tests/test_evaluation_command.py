@@ -57,7 +57,8 @@ def test_la_salida_de_texto_incluye_las_metricas():
     for esperado in (
         "s8-evaluation-v1",
         "casos",
-        "concordantes",
+        "CA-4 (cat+inst+prio)",
+        "estricta (+inconsist)",
         "categoría",
         "institución",
         "prioridad",
@@ -65,6 +66,15 @@ def test_la_salida_de_texto_incluye_las_metricas():
         "errores",
     ):
         assert esperado in salida
+
+
+def test_la_salida_distingue_la_metrica_oficial_de_la_diagnostica():
+    """CA-4 y la estricta no pueden confundirse al leer el resultado."""
+    salida = ejecutar()
+
+    assert "CA-4" in salida
+    assert "estricta" in salida
+    assert salida.index("CA-4") < salida.index("estricta"), "lo oficial va primero"
 
 
 def test_la_salida_advierte_que_el_resultado_no_demuestra_ca4():
@@ -86,6 +96,8 @@ def test_la_salida_json_es_valida_y_estable():
     assert datos["adapter_name"] == "fake"
     assert datos["total_cases"] == 28
     assert datos["errors_count"] == 0
+    assert "ca4_concordance_pct" in datos
+    assert "strict_concordance_pct" in datos
 
 
 def test_el_json_no_declara_si_supera_el_umbral():

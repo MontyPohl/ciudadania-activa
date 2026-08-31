@@ -1049,20 +1049,23 @@ antes de cerrarlo.
   `evaluation/runner.py` adapter-agnostic y el comando
   `manage.py evaluate_ai_classification`, que **solo admite el adaptador falso**.
 
-  **Este gate no demuestra CA-4.** Con el adaptador falso la concordancia es del
-  **7,14 %**, y es el resultado correcto: ese adaptador repite la categoría que eligió el
+  **Este gate no demuestra CA-4.** Con el adaptador falso la concordancia CA-4 es del
+  **7,14 %** —y la estricta también, porque los dos casos que acierta reconocen además la
+  inconsistencia—, y es el resultado correcto: ese adaptador repite la categoría que eligió el
   ciudadano y propone siempre `MEDIA`, de modo que falla en casi todos los casos que
   exigen corregir. El dataset no se diseñó para favorecerlo. Lo que queda demostrado es
   que la maquinaria de medición funciona y es reproducible, no la capacidad de ningún
   modelo.
 
-  **Discrepancia metodológica registrada.** Ni el contrato S8-A ni RNF-05 definen la
-  fórmula de la concordancia; el Anexo H de la tesis acota el alcance a
-  «categoria/institucion/prioridad» sin decir si el acierto se cuenta por caso o por
-  campo. Se adopta la definición **conservadora** —un caso concuerda solo si coinciden los
-  cuatro campos etiquetables, incluida `inconsistency`— y se reporta además
-  `thesis_concordance_pct`, restringida a los tres campos del Anexo. La primaria es más
-  estricta, así que superarla implica superar el criterio de la tesis.
+  **Métrica oficial alineada con el Anexo H.** CA-4 se mide como exactitud sobre
+  `category_slug`, `institution_slug` y `priority` —«Exactitud esperada >= 85% sobre
+  categoria/institucion/prioridad»—, que es el criterio normativo de la tesis y el único al
+  que se aplica el umbral del 85 %. Junto a ella se conserva una **concordancia estricta de
+  diagnóstico** que añade `inconsistency`: no es CA-4, no tiene umbral propio y sirve para
+  ver si el modelo, además de clasificar bien, reconoce cuándo la descripción contradice lo
+  que eligió el ciudadano. La estricta nunca puede superar a CA-4, porque es CA-4 más una
+  condición. `inconsistency` conserva su etiqueta de oro y su exactitud propia: queda fuera
+  del criterio oficial, no de la medición.
 
   `confidence` no puntúa: es una estimación del modelo sobre sí mismo, no una etiqueta
   humana. `justification` se exige y se valida con el parser, pero no se puntúa
@@ -1152,10 +1155,11 @@ antes de cerrarlo.
   Del runner: que no conoce al proveedor ni al runtime, que no toca base de datos ni
   Celery, que usa el parser real, que no introduce relojes ni azar, y que **las etiquetas
   de oro nunca viajan en la petición**. De la aritmética: 100 %, 0 %, una fracción exacta
-  del 75 % y la frontera exacta de `85.00` calculada con `Decimal`. De las métricas de
-  campo: un error en un solo campo hace fallar la concordancia del caso y baja únicamente
-  su propia métrica. De los fallos: una respuesta inválida o una excepción del adaptador
-  cuentan como no concordantes, quedan en `errors_count` y **no detienen la corrida**.
+  del 75 % y la frontera exacta de `85.00` calculada con `Decimal`, referida siempre a
+  CA-4. De la separación de métricas: fallar **solo** `inconsistency` deja CA-4 en 100 % y
+  la estricta en 0 %, mientras que fallar cualquiera de los tres campos oficiales rompe
+  ambas. De los fallos: una respuesta inválida o una excepción del adaptador cuentan como
+  no concordantes, quedan en `errors_count` y **no detienen la corrida**.
 
   Determinismo verificado ejecutando el comando dos veces: salida JSON **idéntica byte a
   byte** (14.849 bytes, sha256 `6972c1e7…`). Suite backend completa en verde: **1523

@@ -1,20 +1,22 @@
-"""Métrica de concordancia (S8-E1).
+"""Métricas de concordancia (S8-E1).
 
-**La documentación del proyecto no define la fórmula.** El contrato S8-A (D19) y
-RNF-05 fijan el umbral —85 %— y la fuente —etiquetas de oro de un dataset—, pero
-no cómo se cuenta un acierto. El Anexo H de la tesis acota el alcance a
-«categoria/institucion/prioridad», sin decir tampoco si el acierto es por caso o
-por campo.
+**La métrica oficial de CA-4 es la del Anexo H de la tesis**: un caso concuerda
+cuando coinciden exactamente `category_slug`, `institution_slug` y `priority`
+—«Exactitud esperada >= 85% sobre categoria/institucion/prioridad»—. Ese es el
+criterio normativo y el único al que se aplica el umbral del 85 %.
 
-Ante esa ausencia se adopta la definición **conservadora**: un caso concuerda solo
-si los cuatro campos etiquetables coinciden exactamente. Es más estricta que el
-criterio del Anexo H, de modo que un resultado que la supera también supera aquel.
-Para no perder la trazabilidad con la tesis se calcula además
-`thesis_concordance_pct`, restringida a los tres campos que el Anexo enumera.
+Junto a ella se calcula una **métrica estricta de diagnóstico** que añade
+`inconsistency` a la comparación. No es CA-4 y no tiene umbral propio: sirve para
+ver si el modelo, además de clasificar bien, reconoce cuándo la descripción
+contradice lo que el ciudadano eligió. Un caso puede cumplir CA-4 y fallar la
+estricta; lo contrario es imposible.
 
-Fuera de la métrica quedan dos cosas, y por motivos distintos. `confidence` es una
-estimación del propio modelo, no una etiqueta humana: puntuarla mediría cuánto se
-cree el modelo a sí mismo. Y `justification` es texto libre: dos redacciones
+`inconsistency` conserva su etiqueta de oro y su exactitud propia. Queda fuera del
+criterio oficial, no de la medición.
+
+Fuera de ambas métricas quedan dos cosas, por motivos distintos. `confidence` es
+una estimación del propio modelo, no una etiqueta humana: puntuarla mediría cuánto
+se cree el modelo a sí mismo. Y `justification` es texto libre: dos redacciones
 distintas pueden ser igual de correctas, así que se exige que exista y pase el
 parser, pero no se puntúa su semántica.
 """
@@ -27,8 +29,10 @@ from decimal import ROUND_HALF_UP, Decimal
 from ..contracts import ParsedClassification
 from .dataset import EvaluationCase
 
-# Umbral metodológico de CA-4 / RNF-05. Se define aquí para que el número viva en
-# un solo sitio, **no** para declarar éxito: con el adaptador falso, superarlo no
+# Umbral metodológico de CA-4 / RNF-05. Pertenece **exclusivamente** a
+# `ca4_concordance_pct`: la métrica estricta no tiene umbral porque no es un
+# criterio de aceptación de la tesis. Se define aquí para que el número viva en un
+# solo sitio, **no** para declarar éxito: con el adaptador falso, superarlo no
 # significa nada sobre la capacidad del modelo (contrato S8-A, D19).
 CA4_MIN_CONCORDANCE_PCT = Decimal("85.00")
 
@@ -39,13 +43,17 @@ _DOS_DECIMALES = Decimal("0.01")
 class CaseResult:
     """Resultado de un caso, con el desglose por campo.
 
+    `ca4_concordant` es el criterio oficial —categoría, institución y prioridad—.
+    `strict_concordant` añade `inconsistency` y es solo diagnóstico.
+
     `error_type` solo lleva el nombre de la excepción: un traceback dentro de la
     evidencia la haría irreproducible y podría arrastrar el contenido de la
     respuesta.
     """
 
     id: str
-    concordant: bool
+    ca4_concordant: bool
+    strict_concordant: bool
     category_match: bool
     institution_match: bool
     priority_match: bool
@@ -74,9 +82,14 @@ def compare_case(case: EvaluationCase, parsed: ParsedClassification) -> CaseResu
     priority_match = parsed.priority == case.expected.priority
     inconsistency_match = parsed.inconsistency == case.expected.inconsistency
 
+    # Criterio oficial del Anexo H: los tres campos que la tesis enumera.
+    ca4_concordant = category_match and institution_match and priority_match
+
     return CaseResult(
         id=case.id,
-        concordant=category_match and institution_match and priority_match and inconsistency_match,
+        ca4_concordant=ca4_concordant,
+        # Diagnóstico: exige además haber reconocido la inconsistencia.
+        strict_concordant=ca4_concordant and inconsistency_match,
         category_match=category_match,
         institution_match=institution_match,
         priority_match=priority_match,
@@ -104,7 +117,8 @@ def failed_case(case: EvaluationCase, error_type: str) -> CaseResult:
     """
     return CaseResult(
         id=case.id,
-        concordant=False,
+        ca4_concordant=False,
+        strict_concordant=False,
         category_match=False,
         institution_match=False,
         priority_match=False,

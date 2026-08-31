@@ -143,9 +143,9 @@ def test_la_peticion_usa_la_taxonomia_congelada(dataset):
 def test_un_adaptador_perfecto_alcanza_el_cien_por_cien(dataset):
     informe = evaluar(dataset, AdapterDeGuion(dataset))
 
-    assert informe.concordant_cases == informe.total_cases
-    assert informe.concordance_pct == Decimal("100.00")
-    assert informe.thesis_concordance_pct == Decimal("100.00")
+    assert informe.ca4_concordant_cases == informe.total_cases
+    assert informe.ca4_concordance_pct == Decimal("100.00")
+    assert informe.strict_concordance_pct == Decimal("100.00")
     assert informe.errors_count == 0
 
 
@@ -156,13 +156,13 @@ def test_un_adaptador_siempre_equivocado_obtiene_cero(dataset):
 
     informe = evaluar(dataset, AdapterDeGuion(dataset, mutar=arruinar))
 
-    assert informe.concordant_cases == 0
-    assert informe.concordance_pct == Decimal("0.00")
+    assert informe.ca4_concordant_cases == 0
+    assert informe.ca4_concordance_pct == Decimal("0.00")
     assert informe.category_accuracy_pct == Decimal("0.00")
 
 
 def test_el_umbral_de_ochenta_y_cinco_se_calcula_exactamente():
-    """Frontera de CA-4 sin afirmar que ningún modelo la haya alcanzado."""
+    """Frontera de CA-4 —los tres campos del Anexo H— sin afirmar que nadie la alcance."""
     assert percentage(17, 20) == Decimal("85.00")
     assert percentage(17, 20) == CA4_MIN_CONCORDANCE_PCT
     assert percentage(16, 20) == Decimal("80.00")
@@ -188,8 +188,8 @@ def test_una_fraccion_exacta_del_dataset_produce_el_porcentaje_esperado(dataset)
 
     informe = evaluar(dataset, AdapterDeGuion(dataset, mutar=arruinar))
 
-    assert informe.concordant_cases == 21
-    assert informe.concordance_pct == Decimal("75.00")
+    assert informe.ca4_concordant_cases == 21
+    assert informe.ca4_concordance_pct == Decimal("75.00")
 
 
 # --------------------------------------------------------------------------- #
@@ -225,7 +225,10 @@ def test_un_error_en_un_campo_solo_baja_su_metrica(dataset, campo, metrica):
 
     informe = evaluar(dataset, AdapterDeGuion(dataset, mutar=arruinar))
 
-    assert informe.concordant_cases == 0, "el caso debe dejar de concordar"
+    # `inconsistency` no pertenece al criterio oficial: fallarla no rompe CA-4.
+    esperado_ca4 = informe.total_cases if campo == "inconsistency" else 0
+    assert informe.ca4_concordant_cases == esperado_ca4
+    assert informe.strict_concordant_cases == 0, "la estricta debe fallar siempre"
     assert getattr(informe, metrica) == Decimal("0.00")
 
     otras = {
@@ -245,7 +248,7 @@ def test_la_confianza_no_participa_en_la_concordancia(dataset):
         dataset, AdapterDeGuion(dataset, mutar=lambda c, s: {**s, "confidence": 0.01})
     )
 
-    assert informe_alto.concordance_pct == informe_bajo.concordance_pct == Decimal("100.00")
+    assert informe_alto.ca4_concordance_pct == informe_bajo.ca4_concordance_pct == Decimal("100.00")
 
 
 def test_la_justificacion_no_se_puntua_semanticamente(dataset):
@@ -255,8 +258,82 @@ def test_la_justificacion_no_se_puntua_semanticamente(dataset):
         AdapterDeGuion(dataset, mutar=lambda c, s: {**s, "justification": "Otro texto distinto."}),
     )
 
-    assert informe.concordance_pct == Decimal("100.00")
+    assert informe.ca4_concordance_pct == Decimal("100.00")
     assert all(r.justification_length == len("Otro texto distinto.") for r in informe.cases)
+
+
+def test_fallar_solo_la_inconsistencia_no_rompe_ca4(dataset):
+    """El test metodológico del criterio oficial.
+
+    El Anexo H define la exactitud sobre categoria, institucion y prioridad. Un
+    modelo que acierta los tres cumple CA-4 aunque no haya reconocido que la
+    descripcion contradecia lo que eligio el ciudadano. Esa señal se conserva,
+    pero en la metrica estricta, que es diagnostico.
+    """
+
+    def solo_inconsistencia_mal(case, salida):
+        return {**salida, "inconsistency": not case.expected.inconsistency}
+
+    informe = evaluar(dataset, AdapterDeGuion(dataset, mutar=solo_inconsistencia_mal))
+
+    assert informe.ca4_concordance_pct == Decimal("100.00")
+    assert informe.strict_concordance_pct == Decimal("0.00")
+    assert informe.inconsistency_accuracy_pct == Decimal("0.00")
+    assert informe.category_accuracy_pct == Decimal("100.00")
+    assert informe.institution_accuracy_pct == Decimal("100.00")
+    assert informe.priority_accuracy_pct == Decimal("100.00")
+
+    for resultado in informe.cases:
+        assert resultado.ca4_concordant is True
+        assert resultado.strict_concordant is False
+
+
+@pytest.mark.parametrize("campo", ["category_slug", "institution_slug", "priority"])
+def test_fallar_cualquier_campo_oficial_rompe_ca4(dataset, campo):
+    alternativas = {
+        "category_slug": lambda c: next(
+            s for s in dataset.catalog.category_slugs if s != c.expected.category_slug
+        ),
+        "institution_slug": lambda c: next(
+            s for s in dataset.catalog.institution_slugs if s != c.expected.institution_slug
+        ),
+        "priority": lambda c: next(
+            p for p in dataset.catalog.priorities if p != c.expected.priority
+        ),
+    }
+
+    informe = evaluar(
+        dataset,
+        AdapterDeGuion(dataset, mutar=lambda c, s: {**s, campo: alternativas[campo](c)}),
+    )
+
+    assert informe.ca4_concordance_pct == Decimal("0.00")
+    assert informe.strict_concordance_pct == Decimal("0.00")
+
+
+def test_la_estricta_nunca_supera_a_ca4(dataset):
+    """Relación estructural: la estricta es CA-4 más una condición."""
+
+    def a_medias(case, salida):
+        if case.expected.inconsistency:
+            return {**salida, "inconsistency": False}
+        return salida
+
+    informe = evaluar(dataset, AdapterDeGuion(dataset, mutar=a_medias))
+
+    assert informe.strict_concordant_cases <= informe.ca4_concordant_cases
+    assert informe.ca4_concordance_pct == Decimal("100.00")
+    assert informe.strict_concordance_pct < Decimal("100.00")
+
+
+def test_el_umbral_pertenece_solo_a_ca4():
+    """La métrica estricta no es criterio de aceptación: no tiene umbral propio."""
+    from apps.ai_client_app.evaluation import scoring
+
+    constantes = {n for n in dir(scoring) if n.isupper()}
+
+    assert "CA4_MIN_CONCORDANCE_PCT" in constantes
+    assert not any("STRICT" in n and "MIN" in n for n in constantes)
 
 
 # --------------------------------------------------------------------------- #
@@ -268,7 +345,8 @@ def test_una_respuesta_invalida_cuenta_como_fallo_y_no_aborta(dataset):
     informe = evaluar(dataset, AdapterDeGuion(dataset, raw_por_defecto="no soy json"))
 
     assert len(informe.cases) == informe.total_cases == len(dataset.cases)
-    assert informe.concordant_cases == 0
+    assert informe.ca4_concordant_cases == 0
+    assert informe.strict_concordant_cases == 0
     assert informe.errors_count == len(dataset.cases)
     assert all(r.error_type == "ClassificationParseError" for r in informe.cases)
 
@@ -293,7 +371,7 @@ def test_la_corrida_continua_tras_un_caso_fallido(dataset):
     informe = evaluar(dataset, AdapterDeGuion(dataset, mutar=arruinar))
 
     assert informe.errors_count == 1
-    assert informe.concordant_cases == len(dataset.cases) - 1
+    assert informe.ca4_concordant_cases == len(dataset.cases) - 1
     assert informe.cases[0].error_type == "ClassificationParseError"
 
 
@@ -335,8 +413,9 @@ def test_el_informe_no_declara_si_supera_el_umbral(dataset):
 def test_los_porcentajes_se_serializan_como_cadena(dataset):
     datos = report_to_dict(evaluar(dataset, AdapterDeGuion(dataset)))
 
-    assert datos["concordance_pct"] == "100.00"
-    assert isinstance(datos["concordance_pct"], str)
+    assert datos["ca4_concordance_pct"] == "100.00"
+    assert datos["strict_concordance_pct"] == "100.00"
+    assert isinstance(datos["ca4_concordance_pct"], str)
 
 
 # --------------------------------------------------------------------------- #
@@ -385,7 +464,7 @@ def test_el_dataset_no_esta_disenado_para_favorecer_al_fake(dataset):
         model_name="fake-deterministic",
     )
 
-    assert informe.concordance_pct < CA4_MIN_CONCORDANCE_PCT
+    assert informe.ca4_concordance_pct < CA4_MIN_CONCORDANCE_PCT
 
 
 def test_el_informe_conserva_el_orden_del_dataset(dataset):

@@ -23,7 +23,8 @@ MODELO_FAKE = "fake-deterministic"
 AVISO = (
     "Este resultado NO demuestra CA-4: el adaptador falso valida la maquinaria de "
     "medición, no la capacidad del modelo. La concordancia real exige medir el mismo "
-    f"dataset contra el proveedor real y alcanzar el {CA4_MIN_CONCORDANCE_PCT} %."
+    f"dataset contra el proveedor real y alcanzar el {CA4_MIN_CONCORDANCE_PCT} % en "
+    "CA-4. La métrica estricta es diagnóstico y no tiene umbral."
 )
 
 
@@ -67,20 +68,21 @@ class Command(BaseCommand):
             self.stdout.write(report_to_json(report))
             return
 
-        self.stdout.write(f"dataset            {report.dataset_version}")
-        self.stdout.write(f"adaptador          {report.adapter_name} ({report.model_name})")
-        self.stdout.write(f"casos              {report.total_cases}")
+        self.stdout.write(f"dataset                {report.dataset_version}")
+        self.stdout.write(f"adaptador              {report.adapter_name} ({report.model_name})")
+        self.stdout.write(f"casos                  {report.total_cases}")
         self.stdout.write(
-            f"concordantes       {report.concordant_cases} ({report.concordance_pct} %)"
+            f"CA-4 (cat+inst+prio)   {report.ca4_concordant_cases} "
+            f"({report.ca4_concordance_pct} %)"
         )
         self.stdout.write(
-            f"criterio Anexo H   {report.thesis_concordant_cases} "
-            f"({report.thesis_concordance_pct} %)"
+            f"estricta (+inconsist)  {report.strict_concordant_cases} "
+            f"({report.strict_concordance_pct} %)"
         )
-        self.stdout.write(f"categoría          {report.category_accuracy_pct} %")
-        self.stdout.write(f"institución        {report.institution_accuracy_pct} %")
-        self.stdout.write(f"prioridad          {report.priority_accuracy_pct} %")
-        self.stdout.write(f"inconsistencia     {report.inconsistency_accuracy_pct} %")
-        self.stdout.write(f"errores            {report.errors_count}")
+        self.stdout.write(f"categoría              {report.category_accuracy_pct} %")
+        self.stdout.write(f"institución            {report.institution_accuracy_pct} %")
+        self.stdout.write(f"prioridad              {report.priority_accuracy_pct} %")
+        self.stdout.write(f"inconsistencia         {report.inconsistency_accuracy_pct} %")
+        self.stdout.write(f"errores                {report.errors_count}")
         self.stdout.write("")
         self.stdout.write(self.style.WARNING(AVISO))

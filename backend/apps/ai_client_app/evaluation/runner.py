@@ -26,9 +26,12 @@ from .scoring import CaseResult, compare_case, failed_case, percentage
 class EvaluationReport:
     """Resultado agregado de una evaluación.
 
-    `concordance_pct` es la métrica primaria: los cuatro campos exactos.
-    `thesis_concordance_pct` restringe el acierto a los tres que enumera el Anexo
-    H de la tesis, para poder contrastar ambos criterios sin reejecutar nada.
+    `ca4_concordance_pct` es la **métrica oficial**: categoría, institución y
+    prioridad, según el Anexo H de la tesis. Es la única a la que se aplica el
+    umbral del 85 %.
+
+    `strict_concordance_pct` añade `inconsistency` y es **solo diagnóstico**. No
+    tiene umbral: no es un criterio de aceptación.
 
     No expone `meets_threshold` a propósito. Con el adaptador falso ese campo
     invitaría a leer un número como si dijera algo sobre la calidad del modelo, y
@@ -40,11 +43,12 @@ class EvaluationReport:
     adapter_name: str
     model_name: str
     total_cases: int
-    concordant_cases: int
-    non_concordant_cases: int
-    concordance_pct: Decimal
-    thesis_concordant_cases: int
-    thesis_concordance_pct: Decimal
+    ca4_concordant_cases: int
+    ca4_non_concordant_cases: int
+    ca4_concordance_pct: Decimal
+    strict_concordant_cases: int
+    strict_non_concordant_cases: int
+    strict_concordance_pct: Decimal
     category_correct: int
     category_accuracy_pct: Decimal
     institution_correct: int
@@ -122,11 +126,10 @@ def _build_report(
     model_name: str,
 ) -> EvaluationReport:
     total = len(resultados)
-    concordantes = sum(1 for r in resultados if r.concordant)
-    # Criterio del Anexo H: categoría, institución y prioridad, sin `inconsistency`.
-    tesis = sum(
-        1 for r in resultados if r.category_match and r.institution_match and r.priority_match
-    )
+    # Oficial: categoría, institución y prioridad (Anexo H).
+    ca4 = sum(1 for r in resultados if r.ca4_concordant)
+    # Diagnóstico: lo anterior más haber reconocido la inconsistencia.
+    estricta = sum(1 for r in resultados if r.strict_concordant)
     categoria = sum(1 for r in resultados if r.category_match)
     institucion = sum(1 for r in resultados if r.institution_match)
     prioridad = sum(1 for r in resultados if r.priority_match)
@@ -138,11 +141,12 @@ def _build_report(
         adapter_name=adapter_name,
         model_name=model_name,
         total_cases=total,
-        concordant_cases=concordantes,
-        non_concordant_cases=total - concordantes,
-        concordance_pct=percentage(concordantes, total),
-        thesis_concordant_cases=tesis,
-        thesis_concordance_pct=percentage(tesis, total),
+        ca4_concordant_cases=ca4,
+        ca4_non_concordant_cases=total - ca4,
+        ca4_concordance_pct=percentage(ca4, total),
+        strict_concordant_cases=estricta,
+        strict_non_concordant_cases=total - estricta,
+        strict_concordance_pct=percentage(estricta, total),
         category_correct=categoria,
         category_accuracy_pct=percentage(categoria, total),
         institution_correct=institucion,
