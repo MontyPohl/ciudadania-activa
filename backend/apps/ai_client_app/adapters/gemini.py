@@ -8,6 +8,15 @@ conoce Celery.
 estricto porque reduce la probabilidad de una respuesta malformada, pero la
 frontera de seguridad sigue siendo `parse_classification_response` (contrato
 S8-A, D13). Este módulo devuelve la cadena tal cual la dio el proveedor.
+
+**Los errores se clasifican por su forma, no por su clase.** La Interactions API
+no lanza las excepciones de `google.genai.errors`: usa una jerarquía propia que
+no hereda de `APIError`, con el código HTTP en `status_code` en lugar de `code`.
+Un `except APIError` las deja pasar enteras, y eso fue exactamente lo que
+ocurrió en la primera medición real: 28 llamadas devolvieron 404 y ninguna se
+clasificó. Por eso aquí se leen ambos atributos y se sigue la cadena de causas
+hasta el error de transporte original, en vez de depender de qué clase concreta
+decidió instanciar el SDK.
 """
 
 from __future__ import annotations
@@ -18,7 +27,6 @@ import logging
 
 import httpx
 from google import genai
-from google.genai import errors as genai_errors
 from google.genai import types as genai_types
 
 from apps.core.enums import ReportPriority
@@ -45,6 +53,11 @@ _ESTADO_COMPLETADO = "completed"
 # El SDK usa estos códigos como reintentables por defecto; se replican aquí porque
 # la decisión de reintentar pasó a ser nuestra.
 _CODIGOS_TRANSITORIOS = frozenset({408, 429})
+
+# Atributos donde las dos jerarquías del SDK guardan el código HTTP:
+# `code` en `google.genai.errors.APIError`, `status_code` en las excepciones de
+# la Interactions API. Se leen por nombre para no depender de módulos privados.
+_ATRIBUTOS_DE_ESTADO = ("code", "status_code")
 
 
 def build_classification_schema() -> dict:
@@ -125,11 +138,8 @@ class GeminiAiClassificationAdapter:
                     "schema": build_classification_schema(),
                 },
             )
-        except genai_errors.APIError as exc:
-            raise _traducir_api_error(exc) from exc
-        except (httpx.TimeoutException, httpx.TransportError) as exc:
-            # Timeout y cortes de transporte: el mismo intento más tarde puede ir bien.
-            raise TransientAiProviderError("El proveedor de IA no respondió a tiempo.") from exc
+        except Exception as exc:
+            raise _traducir_error(exc) from exc
 
     def _check_status(self, interaction) -> None:
         status = getattr(interaction, "status", None)
@@ -150,17 +160,58 @@ class GeminiAiClassificationAdapter:
         return output_text
 
 
-def _traducir_api_error(exc: genai_errors.APIError) -> Exception:
-    """Convierte el error del SDK en transitorio o permanente por su código.
+def _traducir_error(exc: BaseException) -> BaseException:
+    """Clasifica el fallo del proveedor en transitorio, permanente o sin clasificar.
 
-    Se usa el código estructurado y no el texto del mensaje: comparar substrings
-    de mensajes convierte cualquier cambio de redacción del proveedor en un
-    cambio silencioso de la política de reintentos.
+    Se decide por el código HTTP estructurado y por la cadena de causas, nunca por
+    el texto del mensaje: comparar substrings convertiría cualquier cambio de
+    redacción del proveedor en un cambio silencioso de la política de reintentos.
     """
-    code = getattr(exc, "code", None)
-    if isinstance(code, int) and (code in _CODIGOS_TRANSITORIOS or 500 <= code <= 599):
-        return TransientAiProviderError(f"El proveedor de IA respondió {code}.")
-    return PermanentAiProviderError(f"El proveedor de IA rechazó la petición ({code}).")
+    if _es_fallo_de_transporte(exc):
+        # Timeout o corte de conexión: el mismo intento más tarde puede ir bien.
+        return TransientAiProviderError("El proveedor de IA no respondió a tiempo.")
+
+    status = _codigo_de_estado(exc)
+    if status is None:
+        # Un error sin código HTTP reconocible no se convierte en transitorio ni en
+        # permanente: inventarle una categoría llevaría a reintentar a ciegas o a
+        # descartar algo recuperable. Se devuelve tal cual y la orquestación lo
+        # trata como fallo no reintentable, dejando el reporte en `CREADO`.
+        return exc
+
+    if status in _CODIGOS_TRANSITORIOS or 500 <= status <= 599:
+        return TransientAiProviderError(f"El proveedor de IA respondió {status}.")
+    return PermanentAiProviderError(f"El proveedor de IA rechazó la petición ({status}).")
+
+
+def _codigo_de_estado(exc: BaseException) -> int | None:
+    """Código HTTP del error, venga de la jerarquía que venga.
+
+    `bool` se descarta explícitamente: es subclase de `int` y un `True` colado en
+    uno de estos atributos se leería como el código 1.
+    """
+    for atributo in _ATRIBUTOS_DE_ESTADO:
+        valor = getattr(exc, atributo, None)
+        if isinstance(valor, int) and not isinstance(valor, bool):
+            return valor
+    return None
+
+
+def _es_fallo_de_transporte(exc: BaseException) -> bool:
+    """Indica si el fallo original fue de transporte, aunque venga envuelto.
+
+    El SDK envuelve los errores de `httpx` en clases propias y conserva el
+    original en `__cause__`. Recorrer la cadena permite reconocerlos sin importar
+    los módulos privados donde viven esas clases.
+    """
+    vistos: set[int] = set()
+    actual: BaseException | None = exc
+    while actual is not None and id(actual) not in vistos:
+        vistos.add(id(actual))
+        if isinstance(actual, httpx.TimeoutException | httpx.TransportError):
+            return True
+        actual = actual.__cause__ or actual.__context__
+    return False
 
 
 def _build_input(request: ClassificationRequest) -> list[dict]:

@@ -208,6 +208,102 @@ def test_una_respuesta_invalida_no_se_reintenta(report, runtime, raw, monkeypatc
 
 
 # --------------------------------------------------------------------------- #
+# Errores reales de la Interactions API, extremo a extremo
+#
+# El adaptador los traduce y la tarea decide sobre esa traducción. Antes de la
+# corrección, un 429 real llegaba sin clasificar y no disparaba reintento.
+# --------------------------------------------------------------------------- #
+
+
+def error_de_interactions(clase, status):
+    import httpx
+    from google.genai._gaos.lib import compat_errors  # noqa: F401
+
+    peticion = httpx.Request("POST", "https://ejemplo.invalido/v1/interactions")
+    respuesta = httpx.Response(status_code=status, request=peticion)
+    return clase("error del proveedor", response=respuesta, body=None)
+
+
+class AdapterGemini:
+    """Adaptador real de Gemini sobre un cliente que solo sabe fallar."""
+
+    def __init__(self, error):
+        from apps.ai_client_app.adapters.gemini import GeminiAiClassificationAdapter
+
+        class Interactions:
+            def create(self, **kwargs):
+                raise error
+
+        cliente = type("C", (), {"interactions": Interactions()})()
+        self._adapter = GeminiAiClassificationAdapter(client=cliente, model=MODEL_NAME)
+        self.calls = 0
+
+    def classify(self, request):
+        self.calls += 1
+        return self._adapter.classify(request)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("status", [429, 500, 503])
+def test_un_error_transitorio_real_dispara_reintento(report, runtime, monkeypatch, status):
+    from google.genai._gaos.lib import compat_errors
+
+    clase = compat_errors.RateLimitError if status == 429 else compat_errors.InternalServerError
+    runtime(AdapterGemini(error_de_interactions(clase, status)))
+
+    with contexto_de_worker(monkeypatch) as programados, pytest.raises(Retry):
+        classify_report.run(str(report.pk))
+
+    assert len(programados) == 1
+    report.refresh_from_db()
+    assert report.status == ReportStatus.CREADO
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("status", [400, 401, 403, 404, 422])
+def test_un_error_permanente_real_no_dispara_reintento(report, runtime, monkeypatch, status):
+    from google.genai._gaos.lib import compat_errors
+
+    clases = {
+        400: compat_errors.BadRequestError,
+        401: compat_errors.AuthenticationError,
+        403: compat_errors.PermissionDeniedError,
+        404: compat_errors.NotFoundError,
+        422: compat_errors.UnprocessableEntityError,
+    }
+    adapter = AdapterGemini(error_de_interactions(clases[status], status))
+    runtime(adapter)
+
+    from apps.ai_client_app.exceptions import PermanentAiProviderError
+
+    with contexto_de_worker(monkeypatch) as programados, pytest.raises(PermanentAiProviderError):
+        classify_report.run(str(report.pk))
+
+    assert programados == [], "un error permanente no debe programar reintento"
+    assert adapter.calls == 1
+    report.refresh_from_db()
+    assert report.status == ReportStatus.CREADO
+    assert AiClassification.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_el_404_de_la_corrida_canonica_no_se_reintenta(report, runtime, monkeypatch):
+    """Escenario exacto de S8-E2: reintentarlo habría multiplicado el gasto por cuatro."""
+    from google.genai._gaos.lib import compat_errors
+
+    from apps.ai_client_app.exceptions import PermanentAiProviderError
+
+    adapter = AdapterGemini(error_de_interactions(compat_errors.NotFoundError, 404))
+    runtime(adapter)
+
+    with contexto_de_worker(monkeypatch) as programados, pytest.raises(PermanentAiProviderError):
+        classify_report.run(str(report.pk))
+
+    assert programados == []
+    assert adapter.calls == 1
+
+
+# --------------------------------------------------------------------------- #
 # Tope de intentos
 # --------------------------------------------------------------------------- #
 
