@@ -931,7 +931,7 @@ antes de cerrarlo.
 ## Sprint 8 — Clasificación asistida por IA
 
 **Fechas planificadas:** 19/09/2026 – 25/09/2026
-**Estado:** En curso — S8-A a S8-D integrados en `main`; S8-E1 implementado y validado localmente, pendiente de publicación; S8-E2 pendiente y con el proveedor real aún sin probar
+**Estado:** En curso — S8-A a S8-E1 integrados en `main`, más el hotfix de mapeo de errores; S8-E2 con el modelo prerregistrado y la corrida canónica aún sin ejecutar
 **Fecha real de cierre:** —
 
 ### Funcionalidades terminadas
@@ -1042,8 +1042,8 @@ antes de cerrarlo.
   reporte con evidencia registrada que no se puede leer **no** se clasifica en silencio
   sin ella.
 
-- **S8-E1 — dataset sintético y runner de evaluación implementados y validados
-  localmente (30/08/2026), sin publicar.** Construye la infraestructura de medición de
+- **S8-E1 — integrado en `main` mediante el PR #29 (squash
+  `00a42e284a8f8eec1ca23b1dfa59fa0c93a3ff04`).** Construye la infraestructura de medición de
   CA-4 / RNF-05: `evaluation/dataset_s8_v1.json` con **28 casos** congelados,
   `evaluation/dataset.py` con validación estricta, `evaluation/scoring.py` con la métrica,
   `evaluation/runner.py` adapter-agnostic y el comando
@@ -1076,8 +1076,42 @@ antes de cerrarlo.
   una prueba a propósito y obliga a crear una versión nueva en vez de mover el listón en
   silencio.
 
-- S8-E2: _pendiente._ Debe ejecutar **este mismo dataset** contra Gemini real, fuera de la
-  CI y en un gate propio. Solo entonces podrá declararse si CA-4 se cumple.
+- **Hotfix de mapeo de errores — integrado en `main` mediante el PR #30 (squash
+  `bd24ffc1f66344ab1cf42452113c9aaff7d6976f`).** La primera corrida real destapó que las
+  excepciones de la Interactions API no heredan de `google.genai.errors.APIError`: el
+  `except APIError` del adaptador las dejaba pasar enteras. El defecto iba más allá del
+  benchmark, porque un 429 o un 503 reales no se habrían clasificado como transitorios ni
+  habrían disparado el reintento. Ahora la clasificación se hace por la forma del error
+  —`code`, `status_code` y la cadena de causas— y no por su clase.
+
+- **S8-E2 — `NOT_DEMONSTRATED`. Corrida canónica con el modelo prerregistrado aún sin
+  ejecutar.**
+
+  La primera corrida usó `gemini-2.5-flash` y **no produjo ninguna clasificación**: los 28
+  casos devolvieron HTTP 404 y el informe cerró con `errors_count = 28`. Eso no es un 0 %
+  de capacidad ni un FAIL del modelo, sino la ausencia de medición.
+
+  **Diagnóstico del 404: resuelto.** Una llamada mínima reprodujo el error y el proveedor
+  indicó la causa —`gemini-2.5-flash` ya no está disponible para usuarios nuevos— y señaló
+  `gemini-3.6-flash` como reemplazo. La inspección offline del SDK había confirmado antes
+  que el enrutamiento era correcto (`POST /v1beta/interactions` sobre
+  `generativelanguage.googleapis.com`), de modo que ni el dataset, ni el prompt, ni el
+  esquema de clasificación intervinieron en el fallo.
+
+  **Conectividad con `gemini-3.6-flash`: PASS**, verificada con una única llamada sintética
+  —entrada mínima, sin dataset, sin prompt de clasificación y sin esquema—.
+
+  **Modelo prerregistrado para la corrida:** `gemini-3.6-flash`. La sustitución queda
+  fijada **antes** de cualquier medición válida y por indisponibilidad técnica del modelo
+  original, no por rendimiento observado: `gemini-3.6-flash` todavía no ha visto ningún
+  caso del benchmark. El protocolo completo está en
+  [evaluation/README.md](../backend/apps/ai_client_app/evaluation/README.md).
+
+  Siguen congelados el dataset `s8-evaluation-v1` (28 casos, sha256 `3bc54d59…`), el ground
+  truth, el prompt `s8-classification-v1`, la definición de CA-4 y el umbral del 85 %, que
+  con 28 casos exige **24 aciertos**.
+
+  **CA-4 no está demostrado** y el Sprint 8 no puede cerrarse.
 
 ### Pruebas realizadas
 - **S8-A:** ninguna. El gate no modifica código funcional. El único archivo bajo `backend/`

@@ -114,7 +114,57 @@ Solo admite `--adapter fake`. El código de salida indica si la evaluación **se
 ejecutó**, no si superó el 85 %: con un doble, un porcentaje bajo sigue
 significando que la maquinaria funciona.
 
+## Protocolo prerregistrado para S8-E2
+
+Fijado **antes** de obtener ninguna medición válida, para que el resultado no
+pueda elegirse después.
+
+| Parámetro | Valor |
+| --- | --- |
+| Modelo | `gemini-3.6-flash` |
+| Proveedor | Gemini Interactions API |
+| `store` | `False` |
+| Dataset | `s8-evaluation-v1`, **28 casos** |
+| SHA-256 del dataset | `3bc54d591dc104aeabeecb2f5cc7c7a38e70ba042e7f045321ab33ae9b5efad4` |
+| Prompt | `s8-classification-v1` |
+| Métrica oficial | CA-4: categoría + institución + prioridad, exactos |
+| Umbral | **≥ 85.00 %** |
+| Mínimo con 28 casos | **24 / 28** (23/28 = 82.14 % es FAIL) |
+| Métrica estricta | diagnóstico, sin umbral |
+| Corridas canónicas | **1** |
+| Reintentos selectivos | **0** |
+
+### Por qué el modelo cambió, y por qué eso no invalida la medición
+
+El modelo inicialmente seleccionado para S8-E2 fue **`gemini-2.5-flash`**. La
+corrida contra él **no produjo ninguna clasificación**: los 28 casos devolvieron
+HTTP 404 y el informe se cerró con `errors_count = 28`, de modo que CA-4 quedó
+como `NOT_DEMONSTRATED`. Eso no es un 0 % de capacidad ni un FAIL del modelo: es
+la ausencia de medición.
+
+Un diagnóstico posterior, con una única llamada mínima, reprodujo el 404 y el
+proveedor indicó la causa: ese modelo **ya no está disponible para usuarios
+nuevos**, y señaló `gemini-3.6-flash` como reemplazo. Otra llamada mínima
+—entrada sintética, sin dataset, sin prompt de clasificación y sin esquema—
+confirmó conectividad con `gemini-3.6-flash`.
+
+La sustitución se registra aquí porque el momento importa. `gemini-3.6-flash`
+**no ha visto todavía ningún caso del benchmark**: no hay puntuación suya que
+haya podido influir en la decisión. El motivo es exclusivamente la
+indisponibilidad técnica del modelo original para este proyecto, **no** un
+resultado observado.
+
+Cambiar de modelo *después* de ver una puntuación baja sería elegir el resultado.
+Cambiarlo antes de la primera medición válida, por una causa ajena al
+rendimiento y dejándolo escrito, no lo es. De ahí este prerregistro.
+
+### Lo que sigue congelado
+
+Dataset, ground truth, taxonomía, prompt, definición de CA-4 y umbral **no
+cambian**. La sustitución afecta a un único parámetro del experimento: qué modelo
+se evalúa.
+
 ## Siguiente paso
 
-S8-E2 debe ejecutar **este mismo dataset** contra el proveedor real, fuera de la
-CI, y solo entonces podrá declararse si CA-4 se cumple.
+S8-E2 debe ejecutar **este mismo dataset** contra `gemini-3.6-flash`, fuera de la
+CI, en una sola corrida, y solo entonces podrá declararse si CA-4 se cumple.
