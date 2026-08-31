@@ -931,7 +931,7 @@ antes de cerrarlo.
 ## Sprint 8 — Clasificación asistida por IA
 
 **Fechas planificadas:** 19/09/2026 – 25/09/2026
-**Estado:** En curso — S8-A a S8-E1 integrados en `main`, más el hotfix de mapeo de errores; S8-E2 con el modelo prerregistrado y la corrida canónica aún sin ejecutar
+**Estado:** En curso — S8-A a S8-E1 integrados en `main`, más el hotfix de mapeo de errores y el prerregistro del modelo; la corrida canónica S8-E2 quedó `NOT_DEMONSTRATED` por los límites del nivel gratuito (RPM 5, RPD 20) y la recuperación S8-E2-R1 está prerregistrada e instrumentada en local, sin ejecutar. **CA-4 sigue sin medición válida.**
 **Fecha real de cierre:** —
 
 ### Funcionalidades terminadas
@@ -1110,6 +1110,53 @@ antes de cerrarlo.
   Siguen congelados el dataset `s8-evaluation-v1` (28 casos, sha256 `3bc54d59…`), el ground
   truth, el prompt `s8-classification-v1`, la definición de CA-4 y el umbral del 85 %, que
   con 28 casos exige **24 aciertos**.
+
+  **La corrida canónica con `gemini-3.6-flash` se ejecutó una sola vez y volvió a quedar
+  `NOT_DEMONSTRATED`.** 28 casos intentados, **6** clasificaciones válidas y **22**
+  `TransientAiProviderError`. El `ca4_concordance_pct` resultante, 21.43 %, **no es un
+  FAIL**: es un porcentaje calculado sobre una corrida inválida, porque 22 casos no
+  produjeron clasificación alguna y el denominador siguen siendo 28. La regla de validez
+  —escrita antes de ver cualquier número— invalida la corrida con un solo error. La
+  evidencia se conserva íntegra y no se sobrescribe.
+
+  **Causa técnica: `RATE_LIMIT_CONFIRMED`.** El diagnóstico offline estableció que los 22
+  fallos salieron de `interactions.create` con exactamente un intento HTTP por caso, en 28
+  llamadas secuenciales sin pausa, y que la corrida duró 320.6 s. La consulta a AI Studio lo
+  cerró: **nivel gratuito, RPM 5 y RPD 20**; el TPM (6.74 K de 250 K) **no** fue el límite
+  alcanzado. El protocolo original era por tanto **inejecutable por construcción**: 28
+  solicitudes no caben en una cuota diaria de 20, y lanzarlas sin pausa excede 5 por minuto.
+  Lo que **no** es recuperable es la naturaleza exacta de cada uno de los 22 fallos: el
+  adaptador distinguía «respondió 429» de «no respondió a tiempo», pero el runner guardaba
+  solo el nombre de la clase y esa distinción se perdió al serializar. Afirmar que los 22
+  fueron HTTP 429 iría más allá de la evidencia.
+
+- **S8-E2-R1 — recuperación prerregistrada, NO EJECUTADA (local, sin publicar).**
+
+  Enmienda **solo el transporte** del experimento: **2 lotes fijos de 14 + 14**, cada uno en
+  una **ventana RPD distinta**, con **20 s de pacing** entre solicitudes (3 por minuto, por
+  debajo del RPM 5). El pacing no es el timeout: el timeout acota cuánto se espera *una*
+  respuesta y sigue en 20 s; el pacing acota cada cuánto se pide *la siguiente*. Antes de
+  cada lote hay que verificar visualmente en AI Studio, en solo lectura, cuota diaria
+  disponible **≥ 14**; no se gastan llamadas en comprobarla.
+
+  Los dos lotes son **una sola corrida**: tras el lote 1 el estado obligatorio es
+  `R1_IN_PROGRESS` y no se calcula PASS ni FAIL. Eso no depende de la disciplina de quien
+  ejecute — `BatchEvaluation` no guarda ningún porcentaje, así que el dato no existe hasta
+  combinar los 28. Los lotes tampoco son datasets: se recortan por índice sobre el archivo
+  congelado, y `combine_batches` aborta si los lotes no describen el mismo experimento o no
+  cubren el dataset exactamente una vez.
+
+  Sin cambios en modelo, dataset, ground truth, prompt, scoring, umbral, timeout ni
+  reintentos (SDK `attempts=1`, script 0, Celery fuera del gate, reruns selectivos 0). La
+  solución al RPM es el pacing y la solución al RPD es el batching; **no** se introdujo
+  reintento para 429 ni se activó facturación: la recuperación debe ser válida bajo los
+  límites del nivel gratuito observado.
+
+  **Instrumentación añadida**, que es la lección concreta de la corrida perdida: por caso se
+  registran ahora `error_message` (sanitizado por patrones explícitos, conservando la
+  distinción diagnóstica) y `duration_ms` (reloj monotónico). Viajan **fuera** del informe
+  canónico, en `EvaluationRun.diagnostics`, para que el informe conserve su determinismo
+  byte a byte.
 
   **CA-4 no está demostrado** y el Sprint 8 no puede cerrarse.
 
