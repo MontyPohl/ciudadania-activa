@@ -184,7 +184,31 @@ denominador siguen siendo 28. Leerlo como capacidad del modelo atribuiría al
 modelo una incapacidad que la corrida no midió. La regla de validez —congelada
 antes de ver cualquier número— dice que un solo error invalida la corrida.
 
-La evidencia de esa corrida se conserva íntegra y **no se sobrescribe**.
+### Los artefactos originales de esa corrida se perdieron
+
+Esta sección corrige una afirmación anterior de este documento, que decía que la
+evidencia «se conserva íntegra». **Ya no es cierta y no debe leerse así.**
+
+Los ficheros originales vivían en `/tmp`, que en la máquina de desarrollo es
+**tmpfs** —memoria—. Un reinicio del sistema los borró:
+
+| Artefacto | Estado |
+| --- | --- |
+| `s8-e2-gemini-3.6-flash.json` (corrida canónica) | **PERDIDO** |
+| `s8-e2-gemini-3.6-flash.stderr` | **PERDIDO** |
+| `s8-e2-gemini-2.5-flash.json` (corrida del 404) | **PERDIDO** |
+
+Lo que sobrevive son los **resultados ya documentados** —28 intentados, 22
+errores, 6 válidas, `NOT_DEMONSTRATED`— más los SHA-256 registrados en los
+informes de cada gate. Los artefactos en sí no se pueden volver a inspeccionar.
+
+**No se reconstruyen.** Fabricar un JSON a partir de lo narrado produciría un
+fichero con apariencia de evidencia primaria y sin serlo.
+
+Esto **no** convierte `NOT_DEMONSTRATED` en PASS ni en FAIL: el veredicto de
+aquella corrida sigue siendo exactamente el que era. Lo que se reduce es su
+**reproducibilidad**: ya no es posible auditar caso por caso lo que ocurrió, y eso
+debe constar.
 
 ### Causa técnica confirmada
 
@@ -289,21 +313,196 @@ La duración viaja **fuera** del informe canónico, en `EvaluationRun.diagnostic
 El informe conserva así su determinismo byte a byte, que es lo que permite
 archivarlo como evidencia comparable.
 
-### Evidencia esperada de R1
+## Resultado de R1: `ABORTED`
+
+R1 se ejecutó **solo el lote 1**, una vez, y no continúa.
+
+| | |
+| --- | --- |
+| `R1_BATCH_1` | **`EXECUTED_BUT_EVIDENCE_INCOMPLETE`** |
+| Casos intentados | **14 / 14** |
+| Llamadas al proveedor | 14 |
+| Respuestas válidas | 4 (casos 001, 004, 005, 010) |
+| Errores | **10**, todos `TransientAiProviderError` |
+| Mensaje sanitizado | «El proveedor de IA no respondió a tiempo.» (10 de 10) |
+| `duration_ms` | min 6076 · max 20270 (timeout configurado: 20 000 ms) |
+| Lote 2 | **NO EJECUTADO** |
+| `R1` | **`ABORTED`** |
+| `RUN_VALID_FOR_CA4` | **NO** |
+| `CA4_RESULT` | **`NOT_DEMONSTRATED`** |
+
+**Motivo primario del aborto:** la evidencia JSON obligatoria del lote 1 es
+irrecuperable, así que R1 no puede combinarse ni auditarse según su propio
+protocolo. El script la escribió en el `/tmp` **interno** de un contenedor
+lanzado con `--rm` y sin montar un directorio de salida del host; el contenedor
+se eliminó al terminar. El `stderr`, redirigido en el host, sí sobrevivió y está
+preservado fuera de `/tmp` junto a un manifiesto y sus SHA-256.
+
+Los campos que vivían solo en el JSON —predicciones, coincidencias por campo,
+`duration_ms` individuales— **no se infieren ni se reconstruyen**.
+
+**Motivo técnico adicional: `TRANSPORT_OR_TIMEOUT_FAILURE_CONFIRMED_FOR_10_CASES`.**
+
+Lo que la evidencia permite afirmar:
+
+- las 10 llamadas fallidas entraron por la **ruta transporte/timeout** del
+  adaptador;
+- **cero** errores quedaron registrados como «respondió 429», es decir, en el lote
+  de R1 no se observaron rechazos por cuota bajo el pacing prerregistrado;
+- la duración máxima observada fue **20 270 ms** contra un deadline configurado de
+  **20 000 ms**, de modo que el patrón es **compatible con presión del timeout**;
+- **20 s resultó operacionalmente inadecuado para completar R1**.
+
+Lo que la evidencia **no** permite afirmar: la clase original de cada uno de los
+10 errores. Una versión anterior de este documento decía
+`CLIENT_TIMEOUT_CONFIRMED_FOR_10_CASES`, y eso iba más allá del dato.
+
+El motivo es que `_es_fallo_de_transporte` acepta `httpx.TimeoutException` **o**
+`httpx.TransportError` —y la primera es subclase de la segunda—, y ambas rutas
+terminan en el mismo mensaje, «El proveedor de IA no respondió a tiempo.». Un
+corte de conexión, un error de protocolo o un fallo de proxy producen ese texto
+igual que un deadline agotado. El mensaje conserva la distinción frente a un 429,
+que es la que hacía falta, pero **no** distingue timeout de otros fallos de
+transporte.
+
+Tampoco se afirma que el pacing haya resuelto definitivamente el límite de tasa:
+lo observado es la ausencia de 429 en **este** lote, con **este** pacing.
+
+Aun así, subir el timeout a 60 s en R2 sigue siendo una corrección técnica
+justificada y prerregistrada: el deadline es el único parámetro que el patrón
+observado señala, y aumentarlo no puede empeorar un fallo de transporte que no
+fuera de tiempo.
+
+## La evidencia no vive en `/tmp`
+
+`/tmp` **no es almacenamiento autoritativo de evidencia** en este proyecto. Es
+tmpfs en la máquina de desarrollo, y un reinicio destruyó los artefactos de dos
+corridas.
+
+Directorio persistente prerregistrado para R2:
 
 ```
-/tmp/s8-e2-r1-batch-01.json
-/tmp/s8-e2-r1-batch-02.json
-/tmp/s8-e2-r1-combined.json
+$EVIDENCE_DIR   (por defecto: $HOME/ciudadania-activa-evidence/s8-e2-r2)
 ```
 
-Cada lote registra `protocol_version`, `model_name`, `dataset_version`,
-`dataset_sha256`, `prompt_version`, `batch_number`, `batch_case_ids`,
-`inter_request_delay_seconds`, `request_timeout_seconds`, `results` y
-`diagnostics`. El combinado demuestra que la unión de ambos lotes son los 28
-casos, que la intersección es vacía y que el orden es el del dataset.
+La ruta la elige quien ejecuta, mediante variable de entorno: ninguna ruta de
+evidencia está fijada en el código, y hay una prueba que lo comprueba.
+
+Antes de ejecutar cada lote hay que verificar que el directorio existe, **no es
+tmpfs**, es escribible por el usuario, está en el host y no dentro del contenedor,
+que el repositorio sigue montado en solo lectura y que no se sobrescribirá
+evidencia anterior.
+
+**La evidencia se escribe del contenedor al host por redirección, nunca primero
+en el `/tmp` interno del contenedor.** Fue exactamente ese paso intermedio el que
+perdió el lote 1 de R1.
+
+Artefactos esperados de R2:
+
+```
+$EVIDENCE_DIR/s8-e2-r2-batch-01.json
+$EVIDENCE_DIR/s8-e2-r2-batch-01.stderr
+$EVIDENCE_DIR/s8-e2-r2-batch-02.json
+$EVIDENCE_DIR/s8-e2-r2-batch-02.stderr
+$EVIDENCE_DIR/s8-e2-r2-combined.json
+$EVIDENCE_DIR/SHA256SUMS
+```
+
+## Protocolo prerregistrado S8-E2-R2
+
+R2 es una **corrida nueva y completa** de los 28 casos. No es continuación de R1,
+no reutiliza ninguno de sus resultados y no es un rerun selectivo. Los 4 casos que
+R1 respondió se vuelven a pedir.
+
+| Parámetro | Valor |
+| --- | --- |
+| `protocol_version` | `s8-e2-r2` |
+| Corridas de recuperación | **1** |
+| Casos totales | **28**, orden original del dataset |
+| Lotes | **2 fijos: 14 + 14** (1–14 y 15–28) |
+| Ventanas de cuota | una ventana RPD distinta por lote, con pre-flight visual ≥ 14 |
+| Modelo | `gemini-3.6-flash` — sin cambios |
+| Dataset | `s8-evaluation-v1`, SHA `3bc54d59…5ad4` — sin cambios |
+| Ground truth | sin cambios |
+| Prompt | `s8-classification-v1`, hash `f3c8039…65ca` — sin cambios |
+| Scoring · umbral | sin cambios · **≥ 85.00 %**, mínimo **24/28** |
+| Pacing | **20 s** — sin cambios |
+| `store` | `False` — sin cambios |
+| Reintentos SDK / script / Celery | **0 / 0 / 0** (`attempts=1`) — sin cambios |
+| Reruns selectivos | **0** |
+| **Timeout por solicitud** | **60 s** ← **único cambio técnico** |
+| Estado intermedio | `R2_IN_PROGRESS` |
+
+### Por qué 60 s, y por qué eso no elige el resultado
+
+R1 devolvió 10 de 14 casos por la ruta transporte/timeout, con una duración máxima
+de 20 270 ms frente a un deadline de 20 000 ms. La inadecuación de los 20 s es un
+hecho observado sobre el **transporte**, no sobre la capacidad del modelo: un caso
+que no obtiene respuesta no produce clasificación, así que no aporta ni acierto ni
+fallo a CA-4.
+
+No hace falta demostrar que los 10 fueron timeouts para justificar el cambio: el
+deadline es el único parámetro que el patrón observado señala, y ampliarlo no
+puede empeorar un fallo de transporte que no fuera de tiempo.
+
+Los 60 s quedan fijados **aquí, antes de R2**, y no podrán ajustarse después de
+ver resultados. No se cambia el modelo, ni el prompt, ni la configuración de
+*thinking*, ni el pacing, y no se introducen reintentos.
+
+### Lo declarado es lo realmente usado
+
+`RecoveryProtocol` declara los inputs del experimento y la evidencia los archiva,
+pero declarar no es verificar. Había tres puntos donde el **input real** podía no
+ser el **input prerregistrado** sin que la evidencia lo delatara. La ruta canónica
+—`evaluation/execution.py`— los cierra ligando cada valor declarado al efectivo:
+
+| Declarado | Ligado a |
+| --- | --- |
+| `dataset_sha256` | los **bytes realmente parseados** |
+| `prompt_sha256` | el **template realmente usado** al construir la petición |
+| `request_timeout_seconds` | el **timeout efectivo del cliente** |
+| `model_name` | el **modelo efectivo del adaptador** |
+
+**Dataset.** `run_recovery_batch` ya **no recibe** un `EvaluationDataset`. Lee los
+bytes una sola vez, calcula su SHA-256, lo compara con el prerregistro y construye
+el dataset **desde esos mismos bytes**. Leer una vez importa: hashear el archivo y
+volver a abrirlo para parsear dejaría una ventana entre ambas lecturas, y la
+evidencia podría certificar unos bytes distintos de los enviados. Una copia en
+otra ruta con los mismos bytes es válida; un archivo con el mismo
+`dataset_version` y otro contenido no lo es.
+
+**Prompt.** `prompt_version` es una etiqueta: no impide que el archivo cambie
+debajo. Ahora se hashea el texto que devuelve `load_prompt_template` —el mismo que
+`render_classification_prompt` interpola— y se compara con `prompt_sha256`.
+
+`prompt_sha256` es un campo **nuevo** del prerregistro y de la evidencia,
+introducido **antes** de ejecutar R2. No es una propiedad retroactiva: los JSON
+perdidos de R1 nunca lo contuvieron, y no se reconstruyen.
+
+Cualquier divergencia aborta **antes** de construir el cliente, así que una
+ejecución con inputs equivocados cuesta **cero llamadas al proveedor** y cero
+cuota. El orden de las guardas es: parámetros → bytes del dataset → dataset
+construido desde ellos → prompt → partición del lote → proveedor.
+
+### El timeout de la evidencia es el de la petición
+
+`RecoveryProtocol` declara `request_timeout_seconds`, pero el timeout que gobierna
+de verdad la llamada se fija al construir el cliente del SDK. Con dos fuentes
+independientes, una corrida podía archivar `60` mientras el cliente esperaba `20`:
+la evidencia describiría un experimento que no ocurrió, y nada en ella lo
+delataría.
+
+`evaluation/execution.py` cierra eso. `run_recovery_batch` deriva **el modelo y el
+timeout del mismo `protocol`** que después valida el lote, y rechaza recibir
+`model_name`, `request_timeout_seconds`, `inter_request_delay_seconds` o
+`dataset_sha256` a mano. `protocol` es obligatorio y sin valor por omisión, así que
+ejecutar R2 no puede degradar en silencio a R1.
+
+`RecoveryProtocol` mantiene R1 y R2 como instancias congeladas e independientes:
+un lote de R1 no puede combinarse bajo R2 ni al revés, porque su estado no
+coincide. R1 queda como registro histórico, sin reinterpretar.
 
 ## Siguiente paso
 
-**R1 NO se ha ejecutado.** No se ha llamado al proveedor desde la corrida
-canónica. CA-4 sigue `NOT_DEMONSTRATED` y el Sprint 8 sigue en curso.
+**R2 NO se ha ejecutado.** No se ha llamado al proveedor desde el lote 1 de R1.
+CA-4 sigue `NOT_DEMONSTRATED` y el Sprint 8 sigue en curso.

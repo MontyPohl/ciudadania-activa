@@ -21,6 +21,9 @@ from apps.ai_client_app.evaluation.recovery import (
     INTER_REQUEST_DELAY_SECONDS,
     MODEL_NAME,
     PROTOCOL_VERSION,
+    PROTOCOLS,
+    R1,
+    R2,
     REQUEST_TIMEOUT_SECONDS,
     STATUS_IN_PROGRESS,
     TOTAL_CASES,
@@ -42,7 +45,7 @@ from apps.ai_client_app.evaluation.sanitization import (
     sanitize_text,
 )
 
-from ._ast_checks import code_identifiers
+from ._ast_checks import code_identifiers, string_literals
 
 # El SHA no se copia aquí: su fuente canónica es `recovery.DATASET_SHA256`, y un
 # literal duplicado en la prueba dejaría de detectar que el módulo lo cambió.
@@ -735,3 +738,206 @@ def test_la_evidencia_combinada_si_lleva_duraciones(dataset):
     assert all("duration_ms" in d for d in datos["diagnostics"])
     assert datos["ca4_result"] == "PASS"
     assert datos["protocol_version"] == PROTOCOL_VERSION
+
+
+# --------------------------------------------------------------------------- #
+# S8-E2-R2: corrida nueva, mismo experimento, timeout de 60 s
+# --------------------------------------------------------------------------- #
+
+
+def _dos_lotes_r2(dataset, sleep=None):
+    sleep = sleep or _sleep_espia()[0]
+    return [
+        evaluate_batch(
+            dataset,
+            AdapterCorrecto(dataset, casos=select_batch(dataset, numero)),
+            batch_number=numero,
+            adapter_name="doble",
+            model_name=R2.model_name,
+            dataset_sha256=R2.dataset_sha256,
+            protocol=R2,
+            sleep=sleep,
+            monotonic_ns=RelojFalso(),
+        )
+        for numero in BATCH_NUMBERS
+    ]
+
+
+def test_r2_fija_los_valores_prerregistrados():
+    assert R2.version == "s8-e2-r2"
+    assert R2.model_name == "gemini-3.6-flash"
+    assert R2.dataset_version == "s8-evaluation-v1"
+    assert R2.dataset_sha256 == ("3bc54d591dc104aeabeecb2f5cc7c7a38e70ba042e7f045321ab33ae9b5efad4")
+    assert R2.prompt_version == "s8-classification-v1"
+    assert R2.status_in_progress == "R2_IN_PROGRESS"
+
+
+def test_r2_cambia_solo_el_timeout_frente_a_r1():
+    """El único cambio técnico autorizado. Todo lo sustantivo es idéntico."""
+    assert R2.request_timeout_seconds == 60
+    assert R1.request_timeout_seconds == 20
+    assert R2.inter_request_delay_seconds == R1.inter_request_delay_seconds == 20
+
+    iguales = ("model_name", "dataset_version", "dataset_sha256", "prompt_version")
+    for campo in iguales:
+        assert getattr(R2, campo) == getattr(R1, campo)
+
+
+def test_r1_sigue_siendo_el_protocolo_historico_intacto():
+    """Añadir R2 no puede reinterpretar lo que R1 prerregistró."""
+    assert R1.version == "s8-e2-r1"
+    assert R1.request_timeout_seconds == 20
+    assert R1.status_in_progress == "R1_IN_PROGRESS"
+    assert PROTOCOL_VERSION == R1.version
+    assert REQUEST_TIMEOUT_SECONDS == R1.request_timeout_seconds
+
+
+def test_r2_usa_los_mismos_28_casos_en_dos_lotes_de_14(dataset):
+    assert expected_case_ids(dataset, 1) == tuple(c.id for c in dataset.cases[:14])
+    assert expected_case_ids(dataset, 2) == tuple(c.id for c in dataset.cases[14:])
+    assert TOTAL_CASES == 28
+    assert BATCH_SIZE == 14
+
+
+def test_un_lote_r2_registra_el_timeout_de_60(dataset):
+    lote = _dos_lotes_r2(dataset)[0]
+
+    assert lote.protocol_version == "s8-e2-r2"
+    assert lote.status == "R2_IN_PROGRESS"
+    assert lote.request_timeout_seconds == 60
+    assert lote.inter_request_delay_seconds == 20
+    assert lote.batch_case_ids == expected_case_ids(dataset, 1)
+
+
+def test_un_lote_r2_con_el_timeout_de_r1_se_rechaza(dataset):
+    """Ejecutar R2 con 20 s sería ejecutar otro experimento con su nombre."""
+    with pytest.raises(RecoveryProtocolError):
+        evaluate_batch(
+            dataset,
+            AdapterCorrecto(dataset, casos=select_batch(dataset, 1)),
+            batch_number=1,
+            adapter_name="doble",
+            model_name=R2.model_name,
+            dataset_sha256=R2.dataset_sha256,
+            protocol=R2,
+            request_timeout_seconds=20,
+            sleep=_sleep_espia()[0],
+            monotonic_ns=RelojFalso(),
+        )
+
+
+def test_no_se_pueden_combinar_lotes_de_r1_con_el_protocolo_r2(dataset):
+    """El estado lleva el número de recuperación justamente para esto."""
+    lotes_r1 = _dos_lotes(dataset)
+
+    with pytest.raises(RecoveryProtocolError):
+        combine_batches(dataset, lotes_r1, protocol=R2)
+
+
+def test_no_se_pueden_combinar_lotes_de_r2_con_el_protocolo_r1(dataset):
+    lotes_r2 = _dos_lotes_r2(dataset)
+
+    with pytest.raises(RecoveryProtocolError):
+        combine_batches(dataset, lotes_r2, protocol=R1)
+
+
+def test_r2_aplica_la_misma_regla_de_validez(dataset):
+    combinado = combine_batches(dataset, _dos_lotes_r2(dataset), protocol=R2)
+
+    assert combinado.protocol_version == "s8-e2-r2"
+    assert combinado.report.total_cases == 28
+    assert combinado.report.errors_count == 0
+    assert combinado.minimum_concordant_cases == 24
+    assert combinado.run_valid_for_ca4 is True
+    assert combinado.ca4_result == "PASS"
+
+
+def test_un_solo_error_en_r2_deja_la_corrida_no_demostrada(dataset):
+    sleep, _ = _sleep_espia()
+    bueno = _dos_lotes_r2(dataset)[0]
+    malo = evaluate_batch(
+        dataset,
+        AdapterQueFalla(RuntimeError("El proveedor de IA no respondió a tiempo.")),
+        batch_number=2,
+        adapter_name="doble",
+        model_name=R2.model_name,
+        dataset_sha256=R2.dataset_sha256,
+        protocol=R2,
+        sleep=sleep,
+        monotonic_ns=RelojFalso(),
+    )
+
+    combinado = combine_batches(dataset, [bueno, malo], protocol=R2)
+
+    assert combinado.report.errors_count == 14
+    assert combinado.run_valid_for_ca4 is False
+    assert combinado.ca4_result == "NOT_DEMONSTRATED"
+
+
+def test_r2_no_reintenta_ni_repite_casos(dataset):
+    adapter = AdapterQueFalla(RuntimeError("El proveedor de IA no respondió a tiempo."))
+
+    evaluate_batch(
+        dataset,
+        adapter,
+        batch_number=1,
+        adapter_name="doble",
+        model_name=R2.model_name,
+        dataset_sha256=R2.dataset_sha256,
+        protocol=R2,
+        sleep=_sleep_espia()[0],
+        monotonic_ns=RelojFalso(),
+    )
+
+    assert adapter.llamadas == BATCH_SIZE
+
+
+def test_r2_mantiene_el_pacing_solo_entre_casos(dataset):
+    sleep, esperas = _sleep_espia()
+
+    evaluate_batch(
+        dataset,
+        AdapterCorrecto(dataset, casos=select_batch(dataset, 1)),
+        batch_number=1,
+        adapter_name="doble",
+        model_name=R2.model_name,
+        dataset_sha256=R2.dataset_sha256,
+        protocol=R2,
+        sleep=sleep,
+        monotonic_ns=RelojFalso(),
+    )
+
+    assert esperas == [20] * (BATCH_SIZE - 1)
+
+
+def test_la_evidencia_r2_es_serializable_y_lleva_diagnosticos(dataset):
+    lotes = _dos_lotes_r2(dataset)
+    por_lote = json.loads(batch_to_json(lotes[0]))
+    combinado = json.loads(combined_to_json(combine_batches(dataset, lotes, protocol=R2)))
+
+    assert por_lote["protocol_version"] == "s8-e2-r2"
+    assert por_lote["request_timeout_seconds"] == 60
+    assert len(por_lote["diagnostics"]) == BATCH_SIZE
+    assert all("duration_ms" in d for d in por_lote["diagnostics"])
+    # Un lote sigue sin publicar porcentajes: no hay PASS que leer a medias.
+    assert "concordance_pct" not in json.dumps(por_lote)
+
+    assert combinado["protocol_version"] == "s8-e2-r2"
+    assert len(combinado["diagnostics"]) == TOTAL_CASES
+
+
+def test_ningun_modulo_de_evaluacion_fija_rutas_de_evidencia_en_tmp():
+    """La evidencia de R1 se perdió por vivir en /tmp, que es tmpfs.
+
+    El código no debe volver a decidir dónde se guarda: la ruta la elige quien
+    ejecuta, y el prerregistro exige almacenamiento persistente del host.
+    """
+    from apps.ai_client_app.evaluation import reporting, sanitization
+
+    for modulo in (recovery_module, runner_module, reporting, sanitization):
+        literales = string_literals(modulo)
+        assert not any("/tmp" in valor for valor in literales), modulo.__name__
+
+
+def test_los_protocolos_conocidos_estan_registrados():
+    assert PROTOCOLS == {"s8-e2-r1": R1, "s8-e2-r2": R2}

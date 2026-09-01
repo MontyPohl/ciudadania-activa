@@ -931,7 +931,7 @@ antes de cerrarlo.
 ## Sprint 8 — Clasificación asistida por IA
 
 **Fechas planificadas:** 19/09/2026 – 25/09/2026
-**Estado:** En curso — S8-A a S8-E1 integrados en `main`, más el hotfix de mapeo de errores y el prerregistro del modelo; la corrida canónica S8-E2 quedó `NOT_DEMONSTRATED` por los límites del nivel gratuito (RPM 5, RPD 20) y la recuperación S8-E2-R1 está prerregistrada e instrumentada en local, sin ejecutar. **CA-4 sigue sin medición válida.**
+**Estado:** En curso — S8-A a S8-E1 integrados en `main`, más el hotfix de mapeo de errores, el prerregistro del modelo y la instrumentación de recuperación. La corrida canónica S8-E2 quedó `NOT_DEMONSTRATED` por los límites del nivel gratuito (RPM 5, RPD 20); la recuperación S8-E2-R1 quedó `ABORTED` tras ejecutar solo el lote 1 —10 de 14 casos agotaron el timeout de 20 s y su evidencia JSON se perdió—; y S8-E2-R2 está prerregistrada en local con timeout de 60 s y evidencia persistente, sin ejecutar. **CA-4 sigue sin medición válida.**
 **Fecha real de cierre:** —
 
 ### Funcionalidades terminadas
@@ -1116,8 +1116,18 @@ antes de cerrarlo.
   `TransientAiProviderError`. El `ca4_concordance_pct` resultante, 21.43 %, **no es un
   FAIL**: es un porcentaje calculado sobre una corrida inválida, porque 22 casos no
   produjeron clasificación alguna y el denominador siguen siendo 28. La regla de validez
-  —escrita antes de ver cualquier número— invalida la corrida con un solo error. La
-  evidencia se conserva íntegra y no se sobrescribe.
+  —escrita antes de ver cualquier número— invalida la corrida con un solo error.
+
+  **Corrección: los artefactos originales de esa corrida se perdieron.** Una versión
+  anterior de esta entrada afirmaba que «la evidencia se conserva íntegra». Ya no es
+  cierta. Los ficheros vivían en `/tmp`, que en la máquina de desarrollo es **tmpfs**, y un
+  reinicio del sistema borró `s8-e2-gemini-3.6-flash.json`, su `stderr` y el JSON de la
+  corrida del 404. Sobreviven los resultados aquí documentados y los SHA-256 registrados en
+  los informes de cada gate, pero **no los artefactos**, que no se pueden volver a
+  inspeccionar. No se reconstruyen: fabricar un JSON desde lo narrado produciría un fichero
+  con apariencia de evidencia primaria sin serlo. Esto **no** convierte `NOT_DEMONSTRATED`
+  en PASS ni en FAIL —el veredicto sigue siendo el mismo—; lo que se reduce es la
+  **reproducibilidad** de aquella ejecución, y debe constar.
 
   **Causa técnica: `RATE_LIMIT_CONFIRMED`.** El diagnóstico offline estableció que los 22
   fallos salieron de `interactions.create` con exactamente un intento HTTP por caso, en 28
@@ -1130,7 +1140,7 @@ antes de cerrarlo.
   solo el nombre de la clase y esa distinción se perdió al serializar. Afirmar que los 22
   fueron HTTP 429 iría más allá de la evidencia.
 
-- **S8-E2-R1 — recuperación prerregistrada, NO EJECUTADA (local, sin publicar).**
+- **S8-E2-R1 — `ABORTED` / `NOT_DEMONSTRATED`. Lote 1 ejecutado una vez, evidencia JSON perdida.**
 
   Enmienda **solo el transporte** del experimento: **2 lotes fijos de 14 + 14**, cada uno en
   una **ventana RPD distinta**, con **20 s de pacing** entre solicitudes (3 por minuto, por
@@ -1157,6 +1167,92 @@ antes de cerrarlo.
   distinción diagnóstica) y `duration_ms` (reloj monotónico). Viajan **fuera** del informe
   canónico, en `EvaluationRun.diagnostics`, para que el informe conserve su determinismo
   byte a byte.
+
+  **Ejecución y cierre.** Se ejecutó **solo el lote 1**, una vez: 14 intentos, 14 llamadas al
+  proveedor, 4 respuestas válidas (casos 001, 004, 005, 010) y **10**
+  `TransientAiProviderError`, los 10 con el mensaje sanitizado «El proveedor de IA no
+  respondió a tiempo.». Duraciones entre 6076 ms y 20 270 ms contra un timeout de 20 000 ms.
+  El lote 2 **no se ejecutó** y R1 queda **`ABORTED`**.
+
+  El motivo primario del aborto es que la **evidencia JSON obligatoria del lote 1 es
+  irrecuperable**: el script la escribió en el `/tmp` interno de un contenedor lanzado con
+  `--rm` y sin montar un directorio de salida del host, y el contenedor se eliminó al
+  terminar. Sin ese artefacto R1 no puede combinarse ni auditarse por caso según su propio
+  protocolo. El `stderr`, redirigido en el host, sí sobrevivió y está preservado fuera de
+  `/tmp` con un manifiesto y sus SHA-256. Los campos que vivían solo en el JSON
+  —predicciones, coincidencias por campo, `duration_ms` individuales— **no se reconstruyen**.
+
+  Diagnóstico técnico adicional: **`TRANSPORT_OR_TIMEOUT_FAILURE_CONFIRMED_FOR_10_CASES`**.
+  Los 10 fallos entraron por la ruta transporte/timeout del adaptador; **cero** quedaron
+  registrados como «respondió 429», es decir, en este lote no se observaron rechazos por
+  cuota bajo el pacing prerregistrado; y la duración máxima observada fue de 20 270 ms contra
+  un deadline configurado de 20 000 ms, de modo que el patrón es **compatible con presión del
+  timeout**. Por tanto **20 s resultó operacionalmente inadecuado para completar R1**.
+
+  Lo que **no** es demostrable es la clase original de cada uno de los 10 errores. Una
+  versión anterior de esta entrada decía `CLIENT_TIMEOUT_CONFIRMED_FOR_10_CASES`, y eso iba
+  más allá del dato: `_es_fallo_de_transporte` acepta `httpx.TimeoutException` **o**
+  `httpx.TransportError` —la primera es subclase de la segunda— y ambas rutas terminan en el
+  mismo mensaje, así que un corte de conexión produce «no respondió a tiempo» igual que un
+  deadline agotado. El mensaje distingue del 429, que es la distinción que hacía falta, pero
+  no separa timeout de otros fallos de transporte. Tampoco se afirma que el pacing haya
+  resuelto definitivamente el límite de tasa: lo observado es la ausencia de 429 en **este**
+  lote con **este** pacing.
+
+  Subir el timeout a 60 s en R2 sigue siendo una corrección técnica justificada: el deadline
+  es el único parámetro que el patrón señala, y ampliarlo no puede empeorar un fallo de
+  transporte que no fuera de tiempo.
+
+  `RUN_VALID_FOR_CA4 = NO`, `CA4_RESULT = NOT_DEMONSTRATED`. Los 4 aciertos no se convierten
+  en porcentaje: son los casos que obtuvieron respuesta, una muestra seleccionada por el
+  propio fallo.
+
+- **S8-E2-R2 — recuperación prerregistrada, NO EJECUTADA (local, sin publicar).**
+
+  Corrida **nueva y completa** de los 28 casos. No es continuación de R1, no reutiliza
+  ninguno de sus resultados y no es un rerun selectivo: los 4 casos que R1 respondió se
+  vuelven a pedir.
+
+  **Único cambio técnico: el timeout pasa de 20 s a 60 s.** Se fija antes de la corrida y no
+  podrá ajustarse después de ver resultados. La insuficiencia de los 20 s es un hecho
+  observado sobre el transporte, no sobre la capacidad del modelo: un caso que agota el
+  tiempo no produce clasificación, así que no aporta ni acierto ni fallo a CA-4. Sin cambios
+  en modelo, dataset, ground truth, prompt, scoring, umbral, pacing (20 s), `store=False`,
+  reintentos (`attempts=1`, script 0) ni configuración de *thinking*.
+
+  `RecoveryProtocol` mantiene R1 y R2 como instancias congeladas e independientes, con los
+  valores absolutos que cada prerregistro fijó y que se pasan explícitamente al validar. Un
+  lote de R1 no puede combinarse bajo R2 ni al revés, porque su estado no coincide. R1 queda
+  como registro histórico, sin reinterpretar.
+
+  **Lo declarado es lo realmente usado.** Declarar no es verificar: la evidencia
+  archivaba `dataset_sha256` sin demostrar que el dataset ejecutado viniera de esos
+  bytes, y el prompt solo estaba congelado por una etiqueta de versión que no impide
+  que el archivo cambie debajo. La ruta canónica liga ahora cada valor declarado al
+  efectivo — `run_recovery_batch` ya no recibe un `EvaluationDataset`: lee los bytes
+  una sola vez (sin ventana TOCTOU), verifica su SHA-256 contra el prerregistro y
+  construye el dataset desde esos mismos bytes; y hashea el template que
+  `render_classification_prompt` usará de verdad contra el nuevo `prompt_sha256`.
+  Cualquier divergencia aborta antes de construir el cliente, de modo que unos
+  inputs equivocados cuestan cero llamadas y cero cuota. `prompt_sha256` se añade al
+  prerregistro y a la evidencia **antes** de ejecutar R2; no es una propiedad
+  retroactiva de los JSON perdidos de R1, que no se reconstruyen.
+
+  **El timeout de la evidencia es el de la petición.** `RecoveryProtocol` declara
+  `request_timeout_seconds`, pero el timeout que gobierna la llamada se fija al construir el
+  cliente del SDK. Con dos fuentes independientes, una corrida podía archivar 60 s mientras
+  el cliente esperaba 20: la evidencia describiría un experimento que no ocurrió y nada en
+  ella lo delataría. `evaluation/execution.py` cierra eso — `run_recovery_batch` deriva el
+  modelo y el timeout del **mismo** `protocol` que después valida el lote, rechaza recibirlos
+  a mano, y exige `protocol` sin valor por omisión para que ejecutar R2 no pueda degradar en
+  silencio a R1.
+
+  **La evidencia deja de vivir en `/tmp`.** `/tmp` no es almacenamiento autoritativo en este
+  proyecto: es tmpfs, y ya destruyó los artefactos de dos corridas. R2 escribirá en un
+  directorio persistente del host elegido por quien ejecuta mediante `$EVIDENCE_DIR`;
+  ninguna ruta de evidencia está fijada en el código, y hay una prueba que lo comprueba. La
+  redirección va del contenedor al host directamente, nunca al `/tmp` interno del
+  contenedor: ese paso intermedio fue exactamente lo que perdió el lote 1 de R1.
 
   **CA-4 no está demostrado** y el Sprint 8 no puede cerrarse.
 
