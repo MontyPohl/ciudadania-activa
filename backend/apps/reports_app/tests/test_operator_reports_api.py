@@ -961,6 +961,25 @@ def test_payload_sin_revision_humana_no_inventa_false(operator_user, category):
     assert response.json()["ai_classification"]["requires_human_review"] is None
 
 
+@pytest.mark.parametrize("invalid_value", ["true", 1])
+def test_revision_humana_rechaza_tipo_historico_no_booleano(
+    operator_user,
+    category,
+    invalid_value,
+):
+    report = _report(category)
+    classification = AiClassification.objects.create(report=report)
+    _classification_audit(
+        classification,
+        requires_human_review=invalid_value,
+    )
+
+    response = _client(operator_user).get(_detail_url(report))
+
+    assert response.status_code == 200
+    assert response.json()["ai_classification"]["requires_human_review"] is None
+
+
 def test_eventos_historicos_ambiguos_devuelven_null(operator_user, category):
     report = _report(category)
     classification = AiClassification.objects.create(report=report)
