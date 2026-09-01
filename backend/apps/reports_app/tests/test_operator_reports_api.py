@@ -55,8 +55,11 @@ AI_FIELDS = {
     "inconsistency_flag",
     "justification",
     "model_name",
+    "requires_human_review",
     "created_at",
 }
+
+_MISSING = object()
 
 
 def _client(user=None):
@@ -96,6 +99,32 @@ def _summary(instance):
         "name": instance.name,
         "slug": instance.slug,
     }
+
+
+def _classification_audit(
+    classification,
+    *,
+    requires_human_review=_MISSING,
+    report_id=None,
+    classification_id=None,
+    action="ai.report.classified",
+    extra_payload=None,
+    actor_user=None,
+):
+    payload = {
+        "report_id": str(report_id or classification.report_id),
+        "classification_id": str(classification_id or classification.pk),
+    }
+    if requires_human_review is not _MISSING:
+        payload["requires_human_review"] = requires_human_review
+    if extra_payload:
+        payload.update(extra_payload)
+    return AuditLog.objects.create(
+        actor_user=actor_user,
+        actor_type=ActorType.AI,
+        action=action,
+        payload=payload,
+    )
 
 
 @pytest.fixture
@@ -828,6 +857,9 @@ def test_detalle_proyecta_solo_campos_seguros_de_la_ultima_clasificacion(
     AiClassification.objects.filter(pk__in=[latest_low_id.pk, latest_high_id.pk]).update(
         created_at=latest_time
     )
+    _classification_audit(older, requires_human_review=True)
+    _classification_audit(latest_low_id, requires_human_review=True)
+    _classification_audit(latest_high_id, requires_human_review=False)
 
     response = _client(operator_user).get(_detail_url(report))
 
@@ -841,6 +873,7 @@ def test_detalle_proyecta_solo_campos_seguros_de_la_ultima_clasificacion(
     assert ai["inconsistency_flag"] is False
     assert ai["justification"] == "Última por desempate de UUID."
     assert ai["model_name"] == "modelo-mas-reciente"
+    assert ai["requires_human_review"] is False
     assert ai["created_at"] is not None
     assert "modelo-anterior" not in response.content.decode()
     assert "modelo-seguro" not in response.content.decode()
@@ -865,6 +898,103 @@ def test_detalle_con_clasificacion_nullable_devuelve_estado_neutral(
     assert ai["inconsistency_flag"] is False
     assert ai["justification"] == ""
     assert ai["model_name"] == ""
+    assert ai["requires_human_review"] is None
+
+
+@pytest.mark.parametrize("historical_value", [True, False])
+def test_revision_humana_proviene_del_evento_historico(
+    operator_user,
+    category,
+    historical_value,
+):
+    report = _report(category)
+    classification = AiClassification.objects.create(
+        report=report,
+        confidence=Decimal("0.99" if historical_value else "0.01"),
+        inconsistency_flag=historical_value,
+    )
+    _classification_audit(
+        classification,
+        requires_human_review=historical_value,
+    )
+
+    response = _client(operator_user).get(_detail_url(report))
+
+    assert response.status_code == 200
+    assert response.json()["ai_classification"]["requires_human_review"] is historical_value
+
+
+def test_auditoria_de_otra_clasificacion_o_reporte_no_contamina(
+    operator_user,
+    category,
+):
+    report = _report(category, index=1)
+    other_report = _report(category, index=2)
+    classification = AiClassification.objects.create(report=report)
+    other_classification = AiClassification.objects.create(report=other_report)
+    _classification_audit(other_classification, requires_human_review=True)
+    _classification_audit(
+        classification,
+        requires_human_review=False,
+        report_id=other_report.pk,
+    )
+    _classification_audit(
+        classification,
+        requires_human_review=False,
+        action="ai.report.other_action",
+    )
+
+    response = _client(operator_user).get(_detail_url(report))
+
+    assert response.status_code == 200
+    assert response.json()["ai_classification"]["requires_human_review"] is None
+
+
+def test_payload_sin_revision_humana_no_inventa_false(operator_user, category):
+    report = _report(category)
+    classification = AiClassification.objects.create(report=report)
+    _classification_audit(classification)
+
+    response = _client(operator_user).get(_detail_url(report))
+
+    assert response.status_code == 200
+    assert response.json()["ai_classification"]["requires_human_review"] is None
+
+
+def test_eventos_historicos_ambiguos_devuelven_null(operator_user, category):
+    report = _report(category)
+    classification = AiClassification.objects.create(report=report)
+    _classification_audit(classification, requires_human_review=True)
+    _classification_audit(classification, requires_human_review=False)
+
+    response = _client(operator_user).get(_detail_url(report))
+
+    assert response.status_code == 200
+    assert response.json()["ai_classification"]["requires_human_review"] is None
+
+
+def test_umbral_actual_no_reinterpreta_la_decision_historica(
+    operator_user,
+    category,
+    settings,
+):
+    report = _report(category)
+    classification = AiClassification.objects.create(
+        report=report,
+        confidence=Decimal("0.01"),
+        inconsistency_flag=True,
+    )
+    _classification_audit(classification, requires_human_review=False)
+    client = _client(operator_user)
+
+    settings.AI_CONFIDENCE_THRESHOLD = Decimal("0")
+    with_low_threshold = client.get(_detail_url(report))
+    settings.AI_CONFIDENCE_THRESHOLD = Decimal("1")
+    with_high_threshold = client.get(_detail_url(report))
+
+    assert with_low_threshold.status_code == with_high_threshold.status_code == 200
+    assert with_low_threshold.json()["ai_classification"]["requires_human_review"] is False
+    assert with_high_threshold.json()["ai_classification"]["requires_human_review"] is False
 
 
 def test_detalle_no_expone_pii_claves_hashes_auditoria_ni_raw_response(
@@ -887,11 +1017,18 @@ def test_detalle_no_expone_pii_claves_hashes_auditoria_ni_raw_response(
         file_hash=file_hash,
         uploaded_by=citizen,
     )
-    AuditLog.objects.create(
+    classification = AiClassification.objects.create(report=report)
+    _classification_audit(
+        classification,
+        requires_human_review=True,
         actor_user=citizen,
-        actor_type=ActorType.AI,
-        action="ai.classification.completed",
-        payload={"report_id": str(report.pk), "raw_response": "RAW-SECRETO-S9"},
+        extra_payload={
+            "raw_response": "RAW-SECRETO-S9",
+            "prompt_version": "prompt-secreto",
+            "decision": "human_review",
+            "applied": False,
+            "has_changes": True,
+        },
     )
 
     response = _client(operator_user).get(_detail_url(report))
@@ -905,6 +1042,14 @@ def test_detalle_no_expone_pii_claves_hashes_auditoria_ni_raw_response(
         file_hash,
         "RAW-SECRETO-S9",
         "raw_response",
+        "prompt_version",
+        "decision",
+        "applied",
+        "has_changes",
+        "payload",
+        "actor_user",
+        "actor_type",
+        "action",
         "citizen",
         "uploaded_by",
         "validated_by",
@@ -980,11 +1125,12 @@ def test_detalle_completo_tiene_presupuesto_razonable_de_queries(
         file_url="reports/query-budget/foto.jpg",
         file_hash="9" * 64,
     )
-    AiClassification.objects.create(
+    classification = AiClassification.objects.create(
         report=report,
         suggested_category=category,
         suggested_institution=category.default_institution,
     )
+    _classification_audit(classification, requires_human_review=True)
     for index in range(2):
         confirmer = user_factory(email=f"query-confirm-{index}@example.com")
         ReportConfirmation.objects.create(report=report, citizen=confirmer)
@@ -997,4 +1143,5 @@ def test_detalle_completo_tiene_presupuesto_razonable_de_queries(
     assert response.json()["confirmation_count"] == 2
     assert response.json()["photo_signed_url"] == SIGNED_URL
     assert response.json()["ai_classification"] is not None
-    assert len(captured) <= 8
+    assert response.json()["ai_classification"]["requires_human_review"] is True
+    assert len(captured) <= 9

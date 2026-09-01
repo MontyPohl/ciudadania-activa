@@ -14,7 +14,11 @@ from apps.reports_app.operator_serializers import (
     OperatorReportListQuerySerializer,
     OperatorReportListSerializer,
 )
-from apps.reports_app.selectors import operator_report_detail, operator_report_list
+from apps.reports_app.selectors import (
+    attach_operator_historical_human_review,
+    operator_report_detail,
+    operator_report_list,
+)
 
 INSTITUTION_CONTEXT_FORBIDDEN = "No tenés acceso al contexto institucional solicitado."
 INSTITUTION_CONTEXT_REQUIRED = (
@@ -71,6 +75,10 @@ class OperatorReportDetailView(_OperatorInstitutionContextMixin, RetrieveAPIView
 
     def get_queryset(self):
         return operator_report_detail(institution=self._institution())
+
+    def get_object(self):
+        report = super().get_object()
+        return attach_operator_historical_human_review(report=report)
 
     def retrieve(self, request, *args, **kwargs):
         try:

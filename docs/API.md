@@ -953,6 +953,7 @@ efectivo del operador producen el mismo `404`.
     "inconsistency_flag": false,
     "justification": "La descripción y la fotografía corresponden a la categoría sugerida.",
     "model_name": "modelo-de-demostracion",
+    "requires_human_review": true,
     "created_at": "2026-09-01T12:01:00Z"
   },
   "created_at": "2026-09-01T12:00:00Z"
@@ -969,6 +970,13 @@ se devuelve la más reciente por `created_at, id` descendentes. Los resúmenes
 mapeable o todavía ausente nunca rompe el detalle. `confidence` puede ser `null`, y los campos
 textuales de una fila histórica pueden ser vacíos. No se expone
 `raw_response`, `prompt_version`, la decisión de auditoría ni ningún otro contenido de `AuditLog`.
+
+`requires_human_review` es `true`, `false` o `null`. Los valores booleanos reproducen
+exclusivamente la decisión histórica que S8 registró para esa clasificación en el evento inmutable
+`ai.report.classified`; no se recalculan con el umbral, la confianza ni la política vigentes. Es
+`null` cuando no existe una única evidencia histórica válida y vinculable por reporte y
+clasificación. La ausencia de evidencia no equivale a `false` ni permite concluir que haya fallado
+el proveedor. Ningún otro campo, payload o identificador de `AuditLog` se proyecta en la API.
 
 #### Fotografía privada
 

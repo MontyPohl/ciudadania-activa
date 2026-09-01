@@ -73,7 +73,11 @@ class OperatorAiClassificationSerializer(serializers.Serializer):
     inconsistency_flag = serializers.BooleanField(read_only=True)
     justification = serializers.CharField(read_only=True, allow_blank=True)
     model_name = serializers.CharField(read_only=True, allow_blank=True)
+    requires_human_review = serializers.SerializerMethodField()
     created_at = serializers.DateTimeField(read_only=True)
+
+    def get_requires_human_review(self, classification) -> bool | None:
+        return getattr(classification, "operator_requires_human_review", None)
 
 
 class OperatorReportDetailSerializer(OperatorReportListSerializer):

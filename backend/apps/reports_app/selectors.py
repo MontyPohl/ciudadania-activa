@@ -21,6 +21,7 @@ from django.db.models import (
 from django.db.models.functions import Cast
 from django.utils import timezone
 
+from apps.admin_app.models import AuditLog
 from apps.ai_client_app.models import AiClassification
 from apps.core.enums import ReportPriority, ReportStatus
 from apps.reports_app.enums import MediaType
@@ -46,6 +47,8 @@ _OPERATOR_PRIORITY_ORDER = Case(
     default=Value(3),
     output_field=IntegerField(),
 )
+
+_AI_REPORT_CLASSIFIED_ACTION = "ai.report.classified"
 
 
 def contextual_report_queryset(*, citizen):
@@ -130,6 +133,36 @@ def operator_report_detail(*, institution):
             ),
         )
     )
+
+
+def attach_operator_historical_human_review(*, report):
+    """Adjunta la decisión histórica S8 a la clasificación mostrada en detalle.
+
+    La ausencia o ambigüedad de evidencia no equivale a ``False``. Solo una fila
+    de auditoría inequívoca, ligada por acción, reporte y clasificación exactos,
+    puede acreditar el booleano. El atributo es transitorio y nunca se persiste.
+    """
+    classifications = report.operator_ai_classifications
+    if not classifications:
+        return report
+
+    classification = classifications[0]
+    historical_values = list(
+        AuditLog.objects.filter(
+            action=_AI_REPORT_CLASSIFIED_ACTION,
+            payload__report_id=str(report.pk),
+            payload__classification_id=str(classification.pk),
+        )
+        .order_by("created_at", "id")
+        .values_list("payload__requires_human_review", flat=True)[:2]
+    )
+
+    historical_value = None
+    if len(historical_values) == 1 and type(historical_values[0]) is bool:
+        historical_value = historical_values[0]
+
+    classification.operator_requires_human_review = historical_value
+    return report
 
 
 def _start_of_local_date(value: date, current_timezone) -> datetime:
