@@ -83,6 +83,7 @@ class RecoveryProtocol:
     dataset_version: str
     dataset_sha256: str
     prompt_version: str
+    prompt_sha256: str
     request_timeout_seconds: int
     inter_request_delay_seconds: float
     status_in_progress: str
@@ -101,6 +102,7 @@ class RecoveryProtocol:
             ("dataset_version", self.dataset_version),
             ("dataset_sha256", self.dataset_sha256),
             ("prompt_version", self.prompt_version),
+            ("prompt_sha256", self.prompt_sha256),
             ("request_timeout_seconds", self.request_timeout_seconds),
             ("inter_request_delay_seconds", self.inter_request_delay_seconds),
         )
@@ -111,6 +113,12 @@ class RecoveryProtocol:
 _DATASET_VERSION = "s8-evaluation-v1"
 _DATASET_SHA256 = "3bc54d591dc104aeabeecb2f5cc7c7a38e70ba042e7f045321ab33ae9b5efad4"
 _MODEL_NAME = "gemini-3.6-flash"
+
+#: Hash del contenido de `classification_v1.txt`. El prompt ya estaba congelado por
+#: `prompt_version`, pero una versión es una etiqueta: no impide que el archivo
+#: cambie debajo. Este hash es lo que la ejecución canónica comprueba contra el
+#: texto que de verdad se envía.
+_PROMPT_SHA256 = "f3c803984806a3b934db0417f6cc3ce59a49cdde1e30b4c86b862c2e11c665ca"
 
 #: Pacing prerregistrado, idéntico en R1 y R2. 20 s entre solicitudes son 3 por
 #: minuto, por debajo del RPM 5 observado. **No es el timeout**: el timeout acota
@@ -127,6 +135,7 @@ R1 = RecoveryProtocol(
     dataset_version=_DATASET_VERSION,
     dataset_sha256=_DATASET_SHA256,
     prompt_version=PROMPT_VERSION,
+    prompt_sha256=_PROMPT_SHA256,
     request_timeout_seconds=20,
     inter_request_delay_seconds=_PACING_SECONDS,
     status_in_progress="R1_IN_PROGRESS",
@@ -149,6 +158,7 @@ R2 = RecoveryProtocol(
     dataset_version=_DATASET_VERSION,
     dataset_sha256=_DATASET_SHA256,
     prompt_version=PROMPT_VERSION,
+    prompt_sha256=_PROMPT_SHA256,
     request_timeout_seconds=60,
     inter_request_delay_seconds=_PACING_SECONDS,
     status_in_progress="R2_IN_PROGRESS",
@@ -183,6 +193,7 @@ class BatchEvaluation:
     dataset_version: str
     dataset_sha256: str
     prompt_version: str
+    prompt_sha256: str
     batch_number: int
     batch_case_ids: tuple[str, ...]
     inter_request_delay_seconds: float
@@ -308,6 +319,7 @@ def evaluate_batch(
         dataset_version=dataset.dataset_version,
         dataset_sha256=dataset_sha256,
         prompt_version=protocol.prompt_version,
+        prompt_sha256=protocol.prompt_sha256,
         batch_number=batch_number,
         batch_case_ids=tuple(case.id for case in casos),
         inter_request_delay_seconds=inter_request_delay_seconds,

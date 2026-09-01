@@ -7,14 +7,19 @@ de la misma instancia de `RecoveryProtocol`.
 """
 
 import json
+from dataclasses import replace
+from decimal import Decimal
+from pathlib import Path
 
 import pytest
 
 from apps.ai_client_app.evaluation import execution as execution_module
-from apps.ai_client_app.evaluation.dataset import load_dataset
+from apps.ai_client_app.evaluation.dataset import DATASET_PATH, load_dataset
 from apps.ai_client_app.evaluation.execution import (
     build_provider_adapter,
+    load_verified_dataset,
     run_recovery_batch,
+    verify_prompt,
 )
 from apps.ai_client_app.evaluation.recovery import (
     BATCH_SIZE,
@@ -24,6 +29,7 @@ from apps.ai_client_app.evaluation.recovery import (
     batch_to_json,
     select_batch,
 )
+from apps.ai_client_app.evaluation.scoring import CA4_MIN_CONCORDANCE_PCT
 
 from ._ast_checks import code_identifiers
 
@@ -94,10 +100,9 @@ def _factorias(dataset, batch_number):
     return client_factory, adapter_factory, registro
 
 
-def _ejecutar(dataset, protocol, batch_number=1):
+def _ejecutar(dataset, protocol, batch_number=1, **extra):
     client_factory, adapter_factory, registro = _factorias(dataset, batch_number)
     lote = run_recovery_batch(
-        dataset,
         protocol=protocol,
         batch_number=batch_number,
         api_key=CLAVE_FALSA,
@@ -105,6 +110,7 @@ def _ejecutar(dataset, protocol, batch_number=1):
         adapter_factory=adapter_factory,
         sleep=lambda segundos: None,
         monotonic_ns=RelojFalso(),
+        **extra,
     )
     return lote, registro
 
@@ -151,7 +157,7 @@ def test_el_lote_queda_marcado_con_el_protocolo_ejecutado(dataset):
 def test_el_protocolo_es_obligatorio_y_no_tiene_default(dataset):
     """Olvidar `protocol=R2` no puede degradar silenciosamente a R1."""
     with pytest.raises(TypeError):
-        run_recovery_batch(dataset, batch_number=1, api_key=CLAVE_FALSA)
+        run_recovery_batch(batch_number=1, api_key=CLAVE_FALSA)
 
 
 @pytest.mark.parametrize(
@@ -170,7 +176,6 @@ def test_no_hay_ruta_para_pasar_a_mano_lo_que_deriva_del_protocolo(dataset, camp
 
     with pytest.raises(TypeError):
         run_recovery_batch(
-            dataset,
             protocol=R2,
             batch_number=1,
             api_key=CLAVE_FALSA,
@@ -264,24 +269,160 @@ def test_la_ejecucion_no_toca_celery():
     assert "shared_task" not in identificadores
 
 
-def test_un_lote_mal_parametrizado_sigue_siendo_rechazado(dataset):
-    """La validación de `evaluate_batch` sigue vigente detrás de esta capa."""
+def test_un_dataset_en_otra_ruta_con_los_mismos_bytes_es_valido(dataset, tmp_path):
+    """Lo que se exige son los bytes, no la ubicación del archivo."""
+    copia = tmp_path / "copia_identica.json"
+    copia.write_bytes(DATASET_PATH.read_bytes())
 
-    class DatasetFalso:
-        dataset_version = "otra-version"
-        cases = dataset.cases
-        catalog = dataset.catalog
+    lote, _ = _ejecutar(dataset, R2, dataset_path=copia)
 
-    client_factory, adapter_factory, _ = _factorias(dataset, 1)
+    assert lote.dataset_sha256 == R2.dataset_sha256
+
+
+# --------------------------------------------------------------------------- #
+# Provenance: lo declarado en la evidencia es lo realmente usado
+# --------------------------------------------------------------------------- #
+
+DATASET_SHA_CONGELADO = "3bc54d591dc104aeabeecb2f5cc7c7a38e70ba042e7f045321ab33ae9b5efad4"
+PROMPT_SHA_CONGELADO = "f3c803984806a3b934db0417f6cc3ce59a49cdde1e30b4c86b862c2e11c665ca"
+
+
+def _dataset_adulterado(tmp_path, mutar):
+    """Copia del dataset con una modificación, conservando `dataset_version`."""
+    crudo = json.loads(DATASET_PATH.read_text(encoding="utf-8"))
+    mutar(crudo)
+    destino = tmp_path / "adulterado.json"
+    destino.write_text(json.dumps(crudo, ensure_ascii=False), encoding="utf-8")
+    return destino
+
+
+def test_el_dataset_canonico_pasa_el_preflight():
+    dataset, digest = load_verified_dataset(protocol=R2)
+
+    assert digest == DATASET_SHA_CONGELADO == R2.dataset_sha256
+    assert dataset.dataset_version == "s8-evaluation-v1"
+    assert len(dataset.cases) == 28
+
+
+def test_un_solo_byte_distinto_en_el_dataset_se_rechaza(tmp_path):
+    destino = tmp_path / "un_byte.json"
+    crudo = bytearray(DATASET_PATH.read_bytes())
+    # Un espacio añadido: JSON equivalente, bytes distintos. El hash es sobre bytes.
+    crudo.extend(b" ")
+    destino.write_bytes(bytes(crudo))
+
+    with pytest.raises(RecoveryProtocolError, match="no es el prerregistrado"):
+        load_verified_dataset(protocol=R2, dataset_path=destino)
+
+
+def test_mismo_dataset_version_con_contenido_distinto_se_rechaza(tmp_path):
+    """El agujero que este endurecimiento cierra, convertido en regresión.
+
+    Antes era posible ejecutar con este archivo y archivar el hash prerregistrado:
+    el input real no era el prerregistrado y la evidencia no lo delataba.
+    """
+    destino = _dataset_adulterado(
+        tmp_path,
+        lambda d: d["cases"][0].__setitem__("description", "DESCRIPCION ADULTERADA"),
+    )
+    crudo = json.loads(destino.read_text(encoding="utf-8"))
+
+    assert crudo["dataset_version"] == "s8-evaluation-v1"
+    with pytest.raises(RecoveryProtocolError):
+        load_verified_dataset(protocol=R2, dataset_path=destino)
+
+
+def test_el_rechazo_del_dataset_ocurre_antes_de_construir_el_cliente(dataset, tmp_path):
+    """Un input equivocado cuesta cero llamadas y cero cuota."""
+    destino = _dataset_adulterado(
+        tmp_path,
+        lambda d: d["cases"][0].__setitem__("description", "OTRA DESCRIPCION"),
+    )
+    client_factory, adapter_factory, registro = _factorias(dataset, 1)
 
     with pytest.raises(RecoveryProtocolError):
         run_recovery_batch(
-            DatasetFalso(),
             protocol=R2,
+            batch_number=1,
+            api_key=CLAVE_FALSA,
+            dataset_path=destino,
+            client_factory=client_factory,
+            adapter_factory=adapter_factory,
+        )
+
+    assert registro == {}
+
+
+def test_la_evidencia_archiva_el_digest_realmente_verificado(dataset):
+    lote, _ = _ejecutar(dataset, R2)
+    _, digest = load_verified_dataset(protocol=R2)
+
+    assert lote.dataset_sha256 == digest
+    assert lote.dataset_sha256 == DATASET_SHA_CONGELADO
+
+
+def test_el_prompt_real_reproduce_el_hash_congelado():
+    assert verify_prompt(protocol=R2) == PROMPT_SHA_CONGELADO
+    assert R2.prompt_sha256 == PROMPT_SHA_CONGELADO
+    assert R1.prompt_sha256 == PROMPT_SHA_CONGELADO
+
+
+def test_un_prompt_alterado_se_rechaza():
+    """Se altera el protocolo, no el archivo: `classification_v1.txt` es intocable."""
+    protocolo_torcido = replace(R2, prompt_sha256="0" * 64)
+
+    with pytest.raises(RecoveryProtocolError, match="El prompt no es el prerregistrado"):
+        verify_prompt(protocol=protocolo_torcido)
+
+
+def test_el_rechazo_del_prompt_ocurre_antes_de_construir_el_cliente(dataset):
+    protocolo_torcido = replace(R2, prompt_sha256="0" * 64)
+    client_factory, adapter_factory, registro = _factorias(dataset, 1)
+
+    with pytest.raises(RecoveryProtocolError):
+        run_recovery_batch(
+            protocol=protocolo_torcido,
             batch_number=1,
             api_key=CLAVE_FALSA,
             client_factory=client_factory,
             adapter_factory=adapter_factory,
-            sleep=lambda segundos: None,
-            monotonic_ns=RelojFalso(),
         )
+
+    assert registro == {}
+
+
+def test_la_evidencia_registra_el_hash_del_prompt(dataset):
+    lote, _ = _ejecutar(dataset, R2)
+    serializado = json.loads(batch_to_json(lote))
+
+    assert serializado["prompt_sha256"] == PROMPT_SHA_CONGELADO
+    assert serializado["prompt_version"] == "s8-classification-v1"
+
+
+def test_el_dataset_se_lee_una_sola_vez(dataset, monkeypatch):
+    """Sin TOCTOU: hashear y volver a abrir dejaría una ventana entre lecturas."""
+    lecturas = []
+    original = Path.read_bytes
+
+    def espia(self, *args, **kwargs):
+        lecturas.append(str(self))
+        return original(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_bytes", espia)
+    load_verified_dataset(protocol=R2)
+
+    assert sum(1 for r in lecturas if r.endswith("dataset_s8_v1.json")) == 1
+
+
+def test_los_invariantes_sustantivos_siguen_intactos(dataset):
+    lote, registro = _ejecutar(dataset, R2)
+
+    assert R2.model_name == "gemini-3.6-flash"
+    assert R2.prompt_version == "s8-classification-v1"
+    assert R2.dataset_version == "s8-evaluation-v1"
+    assert R2.request_timeout_seconds == 60
+    assert R1.request_timeout_seconds == 20
+    assert R2.inter_request_delay_seconds == 20
+    assert CA4_MIN_CONCORDANCE_PCT == Decimal("85.00")
+    assert lote.batch_case_ids == tuple(c.id for c in select_batch(dataset, 1))
+    assert registro["adapter"]["model"] == "gemini-3.6-flash"

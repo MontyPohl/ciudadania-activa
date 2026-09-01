@@ -1225,6 +1225,19 @@ antes de cerrarlo.
   lote de R1 no puede combinarse bajo R2 ni al revés, porque su estado no coincide. R1 queda
   como registro histórico, sin reinterpretar.
 
+  **Lo declarado es lo realmente usado.** Declarar no es verificar: la evidencia
+  archivaba `dataset_sha256` sin demostrar que el dataset ejecutado viniera de esos
+  bytes, y el prompt solo estaba congelado por una etiqueta de versión que no impide
+  que el archivo cambie debajo. La ruta canónica liga ahora cada valor declarado al
+  efectivo — `run_recovery_batch` ya no recibe un `EvaluationDataset`: lee los bytes
+  una sola vez (sin ventana TOCTOU), verifica su SHA-256 contra el prerregistro y
+  construye el dataset desde esos mismos bytes; y hashea el template que
+  `render_classification_prompt` usará de verdad contra el nuevo `prompt_sha256`.
+  Cualquier divergencia aborta antes de construir el cliente, de modo que unos
+  inputs equivocados cuestan cero llamadas y cero cuota. `prompt_sha256` se añade al
+  prerregistro y a la evidencia **antes** de ejecutar R2; no es una propiedad
+  retroactiva de los JSON perdidos de R1, que no se reconstruyen.
+
   **El timeout de la evidencia es el de la petición.** `RecoveryProtocol` declara
   `request_timeout_seconds`, pero el timeout que gobierna la llamada se fija al construir el
   cliente del SDK. Con dos fuentes independientes, una corrida podía archivar 60 s mientras

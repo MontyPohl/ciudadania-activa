@@ -449,6 +449,41 @@ Los 60 s quedan fijados **aquí, antes de R2**, y no podrán ajustarse después 
 ver resultados. No se cambia el modelo, ni el prompt, ni la configuración de
 *thinking*, ni el pacing, y no se introducen reintentos.
 
+### Lo declarado es lo realmente usado
+
+`RecoveryProtocol` declara los inputs del experimento y la evidencia los archiva,
+pero declarar no es verificar. Había tres puntos donde el **input real** podía no
+ser el **input prerregistrado** sin que la evidencia lo delatara. La ruta canónica
+—`evaluation/execution.py`— los cierra ligando cada valor declarado al efectivo:
+
+| Declarado | Ligado a |
+| --- | --- |
+| `dataset_sha256` | los **bytes realmente parseados** |
+| `prompt_sha256` | el **template realmente usado** al construir la petición |
+| `request_timeout_seconds` | el **timeout efectivo del cliente** |
+| `model_name` | el **modelo efectivo del adaptador** |
+
+**Dataset.** `run_recovery_batch` ya **no recibe** un `EvaluationDataset`. Lee los
+bytes una sola vez, calcula su SHA-256, lo compara con el prerregistro y construye
+el dataset **desde esos mismos bytes**. Leer una vez importa: hashear el archivo y
+volver a abrirlo para parsear dejaría una ventana entre ambas lecturas, y la
+evidencia podría certificar unos bytes distintos de los enviados. Una copia en
+otra ruta con los mismos bytes es válida; un archivo con el mismo
+`dataset_version` y otro contenido no lo es.
+
+**Prompt.** `prompt_version` es una etiqueta: no impide que el archivo cambie
+debajo. Ahora se hashea el texto que devuelve `load_prompt_template` —el mismo que
+`render_classification_prompt` interpola— y se compara con `prompt_sha256`.
+
+`prompt_sha256` es un campo **nuevo** del prerregistro y de la evidencia,
+introducido **antes** de ejecutar R2. No es una propiedad retroactiva: los JSON
+perdidos de R1 nunca lo contuvieron, y no se reconstruyen.
+
+Cualquier divergencia aborta **antes** de construir el cliente, así que una
+ejecución con inputs equivocados cuesta **cero llamadas al proveedor** y cero
+cuota. El orden de las guardas es: parámetros → bytes del dataset → dataset
+construido desde ellos → prompt → partición del lote → proveedor.
+
 ### El timeout de la evidencia es el de la petición
 
 `RecoveryProtocol` declara `request_timeout_seconds`, pero el timeout que gobierna
