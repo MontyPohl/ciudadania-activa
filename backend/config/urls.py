@@ -11,4 +11,5 @@ urlpatterns = [
     path("api/v1/public/", include("apps.map_app.urls")),
     path("api/v1/reports/", include("apps.reports_app.urls")),
     path("api/v1/citizen/", include("apps.reports_app.urls_citizen")),
+    path("api/v1/operator/", include("apps.reports_app.urls_operator")),
 ]

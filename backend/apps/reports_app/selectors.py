@@ -1,14 +1,30 @@
 """Consultas de lectura del dominio de reportes."""
 
+from datetime import date, datetime, time, timedelta
+
 from django.conf import settings
 from django.contrib.gis.db.models import GeometryField, PointField
 from django.contrib.gis.db.models.functions import Distance, Envelope
 from django.contrib.gis.geos import Point
-from django.db.models import Count, Exists, Func, OuterRef, Value
+from django.db.models import (
+    Case,
+    Count,
+    Exists,
+    Func,
+    IntegerField,
+    OuterRef,
+    Prefetch,
+    Q,
+    Value,
+    When,
+)
 from django.db.models.functions import Cast
+from django.utils import timezone
 
-from apps.core.enums import ReportStatus
-from apps.reports_app.models import Report, ReportConfirmation
+from apps.ai_client_app.models import AiClassification
+from apps.core.enums import ReportPriority, ReportStatus
+from apps.reports_app.enums import MediaType
+from apps.reports_app.models import Report, ReportConfirmation, ReportMedia
 
 ACTIVE_REPORT_STATUSES = (
     ReportStatus.CREADO,
@@ -21,6 +37,14 @@ VISIBLE_REPORT_STATUSES = (
     *ACTIVE_REPORT_STATUSES,
     ReportStatus.RESUELTO,
     ReportStatus.CERRADO,
+)
+
+_OPERATOR_PRIORITY_ORDER = Case(
+    When(priority=ReportPriority.ALTA, then=Value(0)),
+    When(priority=ReportPriority.MEDIA, then=Value(1)),
+    When(priority=ReportPriority.BAJA, then=Value(2)),
+    default=Value(3),
+    output_field=IntegerField(),
 )
 
 
@@ -38,6 +62,84 @@ def contextual_report_queryset(*, citizen):
             confirmed_by_me=Exists(confirmed_by_citizen),
         )
     )
+
+
+def operator_reports_for_institution(*, institution):
+    """Reportes visibles en el contexto institucional de lectura de S9-A.
+
+    Una asignación persistida siempre prevalece. Solo cuando ``Report.institution``
+    es nula se usa ``Category.default_institution`` como ruta provisional de lectura.
+    La consulta no considera sugerencias de IA ni modifica el reporte.
+    """
+    return Report.objects.filter(
+        Q(institution_id=institution.pk)
+        | Q(
+            institution__isnull=True,
+            category__default_institution_id=institution.pk,
+        )
+    ).select_related("category", "institution", "category__default_institution")
+
+
+def operator_report_list(*, institution, params):
+    """Bandeja institucional filtrada y con orden total entre páginas."""
+    queryset = operator_reports_for_institution(institution=institution)
+
+    if status := params.get("status"):
+        queryset = queryset.filter(status=status)
+    if priority := params.get("priority"):
+        queryset = queryset.filter(priority=priority)
+    if category := params.get("category"):
+        queryset = queryset.filter(category=category)
+
+    current_timezone = timezone.get_current_timezone()
+    if created_from := params.get("created_from"):
+        queryset = queryset.filter(
+            created_at__gte=_start_of_local_date(created_from, current_timezone)
+        )
+    if created_to := params.get("created_to"):
+        next_date = _next_date(created_to)
+        if next_date is not None:
+            queryset = queryset.filter(
+                created_at__lt=_start_of_local_date(next_date, current_timezone)
+            )
+
+    return queryset.annotate(_operator_priority_order=_OPERATOR_PRIORITY_ORDER).order_by(
+        "_operator_priority_order",
+        "created_at",
+        "id",
+    )
+
+
+def operator_report_detail(*, institution):
+    """Detalle bajo el mismo scope de bandeja, sin joins que inflen confirmaciones."""
+    photos = ReportMedia.objects.filter(media_type=MediaType.FOTO).order_by("created_at", "id")
+    classifications = AiClassification.objects.select_related(
+        "suggested_category",
+        "suggested_institution",
+    ).order_by("-created_at", "-id")
+
+    return (
+        operator_reports_for_institution(institution=institution)
+        .annotate(confirmation_count=Count("confirmations"))
+        .prefetch_related(
+            Prefetch("media", queryset=photos, to_attr="operator_photos"),
+            Prefetch(
+                "ai_classifications",
+                queryset=classifications,
+                to_attr="operator_ai_classifications",
+            ),
+        )
+    )
+
+
+def _start_of_local_date(value: date, current_timezone) -> datetime:
+    return timezone.make_aware(datetime.combine(value, time.min), current_timezone)
+
+
+def _next_date(value: date) -> date | None:
+    if value == date.max:
+        return None
+    return value + timedelta(days=1)
 
 
 def find_possible_duplicates(
