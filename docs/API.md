@@ -1,9 +1,11 @@
 # API — Ciudadanía Activa
 
 Contrato de la API tal como está **implementada**, no como se planificó. Se amplía en
-cada sprint que añade endpoints; hoy cubre los Sprints 3 a 6 y el backend local S7-A.
+cada sprint que añade endpoints; hoy cubre los Sprints 3 a 6, el backend local S7-A y la
+lectura institucional de S9-A.
 
-- **Plan de referencia:** [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md) §14 (Sprint 4) y §29 (seguridad).
+- **Plan de referencia:** [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md) §14 (Sprint 4), §19
+  (Sprint 9) y §29 (seguridad).
 - **Estado del modelo de datos:** [DICCIONARIO_DATOS.md](DICCIONARIO_DATOS.md).
 - **Divergencias respecto del Anexo B de la tesis:** [CAMBIOS_TESIS_PENDIENTES.md](CAMBIOS_TESIS_PENDIENTES.md).
 
@@ -801,6 +803,202 @@ inexistente · `429` más de 30 intentos dentro de la ventana.
 Las claves de estado son estables aunque su valor sea cero. Los puntos suman exclusivamente
 `impact_delta`, separados por `PENDIENTE` y `ACREDITADO`; no se devuelven `credit_delta`, saldo,
 movimientos ni IDs del ledger.
+
+---
+
+## 7. Panel institucional — lectura S9-A
+
+S9-A incorpora únicamente la superficie de **lectura** de la bandeja institucional. Las dos rutas
+de esta sección exigen `IsInstitutionOperator`: una sesión anónima o un token inválido recibe
+`401`; un ciudadano, un administrador de dominio o un operador sin ningún vínculo institucional
+activo recibe `403`. El rol `admin` no obtiene acceso implícito a rutas bajo `/operator/`.
+
+Los GET son libres de efectos: no asignan institución, no validan ni rechazan el reporte, no
+aplican una sugerencia de IA y no escriben historial, auditoría ni otra fila.
+
+### 7.1 Contexto y alcance institucional
+
+Ambas rutas aceptan `institution_id=<uuid>` como contexto de lectura:
+
+- si el operador tiene exactamente un vínculo activo, puede omitirlo y el servidor usa esa única
+  institución;
+- si tiene más de un vínculo activo, debe enviarlo; omitirlo produce `400`;
+- un UUID malformado o el mismo parámetro repetido produce `400`;
+- un UUID que no corresponde a ninguno de sus vínculos activos produce un `403` genérico, sin
+  revelar datos de la institución solicitada.
+
+Para estas lecturas, la **institución efectiva** de un reporte es:
+
+```text
+report.institution ?? report.category.default_institution
+```
+
+El mismo alcance se aplica al listado y al detalle: se incluyen reportes cuya `institution`
+coincide con el contexto y, mientras `Report.institution` sea `null`, los
+que tienen como fallback `Category.default_institution` a la institución seleccionada. El fallback
+solo enruta la lectura: **no modifica** `Report.institution`, que continúa `null` hasta que otro
+flujo autorizado fije la institución responsable. Tampoco acredita puntos, emite créditos, decide
+una validación ni sustituye la decisión humana.
+
+Si tanto `Report.institution` como `Category.default_institution` fueran `null`, el reporte queda
+sin enrutar y no aparece en ninguna bandeja. El esquema actual exige el segundo campo, pero el
+selector conserva esta regla fail-closed y nunca fabrica una institución.
+
+La institución sugerida por `AiClassification` nunca interviene en el alcance ni concede acceso.
+Puede mostrarse en el detalle como dato asistido, pero la tenencia se resuelve exclusivamente con
+el reporte y, si aún no está asignado, con el catálogo de su categoría.
+
+### 7.2 `GET /api/v1/operator/reports/`
+
+Listado paginado de la bandeja del contexto institucional efectivo.
+
+```http
+GET /api/v1/operator/reports/?institution_id=33333333-3333-4333-8333-333333333333&status=CREADO&priority=ALTA&category=baches&created_from=2026-09-01&created_to=2026-09-30&page=1
+```
+
+| Parámetro | Contrato |
+|---|---|
+| `institution_id` | UUID del contexto. Opcional solo cuando el operador tiene exactamente un vínculo activo |
+| `status` | Opcional. Un valor exacto de `ReportStatus`: `CREADO`, `CLASIFICADO`, `ASIGNADO`, `EN_PROCESO`, `RESUELTO`, `CERRADO` o `RECHAZADO` |
+| `priority` | Opcional. `ALTA`, `MEDIA` o `BAJA` |
+| `category` | Opcional. `slug` de una categoría activa existente |
+| `created_from` | Opcional. Fecha ISO `YYYY-MM-DD`, inclusiva en `America/Asuncion` |
+| `created_to` | Opcional. Fecha ISO `YYYY-MM-DD`, inclusiva en `America/Asuncion` |
+| `page` | Opcional. Página de tamaño fijo global de 20 |
+
+Cada parámetro es de valor único: repetir cualquiera produce `400`; también se rechazan con `400`
+los parámetros desconocidos, los valores fuera de dominio, las fechas inválidas y un rango con
+`created_from > created_to`. Las fechas delimitan días civiles en `America/Asuncion`; el límite
+superior incluye el día completo de `created_to`.
+
+El orden es estable y orientado a atención: prioridad `ALTA`, `MEDIA`, `BAJA`; dentro de cada
+prioridad, el reporte más antiguo primero (`created_at`, luego `id`). La paginación conserva la
+envoltura global `{count, next, previous, results}`.
+
+**200**
+
+```json
+{
+  "count": 1,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "status": "CREADO",
+      "priority": "ALTA",
+      "category": {
+        "id": "22222222-2222-4222-8222-222222222222",
+        "name": "Baches",
+        "slug": "baches"
+      },
+      "institution": null,
+      "effective_read_institution": {
+        "id": "33333333-3333-4333-8333-333333333333",
+        "name": "Municipalidad de Asunción",
+        "slug": "municipalidad-de-asuncion"
+      },
+      "created_at": "2026-09-01T12:00:00Z"
+    }
+  ]
+}
+```
+
+El listado termina en esos siete campos superiores. En particular, no entrega descripción, foto,
+coordenadas, clasificación IA, confirmaciones, autor, ciudadanía, ledger ni auditoría.
+La respuesta lleva `Cache-Control: private, no-store`.
+
+### 7.3 `GET /api/v1/operator/reports/{id}/`
+
+Detalle operativo de un reporte dentro del mismo contexto institucional. Admite únicamente el
+parámetro `institution_id`, con las reglas de §7.1. Un reporte inexistente y uno fuera del alcance
+efectivo del operador producen el mismo `404`.
+
+**200**
+
+```json
+{
+  "id": "11111111-1111-4111-8111-111111111111",
+  "status": "CLASIFICADO",
+  "priority": "ALTA",
+  "category": {
+    "id": "22222222-2222-4222-8222-222222222222",
+    "name": "Baches",
+    "slug": "baches"
+  },
+  "institution": null,
+  "effective_read_institution": {
+    "id": "33333333-3333-4333-8333-333333333333",
+    "name": "Municipalidad de Asunción",
+    "slug": "municipalidad-de-asuncion"
+  },
+  "description": "Bache profundo de demostración en una vía principal.",
+  "latitude": -25.2637,
+  "longitude": -57.5759,
+  "photo_signed_url": "<url-firmada-efimera>",
+  "confirmation_count": 2,
+  "ai_classification": {
+    "suggested_category": {
+      "id": "22222222-2222-4222-8222-222222222222",
+      "name": "Baches",
+      "slug": "baches"
+    },
+    "suggested_institution": {
+      "id": "33333333-3333-4333-8333-333333333333",
+      "name": "Municipalidad de Asunción",
+      "slug": "municipalidad-de-asuncion"
+    },
+    "suggested_priority": "ALTA",
+    "confidence": 0.87,
+    "inconsistency_flag": false,
+    "justification": "La descripción y la fotografía corresponden a la categoría sugerida.",
+    "model_name": "modelo-de-demostracion",
+    "requires_human_review": true,
+    "created_at": "2026-09-01T12:01:00Z"
+  },
+  "created_at": "2026-09-01T12:00:00Z"
+}
+```
+
+`institution` refleja exclusivamente `Report.institution` y puede ser `null`;
+`effective_read_institution` muestra el valor usado para el alcance de esta lectura. No deben
+confundirse ni presentarse como dos asignaciones.
+
+`ai_classification` es `null` cuando el reporte no tiene ninguna clasificación. Cuando existe,
+se devuelve la más reciente por `created_at, id` descendentes. Los resúmenes
+`suggested_category` y `suggested_institution` también pueden ser `null`; una salida inválida, no
+mapeable o todavía ausente nunca rompe el detalle. `confidence` puede ser `null`, y los campos
+textuales de una fila histórica pueden ser vacíos. No se expone
+`raw_response`, `prompt_version`, la decisión de auditoría ni ningún otro contenido de `AuditLog`.
+
+`requires_human_review` es `true`, `false` o `null`. Los valores booleanos reproducen
+exclusivamente la decisión histórica que S8 registró para esa clasificación en el evento inmutable
+`ai.report.classified`; no se recalculan con el umbral, la confianza ni la política vigentes. Es
+`null` cuando no existe una única evidencia histórica válida y vinculable por reporte y
+clasificación. La ausencia de evidencia no equivale a `false` ni permite concluir que haya fallado
+el proveedor. Ningún otro campo, payload o identificador de `AuditLog` se proyecta en la API.
+
+#### Fotografía privada
+
+La foto no aparece en el listado. El detalle selecciona el primer `ReportMedia` de tipo `FOTO`,
+ordenado por `created_at, id`, y genera una URL firmada de lectura con vigencia de **300 segundos**.
+Si el reporte no tiene foto, `photo_signed_url` es `null`. La clave interna del objeto y los demás
+metadatos de Storage nunca forman parte de la respuesta.
+
+Si Storage no puede firmar la foto seleccionada, el detalle falla cerrado con `503` y un mensaje
+genérico; no devuelve una respuesta parcial ni filtra el nombre del bucket, la clave del objeto o
+el error del proveedor.
+
+#### Privacidad y errores
+
+El detalle no expone ciudadano, email, nombre, IDs de identidad, selfie, transacciones de puntos o
+créditos, historial interno, actores de auditoría, respuesta cruda de IA ni claves de Storage.
+La respuesta lleva `Cache-Control: private, no-store`.
+
+Resumen de errores de las dos rutas: `400` contexto/filtro inválido o ambiguo · `401` sin sesión
+válida · `403` rol incorrecto, ausencia de vínculo activo o contexto fuera de los vínculos del
+operador · `404` detalle inexistente o fuera del alcance efectivo · `503` imposibilidad de firmar
+la fotografía privada del detalle.
 
 ---
 
