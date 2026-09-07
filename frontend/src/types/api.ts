@@ -1,6 +1,7 @@
 import type {
   ISODateTime,
   RankingVisibility,
+  RejectionReason,
   ReportPriority,
   ReportStatus,
   UserRole,
@@ -30,6 +31,56 @@ export interface SessionInstitution {
   id: string;
   name: string;
   slug: string;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Operación institucional — Sprint 9-B2                                     */
+/* -------------------------------------------------------------------------- */
+
+export interface OperatorCategory {
+  id: UUID;
+  name: string;
+  slug: string;
+}
+
+export interface OperatorReport {
+  id: UUID;
+  status: ReportStatus;
+  priority: ReportPriority;
+  category: OperatorCategory;
+  institution: SessionInstitution | null;
+  effective_read_institution: SessionInstitution;
+  created_at: ISODateTime;
+}
+
+export interface OperatorAiClassification {
+  suggested_category: OperatorCategory | null;
+  suggested_institution: SessionInstitution | null;
+  suggested_priority: string;
+  confidence: number | null;
+  inconsistency_flag: boolean;
+  justification: string;
+  model_name: string;
+  requires_human_review: boolean | null;
+  created_at: ISODateTime;
+}
+
+export interface OperatorReportDetail extends OperatorReport {
+  description: string;
+  latitude: number;
+  longitude: number;
+  photo_signed_url: string | null;
+  confirmation_count: number;
+  ai_classification: OperatorAiClassification | null;
+}
+
+export interface OperatorReportActionResult {
+  id: UUID;
+  status: ReportStatus;
+  institution: SessionInstitution | null;
+  validated_at: ISODateTime | null;
+  validated_by: UUID | null;
+  rejection_reason: RejectionReason | "";
 }
 
 /** Respuesta del BFF en `POST /api/auth/google`. El refresh nunca viaja al cliente. */

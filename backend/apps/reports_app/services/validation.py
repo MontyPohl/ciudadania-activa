@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 
 from django.db import transaction
@@ -10,6 +11,7 @@ from django.utils import timezone
 from apps.admin_app.models import Category, Institution
 from apps.core.enums import ActorType, RejectionReason, ReportStatus
 from apps.core.services import audit
+from apps.map_app.cache import invalidate_public_reports_cache
 from apps.reports_app.models import Report, ReportStatusHistory
 from apps.rewards_app.services import ledger
 
@@ -19,6 +21,8 @@ VALIDATION_REVERSAL_REQUIRED = "VALIDATION_REVERSAL_REQUIRED"
 REPORT_STATE_NOT_ALLOWED = "REPORT_STATE_NOT_ALLOWED"
 
 _ACTION_SOURCE_STATUSES = (ReportStatus.CREADO, ReportStatus.CLASIFICADO)
+
+logger = logging.getLogger(__name__)
 
 
 class ReportActionConflict(Exception):
@@ -110,6 +114,7 @@ def validate_report(*, report_id, operator, institution) -> ValidationResult:
             },
             actor_type=ActorType.HUMAN,
         )
+        transaction.on_commit(_invalidate_public_map_cache, robust=True)
 
     return ValidationResult(report=report, ledger_result=ledger_result)
 
@@ -156,8 +161,16 @@ def reject_report(*, report_id, operator, institution, reason) -> RejectionResul
             },
             actor_type=ActorType.HUMAN,
         )
+        transaction.on_commit(_invalidate_public_map_cache, robust=True)
 
     return RejectionResult(report=report, ledger_result=ledger_result)
+
+
+def _invalidate_public_map_cache() -> None:
+    try:
+        invalidate_public_reports_cache()
+    except Exception:  # noqa: BLE001 - la caché nunca revierte una decisión persistida.
+        logger.warning("No se pudo invalidar el mapa público después de la decisión.")
 
 
 def _lock_report(report_id) -> Report:

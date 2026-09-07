@@ -361,7 +361,7 @@ def test_coleccion_y_detalle_no_aceptan_escrituras(operator_user, category, meth
 
 
 @pytest.mark.parametrize("action", ["validate", "reject"])
-def test_s9_a_no_publica_acciones_de_validacion_o_rechazo(
+def test_s9_b2_publica_acciones_pero_exige_contexto_explicito(
     operator_user,
     category,
     action,
@@ -370,7 +370,8 @@ def test_s9_a_no_publica_acciones_de_validacion_o_rechazo(
 
     response = _client(operator_user).post(f"{LIST_URL}{report.pk}/{action}/", {})
 
-    assert response.status_code == 404
+    assert response.status_code == 400
+    assert "institution_id" in response.json()["detail"]
 
 
 # --------------------------------------------------------------------------- #

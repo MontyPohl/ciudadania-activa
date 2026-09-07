@@ -1,8 +1,8 @@
 # API — Ciudadanía Activa
 
 Contrato de la API tal como está **implementada**, no como se planificó. Se amplía en
-cada sprint que añade endpoints; hoy cubre los Sprints 3 a 6, el backend local S7-A y la
-lectura institucional de S9-A.
+cada sprint que añade endpoints; hoy incluye autenticación, identidad, mapa, creación y
+confirmación ciudadana, además de lectura y decisiones institucionales de Sprint 9.
 
 - **Plan de referencia:** [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md) §14 (Sprint 4), §19
   (Sprint 9) y §29 (seguridad).
@@ -806,7 +806,7 @@ movimientos ni IDs del ledger.
 
 ---
 
-## 7. Panel institucional — lectura S9-A
+## 7. Panel institucional — lectura S9-A y decisiones S9-B2
 
 S9-A incorpora únicamente la superficie de **lectura** de la bandeja institucional. Las dos rutas
 de esta sección exigen `IsInstitutionOperator`: una sesión anónima o un token inválido recibe
@@ -999,6 +999,66 @@ Resumen de errores de las dos rutas: `400` contexto/filtro inválido o ambiguo �
 válida · `403` rol incorrecto, ausencia de vínculo activo o contexto fuera de los vínculos del
 operador · `404` detalle inexistente o fuera del alcance efectivo · `503` imposibilidad de firmar
 la fotografía privada del detalle.
+
+### 7.4 Decisiones institucionales S9-B2
+
+Las mutaciones reutilizan los servicios transaccionales de dominio y exigen siempre un contexto
+institucional explícito. El valor enviado por el cliente no concede permisos: el servidor valida
+rol de operador, membresía activa, institución activa y la institución efectiva del reporte según
+§7.1. Una sugerencia IA nunca participa en esa autorización.
+
+#### `POST /api/v1/operator/reports/{id}/validate/?institution_id={uuid}`
+
+El cuerpo debe estar estrictamente vacío. Una validación aceptada fija la institución responsable,
+cambia el reporte a `ASIGNADO`, registra actor y fecha, acredita los incentivos pendientes y crea
+el bono de validación conforme al ledger S9-B1.
+
+#### `POST /api/v1/operator/reports/{id}/reject/?institution_id={uuid}`
+
+El cuerpo admite exactamente un motivo del catálogo cerrado y ningún campo adicional:
+
+```json
+{"reason": "duplicado"}
+```
+
+Valores: `fuera_de_competencia`, `duplicado`, `informacion_insuficiente` o
+`contenido_inapropiado`. El rechazo cambia el reporte a `RECHAZADO` y anula sus incentivos todavía
+pendientes; no asigna una institución al reporte.
+
+Ambas rutas responden `200` con el estado persistido:
+
+```json
+{
+  "id": "11111111-1111-4111-8111-111111111111",
+  "status": "ASIGNADO",
+  "institution": {
+    "id": "33333333-3333-4333-8333-333333333333",
+    "name": "Municipalidad de Asunción",
+    "slug": "municipalidad-de-asuncion"
+  },
+  "validated_at": "2026-09-07T18:00:00Z",
+  "validated_by": "44444444-4444-4444-8444-444444444444",
+  "rejection_reason": ""
+}
+```
+
+Errores estables:
+
+| HTTP | `code` | Significado |
+|---|---|---|
+| `400` | `INVALID_REJECTION_REASON` | Motivo ausente o fuera del catálogo; otros errores de entrada conservan el detalle por campo |
+| `403` | `INSTITUTION_OPERATOR_REQUIRED` | Rol o membresía activa insuficiente para el contexto solicitado |
+| `404` | `REPORT_NOT_FOUND` | Reporte inexistente o fuera del scope; ambos casos son indistinguibles |
+| `409` | `ALREADY_VALIDATED` | El reporte ya fue validado |
+| `409` | `ALREADY_REJECTED` | El reporte ya fue rechazado |
+| `409` | `VALIDATION_REVERSAL_REQUIRED` | Un reporte validado no puede rechazarse sin el flujo de reversión futuro |
+| `409` | `REPORT_STATE_NOT_ALLOWED` | El estado actual no admite la decisión |
+| `409` | `INSTITUTION_INACTIVE` | La institución dejó de estar activa |
+
+Cada decisión, su historial, auditoría y movimientos económicos forman una única transacción. La
+invalidación generacional del mapa público se agenda con `transaction.on_commit`: un rollback no
+invalida; si Redis falla después del commit, se registra un aviso sin revertir la decisión ni
+convertir el éxito en `500`. Las respuestas llevan `Cache-Control: private, no-store`.
 
 ---
 

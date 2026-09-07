@@ -3,7 +3,7 @@
 from rest_framework import serializers
 
 from apps.admin_app.models import Category
-from apps.core.enums import ReportPriority, ReportStatus
+from apps.core.enums import RejectionReason, ReportPriority, ReportStatus
 from apps.core.services import storage
 from apps.reports_app.serializers import StrictInputMixin
 
@@ -12,6 +12,18 @@ OPERATOR_REPORT_PHOTO_SIGNED_URL_TTL_SECONDS = 300
 
 class OperatorReportContextQuerySerializer(StrictInputMixin, serializers.Serializer):
     institution_id = serializers.UUIDField(required=False)
+
+
+class OperatorReportActionQuerySerializer(StrictInputMixin, serializers.Serializer):
+    institution_id = serializers.UUIDField()
+
+
+class OperatorValidateInputSerializer(StrictInputMixin, serializers.Serializer):
+    """La validación no acepta datos: actor, reporte e institución son contexto."""
+
+
+class OperatorRejectInputSerializer(StrictInputMixin, serializers.Serializer):
+    reason = serializers.ChoiceField(choices=RejectionReason.values)
 
 
 class OperatorReportListQuerySerializer(OperatorReportContextQuerySerializer):
@@ -47,6 +59,15 @@ class OperatorInstitutionSerializer(serializers.Serializer):
     id = serializers.UUIDField(read_only=True)
     name = serializers.CharField(read_only=True)
     slug = serializers.SlugField(read_only=True)
+
+
+class OperatorReportActionResponseSerializer(serializers.Serializer):
+    id = serializers.UUIDField(read_only=True)
+    status = serializers.CharField(read_only=True)
+    institution = OperatorInstitutionSerializer(read_only=True, allow_null=True)
+    validated_at = serializers.DateTimeField(read_only=True, allow_null=True)
+    validated_by = serializers.PrimaryKeyRelatedField(read_only=True, allow_null=True)
+    rejection_reason = serializers.CharField(read_only=True, allow_blank=True)
 
 
 class OperatorReportListSerializer(serializers.Serializer):
