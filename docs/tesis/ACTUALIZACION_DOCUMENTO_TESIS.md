@@ -35,6 +35,7 @@
 | `origin/main` actualizado | `4ecf502361156281cbec51764310c67f50ace449` — `Merge pull request #37 from MontyPohl/feat/s09-b2-api-operador` |
 | Commit inicial de S9-B3 | `da2eb2984e2882a744c119ac9404f20d3a18cfb9` — implementación inicial y cierre documental. |
 | Commit de fixes post-review | `2088587cd32509e866fc2d1e171d1d6e1ccc556d` — corrige el estado de integración y las secuencias transaccionales; fue el `HEAD` verificado antes del ajuste final de trazabilidad. |
+| Fix final de trazabilidad | `41babc681181baf4c9ac805e3eb04edf9f8ab188` — registra la evolución acumulativa del PR; correspondía al `HEAD` al iniciar esta revisión post-review. |
 | PR de S9-B3 | PR #38, `OPEN / NO MERGED`; pendiente de integración en `main`. |
 | Divergencia inicial | La rama fue creada directamente desde `origin/main`, sin divergencia inicial. |
 | Estado inicial del working tree | Limpio. |
@@ -46,9 +47,10 @@ merge `a89b9efe676abfae0401e48145831383f6beaf3f`; y S9-B2 mediante PR #37 y merg
 pero permanece en el PR #38 y todavía no está integrado en `main`.
 
 La trazabilidad de la rama es
-`main@4ecf5023 → da2eb298 → 2088587 → HEAD actual del PR #38`. El último nodo es la punta remota
-que debe verificarse al revisar o integrar el PR; no convierte a ninguno de los commits
-intermedios, por sí solo, en representación autocontenida de toda la implementación.
+`main@4ecf5023 → da2eb298 → 2088587 → 41babc6 → commit documental actual`. El último nodo
+corresponde al `HEAD` remoto del PR #38 y debe verificarse en GitHub al revisar o integrar; no se
+fija aquí su SHA para evitar una referencia circular ni se presenta ningún commit intermedio, por
+sí solo, como representación autocontenida de toda la implementación.
 
 **Consecuencia académica:** S9-A, S9-B1 y S9-B2 pueden narrarse como integrados. Los estados de
 GitHub y de los despliegues automáticos prueban integración técnica, no adopción institucional,
@@ -173,7 +175,7 @@ Fuente: `backend/apps/admin_app/migrations/0002_seed_catalogs.py`. La lista hist
 
 ### 3.3 Lectura correcta del alcance
 
-El prototipo es funcional en autenticación, verificación, creación/consulta/confirmación de reportes, mapa público, procesamiento IA desacoplado y consulta institucional. Aún no constituye el ciclo institucional completo porque validar/rechazar sigue en PR y resolver/cerrar/revertir/canjear/ranking no está implementado. Hay despliegues técnicos, pero no evidencia de adopción institucional, operación con ciudadanos reales, prueba de campo, SLA, capacidad o impacto urbano.
+El prototipo es funcional en autenticación, verificación, creación/consulta/confirmación de reportes, mapa público, procesamiento IA desacoplado y consulta, validación y rechazo institucionales. S9-B1/S9-B2, la API y el panel de operador, el ledger asociado, el historial/auditoría y los controles correspondientes de concurrencia y tenancy están integrados en `main`. El ciclo institucional aún no está completo porque resolver, cerrar, revertir, canjear y publicar el ranking siguen pendientes. Hay despliegues técnicos, pero no evidencia de adopción institucional, operación con ciudadanos reales, prueba de campo, SLA, capacidad o impacto urbano.
 
 ## 4. Cambios que debe recibir el documento principal
 

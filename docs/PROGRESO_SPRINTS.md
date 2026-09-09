@@ -1433,8 +1433,11 @@ antes de cerrarlo.
 - S9-B3: `da2eb2984e2882a744c119ac9404f20d3a18cfb9` contiene la implementación inicial y el
   cierre documental; `2088587cd32509e866fc2d1e171d1d6e1ccc556d` contiene las correcciones
   posteriores al primer pre-merge review sobre estado de integración y secuencias
-  transaccionales. La rama `feat/s09-b3-cierre-sprint9` sigue la cadena
-  `main@4ecf5023 → da2eb298 → 2088587 → HEAD actual del PR #38`; ese PR permanece
+  transaccionales; `41babc681181baf4c9ac805e3eb04edf9f8ab188` contiene el fix final de
+  trazabilidad y correspondía al `HEAD` al iniciar la revisión post-review. La rama
+  `feat/s09-b3-cierre-sprint9` sigue la cadena
+  `main@4ecf5023 → da2eb298 → 2088587 → 41babc6 → commit documental actual`; este último es el
+  `HEAD` remoto que debe verificarse en GitHub y cuyo SHA no se autoconsigna. El PR #38 permanece
   `OPEN / NO MERGED`, y ninguno de sus commits intermedios representa por sí solo el estado
   completo de la rama.
 
