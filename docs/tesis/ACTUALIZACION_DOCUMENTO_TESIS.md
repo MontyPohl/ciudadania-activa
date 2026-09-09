@@ -36,6 +36,7 @@
 | Commit inicial de S9-B3 | `da2eb2984e2882a744c119ac9404f20d3a18cfb9` — implementación inicial y cierre documental. |
 | Commit de fixes post-review | `2088587cd32509e866fc2d1e171d1d6e1ccc556d` — corrige el estado de integración y las secuencias transaccionales; fue el `HEAD` verificado antes del ajuste final de trazabilidad. |
 | Fix final de trazabilidad | `41babc681181baf4c9ac805e3eb04edf9f8ab188` — registra la evolución acumulativa del PR; correspondía al `HEAD` al iniciar esta revisión post-review. |
+| Corrección final documental | `4472e459f8054f77fd0bff810264700f5206d284` — cierra los hallazgos de revisión y correspondía al `HEAD` al iniciar esta corrección final de trazabilidad. |
 | PR de S9-B3 | PR #38, `OPEN / NO MERGED`; pendiente de integración en `main`. |
 | Divergencia inicial | La rama fue creada directamente desde `origin/main`, sin divergencia inicial. |
 | Estado inicial del working tree | Limpio. |
@@ -47,7 +48,7 @@ merge `a89b9efe676abfae0401e48145831383f6beaf3f`; y S9-B2 mediante PR #37 y merg
 pero permanece en el PR #38 y todavía no está integrado en `main`.
 
 La trazabilidad de la rama es
-`main@4ecf5023 → da2eb298 → 2088587 → 41babc6 → commit documental actual`. El último nodo
+`main@4ecf5023 → da2eb298 → 2088587 → 41babc6 → 4472e45 → commit documental actual`. El último nodo
 corresponde al `HEAD` remoto del PR #38 y debe verificarse en GitHub al revisar o integrar; no se
 fija aquí su SHA para evitar una referencia circular ni se presenta ningún commit intermedio, por
 sí solo, como representación autocontenida de toda la implementación.

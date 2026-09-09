@@ -1434,9 +1434,11 @@ antes de cerrarlo.
   cierre documental; `2088587cd32509e866fc2d1e171d1d6e1ccc556d` contiene las correcciones
   posteriores al primer pre-merge review sobre estado de integración y secuencias
   transaccionales; `41babc681181baf4c9ac805e3eb04edf9f8ab188` contiene el fix final de
-  trazabilidad y correspondía al `HEAD` al iniciar la revisión post-review. La rama
-  `feat/s09-b3-cierre-sprint9` sigue la cadena
-  `main@4ecf5023 → da2eb298 → 2088587 → 41babc6 → commit documental actual`; este último es el
+  trazabilidad y correspondía al `HEAD` al iniciar la revisión post-review;
+  `4472e459f8054f77fd0bff810264700f5206d284` contiene la corrección final documental de los
+  hallazgos de revisión y correspondía al `HEAD` al iniciar esta corrección final de trazabilidad.
+  La rama `feat/s09-b3-cierre-sprint9` sigue la cadena
+  `main@4ecf5023 → da2eb298 → 2088587 → 41babc6 → 4472e45 → commit documental actual`; este último es el
   `HEAD` remoto que debe verificarse en GitHub y cuyo SHA no se autoconsigna. El PR #38 permanece
   `OPEN / NO MERGED`, y ninguno de sus commits intermedios representa por sí solo el estado
   completo de la rama.
