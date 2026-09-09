@@ -33,13 +33,16 @@
 | Rama actual | `feat/s09-b3-cierre-sprint9` |
 | Base de la rama | `4ecf502361156281cbec51764310c67f50ace449` — merge del PR #37 |
 | `origin/main` actualizado | `4ecf502361156281cbec51764310c67f50ace449` — `Merge pull request #37 from MontyPohl/feat/s09-b2-api-operador` |
+| `HEAD` de S9-B3 revisado | `da2eb2984e2882a744c119ac9404f20d3a18cfb9` — implementación documental completa |
+| PR de S9-B3 | PR #38, `OPEN / NO MERGED`; pendiente de integración en `main`. |
 | Divergencia inicial | La rama fue creada directamente desde `origin/main`, sin divergencia inicial. |
 | Estado inicial del working tree | Limpio. |
 | PR de S9-B2 | PR #37, mergeado; Backend CI, Frontend CI, E2E y despliegues automáticos exitosos. |
 
 Los commits de integración de Sprint 9 son: S9-A mediante PR #34; S9-B1 mediante PR #35 y
 merge `a89b9efe676abfae0401e48145831383f6beaf3f`; y S9-B2 mediante PR #37 y merge
-`4ecf502361156281cbec51764310c67f50ace449`. S9-B3 documenta este cierre sin modificar código.
+`4ecf502361156281cbec51764310c67f50ace449`. S9-B3 documenta este cierre sin modificar código,
+pero permanece en el PR #38 y todavía no está integrado en `main`.
 
 **Consecuencia académica:** S9-A, S9-B1 y S9-B2 pueden narrarse como integrados. Los estados de
 GitHub y de los despliegues automáticos prueban integración técnica, no adopción institucional,
@@ -53,11 +56,11 @@ uso ciudadano real, impacto urbano ni validación de campo.
 | S8-E2-R1 | **ABORTED / sin resultado recuperable** | Sólo llegó al primer lote por cuota y no dejó evidencia apta para resultado académico. Fuente: `docs/PROGRESO_SPRINTS.md`. |
 | S8-E2-R2 | 🧪 **PREREGISTERED / NOT_EXECUTED** | El protocolo está integrado en `main` por `d18b77a`, pero no fue ejecutado. Fuente: `backend/apps/ai_client_app/evaluation/recovery.py`, `evaluation/README.md` y documentación de Sprint 8. |
 | CA-4 | ⚠️ **NOT_DEMONSTRATED** | No existe ejecución canónica que demuestre el criterio de aceptación del proveedor. |
-| Sprint 9 | ✅ **COMPLETADO** | S9-A, S9-B1 y S9-B2 están integrados; S9-B3 fija el cierre documental y la frontera con S11–S13. |
+| Sprint 9 | 🟡 **IMPLEMENTACIÓN COMPLETA / CIERRE PENDIENTE DE MERGE** | S9-A, S9-B1 y S9-B2 están integrados; S9-B3 fija el cierre documental en el PR #38 todavía abierto. |
 | S9-A | ✅ **COMPLETADO E INTEGRADO** | PR #34: lectura institucional, contexto multiinstitución y tenancy efectivo. |
 | S9-B1 | ✅ **COMPLETADO E INTEGRADO** | PR #35 / merge `a89b9efe`: dominio transaccional de validación/rechazo y ledger. |
 | S9-B2 | ✅ **COMPLETADO E INTEGRADO** | PR #37 / merge `4ecf5023`: API, autorización linealizable, panel institucional y E2E. |
-| S9-B3 | ✅ **CIERRE DOCUMENTAL** | Trazabilidad de S9 y diferimiento explícito de créditos visibles, ranking, recompensas, dashboards, ingesta y notificaciones completas. |
+| S9-B3 | 🟡 **IMPLEMENTADO / NO INTEGRADO** | PR #38 `OPEN / NO MERGED`: trazabilidad de S9 y diferimiento explícito de créditos visibles, ranking, recompensas, dashboards, ingesta y notificaciones completas. |
 
 Este cierre actualiza en conjunto `PROGRESO_SPRINTS.md`, `API.md` y `DICCIONARIO_DATOS.md` para
 que la frontera de Sprint 9 no se confunda con funcionalidades planificadas para S11–S13.
@@ -991,7 +994,7 @@ rama de trabajo → pull request → CI filtrada por rutas → revisión/merge a
 | S9-A | Integrada mediante PR #34. | Checks y despliegues automáticos verificados en su cierre. |
 | S9-B1 | Integrada mediante PR #35, merge `a89b9efe`. | Checks y despliegues automáticos verificados en su cierre. |
 | S9-B2 | Integrada mediante PR #37, merge `4ecf5023`. | Backend, frontend, E2E, Vercel y Railway reportaron `success`. |
-| S9-B3 | Cierre documental desde `4ecf5023`; sin cambios funcionales ni acciones manuales de producción. | No requiere despliegue funcional. |
+| S9-B3 | Implementado en PR #38 desde `4ecf5023`; `OPEN / NO MERGED`, pendiente de integración. | Sin cambios funcionales ni acciones manuales de producción; no requiere despliegue funcional. |
 
 Los E2E de operador usan APIs interceptadas: verifican el comportamiento del navegador, pero no constituyen una prueba full-stack contra el backend desplegado.
 
@@ -1536,8 +1539,8 @@ sequenceDiagram
     L->>D: bonus autor 30/30 ACREDITADO
     V->>D: Report -> ASIGNADO + validated_at/by/institution
     V->>D: history + report.validated
-    V->>D: COMMIT
     V-->>A: resultado de dominio
+    A->>D: COMMIT de la transacción exterior
     A-->>O: 200 + resultado
 ```
 
@@ -1563,9 +1566,9 @@ sequenceDiagram
     L->>D: PENDIENTE -> ANULADO + voided_at
     V->>D: Report -> RECHAZADO + reason
     V->>D: history + report.rejected
-    V->>D: COMMIT
     V-->>A: resultado de dominio
-    A-->>O: respuesta futura
+    A->>D: COMMIT de la transacción exterior
+    A-->>O: 200 + resultado
 ```
 
 ### 19.13 Secuencia — resolver reporte (diseño futuro)
