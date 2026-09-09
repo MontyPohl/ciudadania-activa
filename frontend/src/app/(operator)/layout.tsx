@@ -1,5 +1,13 @@
+import { SectionNav } from "@/components/ui/SectionNav";
 import { RoleGuard } from "@/features/auth/RoleGuard";
 
+const LINKS = [{ href: "/bandeja", label: "Bandeja institucional" }];
+
 export default function OperatorLayout({ children }: LayoutProps<"/">) {
-  return <RoleGuard role="operator">{children}</RoleGuard>;
+  return (
+    <RoleGuard role="operator">
+      <SectionNav links={LINKS} />
+      {children}
+    </RoleGuard>
+  );
 }

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Mapping
 
 from rest_framework import serializers
 
@@ -19,6 +20,11 @@ class StrictInputMixin:
     """Rechaza claves desconocidas y valores repetidos en QueryDict/multipart."""
 
     def to_internal_value(self, data):
+        if not isinstance(data, Mapping):
+            raise serializers.ValidationError(
+                {"non_field_errors": ["Se esperaba un objeto con campos nombrados."]}
+            )
+
         allowed = set(self.fields)
         errors = {}
         for key in data.keys():

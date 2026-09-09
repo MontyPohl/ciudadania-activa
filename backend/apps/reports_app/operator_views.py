@@ -1,30 +1,47 @@
-"""Endpoints institucionales de solo lectura de Sprint 9-A."""
+"""Consulta y decisiones institucionales de reportes de Sprint 9."""
 
+from collections.abc import Mapping
+
+from django.contrib.auth import get_user_model
+from django.db import transaction
 from rest_framework import status
-from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.generics import ListAPIView, RetrieveAPIView
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
-from apps.admin_app.models import InstitutionOperator
+from apps.admin_app.models import Institution, InstitutionOperator
+from apps.auth_app.enums import UserRole
 from apps.core.permissions import IsInstitutionOperator
 from apps.core.services import storage
+from apps.reports_app.models import Report
 from apps.reports_app.operator_serializers import (
+    OperatorRejectInputSerializer,
+    OperatorReportActionQuerySerializer,
+    OperatorReportActionResponseSerializer,
     OperatorReportContextQuerySerializer,
     OperatorReportDetailSerializer,
     OperatorReportListQuerySerializer,
     OperatorReportListSerializer,
+    OperatorValidateInputSerializer,
 )
 from apps.reports_app.selectors import (
     attach_operator_historical_human_review,
     operator_report_detail,
     operator_report_list,
+    operator_reports_for_institution,
 )
+from apps.reports_app.services import validation
 
 INSTITUTION_CONTEXT_FORBIDDEN = "No tenés acceso al contexto institucional solicitado."
 INSTITUTION_CONTEXT_REQUIRED = (
     "Este campo es obligatorio cuando el operador tiene varias instituciones activas."
 )
 REPORT_PHOTO_UNAVAILABLE = "No se pudo obtener la fotografía en este momento."
+REPORT_NOT_FOUND = "No se encontró el reporte solicitado."
+INSTITUTION_OPERATOR_REQUIRED = "Se requiere ser operador de la institución solicitada."
+INVALID_REJECTION_REASON = "El motivo de rechazo no pertenece al catálogo permitido."
 
 
 class _OperatorInstitutionContextMixin:
@@ -89,6 +106,158 @@ class OperatorReportDetailView(_OperatorInstitutionContextMixin, RetrieveAPIView
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
         return self._private_no_store(response)
+
+
+class _OperatorReportActionView(APIView):
+    """Adaptador HTTP común; toda la mutación de dominio permanece en S9-B1."""
+
+    permission_classes = [IsAuthenticated]
+    input_serializer_class = None
+
+    def _params(self):
+        serializer = OperatorReportActionQuerySerializer(data=self.request.query_params)
+        serializer.is_valid(raise_exception=True)
+        return serializer.validated_data
+
+    def _locked_operator_context(self):
+        requested_id = self._params()["institution_id"]
+
+        # Orden compartido con promote_user y extendido por S9-B1:
+        # User -> InstitutionOperator -> Report -> Category -> Institution -> ledger.
+        # No se sigue la relación ``institution`` aquí porque select_for_update()
+        # bloquearía esa fila antes que Report y rompería el orden del agregado.
+        user_model = get_user_model()
+        try:
+            operator = user_model.objects.select_for_update().get(pk=self.request.user.pk)
+        except user_model.DoesNotExist:
+            operator = None
+
+        if (
+            operator is None
+            or not operator.is_active
+            or getattr(operator, "role", None) != UserRole.OPERATOR
+        ):
+            raise PermissionDenied(
+                {
+                    "detail": INSTITUTION_OPERATOR_REQUIRED,
+                    "code": "INSTITUTION_OPERATOR_REQUIRED",
+                }
+            )
+
+        membership = (
+            InstitutionOperator.objects.select_for_update()
+            .only("institution_id")
+            .filter(
+                user=operator,
+                institution_id=requested_id,
+                active=True,
+            )
+            .first()
+        )
+        if membership is None:
+            raise PermissionDenied(
+                {
+                    "detail": INSTITUTION_OPERATOR_REQUIRED,
+                    "code": "INSTITUTION_OPERATOR_REQUIRED",
+                }
+            )
+        return operator, Institution(pk=membership.institution_id)
+
+    def _input(self):
+        data = self.request.data
+        serializer = self.input_serializer_class(data=data)
+        reason_missing = self.input_serializer_class is OperatorRejectInputSerializer and (
+            not isinstance(data, Mapping) or "reason" not in data
+        )
+        if serializer.is_valid():
+            return serializer.validated_data
+
+        errors = serializer.errors
+        if reason_missing or (
+            self.input_serializer_class is OperatorRejectInputSerializer and "reason" in errors
+        ):
+            return Response(
+                {
+                    "detail": errors,
+                    "code": "INVALID_REJECTION_REASON",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        raise ValidationError(errors)
+
+    def _visible_report(self, *, report_id, institution):
+        visible = operator_reports_for_institution(institution=institution).filter(pk=report_id)
+        if not visible.exists():
+            raise NotFound({"detail": REPORT_NOT_FOUND, "code": "REPORT_NOT_FOUND"})
+
+    @staticmethod
+    def _response(report):
+        report.refresh_from_db()
+        response = Response(OperatorReportActionResponseSerializer(report).data)
+        response["Cache-Control"] = "private, no-store"
+        return response
+
+    def _execute(self, *, report_id, operator, institution, data):
+        raise NotImplementedError
+
+    def post(self, request, report_id):
+        try:
+            with transaction.atomic():
+                operator, institution = self._locked_operator_context()
+                data = self._input()
+                if isinstance(data, Response):
+                    return data
+                self._visible_report(report_id=report_id, institution=institution)
+                result = self._execute(
+                    report_id=report_id,
+                    operator=operator,
+                    institution=institution,
+                    data=data,
+                )
+        except (validation.ReportInstitutionMismatch, Report.DoesNotExist):
+            raise NotFound({"detail": REPORT_NOT_FOUND, "code": "REPORT_NOT_FOUND"}) from None
+        except validation.InvalidRejectionReason:
+            return Response(
+                {"detail": INVALID_REJECTION_REASON, "code": "INVALID_REJECTION_REASON"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except validation.InactiveInstitution:
+            return Response(
+                {"detail": "La institución no está activa.", "code": "INSTITUTION_INACTIVE"},
+                status=status.HTTP_409_CONFLICT,
+            )
+        except validation.ReportActionConflict as exc:
+            return Response(
+                {
+                    "detail": "El estado actual del reporte no permite esta acción.",
+                    "code": exc.code,
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+        return self._response(result.report)
+
+
+class OperatorReportValidateView(_OperatorReportActionView):
+    input_serializer_class = OperatorValidateInputSerializer
+
+    def _execute(self, *, report_id, operator, institution, data):
+        return validation.validate_report(
+            report_id=report_id,
+            operator=operator,
+            institution=institution,
+        )
+
+
+class OperatorReportRejectView(_OperatorReportActionView):
+    input_serializer_class = OperatorRejectInputSerializer
+
+    def _execute(self, *, report_id, operator, institution, data):
+        return validation.reject_report(
+            report_id=report_id,
+            operator=operator,
+            institution=institution,
+            reason=data["reason"],
+        )
 
 
 def _resolve_operator_institution(*, operator, requested_id):

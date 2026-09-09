@@ -361,7 +361,7 @@ def test_coleccion_y_detalle_no_aceptan_escrituras(operator_user, category, meth
 
 
 @pytest.mark.parametrize("action", ["validate", "reject"])
-def test_s9_a_no_publica_acciones_de_validacion_o_rechazo(
+def test_s9_b2_publica_acciones_pero_exige_contexto_explicito(
     operator_user,
     category,
     action,
@@ -370,7 +370,8 @@ def test_s9_a_no_publica_acciones_de_validacion_o_rechazo(
 
     response = _client(operator_user).post(f"{LIST_URL}{report.pk}/{action}/", {})
 
-    assert response.status_code == 404
+    assert response.status_code == 400
+    assert "institution_id" in response.json()["detail"]
 
 
 # --------------------------------------------------------------------------- #
@@ -423,33 +424,56 @@ def test_filtros_de_estado_prioridad_y_categoria(
         status=ReportStatus.CREADO,
         priority=ReportPriority.ALTA,
     )
-    assigned_medium = _report(
+    classified_medium = _report(
         category,
         index=2,
-        status=ReportStatus.ASIGNADO,
+        status=ReportStatus.CLASIFICADO,
         priority=ReportPriority.MEDIA,
     )
-    assigned_high_other_category = _report(
+    classified_high_other_category = _report(
         municipal_category,
         index=3,
-        status=ReportStatus.ASIGNADO,
+        status=ReportStatus.CLASIFICADO,
         priority=ReportPriority.ALTA,
     )
     client = _client(operator_user)
 
-    by_status = client.get(LIST_URL, {"status": ReportStatus.ASIGNADO}).json()
+    by_status = client.get(LIST_URL, {"status": ReportStatus.CLASIFICADO}).json()
     by_priority = client.get(LIST_URL, {"priority": ReportPriority.MEDIA}).json()
     by_category = client.get(LIST_URL, {"category": category.slug}).json()
 
     assert {row["id"] for row in by_status["results"]} == {
-        str(assigned_medium.pk),
-        str(assigned_high_other_category.pk),
+        str(classified_medium.pk),
+        str(classified_high_other_category.pk),
     }
-    assert [row["id"] for row in by_priority["results"]] == [str(assigned_medium.pk)]
+    assert [row["id"] for row in by_priority["results"]] == [str(classified_medium.pk)]
     assert {row["id"] for row in by_category["results"]} == {
         str(created_high.pk),
-        str(assigned_medium.pk),
+        str(classified_medium.pk),
     }
+
+
+def test_bandeja_devuelve_solo_estados_operables_y_preserva_tenancy(
+    operator_user,
+    institution,
+    category,
+):
+    reports = {
+        status: _report(category, index=index, status=status)
+        for index, status in enumerate(ReportStatus.values)
+    }
+    other = Institution.objects.create(name="Institución ajena operable", slug="ajena-operable")
+    outside = _report(category, index=20, status=ReportStatus.CREADO, institution=other)
+
+    response = _client(operator_user).get(LIST_URL)
+
+    assert response.status_code == 200
+    ids = {row["id"] for row in response.json()["results"]}
+    assert ids == {
+        str(reports[ReportStatus.CREADO].pk),
+        str(reports[ReportStatus.CLASIFICADO].pk),
+    }
+    assert str(outside.pk) not in ids
 
 
 def test_rango_de_fechas_es_inclusivo_en_zona_horaria_local(operator_user, category):
@@ -480,6 +504,7 @@ def test_rango_de_fechas_es_inclusivo_en_zona_horaria_local(operator_user, categ
     ("params", "field"),
     [
         ({"status": "NUEVO"}, "status"),
+        ({"status": ReportStatus.ASIGNADO}, "status"),
         ({"priority": "URGENTE"}, "priority"),
         ({"category": "no-existe"}, "category"),
         ({"created_from": "2026-02-30"}, "created_from"),

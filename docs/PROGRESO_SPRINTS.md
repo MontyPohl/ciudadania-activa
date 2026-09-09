@@ -2,7 +2,7 @@
 
 Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes de iniciar el siguiente.
 
-- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 **completado** (inicio el 22/08/2026, cierre el 23/08/2026: verificación de identidad con HMAC y almacenamiento privado, revisión administrativa manual con cotejo de la cédula, notificaciones asíncronas entregadas por la API HTTPS de Brevo y privacidad configurable del ranking, todo verificado en producción con una identidad real). Sprint 5 **completado** el 27/08/2026: S5-A, S5-B y S5-C están cerradas, integradas y validadas. Sprint 6 **completado** el 28/08/2026: S6-A y S6-B están cerrados. Sprint 7 **completado** el 29/08/2026: S7-A, S7-B y S7-C están integrados en `main`, y S7-D quedó probado en producción y cerrado con evidencia funcional y de base de datos en modo solo lectura.
+- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 **completado** (inicio el 22/08/2026, cierre el 23/08/2026: verificación de identidad con HMAC y almacenamiento privado, revisión administrativa manual con cotejo de la cédula, notificaciones asíncronas entregadas por la API HTTPS de Brevo y privacidad configurable del ranking, todo verificado en producción con una identidad real). Sprint 5 **completado** el 27/08/2026: S5-A, S5-B y S5-C están cerradas, integradas y validadas. Sprint 6 **completado** el 28/08/2026: S6-A y S6-B están cerrados. Sprint 7 **completado** el 29/08/2026: S7-A, S7-B y S7-C están integrados en `main`, y S7-D quedó probado en producción y cerrado con evidencia funcional y de base de datos en modo solo lectura. Sprints 8 y 9 continúan **en curso**; S9-A y S9-B1 están integrados, y S9-B2 está implementado en rama con las correcciones del pre-merge review completas, pendiente de nueva revisión.
 - **Plan de referencia:** [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md)
 - **Ventana de desarrollo:** 01/08/2026 → 15/11/2026 (16 sprints semanales, Anexo F revisado)
 - **Estados posibles:** `Pendiente` · `En curso` · `Completado` · `Completado con observaciones` · `Bloqueado`
@@ -21,7 +21,7 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 | 6 | 05/09 – 11/09 | Creación de reportes y duplicados | Completado |
 | 7 | 12/09 – 18/09 | Panel ciudadano y confirmaciones | Completado |
 | 8 | 19/09 – 25/09 | Clasificación asistida por IA | En curso |
-| 9 | 26/09 – 02/10 | Panel institucional y validación | Pendiente |
+| 9 | 26/09 – 02/10 | Panel institucional y validación | En curso |
 | 10 | 03/10 – 09/10 | Estados, evidencias, auditoría y reversión | Pendiente |
 | 11 | 10/10 – 16/10 | Créditos, ranking del mes en curso y privacidad | Pendiente |
 | 12 | 17/10 – 23/10 | Catálogo de recompensas y canje simulado | Pendiente |
@@ -1381,23 +1381,54 @@ antes de cerrarlo.
 ## Sprint 9 — Panel institucional y validación
 
 **Fechas planificadas:** 26/09/2026 – 02/10/2026
-**Estado:** Pendiente
+**Estado:** En curso — S9-A y S9-B1 integrados; S9-B2 corregido en rama, pendiente de re-review
 **Fecha real de cierre:** —
 
 ### Funcionalidades terminadas
-_Pendiente._
+
+- **S9-A (integrado):** API de listado y detalle institucional con scope efectivo coherente,
+  selección multiinstitución y proyección histórica fail-closed de revisión humana.
+- **S9-B1 (integrado):** servicios transaccionales de validación/rechazo y ledger, con bloqueos,
+  historial, auditoría e idempotencia frente a concurrencia.
+- **S9-B2 (rama de implementación):** endpoints HTTP autorizados de validación y rechazo, códigos
+  estables y ocultación cross-tenant; invalidación pública post-commit best effort; bandeja,
+  detalle, selector desde `/auth/me/`, confirmaciones de efectos económicos y actualización tras
+  éxito o conflicto. El hardening de revisión añade payloads JSON fail-closed, autorización
+  linealizable frente a revocación, bandeja limitada server-side a estados operables y paginación
+  frontend aislada por institución. Incluye pruebas backend, frontend y dos recorridos E2E
+  sintéticos.
 
 ### Pruebas realizadas
-_Pendiente._
+
+- Matriz HTTP S9-B2: éxito, entradas estrictas, autenticación/autorización, membresía, institución
+  inactiva, fallback S9-A, sugerencia IA no autoritativa, conflictos, rollback, caché y concurrencia:
+  **105 pruebas institucionales** y **1.807 pruebas backend completas** superadas.
+- Contratos frontend de lectura/mutación, selector multiinstitución, confirmaciones obligatorias,
+  motivo cerrado, ausencia de replay y refresh posterior a `409`: **341 pruebas Vitest**, ESLint,
+  TypeScript, Prettier y build de producción superados.
+- E2E sintético: operador → institución → detalle → validar; operador → institución → detalle →
+  motivo → rechazar. Suite completa: **48 pruebas Playwright** superadas contra servidor local
+  precalentado; el build local de producción también finalizó correctamente.
 
 ### Problemas encontrados
-_Pendiente._
+
+- El pre-merge review detectó cuatro hallazgos, corregidos en rama: JSON no-objeto que llegaba a
+  `500`, ventana concurrente entre revocación y decisión, estados no operables en la bandeja y
+  ausencia de navegación paginada. La caché pública continúa deliberadamente como best effort
+  después del commit para que una indisponibilidad de Redis no revierta una decisión institucional
+  válida. S9-B2 requiere un nuevo review antes de considerarse listo para merge.
 
 ### Commits relevantes
-_Pendiente._
+
+- S9-A: integrado mediante PR #34.
+- S9-B1: merge `a89b9efe676abfae0401e48145831383f6beaf3f` mediante PR #35.
+- S9-B2: implementación y correcciones de review en `feat/s09-b2-api-operador`, pendientes de
+  re-review e integración.
 
 ### Observaciones y desvíos respecto del plan
-_Pendiente._
+
+- Sprint 9 permanece abierto: S9-B3 no fue iniciado. S8 continúa en curso; R2 permanece
+  `PREREGISTERED / NOT_EXECUTED` y CA-4 `NOT_DEMONSTRATED`.
 
 ---
 

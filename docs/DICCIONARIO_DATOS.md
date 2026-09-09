@@ -143,6 +143,17 @@ contradicción 5).
 | `rejection_reason` | `varchar(30)` | blank | — | `RejectionReason` (RF-14). **No figura en el Anexo A** → CT-42 |
 | `created_at` | `timestamptz` | **índice B-tree** | — | A.5 |
 
+**Semántica de decisión S9-B2.** Validar y rechazar no crean tablas ni columnas nuevas. Ambas
+operaciones bloquean el agregado con `select_for_update()` y escriben `reports`,
+`report_status_history`, `audit_logs` y el conjunto correspondiente de `reward_transactions`
+dentro de una sola transacción. La validación fija `institution_id`, `validated_at` y
+`validated_by_id`; el rechazo conserva `institution_id` como estaba y fija `rejection_reason`.
+El contexto institucional enviado por la API se comprueba, bajo el mismo límite transaccional y
+con bloqueo de `users` e `institution_operators`, contra un rol operador y una membresía que sigan
+activos; después se contrasta con
+`reports.institution_id ?? categories.default_institution_id`. Nunca se deriva de
+`ai_classifications.suggested_institution_id`.
+
 **`report_media`** — `report_id` (`CASCADE`), `file_url` (`text`), `file_hash`
 (`varchar(64)`, SHA-256 de los bytes originales), `media_type` (`default 'FOTO'`),
 `uploaded_by_id` (nullable, `SET_NULL`). El índice único parcial
@@ -151,7 +162,8 @@ impide reutilizar una fotografía exacta sin imponer unicidad a tipos de media f
 
 **`report_status_history`** — `report_id` (`CASCADE`), `previous_status` (blank en el
 asiento inicial), `new_status`, `changed_by_id` (nullable, `SET_NULL`: el cierre automático
-a 72 h no tiene actor humano), `reason` (`text`, blank).
+a 72 h no tiene actor humano), `reason` (`text`, blank). S9-B2 añade una fila por decisión
+institucional confirmada; un conflicto o rollback no deja historial parcial.
 
 **`resolution_evidences`** — `report_id` (`CASCADE`), `description`, `evidence_url`,
 `uploaded_by_id` (nullable, `SET_NULL`).
