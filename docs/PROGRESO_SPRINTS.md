@@ -1436,10 +1436,13 @@ antes de cerrarlo.
   transaccionales; `41babc681181baf4c9ac805e3eb04edf9f8ab188` contiene el fix final de
   trazabilidad y correspondía al `HEAD` al iniciar la revisión post-review;
   `4472e459f8054f77fd0bff810264700f5206d284` contiene la corrección final documental de los
-  hallazgos de revisión y correspondía al `HEAD` al iniciar esta corrección final de trazabilidad.
-  La rama `feat/s09-b3-cierre-sprint9` sigue la cadena
-  `main@4ecf5023 → da2eb298 → 2088587 → 41babc6 → 4472e45 → commit documental actual`; este último es el
-  `HEAD` remoto que debe verificarse en GitHub y cuyo SHA no se autoconsigna. El PR #38 permanece
+  hallazgos de revisión; `f87ae07bab5675bb07b99b590ee7df8b955f2485` contiene la corrección final
+  de trazabilidad histórica, sin cambios funcionales; y
+  `c99e769b6a72833301d7dbd142fa8a5bd47f5ada` resuelve D-07 en `docs/DICCIONARIO_DATOS.md`,
+  documentando `justification`, `model_name` y la migración `0002` como implementados. La cadena
+  histórica previa al `HEAD` actual es
+  `main@4ecf5023 → da2eb298 → 2088587 → 41babc6 → 4472e45 → f87ae07 → c99e769b`. El `HEAD`
+  remoto debe verificarse en GitHub y su SHA no se autoconsigna. El PR #38 permanece
   `OPEN / NO MERGED`, y ninguno de sus commits intermedios representa por sí solo el estado
   completo de la rama.
 

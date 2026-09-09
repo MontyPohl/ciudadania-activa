@@ -37,6 +37,8 @@
 | Commit de fixes post-review | `2088587cd32509e866fc2d1e171d1d6e1ccc556d` — corrige el estado de integración y las secuencias transaccionales; fue el `HEAD` verificado antes del ajuste final de trazabilidad. |
 | Fix final de trazabilidad | `41babc681181baf4c9ac805e3eb04edf9f8ab188` — registra la evolución acumulativa del PR; correspondía al `HEAD` al iniciar esta revisión post-review. |
 | Corrección final documental | `4472e459f8054f77fd0bff810264700f5206d284` — cierra los hallazgos de revisión y correspondía al `HEAD` al iniciar esta corrección final de trazabilidad. |
+| Corrección final de trazabilidad histórica | `f87ae07bab5675bb07b99b590ee7df8b955f2485` — incorpora `4472e459` a la historia documental; no añade cambios funcionales. |
+| Resolución de D-07 | `c99e769b6a72833301d7dbd142fa8a5bd47f5ada` — documenta `justification` y `model_name` como implementados y reconoce la migración `0002_aiclassification_justification_and_more.py` como existente. |
 | PR de S9-B3 | PR #38, `OPEN / NO MERGED`; pendiente de integración en `main`. |
 | Divergencia inicial | La rama fue creada directamente desde `origin/main`, sin divergencia inicial. |
 | Estado inicial del working tree | Limpio. |
@@ -47,11 +49,11 @@ merge `a89b9efe676abfae0401e48145831383f6beaf3f`; y S9-B2 mediante PR #37 y merg
 `4ecf502361156281cbec51764310c67f50ace449`. S9-B3 documenta este cierre sin modificar código,
 pero permanece en el PR #38 y todavía no está integrado en `main`.
 
-La trazabilidad de la rama es
-`main@4ecf5023 → da2eb298 → 2088587 → 41babc6 → 4472e45 → commit documental actual`. El último nodo
-corresponde al `HEAD` remoto del PR #38 y debe verificarse en GitHub al revisar o integrar; no se
-fija aquí su SHA para evitar una referencia circular ni se presenta ningún commit intermedio, por
-sí solo, como representación autocontenida de toda la implementación.
+La cadena histórica previa al `HEAD` actual de la rama es
+`main@4ecf5023 → da2eb298 → 2088587 → 41babc6 → 4472e45 → f87ae07 → c99e769b`. El `HEAD`
+actual del PR #38 debe verificarse en GitHub al revisar o integrar; no se fija aquí su SHA para
+evitar una referencia circular ni se presenta ningún commit intermedio, por sí solo, como
+representación autocontenida de toda la implementación.
 
 **Consecuencia académica:** S9-A, S9-B1 y S9-B2 pueden narrarse como integrados. Los estados de
 GitHub y de los despliegues automáticos prueban integración técnica, no adopción institucional,
@@ -285,7 +287,13 @@ No incluir Cloudflare, Flask, Firebase/FCM, Flower, Celery Beat ni PWA como comp
 
 Reemplazar el DER y el diccionario a partir de las 18 entidades persistentes descritas en la sección 10. Corregir PostgreSQL 15 por el entorno realmente documentado: Supabase PostgreSQL 17.6/PostGIS 3.3.7 en el corte de ADR-0003; local y CI usan imagen `postgis/postgis:17-3.5`. Explicar que las versiones de producto y CI pueden diferir en el parche de PostGIS y registrar ambas.
 
-Corregir la sección IA de `docs/DICCIONARIO_DATOS.md`: `AiClassification` ya posee `justification`, `model_name` y la migración `backend/apps/ai_client_app/migrations/0002_aiclassification_justification_and_more.py`. Evitar SQL histórico con enums nativos si el esquema real usa `varchar` + choices/checks de Django. La tabla `BaseModel` no existe: es abstracta.
+La contradicción D-07 se detectó durante la revisión documental y quedó resuelta en
+`docs/DICCIONARIO_DATOS.md` mediante `c99e769b`: `AiClassification` documenta `justification` y
+`model_name` como implementados y reconoce la migración
+`backend/apps/ai_client_app/migrations/0002_aiclassification_justification_and_more.py` como
+existente. Ya no constituye un bloqueo actual. Al actualizar el DER, evitar SQL histórico con
+enums nativos si el esquema real usa `varchar` + choices/checks de Django; la tabla `BaseModel` no
+existe porque es abstracta.
 
 ### 4.11 Inteligencia artificial
 
@@ -1766,7 +1774,7 @@ Antes de la entrega final, cada fila debe vincularse a un identificador de prueb
 | D-04 | Resultados esperados de IA/validación pueden leerse como alcanzados al redactar conclusiones. | R2 es `NOT_EXECUTED`, R1 `ABORTED` sin evidencia completa y CA-4 `NOT_DEMONSTRATED`. | `evaluation/README.md`, `recovery.py`, evidencia de ejecución. | Mantener en hipótesis/criterio pendiente; no publicar porcentaje/benchmark. | **CRÍTICA** |
 | D-05 | Tesis: PostgreSQL 15. | Entorno documentado: Supabase PostgreSQL 17.6/PostGIS 3.3.7; local/CI PostGIS 17-3.5. | ADR-0003, workflows/Compose. | Corregir versiones y explicar diferencia de entorno. | **ALTA** |
 | D-06 | Anexo B contiene una API histórica/completa. | `docs/API.md` y rutas incluyen consulta/validate/reject de S9; no existen HTTP de resolución/ranking/canje. | `urls*.py`, views/serializers/tests. | Regenerar Anexo B y marcar las rutas restantes como futuras. | **ALTA** |
-| D-07 | `docs/DICCIONARIO_DATOS.md` afirma que `justification`/`model_name` o su migración son futuros. | Ambos campos y migración 0002 existen. | Modelo/migración IA. | Actualizar diccionario y DER. | **ALTA** |
+| D-07 | `docs/DICCIONARIO_DATOS.md` presentaba `justification`/`model_name` y su migración como futuros. | Ambos campos y la migración 0002 existen; el diccionario fue corregido en `c99e769b`. | Modelo/migración IA. | Corrección aplicada; conservar el DER alineado con el modelo actual. | **RESUELTA** |
 | D-08 | El tracker podía mantener estados anteriores de S9. | S9-A/B1/B2 y ADR-0010 están en `main`; R2 continúa prerregistrado/no ejecutado. | Git remoto/commits/PR. | Mantener el cierre S9 sin convertir R2 en ejecutado. | **RESUELTA** |
 | D-09 | Telegram aparece como caso/componente y el modelo todavía existe. | Decisión D-04/CT-43 lo retira; no hay pipeline. | Decisión vigente + ausencia de implementación. | Retirar de alcance/CU/diagramas; dejar nota histórica y futura migración de eliminación. | **ALTA** |
 | D-10 | X/#ReportePY/Zapier/Make puede aparecer como integración. | Sólo existe `XMockMessage`; sin loader, API, tarea o proveedor real. | `social_ingestion_app/models.py` y árbol de código. | Describir exclusivamente simulación futura. | **ALTA** |
@@ -1790,10 +1798,10 @@ Antes de la entrega final, cada fila debe vincularse a un identificador de prueb
 | Severidad | Cantidad |
 |---|---:|
 | CRÍTICA | **3** |
-| ALTA | **9** |
+| ALTA | **8** |
 | MEDIA | **8** |
 | BAJA | **2** |
-| RESUELTA | **2** |
+| RESUELTA | **3** |
 | **Total** | **24** |
 
 > **HALLAZGO TÉCNICO — contrato IA:** D-01 no se corrigió durante esta auditoría porque la única modificación autorizada es este documento. Hasta que el proyecto decida si cambia la documentación o el servicio, el comportamiento normativo para describir el prototipo es el fijado por `orchestration.py` y sus pruebas.
