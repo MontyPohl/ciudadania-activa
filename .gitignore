@@ -43,3 +43,6 @@ Thumbs.db
 *.sql
 *.dump
 *.pgdump
+
+# Skill local pendiente de reemplazo: su fuente no publicó una licencia verificable.
+/.agents/skills/security-review/

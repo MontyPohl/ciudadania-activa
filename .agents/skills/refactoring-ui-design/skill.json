@@ -1,0 +1,27 @@
+{
+  "name": "refactoring-ui-design",
+  "display_name": "Refactoring UI Design",
+  "description": "Design, redesign, polish, and review interfaces with practical Refactoring UI heuristics for hierarchy, spacing, typography, color, depth, images, icons, and finishing details.",
+  "version": "0.1.0",
+  "license": "MIT",
+  "author": "KuthorX",
+  "homepage": "https://github.com/KuthorX/refactoring-ui-design",
+  "repository": "https://github.com/KuthorX/refactoring-ui-design",
+  "keywords": [
+    "ui-design",
+    "ux",
+    "frontend",
+    "design-system",
+    "refactoring-ui",
+    "codex-skill"
+  ],
+  "entrypoint": "SKILL.md",
+  "resources": [
+    "references/refactoring-ui-principles.md"
+  ],
+  "examples": [
+    "Use $refactoring-ui-design to review this dashboard and suggest concrete UI changes.",
+    "Use $refactoring-ui-design to redesign this settings page and apply the changes in code.",
+    "Use $refactoring-ui-design to improve the visual hierarchy, spacing, colors, and typography of this SaaS admin page."
+  ]
+}

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Refactoring UI Design"
+  short_description: "Apply Refactoring UI design heuristics"
+  default_prompt: "Use $refactoring-ui-design to redesign this interface with Refactoring UI principles."
