@@ -1066,6 +1066,23 @@ invalidación generacional del mapa público se agenda con `transaction.on_commi
 invalida; si Redis falla después del commit, se registra un aviso sin revertir la decisión ni
 convertir el éxito en `500`. Las respuestas llevan `Cache-Control: private, no-store`.
 
+### 7.5 Cierre de alcance de Sprint 9
+
+S9-B3 no añade endpoints ni modifica los contratos de §7.1–§7.4. Sprint 9 termina en la consulta,
+validación y rechazo institucionales ya descritos. Quedan explícitamente fuera de este sprint:
+
+- `GET /api/v1/rewards/summary/`, `GET /api/v1/rewards/transactions/`, la página
+  `/recompensas` y ranking/privacidad operativos, asignados a S11;
+- catálogo y canje de recompensas, asignados a S12;
+- dashboards e ingesta social, asignados a S13;
+- resolución, cierre y reversión del ciclo institucional;
+- notificaciones completas de eventos de reporte.
+
+Antes de ampliar esas notificaciones deben definirse destinatarios, contenido, privacidad,
+idempotencia, asociación con reportes, comportamiento ante fallos del broker, momento de emisión
+y uso de `transaction.on_commit`. Los enums o modelos existentes no constituyen por sí solos un
+contrato HTTP ni una capacidad operativa.
+
 ---
 
 *Documento de implementación. Se amplía en cada sprint que añade endpoints; los cambios

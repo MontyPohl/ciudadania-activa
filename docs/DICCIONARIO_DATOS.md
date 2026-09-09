@@ -263,6 +263,20 @@ es expresable en una sola tabla: se aplica en el servicio del Sprint 12 con
 de verificación no se refieren a un reporte), `notification_type`, `channel`
 (`default 'EMAIL'`), `status` (`default 'PENDIENTE'`).
 
+### Frontera de datos al cierre S9-B3
+
+S9-B3 es un cierre documental: no añade tablas, campos, constraints ni migraciones. El ledger de
+Sprint 9 ya acredita los movimientos pendientes y crea `VALIDATION_BONUS` al validar, o cambia los
+pendientes a `ANULADO` al rechazar. No existe una tabla materializada de saldo ni una API de
+consulta de créditos.
+
+`GET /api/v1/rewards/summary/`, `GET /api/v1/rewards/transactions/`, `/recompensas` y el ranking
+con privacidad pertenecen a S11; catálogo/canje a S12; dashboards e ingesta social a S13. Los
+valores de `NotificationType` y la relación opcional `notifications.report_id` sólo reservan
+estructura: las notificaciones completas requieren todavía decisiones de destinatarios,
+contenido, privacidad, idempotencia, asociación con reportes, fallos del broker, momento de
+emisión y `transaction.on_commit`.
+
 ### `social_ingestion_app`
 
 **`telegram_ingested_messages`** — `telegram_chat_id`, `sender_alias`, `raw_text`,
