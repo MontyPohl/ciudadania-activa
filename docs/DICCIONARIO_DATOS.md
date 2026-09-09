@@ -2,7 +2,8 @@
 
 Estado del modelo de datos **tal como está implementado**, contrastado con el Anexo A de
 `Tesis_Ciudadania_Activa_Revisada_Recompensas.docx`. Las 18 entidades se crearon en el
-Sprint 2; el Sprint 4 añadió una única columna, `citizen_profiles.rejection_reason`.
+Sprint 2; el Sprint 4 añadió `citizen_profiles.rejection_reason` y el Sprint 8 incorporó
+`ai_classifications.justification` y `ai_classifications.model_name`.
 
 - **Fuente rectora:** Anexo A (A.1 entidades · A.2 enumeraciones · A.4 diccionario · A.5 índices · A.6 SQL de referencia).
 - **Plan:** [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md) §6.4, §6.5 y §12.
@@ -179,26 +180,25 @@ trigger; vive en el servicio de dominio del Sprint 7 (C-02, CT-16).
 **`ai_classifications`** — `report_id` (`CASCADE`, sin unicidad: el Sprint 8 admite
 reproceso), `suggested_category_id` y `suggested_institution_id` (nullables, `PROTECT`),
 `suggested_priority` (blank), `confidence` (`numeric(4,3)`, nullable, `CHECK 0 ≤ x ≤ 1`),
-`inconsistency_flag` (`default false`). Estos son **los campos que existen hoy**: solo los
-del Anexo A.
+`inconsistency_flag` (`default false`), `justification` (blank) y `model_name` (blank).
+Estos son los campos implementados actualmente.
 
-**Previsto para S8-B/S8-C, aún no implementado.** El contrato cerrado en S8-A
-([AI_CLASSIFICATION_CONTRACT.md](AI_CLASSIFICATION_CONTRACT.md), D17) resuelve la
-evaluación que este diccionario dejaba abierta y fija una migración aditiva con
+**Ampliación implementada en Sprint 8.** El contrato cerrado en S8-A
+([AI_CLASSIFICATION_CONTRACT.md](AI_CLASSIFICATION_CONTRACT.md), D17) se materializó mediante
+la migración aditiva
+`backend/apps/ai_client_app/migrations/0002_aiclassification_justification_and_more.py`, con
 exactamente dos columnas nuevas:
 
-| Campo previsto | Tipo previsto | Semántica | Filas existentes |
+| Campo implementado | Tipo actual | Semántica | Filas existentes |
 |---|---|---|---|
 | `justification` | `TextField` | justificación normalizada de la clasificación (CA-2) | `blank` / vacío |
 | `model_name` | `CharField(100)` | modelo del proveedor efectivamente usado (CT-32, O-05) | `blank` / vacío |
 
-**`raw_response` y `prompt_version` no serán columnas de esta tabla**: viajan en el payload
+**`raw_response` y `prompt_version` no son columnas de esta tabla**: viajan en el payload
 de `audit_logs` (D15 y D16 del contrato), con `raw_response` truncada a 8.000 caracteres. La
 tabla **no** recibe unicidad por `report_id`, porque el reproceso manual debe seguir siendo
 posible. Tampoco se añaden `hubo_cambio` —lo deriva el backend—, estado de clasificación,
 error de IA, `task_id` ni `provider_request_id`.
-
-La migración no está creada: S8-A es un gate documental.
 
 ### `rewards_app`
 
