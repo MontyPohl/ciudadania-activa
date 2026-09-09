@@ -2,7 +2,7 @@
 
 Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes de iniciar el siguiente.
 
-- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 **completado** (inicio el 22/08/2026, cierre el 23/08/2026: verificación de identidad con HMAC y almacenamiento privado, revisión administrativa manual con cotejo de la cédula, notificaciones asíncronas entregadas por la API HTTPS de Brevo y privacidad configurable del ranking, todo verificado en producción con una identidad real). Sprint 5 **completado** el 27/08/2026: S5-A, S5-B y S5-C están cerradas, integradas y validadas. Sprint 6 **completado** el 28/08/2026: S6-A y S6-B están cerrados. Sprint 7 **completado** el 29/08/2026: S7-A, S7-B y S7-C están integrados en `main`, y S7-D quedó probado en producción y cerrado con evidencia funcional y de base de datos en modo solo lectura. Sprints 8 y 9 continúan **en curso**; S9-A y S9-B1 están integrados, y S9-B2 está implementado en rama con las correcciones del pre-merge review completas, pendiente de nueva revisión.
+- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 **completado** (inicio el 22/08/2026, cierre el 23/08/2026: verificación de identidad con HMAC y almacenamiento privado, revisión administrativa manual con cotejo de la cédula, notificaciones asíncronas entregadas por la API HTTPS de Brevo y privacidad configurable del ranking, todo verificado en producción con una identidad real). Sprint 5 **completado** el 27/08/2026: S5-A, S5-B y S5-C están cerradas, integradas y validadas. Sprint 6 **completado** el 28/08/2026: S6-A y S6-B están cerrados. Sprint 7 **completado** el 29/08/2026: S7-A, S7-B y S7-C están integrados en `main`, y S7-D quedó probado en producción y cerrado con evidencia funcional y de base de datos en modo solo lectura. Sprint 8 continúa **en curso**. Sprint 9 tiene S9-A, S9-B1 y S9-B2 integrados; el cierre documental S9-B3 tiene implementación completa en el PR #38, todavía `OPEN / NO MERGED` y pendiente de integración.
 - **Plan de referencia:** [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md)
 - **Ventana de desarrollo:** 01/08/2026 → 15/11/2026 (16 sprints semanales, Anexo F revisado)
 - **Estados posibles:** `Pendiente` · `En curso` · `Completado` · `Completado con observaciones` · `Bloqueado`
@@ -21,7 +21,7 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 | 6 | 05/09 – 11/09 | Creación de reportes y duplicados | Completado |
 | 7 | 12/09 – 18/09 | Panel ciudadano y confirmaciones | Completado |
 | 8 | 19/09 – 25/09 | Clasificación asistida por IA | En curso |
-| 9 | 26/09 – 02/10 | Panel institucional y validación | En curso |
+| 9 | 26/09 – 02/10 | Panel institucional y validación | En curso — cierre S9-B3 pendiente de merge |
 | 10 | 03/10 – 09/10 | Estados, evidencias, auditoría y reversión | Pendiente |
 | 11 | 10/10 – 16/10 | Créditos, ranking del mes en curso y privacidad | Pendiente |
 | 12 | 17/10 – 23/10 | Catálogo de recompensas y canje simulado | Pendiente |
@@ -30,7 +30,7 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 | 15 | 07/11 – 13/11 | Carga, dataset definitivo y documentación | Pendiente |
 | 16 | 14/11 – 15/11 | Cierre y preparación de la defensa | Pendiente |
 
-**Progreso:** 7 / 16 sprints completados (Sprints 1, 2 y 3 cerrados el 20/08/2026; Sprint 4 el 23/08/2026; Sprint 5 el 27/08/2026; Sprint 6 el 28/08/2026; Sprint 7 el 29/08/2026). La ejecución real arrastra el desvío de calendario registrado en CT-29. S7-A, S7-B y S7-C están integrados en `main`; S7-D y Sprint 7 están cerrados. El Sprint 8 está **iniciado documentalmente**: S8-A cerró el contrato de clasificación IA en local, sin integración con el proveedor.
+**Progreso:** 7 / 16 sprints completados (Sprints 1, 2 y 3 cerrados el 20/08/2026; Sprint 4 el 23/08/2026; Sprint 5 el 27/08/2026; Sprint 6 el 28/08/2026; Sprint 7 el 29/08/2026). La ejecución real arrastra el desvío de calendario registrado en CT-29. Sprint 8 continúa **en curso**: R2 permanece prerregistrado/no ejecutado y CA-4 no demostrado. Sprint 9 tiene su implementación completa, pero su cierre documental S9-B3 todavía debe integrarse mediante el PR #38; esto no altera S8 ni inicia S11–S13.
 
 ### Decisiones que condicionan el avance
 
@@ -41,7 +41,7 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 | D-03 | ¿Dónde reside la instancia de PostgreSQL/PostGIS? | Sprint 1 · Sprint 15 | **Resuelta** — en **Supabase**, junto con Storage. El backend Django y los workers Celery se despliegan en Railway y se conectan mediante `DATABASE_URL`. Fundamento: coherencia con la arquitectura de la tesis, soporte de PostGIS, simplificación operativa, centralización de base y almacenamiento, y facilidad de inspección y documentación durante el TCC. La latencia Railway ↔ Supabase se mide en el Sprint 15 y no altera la arquitectura. Si el plan contratado no incluye respaldos automáticos, son obligatorios los respaldos lógicos periódicos. **Confirmado el 20/08/2026:** el plan Free no ofrece respaldos programados accesibles para este proyecto, por lo que la rutina manual de `pg_dump` queda en vigor y su procedimiento fue comprobado de extremo a extremo |
 | D-04 | ¿Qué alcance tiene la integración social del MVP? | Sprint 13 · Sprint 15 | **Resuelta el 20/08/2026** — **exclusivamente una simulación interna de publicaciones de X/Twitter**, cargada desde un dataset del propio proyecto y persistida en `x_mock_messages`. **Telegram queda fuera del alcance** (sin Bot API, sin webhook, sin *polling*, sin token) y **no habrá integración real con la API de X** (sin OAuth, sin *scraping*, sin credenciales sociales, sin Celery para la ingesta). Se conservan `XMockMessage`, `source='x_mock'` y la regla RF-45. La eliminación técnica de `TelegramIngestedMessage` se ejecutará al inicio del Sprint 13 con migración controlada y respaldo previo. Ver **CT-43** |
 
-**No quedan decisiones pendientes.** La planificación está **aprobada** y habilitada para iniciar el Sprint 1. Detalle en la sección 33.2 de [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md).
+Las decisiones base D-01–D-04 están resueltas. Antes de ampliar las notificaciones más allá del correo de identidad deberán decidirse destinatarios, contenido, privacidad, idempotencia, asociación con reportes, tratamiento de fallos del broker, momento de emisión y uso de `transaction.on_commit`. Detalle de la planificación base en la sección 33.2 de [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md).
 
 ### Correcciones de diseño incorporadas al plan
 
@@ -1381,8 +1381,8 @@ antes de cerrarlo.
 ## Sprint 9 — Panel institucional y validación
 
 **Fechas planificadas:** 26/09/2026 – 02/10/2026
-**Estado:** En curso — S9-A y S9-B1 integrados; S9-B2 corregido en rama, pendiente de re-review
-**Fecha real de cierre:** —
+**Estado:** Implementación completa — S9-A, S9-B1 y S9-B2 integrados; S9-B3 en PR #38, pendiente de merge
+**Fecha real de cierre:** Pendiente de integración del PR #38
 
 ### Funcionalidades terminadas
 
@@ -1390,13 +1390,17 @@ antes de cerrarlo.
   selección multiinstitución y proyección histórica fail-closed de revisión humana.
 - **S9-B1 (integrado):** servicios transaccionales de validación/rechazo y ledger, con bloqueos,
   historial, auditoría e idempotencia frente a concurrencia.
-- **S9-B2 (rama de implementación):** endpoints HTTP autorizados de validación y rechazo, códigos
+- **S9-B2 (integrado mediante PR #37):** endpoints HTTP autorizados de validación y rechazo, códigos
   estables y ocultación cross-tenant; invalidación pública post-commit best effort; bandeja,
   detalle, selector desde `/auth/me/`, confirmaciones de efectos económicos y actualización tras
   éxito o conflicto. El hardening de revisión añade payloads JSON fail-closed, autorización
   linealizable frente a revocación, bandeja limitada server-side a estados operables y paginación
   frontend aislada por institución. Incluye pruebas backend, frontend y dos recorridos E2E
   sintéticos.
+- **S9-B3 (implementado, pendiente de integración):** el PR #38 concilia el estado integrado de
+  S9-A, S9-B1 y S9-B2, la trazabilidad entre contrato, API, ledger y pruebas, y delimita
+  explícitamente las capacidades posteriores. No añade endpoints, modelos, migraciones ni
+  comportamiento funcional.
 
 ### Pruebas realizadas
 
@@ -1409,6 +1413,8 @@ antes de cerrarlo.
 - E2E sintético: operador → institución → detalle → validar; operador → institución → detalle →
   motivo → rechazar. Suite completa: **48 pruebas Playwright** superadas contra servidor local
   precalentado; el build local de producción también finalizó correctamente.
+- Verificación focal previa al cierre S9-B3: **153 pruebas backend**, **14 frontend** y **2 E2E de
+  operador** superadas desde el merge exacto de S9-B2.
 
 ### Problemas encontrados
 
@@ -1416,19 +1422,40 @@ antes de cerrarlo.
   `500`, ventana concurrente entre revocación y decisión, estados no operables en la bandeja y
   ausencia de navegación paginada. La caché pública continúa deliberadamente como best effort
   después del commit para que una indisponibilidad de Redis no revierta una decisión institucional
-  válida. S9-B2 requiere un nuevo review antes de considerarse listo para merge.
+  válida. Los cuatro hallazgos fueron corregidos; la segunda revisión dio PASS y el PR #37 fue
+  mergeado. No se detectaron defectos funcionales nuevos durante el cierre S9-B3.
 
 ### Commits relevantes
 
 - S9-A: integrado mediante PR #34.
 - S9-B1: merge `a89b9efe676abfae0401e48145831383f6beaf3f` mediante PR #35.
-- S9-B2: implementación y correcciones de review en `feat/s09-b2-api-operador`, pendientes de
-  re-review e integración.
+- S9-B2: merge `4ecf502361156281cbec51764310c67f50ace449` mediante PR #37.
+- S9-B3: `da2eb2984e2882a744c119ac9404f20d3a18cfb9` contiene la implementación inicial y el
+  cierre documental; `2088587cd32509e866fc2d1e171d1d6e1ccc556d` contiene las correcciones
+  posteriores al primer pre-merge review sobre estado de integración y secuencias
+  transaccionales; `41babc681181baf4c9ac805e3eb04edf9f8ab188` contiene el fix final de
+  trazabilidad y correspondía al `HEAD` al iniciar la revisión post-review;
+  `4472e459f8054f77fd0bff810264700f5206d284` contiene la corrección final documental de los
+  hallazgos de revisión; `f87ae07bab5675bb07b99b590ee7df8b955f2485` contiene la corrección final
+  de trazabilidad histórica, sin cambios funcionales; y
+  `c99e769b6a72833301d7dbd142fa8a5bd47f5ada` resuelve D-07 en `docs/DICCIONARIO_DATOS.md`,
+  documentando `justification`, `model_name` y la migración `0002` como implementados. La cadena
+  histórica previa al `HEAD` actual es
+  `main@4ecf5023 → da2eb298 → 2088587 → 41babc6 → 4472e45 → f87ae07 → c99e769b`. El `HEAD`
+  remoto debe verificarse en GitHub y su SHA no se autoconsigna. El PR #38 permanece
+  `OPEN / NO MERGED`, y ninguno de sus commits intermedios representa por sí solo el estado
+  completo de la rama.
 
 ### Observaciones y desvíos respecto del plan
 
-- Sprint 9 permanece abierto: S9-B3 no fue iniciado. S8 continúa en curso; R2 permanece
-  `PREREGISTERED / NOT_EXECUTED` y CA-4 `NOT_DEMONSTRATED`.
+- Se difieren expresamente a S11 `GET /api/v1/rewards/summary/`,
+  `GET /api/v1/rewards/transactions/`, la ruta frontend `/recompensas` y ranking/privacidad.
+- Catálogo y canje corresponden a S12; dashboards e ingesta social a S13. Las notificaciones
+  completas no forman parte de S9 y requieren resolver previamente las decisiones enumeradas en
+  el estado general.
+- S8 continúa en curso; R2 permanece `PREREGISTERED / NOT_EXECUTED` y CA-4
+  `NOT_DEMONSTRATED`. S11, S12 y S13 no fueron iniciados.
+- No hubo acciones manuales de producción, Vercel o Railway durante S9-B3.
 
 ---
 
