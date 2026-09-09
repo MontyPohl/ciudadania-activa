@@ -1,5 +1,6 @@
 """Mutaciones institucionales HTTP de Sprint 9-B2."""
 
+import json
 import threading
 import uuid
 from concurrent.futures import ThreadPoolExecutor
@@ -7,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 import pytest
 from django.contrib.auth import get_user_model
 from django.contrib.gis.geos import Point
-from django.db import connections
+from django.db import connections, transaction
 from django.utils import timezone
 from rest_framework.test import APIClient
 
@@ -212,6 +213,45 @@ def test_reject_rechaza_campos_adicionales(operator_user, institution, report):
 
     assert response.status_code == 400
     assert "institution_id" in response.json()["detail"]
+
+
+@pytest.mark.parametrize("action", ["validate", "reject"])
+@pytest.mark.parametrize("payload", [[], "x", 1, True, None])
+def test_body_json_no_objeto_es_400_sin_efectos(
+    operator_user,
+    institution,
+    report,
+    action,
+    payload,
+    monkeypatch,
+):
+    invalidations = []
+    monkeypatch.setattr(
+        validation,
+        "invalidate_public_reports_cache",
+        lambda: invalidations.append("called"),
+    )
+    before = Report.objects.values(
+        "status",
+        "institution_id",
+        "validated_at",
+        "validated_by_id",
+        "rejection_reason",
+        "updated_at",
+    ).get(pk=report.pk)
+
+    response = _client(operator_user).post(
+        _url(report, action, institution),
+        data=json.dumps(payload),
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+    assert Report.objects.values(*before).get(pk=report.pk) == before
+    assert ReportStatusHistory.objects.count() == 0
+    assert RewardTransaction.objects.count() == 0
+    assert AuditLog.objects.count() == 0
+    assert invalidations == []
 
 
 @pytest.mark.parametrize("action", ["validate", "reject"])
@@ -494,3 +534,53 @@ def test_doble_validate_http_concurrente_deja_un_solo_agregado():
     )
     assert ReportStatusHistory.objects.count() == 1
     assert AuditLog.objects.filter(action="report.validated").count() == 1
+
+
+@pytest.mark.django_db(transaction=True)
+def test_revocacion_concurrente_confirmada_antes_de_decision_la_rechaza():
+    report, operator_user, institution = _concurrency_context()
+    created = RewardTransaction.objects.get(event_type=RewardEventType.REPORT_CREATED)
+    barrier = threading.Barrier(2)
+
+    def revoke():
+        connections.close_all()
+        try:
+            with transaction.atomic():
+                membership = InstitutionOperator.objects.select_for_update().get(
+                    user_id=operator_user.pk,
+                    institution_id=institution.pk,
+                )
+                membership.active = False
+                membership.save(update_fields=["active", "updated_at"])
+                barrier.wait(timeout=5)
+            return "REVOKED"
+        finally:
+            connections.close_all()
+
+    def decide():
+        connections.close_all()
+        try:
+            barrier.wait(timeout=5)
+            operator = get_user_model().objects.get(pk=operator_user.pk)
+            response = _client(operator).post(
+                _url(report, "validate", institution), {}, format="json"
+            )
+            return response.status_code, response.json()
+        finally:
+            connections.close_all()
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        revocation = pool.submit(revoke)
+        decision = pool.submit(decide)
+        assert revocation.result() == "REVOKED"
+        decision_status, decision_payload = decision.result()
+
+    assert decision_status == 403
+    assert decision_payload["code"] == "INSTITUTION_OPERATOR_REQUIRED"
+    report.refresh_from_db()
+    created.refresh_from_db()
+    assert report.status == ReportStatus.CREADO
+    assert report.validated_at is None
+    assert created.status == RewardTxStatus.PENDIENTE
+    assert ReportStatusHistory.objects.count() == 0
+    assert AuditLog.objects.count() == 0

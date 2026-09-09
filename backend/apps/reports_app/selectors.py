@@ -24,7 +24,7 @@ from django.utils import timezone
 from apps.admin_app.models import AuditLog
 from apps.ai_client_app.models import AiClassification
 from apps.core.enums import ReportPriority, ReportStatus
-from apps.reports_app.enums import MediaType
+from apps.reports_app.enums import OPERABLE_REPORT_STATUSES, MediaType
 from apps.reports_app.models import Report, ReportConfirmation, ReportMedia
 
 ACTIVE_REPORT_STATUSES = (
@@ -85,7 +85,9 @@ def operator_reports_for_institution(*, institution):
 
 def operator_report_list(*, institution, params):
     """Bandeja institucional filtrada y con orden total entre páginas."""
-    queryset = operator_reports_for_institution(institution=institution)
+    queryset = operator_reports_for_institution(institution=institution).filter(
+        status__in=OPERABLE_REPORT_STATUSES
+    )
 
     if status := params.get("status"):
         queryset = queryset.filter(status=status)

@@ -91,6 +91,18 @@ describe("API institucional S9-B2", () => {
     );
   });
 
+  it("preserva contexto institucional y página en la navegación de la bandeja", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      response({ count: 21, next: null, previous: "page=1", results: [summary()] }),
+    );
+
+    await getOperatorReports(INSTITUTION_ID, 2);
+
+    const url = new URL(String(vi.mocked(fetch).mock.calls[0][0]), "https://frontend.test");
+    expect(url.searchParams.get("institution_id")).toBe(INSTITUTION_ID);
+    expect(url.searchParams.get("page")).toBe("2");
+  });
+
   it("valida mediante un único POST con body estrictamente ausente", async () => {
     vi.mocked(fetch).mockResolvedValue(response(action("ASIGNADO")));
 

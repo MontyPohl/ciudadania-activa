@@ -215,17 +215,23 @@ function actionResult(value: unknown): value is OperatorReportActionResult {
   );
 }
 
-function contextQuery(institutionId: string): string {
+function contextQuery(institutionId: string, page?: number): string {
   if (!uuid(institutionId)) throw new OperatorApiError("INVALID_RESPONSE");
-  return `institution_id=${encodeURIComponent(institutionId)}`;
+  if (page !== undefined && (!Number.isInteger(page) || page < 1)) {
+    throw new OperatorApiError("INVALID_RESPONSE");
+  }
+  const params = new URLSearchParams({ institution_id: institutionId });
+  if (page !== undefined) params.set("page", String(page));
+  return params.toString();
 }
 
 export async function getOperatorReports(
   institutionId: string,
+  page = 1,
 ): Promise<PaginatedResponse<OperatorReport>> {
   try {
     const value = await apiFetch<unknown>(
-      `/api/v1/operator/reports/?${contextQuery(institutionId)}`,
+      `/api/v1/operator/reports/?${contextQuery(institutionId, page)}`,
     );
     if (
       !record(value) ||

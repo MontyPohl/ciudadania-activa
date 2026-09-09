@@ -1,5 +1,9 @@
 """Consulta y decisiones institucionales de reportes de Sprint 9."""
 
+from collections.abc import Mapping
+
+from django.contrib.auth import get_user_model
+from django.db import transaction
 from rest_framework import status
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.generics import ListAPIView, RetrieveAPIView
@@ -7,7 +11,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.admin_app.models import InstitutionOperator
+from apps.admin_app.models import Institution, InstitutionOperator
 from apps.auth_app.enums import UserRole
 from apps.core.permissions import IsInstitutionOperator
 from apps.core.services import storage
@@ -115,31 +119,55 @@ class _OperatorReportActionView(APIView):
         serializer.is_valid(raise_exception=True)
         return serializer.validated_data
 
-    def _institution(self):
+    def _locked_operator_context(self):
         requested_id = self._params()["institution_id"]
-        membership = (
-            InstitutionOperator.objects.filter(
-                user=self.request.user,
-                institution_id=requested_id,
-                active=True,
-            )
-            .select_related("institution")
-            .first()
-        )
-        if membership is None or getattr(self.request.user, "role", None) != UserRole.OPERATOR:
+
+        # Orden compartido con promote_user y extendido por S9-B1:
+        # User -> InstitutionOperator -> Report -> Category -> Institution -> ledger.
+        # No se sigue la relación ``institution`` aquí porque select_for_update()
+        # bloquearía esa fila antes que Report y rompería el orden del agregado.
+        user_model = get_user_model()
+        try:
+            operator = user_model.objects.select_for_update().get(pk=self.request.user.pk)
+        except user_model.DoesNotExist:
+            operator = None
+
+        if (
+            operator is None
+            or not operator.is_active
+            or getattr(operator, "role", None) != UserRole.OPERATOR
+        ):
             raise PermissionDenied(
                 {
                     "detail": INSTITUTION_OPERATOR_REQUIRED,
                     "code": "INSTITUTION_OPERATOR_REQUIRED",
                 }
             )
-        return membership.institution
+
+        membership = (
+            InstitutionOperator.objects.select_for_update()
+            .only("institution_id")
+            .filter(
+                user=operator,
+                institution_id=requested_id,
+                active=True,
+            )
+            .first()
+        )
+        if membership is None:
+            raise PermissionDenied(
+                {
+                    "detail": INSTITUTION_OPERATOR_REQUIRED,
+                    "code": "INSTITUTION_OPERATOR_REQUIRED",
+                }
+            )
+        return operator, Institution(pk=membership.institution_id)
 
     def _input(self):
-        serializer = self.input_serializer_class(data=self.request.data)
-        reason_missing = (
-            self.input_serializer_class is OperatorRejectInputSerializer
-            and "reason" not in self.request.data
+        data = self.request.data
+        serializer = self.input_serializer_class(data=data)
+        reason_missing = self.input_serializer_class is OperatorRejectInputSerializer and (
+            not isinstance(data, Mapping) or "reason" not in data
         )
         if serializer.is_valid():
             return serializer.validated_data
@@ -169,21 +197,23 @@ class _OperatorReportActionView(APIView):
         response["Cache-Control"] = "private, no-store"
         return response
 
-    def _execute(self, *, report_id, institution, data):
+    def _execute(self, *, report_id, operator, institution, data):
         raise NotImplementedError
 
     def post(self, request, report_id):
-        institution = self._institution()
-        data = self._input()
-        if isinstance(data, Response):
-            return data
-        self._visible_report(report_id=report_id, institution=institution)
         try:
-            result = self._execute(
-                report_id=report_id,
-                institution=institution,
-                data=data,
-            )
+            with transaction.atomic():
+                operator, institution = self._locked_operator_context()
+                data = self._input()
+                if isinstance(data, Response):
+                    return data
+                self._visible_report(report_id=report_id, institution=institution)
+                result = self._execute(
+                    report_id=report_id,
+                    operator=operator,
+                    institution=institution,
+                    data=data,
+                )
         except (validation.ReportInstitutionMismatch, Report.DoesNotExist):
             raise NotFound({"detail": REPORT_NOT_FOUND, "code": "REPORT_NOT_FOUND"}) from None
         except validation.InvalidRejectionReason:
@@ -210,10 +240,10 @@ class _OperatorReportActionView(APIView):
 class OperatorReportValidateView(_OperatorReportActionView):
     input_serializer_class = OperatorValidateInputSerializer
 
-    def _execute(self, *, report_id, institution, data):
+    def _execute(self, *, report_id, operator, institution, data):
         return validation.validate_report(
             report_id=report_id,
-            operator=self.request.user,
+            operator=operator,
             institution=institution,
         )
 
@@ -221,10 +251,10 @@ class OperatorReportValidateView(_OperatorReportActionView):
 class OperatorReportRejectView(_OperatorReportActionView):
     input_serializer_class = OperatorRejectInputSerializer
 
-    def _execute(self, *, report_id, institution, data):
+    def _execute(self, *, report_id, operator, institution, data):
         return validation.reject_report(
             report_id=report_id,
-            operator=self.request.user,
+            operator=operator,
             institution=institution,
             reason=data["reason"],
         )

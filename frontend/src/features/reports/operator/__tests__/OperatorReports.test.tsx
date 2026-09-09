@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { useSession } from "@/features/auth/useSession";
@@ -42,6 +42,26 @@ const report = {
   institution: null,
   effective_read_institution: municipal,
   created_at: "2026-09-01T10:00:00Z",
+};
+const secondReport = {
+  ...report,
+  id: "66666666-6666-4666-8666-666666666666",
+  status: "CLASIFICADO" as const,
+  category: {
+    id: "77777777-7777-4777-8777-777777777777",
+    name: "Semáforos",
+    slug: "semaforos",
+  },
+};
+const andeReport = {
+  ...report,
+  id: "88888888-8888-4888-8888-888888888888",
+  category: {
+    id: "99999999-9999-4999-8999-999999999999",
+    name: "Alumbrado",
+    slug: "alumbrado",
+  },
+  effective_read_institution: ande,
 };
 const detail = {
   ...report,
@@ -111,7 +131,115 @@ describe("interfaz institucional S9-B2", () => {
     expect(await screen.findByText("Baches")).toBeInTheDocument();
     expect(screen.getByText("Municipalidad", { selector: "td" })).toBeInTheDocument();
     await user.selectOptions(screen.getByLabelText("Contexto institucional"), ande.id);
-    await waitFor(() => expect(getOperatorReports).toHaveBeenLastCalledWith(ande.id));
+    await waitFor(() => expect(getOperatorReports).toHaveBeenLastCalledWith(ande.id, 1));
+  });
+
+  it("navega a la segunda página sin duplicar la primera y detecta el final", async () => {
+    const user = userEvent.setup();
+    vi.mocked(getOperatorReports)
+      .mockResolvedValueOnce({
+        count: 2,
+        next: "https://api.example.test/operator/reports/?page=2",
+        previous: null,
+        results: [report],
+      })
+      .mockResolvedValueOnce({
+        count: 2,
+        next: null,
+        previous: "https://api.example.test/operator/reports/?page=1",
+        results: [secondReport],
+      });
+
+    render(<OperatorReportQueue />);
+    await screen.findByText("Baches");
+    expect(screen.getByRole("button", { name: "Página anterior" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Página siguiente" }));
+
+    expect(await screen.findByText("Semáforos")).toBeInTheDocument();
+    expect(screen.queryByText("Baches")).not.toBeInTheDocument();
+    expect(getOperatorReports).toHaveBeenLastCalledWith(municipal.id, 2);
+    expect(screen.getByRole("button", { name: "Página siguiente" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Página anterior" })).toBeEnabled();
+  });
+
+  it("permite reintentar un error al cargar la página siguiente", async () => {
+    const user = userEvent.setup();
+    vi.mocked(getOperatorReports)
+      .mockResolvedValueOnce({
+        count: 2,
+        next: "https://api.example.test/operator/reports/?page=2",
+        previous: null,
+        results: [report],
+      })
+      .mockRejectedValueOnce(new OperatorApiError("SERVER_ERROR", 500))
+      .mockResolvedValueOnce({
+        count: 2,
+        next: null,
+        previous: "https://api.example.test/operator/reports/?page=1",
+        results: [secondReport],
+      });
+
+    render(<OperatorReportQueue />);
+    await screen.findByText("Baches");
+    await user.click(screen.getByRole("button", { name: "Página siguiente" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("No pudimos completar");
+    await user.click(screen.getByRole("button", { name: "Reintentar" }));
+
+    expect(await screen.findByText("Semáforos")).toBeInTheDocument();
+    expect(getOperatorReports).toHaveBeenLastCalledWith(municipal.id, 2);
+  });
+
+  it("descarta una página tardía al cambiar de institución y reinicia en página uno", async () => {
+    const user = userEvent.setup();
+    let resolveSecondPage!: (value: {
+      count: number;
+      next: null;
+      previous: string;
+      results: (typeof secondReport)[];
+    }) => void;
+    const delayedSecondPage = new Promise<{
+      count: number;
+      next: null;
+      previous: string;
+      results: (typeof secondReport)[];
+    }>((resolve) => {
+      resolveSecondPage = resolve;
+    });
+    vi.mocked(getOperatorReports).mockImplementation((institutionId, page) => {
+      if (institutionId === municipal.id && page === 2) return delayedSecondPage;
+      if (institutionId === ande.id) {
+        return Promise.resolve({
+          count: 1,
+          next: null,
+          previous: null,
+          results: [andeReport],
+        });
+      }
+      return Promise.resolve({
+        count: 2,
+        next: "https://api.example.test/operator/reports/?page=2",
+        previous: null,
+        results: [report],
+      });
+    });
+
+    render(<OperatorReportQueue />);
+    await screen.findByText("Baches");
+    await user.click(screen.getByRole("button", { name: "Página siguiente" }));
+    await waitFor(() => expect(getOperatorReports).toHaveBeenLastCalledWith(municipal.id, 2));
+    await user.selectOptions(screen.getByLabelText("Contexto institucional"), ande.id);
+    expect(await screen.findByText("Alumbrado")).toBeInTheDocument();
+
+    await act(async () => {
+      resolveSecondPage({
+        count: 2,
+        next: null,
+        previous: "https://api.example.test/operator/reports/?page=1",
+        results: [secondReport],
+      });
+    });
+    expect(screen.queryByText("Semáforos")).not.toBeInTheDocument();
+    expect(getOperatorReports).toHaveBeenLastCalledWith(ande.id, 1);
   });
 
   it("exige confirmación económica antes de validar y refresca el detalle", async () => {

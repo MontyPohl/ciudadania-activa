@@ -3,8 +3,9 @@
 from rest_framework import serializers
 
 from apps.admin_app.models import Category
-from apps.core.enums import RejectionReason, ReportPriority, ReportStatus
+from apps.core.enums import RejectionReason, ReportPriority
 from apps.core.services import storage
+from apps.reports_app.enums import OPERABLE_REPORT_STATUSES
 from apps.reports_app.serializers import StrictInputMixin
 
 OPERATOR_REPORT_PHOTO_SIGNED_URL_TTL_SECONDS = 300
@@ -27,7 +28,7 @@ class OperatorRejectInputSerializer(StrictInputMixin, serializers.Serializer):
 
 
 class OperatorReportListQuerySerializer(OperatorReportContextQuerySerializer):
-    status = serializers.ChoiceField(choices=ReportStatus.values, required=False)
+    status = serializers.ChoiceField(choices=OPERABLE_REPORT_STATUSES, required=False)
     priority = serializers.ChoiceField(choices=ReportPriority.values, required=False)
     category = serializers.SlugRelatedField(
         slug_field="slug",

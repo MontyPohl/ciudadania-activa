@@ -12,6 +12,7 @@ from apps.admin_app.models import Category, Institution
 from apps.core.enums import ActorType, RejectionReason, ReportStatus
 from apps.core.services import audit
 from apps.map_app.cache import invalidate_public_reports_cache
+from apps.reports_app.enums import OPERABLE_REPORT_STATUSES
 from apps.reports_app.models import Report, ReportStatusHistory
 from apps.rewards_app.services import ledger
 
@@ -19,8 +20,6 @@ ALREADY_VALIDATED = "ALREADY_VALIDATED"
 ALREADY_REJECTED = "ALREADY_REJECTED"
 VALIDATION_REVERSAL_REQUIRED = "VALIDATION_REVERSAL_REQUIRED"
 REPORT_STATE_NOT_ALLOWED = "REPORT_STATE_NOT_ALLOWED"
-
-_ACTION_SOURCE_STATUSES = (ReportStatus.CREADO, ReportStatus.CLASIFICADO)
 
 logger = logging.getLogger(__name__)
 
@@ -203,7 +202,7 @@ def _ensure_institution_scope(*, expected_institution_id, institution) -> None:
 def _ensure_validate_allowed(report: Report) -> None:
     if report.validated_at is not None:
         raise ReportActionConflict(ALREADY_VALIDATED)
-    if report.status not in _ACTION_SOURCE_STATUSES:
+    if report.status not in OPERABLE_REPORT_STATUSES:
         raise ReportActionConflict(REPORT_STATE_NOT_ALLOWED)
 
 
@@ -212,5 +211,5 @@ def _ensure_reject_allowed(report: Report) -> None:
         raise ReportActionConflict(VALIDATION_REVERSAL_REQUIRED)
     if report.status == ReportStatus.RECHAZADO:
         raise ReportActionConflict(ALREADY_REJECTED)
-    if report.status not in _ACTION_SOURCE_STATUSES:
+    if report.status not in OPERABLE_REPORT_STATUSES:
         raise ReportActionConflict(REPORT_STATE_NOT_ALLOWED)

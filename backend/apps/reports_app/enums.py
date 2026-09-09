@@ -1,5 +1,12 @@
 from django.db import models
 
+from apps.core.enums import ReportStatus
+
+OPERABLE_REPORT_STATUSES = (
+    ReportStatus.CREADO,
+    ReportStatus.CLASIFICADO,
+)
+
 
 class MediaType(models.TextChoices):
     """Tipo de archivo adjunto a un reporte (Anexo A.1).

@@ -850,7 +850,9 @@ el reporte y, si aún no está asignado, con el catálogo de su categoría.
 
 ### 7.2 `GET /api/v1/operator/reports/`
 
-Listado paginado de la bandeja del contexto institucional efectivo.
+Listado paginado de la bandeja del contexto institucional efectivo. La bandeja es operativa y el
+servidor la limita siempre a reportes `CREADO` o `CLASIFICADO`; quitar filtros en el cliente no
+permite obtener estados sobre los que estas decisiones ya no son válidas.
 
 ```http
 GET /api/v1/operator/reports/?institution_id=33333333-3333-4333-8333-333333333333&status=CREADO&priority=ALTA&category=baches&created_from=2026-09-01&created_to=2026-09-30&page=1
@@ -859,7 +861,7 @@ GET /api/v1/operator/reports/?institution_id=33333333-3333-4333-8333-33333333333
 | Parámetro | Contrato |
 |---|---|
 | `institution_id` | UUID del contexto. Opcional solo cuando el operador tiene exactamente un vínculo activo |
-| `status` | Opcional. Un valor exacto de `ReportStatus`: `CREADO`, `CLASIFICADO`, `ASIGNADO`, `EN_PROCESO`, `RESUELTO`, `CERRADO` o `RECHAZADO` |
+| `status` | Opcional. `CREADO` o `CLASIFICADO`; solamente refina el conjunto operable impuesto por el servidor |
 | `priority` | Opcional. `ALTA`, `MEDIA` o `BAJA` |
 | `category` | Opcional. `slug` de una categoría activa existente |
 | `created_from` | Opcional. Fecha ISO `YYYY-MM-DD`, inclusiva en `America/Asuncion` |
@@ -1055,7 +1057,11 @@ Errores estables:
 | `409` | `REPORT_STATE_NOT_ALLOWED` | El estado actual no admite la decisión |
 | `409` | `INSTITUTION_INACTIVE` | La institución dejó de estar activa |
 
-Cada decisión, su historial, auditoría y movimientos económicos forman una única transacción. La
+Cada decisión, su autorización efectiva, historial, auditoría y movimientos económicos forman una
+única transacción. Para hacer linealizable una revocación concurrente, el servidor bloquea en orden
+`User → InstitutionOperator → Report → Category → Institution → reward_transactions` y vuelve a
+comprobar bajo lock que el usuario siga activo, conserve el rol operador y tenga una membresía
+activa para el contexto solicitado. La
 invalidación generacional del mapa público se agenda con `transaction.on_commit`: un rollback no
 invalida; si Redis falla después del commit, se registra un aviso sin revertir la decisión ni
 convertir el éxito en `500`. Las respuestas llevan `Cache-Control: private, no-store`.

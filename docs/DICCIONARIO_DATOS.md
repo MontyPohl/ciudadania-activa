@@ -148,8 +148,10 @@ operaciones bloquean el agregado con `select_for_update()` y escriben `reports`,
 `report_status_history`, `audit_logs` y el conjunto correspondiente de `reward_transactions`
 dentro de una sola transacción. La validación fija `institution_id`, `validated_at` y
 `validated_by_id`; el rechazo conserva `institution_id` como estaba y fija `rejection_reason`.
-El contexto institucional enviado por la API se comprueba contra una membresía activa y contra
-`reports.institution_id ?? categories.default_institution_id`; nunca se deriva de
+El contexto institucional enviado por la API se comprueba, bajo el mismo límite transaccional y
+con bloqueo de `users` e `institution_operators`, contra un rol operador y una membresía que sigan
+activos; después se contrasta con
+`reports.institution_id ?? categories.default_institution_id`. Nunca se deriva de
 `ai_classifications.suggested_institution_id`.
 
 **`report_media`** — `report_id` (`CASCADE`), `file_url` (`text`), `file_hash`
