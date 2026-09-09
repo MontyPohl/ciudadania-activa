@@ -1430,9 +1430,13 @@ antes de cerrarlo.
 - S9-A: integrado mediante PR #34.
 - S9-B1: merge `a89b9efe676abfae0401e48145831383f6beaf3f` mediante PR #35.
 - S9-B2: merge `4ecf502361156281cbec51764310c67f50ace449` mediante PR #37.
-- S9-B3: commit `da2eb2984e2882a744c119ac9404f20d3a18cfb9` en
-  `feat/s09-b3-cierre-sprint9`, basado exactamente en el merge de S9-B2; PR #38
-  `OPEN / NO MERGED`.
+- S9-B3: `da2eb2984e2882a744c119ac9404f20d3a18cfb9` contiene la implementación inicial y el
+  cierre documental; `2088587cd32509e866fc2d1e171d1d6e1ccc556d` contiene las correcciones
+  posteriores al primer pre-merge review sobre estado de integración y secuencias
+  transaccionales. La rama `feat/s09-b3-cierre-sprint9` sigue la cadena
+  `main@4ecf5023 → da2eb298 → 2088587 → HEAD actual del PR #38`; ese PR permanece
+  `OPEN / NO MERGED`, y ninguno de sus commits intermedios representa por sí solo el estado
+  completo de la rama.
 
 ### Observaciones y desvíos respecto del plan
 

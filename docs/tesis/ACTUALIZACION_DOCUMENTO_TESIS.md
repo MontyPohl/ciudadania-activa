@@ -33,7 +33,8 @@
 | Rama actual | `feat/s09-b3-cierre-sprint9` |
 | Base de la rama | `4ecf502361156281cbec51764310c67f50ace449` — merge del PR #37 |
 | `origin/main` actualizado | `4ecf502361156281cbec51764310c67f50ace449` — `Merge pull request #37 from MontyPohl/feat/s09-b2-api-operador` |
-| `HEAD` de S9-B3 revisado | `da2eb2984e2882a744c119ac9404f20d3a18cfb9` — implementación documental completa |
+| Commit inicial de S9-B3 | `da2eb2984e2882a744c119ac9404f20d3a18cfb9` — implementación inicial y cierre documental. |
+| Commit de fixes post-review | `2088587cd32509e866fc2d1e171d1d6e1ccc556d` — corrige el estado de integración y las secuencias transaccionales; fue el `HEAD` verificado antes del ajuste final de trazabilidad. |
 | PR de S9-B3 | PR #38, `OPEN / NO MERGED`; pendiente de integración en `main`. |
 | Divergencia inicial | La rama fue creada directamente desde `origin/main`, sin divergencia inicial. |
 | Estado inicial del working tree | Limpio. |
@@ -43,6 +44,11 @@ Los commits de integración de Sprint 9 son: S9-A mediante PR #34; S9-B1 mediant
 merge `a89b9efe676abfae0401e48145831383f6beaf3f`; y S9-B2 mediante PR #37 y merge
 `4ecf502361156281cbec51764310c67f50ace449`. S9-B3 documenta este cierre sin modificar código,
 pero permanece en el PR #38 y todavía no está integrado en `main`.
+
+La trazabilidad de la rama es
+`main@4ecf5023 → da2eb298 → 2088587 → HEAD actual del PR #38`. El último nodo es la punta remota
+que debe verificarse al revisar o integrar el PR; no convierte a ninguno de los commits
+intermedios, por sí solo, en representación autocontenida de toda la implementación.
 
 **Consecuencia académica:** S9-A, S9-B1 y S9-B2 pueden narrarse como integrados. Los estados de
 GitHub y de los despliegues automáticos prueban integración técnica, no adopción institucional,
