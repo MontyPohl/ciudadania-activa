@@ -11,6 +11,7 @@ skill, sus scripts y su licencia antes de reemplazarlas.
 | `ux-heuristics` | https://github.com/wondelai/skills | `eade5d170b3a593c5b6ebcaca898102134aee108` | MIT |
 | `cro` | https://github.com/coreyhaines31/marketingskills | `5b2c0007766c6a1cf1d53fd8fc73e979e0821022` | MIT |
 | `requesting-code-review` | https://github.com/obra/superpowers | `b36e0829c6d0140e93cfef2ca599b1b07d4a7797` | MIT |
+| `security-best-practices` | https://github.com/openai/skills | `49f948faa9258a0c61caceaf225e179651397431` | Apache-2.0 |
 | `verification-before-completion` | https://github.com/obra/superpowers | `b36e0829c6d0140e93cfef2ca599b1b07d4a7797` | MIT |
 
 `cro` es el nombre actual de la skill que sustituyó a `form-cro` en Marketing

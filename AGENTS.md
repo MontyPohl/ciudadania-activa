@@ -15,6 +15,9 @@ que la tarea lo requiera expresamente. Su procedencia y versión fijada están e
 - `cro`: optimización de la portada o de formularios públicos no obligatorios.
 - `requesting-code-review`: revisión independiente tras cambios importantes o
   antes de integrar.
+- `security-best-practices`: revisión de seguridad para Python/Django y
+  JavaScript/TypeScript/Next.js cuando se solicite una auditoría o guía de
+  seguridad.
 - `verification-before-completion`: antes de afirmar que un cambio está listo,
   ejecutar las verificaciones que lo demuestren.
 
@@ -27,6 +30,7 @@ institucionales. Evita patrones engañosos o de retención; prioriza claridad,
 accesibilidad y control de la persona usuaria.
 
 Para cambios de frontend, conserva los contratos de API y prueba los flujos
-afectados. Para cambios de seguridad, revisa autenticación, autorización,
-datos personales, API, almacenamiento y secretos. Antes de completar trabajo,
+afectados. Para una auditoría, reporte o guía de seguridad, usa
+`security-best-practices` y revisa autenticación, autorización, datos
+personales, API, almacenamiento y secretos. Antes de completar trabajo,
 ejecuta los comandos aplicables del README (lint, tipos, pruebas y build).
