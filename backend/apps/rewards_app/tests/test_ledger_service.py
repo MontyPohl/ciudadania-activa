@@ -1,4 +1,4 @@
-"""Contrato del ledger: creación implementada en S6 y demás eventos aún declarativos."""
+"""Contrato del ledger de creación, validación, resolución y reversión."""
 
 import inspect
 
@@ -15,22 +15,11 @@ FUNCIONES = [
     ("revert_validation", ["report", "actor", "reason"]),
 ]
 
-FUNCIONES_PENDIENTES = FUNCIONES[4:]
-
-
 @pytest.mark.parametrize(("nombre", "parametros"), FUNCIONES)
 def test_las_firmas_del_contrato_estan_declaradas(nombre, parametros):
     funcion = getattr(ledger, nombre)
 
     assert list(inspect.signature(funcion).parameters) == parametros
-
-
-@pytest.mark.parametrize(("nombre", "parametros"), FUNCIONES_PENDIENTES)
-def test_ninguna_funcion_del_ledger_esta_implementada(nombre, parametros):
-    funcion = getattr(ledger, nombre)
-
-    with pytest.raises(NotImplementedError):
-        funcion(*[None] * len(parametros))
 
 
 @pytest.mark.django_db
@@ -99,7 +88,17 @@ def test_on_confirmation_created_acredita_si_el_reporte_ya_fue_validado(
 
     report.validated_at = timezone.now()
     report.institution = institution
-    report.save(update_fields=["validated_at", "institution", "updated_at"])
+    report.status = "ASIGNADO"
+    report.resolution_cycle = 1
+    report.save(
+        update_fields=[
+            "validated_at",
+            "institution",
+            "status",
+            "resolution_cycle",
+            "updated_at",
+        ]
+    )
     confirmation = ReportConfirmation.objects.create(
         report=report,
         citizen=other_citizen,
@@ -110,6 +109,91 @@ def test_on_confirmation_created_acredita_si_el_reporte_ya_fue_validado(
     assert transaction.status == "ACREDITADO"
     assert transaction.institution == institution
     assert transaction.credited_at == confirmation.created_at
+    assert transaction.resolution_cycle == 1
+
+
+@pytest.mark.django_db
+def test_resolution_bonus_es_50_50_y_pertenece_al_ciclo(report, operator_user, institution):
+    from django.utils import timezone
+
+    report.validated_at = timezone.now()
+    report.institution = institution
+    report.status = "ASIGNADO"
+    report.resolution_cycle = 1
+    report.save(
+        update_fields=[
+            "validated_at",
+            "institution",
+            "status",
+            "resolution_cycle",
+            "updated_at",
+        ]
+    )
+
+    result = ledger.on_report_resolved(report, operator_user)
+
+    bonus = result.resolution_bonus
+    assert (bonus.impact_delta, bonus.credit_delta) == (50, 50)
+    assert bonus.status == "ACREDITADO"
+    assert bonus.resolution_cycle == 1
+
+
+@pytest.mark.django_db
+def test_reversal_conserva_deltas_y_crea_contrapartidas(
+    report,
+    operator_user,
+    institution,
+):
+    from django.utils import timezone
+
+    from apps.rewards_app.enums import RewardEventType, RewardTxStatus
+    from apps.rewards_app.models import RewardTransaction
+
+    now = timezone.now()
+    report.validated_at = now
+    report.institution = institution
+    report.status = "ASIGNADO"
+    report.resolution_cycle = 1
+    report.save(
+        update_fields=[
+            "validated_at",
+            "institution",
+            "status",
+            "resolution_cycle",
+            "updated_at",
+        ]
+    )
+    originals = [
+        RewardTransaction.objects.create(
+            user=report.citizen,
+            report=report,
+            institution=institution,
+            event_type=event_type,
+            impact_delta=delta,
+            credit_delta=delta,
+            status=RewardTxStatus.ACREDITADO,
+            credited_at=now,
+            resolution_cycle=1,
+        )
+        for event_type, delta in (
+            (RewardEventType.REPORT_CREATED, 20),
+            (RewardEventType.VALIDATION_BONUS, 30),
+            (RewardEventType.RESOLUTION_BONUS, 50),
+        )
+    ]
+
+    result = ledger.revert_validation(report, operator_user, "Motivo administrativo suficiente")
+
+    for original in originals:
+        original.refresh_from_db()
+        assert original.status == RewardTxStatus.REVERTIDO
+        assert original.credited_at == now
+        assert original.impact_delta > 0 and original.credit_delta > 0
+    assert [tx.related_transaction_id for tx in result.reversal_transactions] == [
+        original.pk for original in originals
+    ]
+    assert [tx.impact_delta for tx in result.reversal_transactions] == [-20, -30, -50]
+    assert all(tx.status == RewardTxStatus.REVERTIDO for tx in result.reversal_transactions)
 
 
 @pytest.mark.django_db

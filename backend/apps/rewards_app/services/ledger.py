@@ -27,11 +27,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from django.db.models import Q
-
-_PENDIENTE_DE_SPRINT = (
-    "El ledger de incentivos no está implementado en el Sprint 2, que solo crea el "
-    "modelo de datos. Ver {sprint} en docs/PLAN_DESARROLLO.md."
-)
+from django.utils import timezone
 
 
 class LedgerInvariantError(RuntimeError):
@@ -46,6 +42,18 @@ class ValidationLedgerResult:
 
 @dataclass(frozen=True)
 class RejectionLedgerResult:
+    voided_transactions: tuple
+
+
+@dataclass(frozen=True)
+class ResolutionLedgerResult:
+    resolution_bonus: object | None
+
+
+@dataclass(frozen=True)
+class ReversalLedgerResult:
+    reversed_transactions: tuple
+    reversal_transactions: tuple
     voided_transactions: tuple
 
 
@@ -77,6 +85,8 @@ def on_confirmation_created(confirmation):
         raise LedgerInvariantError("Un reporte validado debe tener institución definitiva.")
 
     accredited = report.validated_at is not None
+    if accredited and report.resolution_cycle < 1:
+        raise LedgerInvariantError("Un reporte validado debe tener un ciclo vigente.")
     return RewardTransaction.objects.create(
         user=confirmation.citizen,
         confirmation=confirmation,
@@ -86,6 +96,7 @@ def on_confirmation_created(confirmation):
         credit_delta=10,
         status=RewardTxStatus.ACREDITADO if accredited else RewardTxStatus.PENDIENTE,
         credited_at=confirmation.created_at if accredited else None,
+        resolution_cycle=report.resolution_cycle if accredited else None,
     )
 
 
@@ -96,6 +107,9 @@ def on_report_validated(report, institution, actor, operation_at):
 
     if operation_at is None:
         raise LedgerInvariantError("La acreditación exige un instante de operación.")
+    cycle = report.resolution_cycle + 1
+    if cycle < 1:
+        raise LedgerInvariantError("La validación debe iniciar un ciclo positivo.")
 
     transactions = tuple(
         _participation_transactions(report)
@@ -107,7 +121,7 @@ def on_report_validated(report, institution, actor, operation_at):
         reward for reward in transactions if reward.event_type == RewardEventType.REPORT_CREATED
     )
 
-    if report.citizen_id is not None:
+    if report.citizen_id is not None and cycle == 1:
         if len(report_created) != 1:
             raise LedgerInvariantError(
                 "Un reporte con autor debe tener un REPORT_CREATED pendiente único."
@@ -120,7 +134,11 @@ def on_report_validated(report, institution, actor, operation_at):
         ):
             raise LedgerInvariantError("El REPORT_CREATED no coincide con el autor o su valor.")
     elif report_created:
-        raise LedgerInvariantError("Un reporte sin autor no puede tener REPORT_CREATED pendiente.")
+        if report.citizen_id is None:
+            raise LedgerInvariantError(
+                "Un reporte sin autor no puede tener REPORT_CREATED pendiente."
+            )
+        raise LedgerInvariantError("Una revalidación no reactiva REPORT_CREATED histórico.")
 
     for reward in transactions:
         _validate_participation_transaction(reward)
@@ -128,15 +146,24 @@ def on_report_validated(report, institution, actor, operation_at):
     if RewardTransaction.objects.filter(
         report=report,
         event_type=RewardEventType.VALIDATION_BONUS,
-        status=RewardTxStatus.ACREDITADO,
+        resolution_cycle=cycle,
     ).exists():
-        raise LedgerInvariantError("El reporte ya tiene un VALIDATION_BONUS acreditado.")
+        raise LedgerInvariantError("El ciclo ya tiene un VALIDATION_BONUS.")
 
     for reward in transactions:
         reward.status = RewardTxStatus.ACREDITADO
         reward.institution = institution
         reward.credited_at = operation_at
-        reward.save(update_fields=["status", "institution", "credited_at", "updated_at"])
+        reward.resolution_cycle = cycle
+        reward.save(
+            update_fields=[
+                "status",
+                "institution",
+                "credited_at",
+                "resolution_cycle",
+                "updated_at",
+            ]
+        )
 
     bonus = None
     if report.citizen_id is not None:
@@ -149,6 +176,7 @@ def on_report_validated(report, institution, actor, operation_at):
             credit_delta=30,
             status=RewardTxStatus.ACREDITADO,
             credited_at=operation_at,
+            resolution_cycle=cycle,
         )
 
     return ValidationLedgerResult(
@@ -215,10 +243,86 @@ def _validate_participation_transaction(reward) -> None:
 
 
 def on_report_resolved(report, actor):
-    """Inserta `RESOLUTION_BONUS` (+50/+50, `ACREDITADO`) para el autor. Sprint 10."""
-    raise NotImplementedError(_PENDIENTE_DE_SPRINT.format(sprint="Sprint 10"))
+    """Inserta una sola vez el bonus de resolución del ciclo vigente."""
+    from apps.rewards_app.enums import RewardEventType, RewardTxStatus
+    from apps.rewards_app.models import RewardTransaction
+
+    if report.resolution_cycle < 1 or report.institution_id is None:
+        raise LedgerInvariantError("La resolución exige ciclo e institución vigentes.")
+    existing = RewardTransaction.objects.filter(
+        report=report,
+        event_type=RewardEventType.RESOLUTION_BONUS,
+        resolution_cycle=report.resolution_cycle,
+    ).first()
+    if existing is not None:
+        raise LedgerInvariantError("El ciclo ya tiene un RESOLUTION_BONUS.")
+
+    bonus = None
+    if report.citizen_id is not None:
+        bonus = RewardTransaction.objects.create(
+            user=report.citizen,
+            report=report,
+            institution=report.institution,
+            event_type=RewardEventType.RESOLUTION_BONUS,
+            impact_delta=50,
+            credit_delta=50,
+            status=RewardTxStatus.ACREDITADO,
+            credited_at=timezone.now(),
+            resolution_cycle=report.resolution_cycle,
+        )
+    return ResolutionLedgerResult(resolution_bonus=bonus)
 
 
 def revert_validation(report, actor, reason):
-    """Revierte una validación acreditada dejando rastro completo. Sprint 10."""
-    raise NotImplementedError(_PENDIENTE_DE_SPRINT.format(sprint="Sprint 10"))
+    """Revierte efectos del ciclo sin borrar ni modificar deltas históricos."""
+    from apps.rewards_app.enums import RewardEventType, RewardTxStatus
+    from apps.rewards_app.models import RewardTransaction
+
+    if report.resolution_cycle < 1:
+        raise LedgerInvariantError("La reversión exige un ciclo validado.")
+    operation_at = timezone.now()
+    related = tuple(
+        RewardTransaction.objects.select_for_update(of=("self",))
+        .filter(
+            Q(report=report) | Q(confirmation__report=report),
+            resolution_cycle=report.resolution_cycle,
+        )
+        .exclude(event_type__in=[RewardEventType.REDEMPTION, RewardEventType.REVERSAL])
+        .order_by("created_at", "id")
+    )
+    reversed_transactions = tuple(
+        reward for reward in related if reward.status == RewardTxStatus.ACREDITADO
+    )
+    voided_transactions = tuple(
+        reward for reward in related if reward.status == RewardTxStatus.PENDIENTE
+    )
+    reversals = []
+    for reward in reversed_transactions:
+        reward.status = RewardTxStatus.REVERTIDO
+        reward.reversed_at = operation_at
+        reward.save(update_fields=["status", "reversed_at", "updated_at"])
+        reversals.append(
+            RewardTransaction.objects.create(
+                user=reward.user,
+                report=report,
+                institution=reward.institution,
+                event_type=RewardEventType.REVERSAL,
+                impact_delta=-reward.impact_delta,
+                credit_delta=-reward.credit_delta,
+                status=RewardTxStatus.REVERTIDO,
+                related_transaction=reward,
+                reversed_at=operation_at,
+                resolution_cycle=report.resolution_cycle,
+            )
+        )
+
+    for reward in voided_transactions:
+        reward.status = RewardTxStatus.ANULADO
+        reward.voided_at = operation_at
+        reward.save(update_fields=["status", "voided_at", "updated_at"])
+
+    return ReversalLedgerResult(
+        reversed_transactions=reversed_transactions,
+        reversal_transactions=tuple(reversals),
+        voided_transactions=voided_transactions,
+    )

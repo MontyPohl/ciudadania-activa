@@ -66,6 +66,7 @@ def test_validate_aplica_reporte_historial_ledger_y_auditoria_exactos(
     assert report.validated_by == operator_user
     assert report.institution == institution
     assert report.validated_at is not None
+    assert report.resolution_cycle == 1
     assert (created.impact_delta, created.credit_delta) == (20, 20)
     assert created.status == RewardTxStatus.ACREDITADO
     assert created.institution == institution
@@ -76,16 +77,19 @@ def test_validate_aplica_reporte_historial_ledger_y_auditoria_exactos(
     assert bonus.report == report
     assert bonus.institution == institution
     assert bonus.credited_at == report.validated_at
+    assert bonus.resolution_cycle == 1
     assert (history.previous_status, history.new_status) == (
         source_status,
         ReportStatus.ASIGNADO,
     )
     assert history.changed_by == operator_user
     assert history.reason == ""
+    assert history.resolution_cycle == 1
     assert entry.actor_user == operator_user
     assert entry.payload == {
         "report_id": str(report.pk),
         "institution_id": str(institution.pk),
+        "cycle": 1,
         "credited_transaction_ids": [str(created.pk)],
         "validation_bonus_transaction_id": str(bonus.pk),
     }
@@ -147,6 +151,58 @@ def test_validate_repetido_prioriza_already_validated(
     assert ReportStatusHistory.objects.count() == 1
     assert RewardTransaction.objects.count() == 2
     assert AuditLog.objects.filter(action="report.validated").count() == 1
+
+
+def test_revalidacion_incrementa_exactamente_un_ciclo(
+    report,
+    operator_user,
+    institution,
+):
+    report.status = ReportStatus.ASIGNADO
+    report.institution = institution
+    report.validated_at = timezone.now()
+    report.resolution_cycle = 1
+    report.save(
+        update_fields=[
+            "status",
+            "institution",
+            "validated_at",
+            "resolution_cycle",
+            "updated_at",
+        ]
+    )
+    report.status = ReportStatus.CLASIFICADO
+    report.validated_at = None
+    report.validated_by = None
+    report.save(update_fields=["status", "validated_at", "validated_by", "updated_at"])
+    previous_bonus = RewardTransaction.objects.create(
+        user=report.citizen,
+        report=report,
+        institution=institution,
+        event_type=RewardEventType.VALIDATION_BONUS,
+        impact_delta=30,
+        credit_delta=30,
+        status=RewardTxStatus.REVERTIDO,
+        credited_at=timezone.now(),
+        reversed_at=timezone.now(),
+        resolution_cycle=1,
+    )
+
+    validation.validate_report(
+        report_id=report.pk,
+        operator=operator_user,
+        institution=institution,
+    )
+
+    report.refresh_from_db()
+    current_bonus = RewardTransaction.objects.exclude(pk=previous_bonus.pk).get(
+        event_type=RewardEventType.VALIDATION_BONUS
+    )
+    assert report.resolution_cycle == 2
+    assert current_bonus.resolution_cycle == 2
+    assert list(
+        ReportStatusHistory.objects.values_list("resolution_cycle", flat=True)
+    ) == [2]
 
 
 @pytest.mark.parametrize("source_status", [ReportStatus.CREADO, ReportStatus.CLASIFICADO])
