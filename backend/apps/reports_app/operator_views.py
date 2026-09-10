@@ -1,5 +1,6 @@
-"""Consulta y decisiones institucionales de reportes de Sprint 9."""
+"""Consulta y decisiones institucionales de reportes de Sprints 9 y 10."""
 
+import uuid
 from collections.abc import Mapping
 
 from django.contrib.auth import get_user_model
@@ -25,6 +26,8 @@ from apps.reports_app.operator_serializers import (
     OperatorReportListQuerySerializer,
     OperatorReportListSerializer,
     OperatorValidateInputSerializer,
+    ResolutionEvidenceInputSerializer,
+    ResolutionEvidenceOutputSerializer,
 )
 from apps.reports_app.selectors import (
     attach_operator_historical_human_review,
@@ -32,6 +35,7 @@ from apps.reports_app.selectors import (
     operator_report_list,
     operator_reports_for_institution,
 )
+from apps.reports_app.services import resolution_evidence as evidence_service
 from apps.reports_app.services import validation
 
 INSTITUTION_CONTEXT_FORBIDDEN = "No tenés acceso al contexto institucional solicitado."
@@ -42,6 +46,7 @@ REPORT_PHOTO_UNAVAILABLE = "No se pudo obtener la fotografía en este momento."
 REPORT_NOT_FOUND = "No se encontró el reporte solicitado."
 INSTITUTION_OPERATOR_REQUIRED = "Se requiere ser operador de la institución solicitada."
 INVALID_REJECTION_REASON = "El motivo de rechazo no pertenece al catálogo permitido."
+EVIDENCE_UNAVAILABLE = "No se pudo completar la operación de evidencia en este momento."
 
 
 class _OperatorInstitutionContextMixin:
@@ -260,6 +265,102 @@ class OperatorReportRejectView(_OperatorReportActionView):
         )
 
 
+class OperatorReportEvidenceView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def _params(self):
+        serializer = OperatorReportActionQuerySerializer(data=self.request.query_params)
+        serializer.is_valid(raise_exception=True)
+        return serializer.validated_data
+
+    def handle_exception(self, exc):
+        return self._private(super().handle_exception(exc))
+
+    @staticmethod
+    def _private(response):
+        response["Cache-Control"] = "private, no-store"
+        return response
+
+    def get(self, request, report_id):
+        institution_id = self._params()["institution_id"]
+        try:
+            institution = _resolve_operator_institution(
+                operator=request.user,
+                requested_id=institution_id,
+            )
+            report = Report.objects.get(pk=report_id, institution=institution)
+            evidences = report.resolution_evidences.order_by("-created_at", "-id")
+            response = Response(ResolutionEvidenceOutputSerializer(evidences, many=True).data)
+        except Report.DoesNotExist:
+            raise NotFound({"detail": REPORT_NOT_FOUND, "code": "REPORT_NOT_FOUND"}) from None
+        except storage.StorageError:
+            response = Response(
+                {"detail": EVIDENCE_UNAVAILABLE, "code": "STORAGE_UNAVAILABLE"},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        return self._private(response)
+
+    def post(self, request, report_id):
+        params = self._params()
+        serializer = ResolutionEvidenceInputSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            result = evidence_service.create_resolution_evidence(
+                report_id=report_id,
+                operator_id=request.user.pk,
+                institution_id=params["institution_id"],
+                expected_cycle=serializer.validated_data["cycle"],
+                idempotency_key=_idempotency_key(request),
+                description=serializer.validated_data["description"],
+                uploaded_file=serializer.validated_data["file"],
+            )
+            response = Response(
+                ResolutionEvidenceOutputSerializer(result.evidence).data,
+                status=(status.HTTP_201_CREATED if result.created else status.HTTP_200_OK),
+            )
+        except evidence_service.EvidenceOperatorRequired:
+            response = Response(
+                {"detail": INSTITUTION_OPERATOR_REQUIRED, "code": "INSTITUTION_OPERATOR_REQUIRED"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        except evidence_service.EvidenceNotFound:
+            response = Response(
+                {"detail": REPORT_NOT_FOUND, "code": "REPORT_NOT_FOUND"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        except (
+            evidence_service.EvidenceStateConflict,
+            evidence_service.StaleEvidenceCycle,
+            evidence_service.EvidenceLimitReached,
+            evidence_service.IdempotencyKeyReused,
+        ) as exc:
+            response = Response(
+                {"detail": str(exc) or exc.code, "code": exc.code},
+                status=status.HTTP_409_CONFLICT,
+            )
+        except evidence_service.InvalidEvidenceDescription as exc:
+            response = Response(
+                {"detail": str(exc), "code": exc.code},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except evidence_service.EvidenceTooLarge as exc:
+            response = Response(
+                {"detail": str(exc), "code": exc.code},
+                status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            )
+        except evidence_service.UnsupportedEvidenceType as exc:
+            response = Response(
+                {"detail": str(exc), "code": exc.code},
+                status=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            )
+        except storage.StorageError:
+            response = Response(
+                {"detail": EVIDENCE_UNAVAILABLE, "code": "STORAGE_UNAVAILABLE"},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        return self._private(response)
+
+
 def _resolve_operator_institution(*, operator, requested_id):
     memberships = list(
         InstitutionOperator.objects.filter(user=operator, active=True)
@@ -278,3 +379,13 @@ def _resolve_operator_institution(*, operator, requested_id):
     if len(memberships) > 1:
         raise ValidationError({"institution_id": [INSTITUTION_CONTEXT_REQUIRED]})
     raise PermissionDenied(INSTITUTION_CONTEXT_FORBIDDEN)
+
+
+def _idempotency_key(request):
+    raw = request.headers.get("Idempotency-Key", "")
+    try:
+        return uuid.UUID(raw)
+    except (TypeError, ValueError, AttributeError):
+        raise ValidationError(
+            {"detail": "Idempotency-Key debe ser un UUID.", "code": "INVALID_REQUEST"}
+        ) from None

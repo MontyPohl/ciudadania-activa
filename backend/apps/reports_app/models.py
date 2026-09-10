@@ -211,6 +211,8 @@ class ResolutionEvidence(BaseModel):
         related_name="uploaded_evidences",
     )
     resolution_cycle = models.PositiveIntegerField()
+    idempotency_key = models.UUIDField()
+    content_hash = models.CharField(max_length=64)
 
     class Meta:
         db_table = "resolution_evidences"
@@ -219,6 +221,10 @@ class ResolutionEvidence(BaseModel):
             models.CheckConstraint(
                 condition=models.Q(resolution_cycle__gte=1),
                 name="resolution_evidence_cycle_positive",
+            ),
+            models.UniqueConstraint(
+                fields=["report", "resolution_cycle", "idempotency_key"],
+                name="resolution_evidence_idempotency_unique",
             ),
         ]
 

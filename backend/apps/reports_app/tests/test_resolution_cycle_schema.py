@@ -1,3 +1,5 @@
+import uuid
+
 import pytest
 from django.db import DatabaseError, IntegrityError, connection, transaction
 
@@ -24,6 +26,8 @@ def test_resolution_evidence_requires_positive_cycle(report, operator_user):
             evidence_url="resolution-evidence/invalid.jpg",
             uploaded_by=operator_user,
             resolution_cycle=0,
+            idempotency_key=uuid.uuid4(),
+            content_hash="a" * 64,
         )
 
 

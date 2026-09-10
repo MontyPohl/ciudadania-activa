@@ -1,3 +1,5 @@
+import uuid
+
 import pytest
 from django.contrib.gis.geos import Point
 from django.db import IntegrityError, transaction
@@ -172,6 +174,8 @@ def test_evidencia_de_resolucion(report):
         description="Bache reparado.",
         evidence_url="https://example.test/e.jpg",
         resolution_cycle=1,
+        idempotency_key=uuid.uuid4(),
+        content_hash="a" * 64,
     )
 
     assert str(evidencia) == f"Evidencia de {report.pk}"

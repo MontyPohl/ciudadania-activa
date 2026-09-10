@@ -27,6 +27,31 @@ class OperatorRejectInputSerializer(StrictInputMixin, serializers.Serializer):
     reason = serializers.ChoiceField(choices=RejectionReason.values)
 
 
+class ResolutionEvidenceInputSerializer(StrictInputMixin, serializers.Serializer):
+    file = serializers.FileField(allow_empty_file=False)
+    description = serializers.CharField(trim_whitespace=False, allow_blank=True)
+    cycle = serializers.IntegerField(min_value=1)
+
+
+class ResolutionEvidenceOutputSerializer(serializers.Serializer):
+    id = serializers.UUIDField(read_only=True)
+    cycle = serializers.IntegerField(source="resolution_cycle", read_only=True)
+    description = serializers.CharField(read_only=True)
+    created_at = serializers.DateTimeField(read_only=True)
+    signed_url = serializers.SerializerMethodField()
+    expires_in = serializers.SerializerMethodField()
+
+    def get_signed_url(self, evidence):
+        return storage.create_signed_url(
+            storage.reports_bucket(),
+            evidence.evidence_url,
+            expires_in=OPERATOR_REPORT_PHOTO_SIGNED_URL_TTL_SECONDS,
+        )
+
+    def get_expires_in(self, evidence):
+        return OPERATOR_REPORT_PHOTO_SIGNED_URL_TTL_SECONDS
+
+
 class OperatorReportListQuerySerializer(OperatorReportContextQuerySerializer):
     status = serializers.ChoiceField(choices=OPERABLE_REPORT_STATUSES, required=False)
     priority = serializers.ChoiceField(choices=ReportPriority.values, required=False)

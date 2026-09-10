@@ -1,3 +1,5 @@
+import uuid
+
 import pytest
 from django.contrib.gis.geos import Point
 from django.db.models import ProtectedError
@@ -51,6 +53,8 @@ def test_borrar_el_reporte_arrastra_su_material_asociado(report, other_citizen):
         description="d",
         evidence_url="u",
         resolution_cycle=1,
+        idempotency_key=uuid.uuid4(),
+        content_hash="a" * 64,
     )
     ReportConfirmation.objects.create(report=report, citizen=other_citizen)
 
