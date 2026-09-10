@@ -244,11 +244,19 @@ def _validate_participation_transaction(reward) -> None:
 
 def on_report_resolved(report, actor):
     """Inserta una sola vez el bonus de resolución del ciclo vigente."""
+    from apps.core.enums import ReportStatus
     from apps.rewards_app.enums import RewardEventType, RewardTxStatus
     from apps.rewards_app.models import RewardTransaction
 
-    if report.resolution_cycle < 1 or report.institution_id is None:
-        raise LedgerInvariantError("La resolución exige ciclo e institución vigentes.")
+    if (
+        report.status != ReportStatus.EN_PROCESO
+        or report.validated_at is None
+        or report.resolution_cycle < 1
+        or report.institution_id is None
+    ):
+        raise LedgerInvariantError(
+            "La resolución exige EN_PROCESO, validación, ciclo e institución vigentes."
+        )
     existing = RewardTransaction.objects.filter(
         report=report,
         event_type=RewardEventType.RESOLUTION_BONUS,
@@ -283,18 +291,22 @@ def revert_validation(report, actor, reason):
     operation_at = timezone.now()
     related = tuple(
         RewardTransaction.objects.select_for_update(of=("self",))
-        .filter(
-            Q(report=report) | Q(confirmation__report=report),
-            resolution_cycle=report.resolution_cycle,
-        )
+        .filter(Q(report=report) | Q(confirmation__report=report))
         .exclude(event_type__in=[RewardEventType.REDEMPTION, RewardEventType.REVERSAL])
         .order_by("created_at", "id")
     )
     reversed_transactions = tuple(
-        reward for reward in related if reward.status == RewardTxStatus.ACREDITADO
+        reward
+        for reward in related
+        if reward.status == RewardTxStatus.ACREDITADO
+        and reward.resolution_cycle == report.resolution_cycle
     )
     voided_transactions = tuple(
-        reward for reward in related if reward.status == RewardTxStatus.PENDIENTE
+        reward
+        for reward in related
+        if reward.status == RewardTxStatus.PENDIENTE
+        and reward.event_type
+        in {RewardEventType.REPORT_CREATED, RewardEventType.CONFIRMATION_CREATED}
     )
     reversals = []
     for reward in reversed_transactions:
