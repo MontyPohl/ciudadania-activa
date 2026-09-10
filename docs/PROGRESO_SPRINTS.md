@@ -2,7 +2,7 @@
 
 Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes de iniciar el siguiente.
 
-- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 **completado** (inicio el 22/08/2026, cierre el 23/08/2026: verificación de identidad con HMAC y almacenamiento privado, revisión administrativa manual con cotejo de la cédula, notificaciones asíncronas entregadas por la API HTTPS de Brevo y privacidad configurable del ranking, todo verificado en producción con una identidad real). Sprint 5 **completado** el 27/08/2026: S5-A, S5-B y S5-C están cerradas, integradas y validadas. Sprint 6 **completado** el 28/08/2026: S6-A y S6-B están cerrados. Sprint 7 **completado** el 29/08/2026: S7-A, S7-B y S7-C están integrados en `main`, y S7-D quedó probado en producción y cerrado con evidencia funcional y de base de datos en modo solo lectura. Sprint 8 continúa **en curso**. Sprint 9 tiene S9-A, S9-B1 y S9-B2 integrados; el cierre documental S9-B3 tiene implementación completa en el PR #38, todavía `OPEN / NO MERGED` y pendiente de integración.
+- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 **completado** (inicio el 22/08/2026, cierre el 23/08/2026: verificación de identidad con HMAC y almacenamiento privado, revisión administrativa manual con cotejo de la cédula, notificaciones asíncronas entregadas por la API HTTPS de Brevo y privacidad configurable del ranking, todo verificado en producción con una identidad real). Sprint 5 **completado** el 27/08/2026: S5-A, S5-B y S5-C están cerradas, integradas y validadas. Sprint 6 **completado** el 28/08/2026: S6-A y S6-B están cerrados. Sprint 7 **completado** el 29/08/2026: S7-A, S7-B y S7-C están integrados en `main`, y S7-D quedó probado en producción y cerrado con evidencia funcional y de base de datos en modo solo lectura. Sprint 8 continúa **en curso**. Sprint 9 quedó **completado** el 09/09/2026: S9-A, S9-B1, S9-B2 y el cierre documental S9-B3 están integrados en `main`; PR #38 fue mergeado mediante `7e95856c1b494d562ce1c267c06d5bebaec28cc8`. En Sprint 10, el Decision Gate está resuelto y ADR-0013 está `ACCEPTED`; el Implementation Preflight concluyó `READY_WITH_BLOCKERS`, pero la implementación no comenzó ni está autorizada.
 - **Plan de referencia:** [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md)
 - **Ventana de desarrollo:** 01/08/2026 → 15/11/2026 (16 sprints semanales, Anexo F revisado)
 - **Estados posibles:** `Pendiente` · `En curso` · `Completado` · `Completado con observaciones` · `Bloqueado`
@@ -21,8 +21,8 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 | 6 | 05/09 – 11/09 | Creación de reportes y duplicados | Completado |
 | 7 | 12/09 – 18/09 | Panel ciudadano y confirmaciones | Completado |
 | 8 | 19/09 – 25/09 | Clasificación asistida por IA | En curso |
-| 9 | 26/09 – 02/10 | Panel institucional y validación | En curso — cierre S9-B3 pendiente de merge |
-| 10 | 03/10 – 09/10 | Estados, evidencias, auditoría y reversión | Pendiente |
+| 9 | 26/09 – 02/10 | Panel institucional y validación | Completado |
+| 10 | 03/10 – 09/10 | Estados, evidencias, auditoría y reversión | Decision Gate resuelto — implementación no iniciada |
 | 11 | 10/10 – 16/10 | Créditos, ranking del mes en curso y privacidad | Pendiente |
 | 12 | 17/10 – 23/10 | Catálogo de recompensas y canje simulado | Pendiente |
 | 13 | 24/10 – 30/10 | Dashboards, integración e ingesta social | Pendiente |
@@ -30,7 +30,7 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 | 15 | 07/11 – 13/11 | Carga, dataset definitivo y documentación | Pendiente |
 | 16 | 14/11 – 15/11 | Cierre y preparación de la defensa | Pendiente |
 
-**Progreso:** 7 / 16 sprints completados (Sprints 1, 2 y 3 cerrados el 20/08/2026; Sprint 4 el 23/08/2026; Sprint 5 el 27/08/2026; Sprint 6 el 28/08/2026; Sprint 7 el 29/08/2026). La ejecución real arrastra el desvío de calendario registrado en CT-29. Sprint 8 continúa **en curso**: R2 permanece prerregistrado/no ejecutado y CA-4 no demostrado. Sprint 9 tiene su implementación completa, pero su cierre documental S9-B3 todavía debe integrarse mediante el PR #38; esto no altera S8 ni inicia S11–S13.
+**Progreso:** 8 / 16 sprints completados (Sprints 1, 2 y 3 cerrados el 20/08/2026; Sprint 4 el 23/08/2026; Sprint 5 el 27/08/2026; Sprint 6 el 28/08/2026; Sprint 7 el 29/08/2026; Sprint 9 el 09/09/2026). La ejecución real arrastra el desvío de calendario registrado en CT-29. Sprint 8 continúa **en curso**: R2 permanece prerregistrado/no ejecutado y CA-4 no demostrado. El cierre de Sprint 9 no inicia S11–S13.
 
 ### Decisiones que condicionan el avance
 
@@ -1381,8 +1381,8 @@ antes de cerrarlo.
 ## Sprint 9 — Panel institucional y validación
 
 **Fechas planificadas:** 26/09/2026 – 02/10/2026
-**Estado:** Implementación completa — S9-A, S9-B1 y S9-B2 integrados; S9-B3 en PR #38, pendiente de merge
-**Fecha real de cierre:** Pendiente de integración del PR #38
+**Estado:** Completado — S9-A, S9-B1, S9-B2 y S9-B3 integrados
+**Fecha real de cierre:** 09/09/2026
 
 ### Funcionalidades terminadas
 
@@ -1397,7 +1397,7 @@ antes de cerrarlo.
   linealizable frente a revocación, bandeja limitada server-side a estados operables y paginación
   frontend aislada por institución. Incluye pruebas backend, frontend y dos recorridos E2E
   sintéticos.
-- **S9-B3 (implementado, pendiente de integración):** el PR #38 concilia el estado integrado de
+- **S9-B3 (integrado mediante PR #38):** concilia el estado integrado de
   S9-A, S9-B1 y S9-B2, la trazabilidad entre contrato, API, ledger y pruebas, y delimita
   explícitamente las capacidades posteriores. No añade endpoints, modelos, migraciones ni
   comportamiento funcional.
@@ -1440,11 +1440,12 @@ antes de cerrarlo.
   de trazabilidad histórica, sin cambios funcionales; y
   `c99e769b6a72833301d7dbd142fa8a5bd47f5ada` resuelve D-07 en `docs/DICCIONARIO_DATOS.md`,
   documentando `justification`, `model_name` y la migración `0002` como implementados. La cadena
-  histórica previa al `HEAD` actual es
-  `main@4ecf5023 → da2eb298 → 2088587 → 41babc6 → 4472e45 → f87ae07 → c99e769b`. El `HEAD`
-  remoto debe verificarse en GitHub y su SHA no se autoconsigna. El PR #38 permanece
-  `OPEN / NO MERGED`, y ninguno de sus commits intermedios representa por sí solo el estado
-  completo de la rama.
+  histórica de la rama fue
+  `main@4ecf5023 → da2eb298 → 2088587 → 41babc6 → 4472e45 → f87ae07 → c99e769b → a089d3b`.
+  El PR #38 fue mergeado en `main` mediante
+  `7e95856c1b494d562ce1c267c06d5bebaec28cc8`; ninguno de sus commits intermedios representa por
+  sí solo el estado completo de la rama. Después del merge, `main` avanzó mediante los commits
+  administrativos autorizados `f0e8ce1` y `730d69e`, ajenos al alcance de S9.
 
 ### Observaciones y desvíos respecto del plan
 
@@ -1462,23 +1463,50 @@ antes de cerrarlo.
 ## Sprint 10 — Estados, evidencias, auditoría y reversión
 
 **Fechas planificadas:** 03/10/2026 – 09/10/2026
-**Estado:** Pendiente
-**Fecha real de cierre:** —
+**Estado:** Decision Gate resuelto — ADR-0013 `ACCEPTED`; implementación no iniciada ni autorizada
+**Fecha real de cierre:** — (Sprint 10 no cerrado)
 
 ### Funcionalidades terminadas
-_Pendiente._
+
+Ninguna funcionalidad de S10 fue implementada. La aceptación de ADR-0013 cerró exclusivamente el
+contrato normativo: estados, ciclos, evidencia, cierre, reversión, concurrencia, auditoría y ledger
+quedaron especificados, pero todavía no existen como implementación S10.
 
 ### Pruebas realizadas
-_Pendiente._
+
+Se ejecutó el Implementation Preflight documental y técnico, con resultado
+`READY_WITH_BLOCKERS`. No se ejecutaron migraciones, backfill ni pruebas funcionales de S10, y no
+se modificó ninguna base de datos.
 
 ### Problemas encontrados
-_Pendiente._
+
+Antes de autorizar la implementación deben resolverse dos blockers:
+
+1. consolidar, versionar e integrar este baseline documental;
+2. auditar en modo solo lectura la base de datos persistente para determinar si existen datos
+   históricos o sintéticos ambiguos antes de diseñar o aplicar cualquier backfill.
+
+La auditoría de datos permanece pendiente; por tanto, no se presenta como completado ningún
+backfill ni diseño/aplicación de migraciones.
 
 ### Commits relevantes
-_Pendiente._
+
+Ningún commit de implementación S10. ADR-0013 y esta consolidación pertenecen al baseline
+documental pendiente de versionado e integración.
 
 ### Observaciones y desvíos respecto del plan
-_Pendiente. Incorpora la decisión D-01 (reversión siempre ejecutable; el saldo es la diferencia entre créditos válidos y consumidos y puede resultar negativa) y las correcciones C-01 (anulación de pendientes que siguieran sin acreditar) y C-08 (redacción del saldo y del criterio de reversión)._
+
+ADR-0013 define que una reversión administrativa desde `ASIGNADO`, `EN_PROCESO`, `RESUELTO` o
+`CERRADO` devuelve el reporte a `CLASIFICADO`. La operación conserva la evidencia y el historial,
+limpia las proyecciones vigentes y no incrementa `resolution_cycle`; una validación posterior inicia
+un ciclo nuevo y la evidencia de resolución pertenece a su ciclo. Esta es una decisión normativa
+aprobada, no comportamiento funcional existente.
+
+También incorpora D-01 —la reversión siempre se ejecuta y el saldo, definido como la diferencia
+entre créditos válidos y consumidos, puede resultar negativo—, C-01 —anulación de pendientes que
+siguieran sin acreditar— y C-08 —redacción del saldo y criterio de reversión—. El autocierre a las
+72 horas transcurridas desde `resolved_at`, las APIs, la evidencia privada y los efectos de ledger
+de S10 permanecen sin implementar. S10 no envía ni depende de notificaciones.
 
 ---
 
@@ -1668,8 +1696,8 @@ Se completa a medida que las mediciones estén disponibles (Sprints 14 y 15).
 | ADR-0007 | Almacenamiento de fotografías | S6 | Aceptada — escrita e integrada el 28/08/2026; fija bucket privado, validación/normalización, hash original y compensación acotada |
 | ADR-0008 | Integración Gemini desacoplada mediante adapter de IA | S8 | Aceptada — escrita en S8-A el 29/08/2026; fija la frontera del proveedor, el fake con la misma interfaz y la prohibición del proveedor real en CI |
 | ADR-0009 | Clasificación IA asíncrona mediante Celery | S8 | Aceptada — escrita en S8-A el 29/08/2026; distingue los cinco modos de fallo y fija idempotencia, reintentos acotados y la semántica de `CLASIFICADO` |
-| ADR-0010 | Créditos por institución y conversión 1:1 | S9 | Pendiente |
+| ADR-0010 | Créditos por institución y conversión 1:1 | S9 | Aceptada — integrada mediante PR #35 |
 | ADR-0011 | Privacidad configurable del ranking | S4 | Aceptada — escrita el 22/08/2026 y ampliada con la recuperación de la preferencia (`GET` + `PATCH`); la resolución del nombre visible es del S11 |
 | ADR-0012 | Detección de duplicados por proximidad | S6 | Aceptada — escrita e integrada el 28/08/2026; warning advisory privacy-safe, radio PostGIS y ausencia explícita de IA |
-| ADR-0013 | Política de reversión, anulación y saldo negativo | S10 | Pendiente |
+| ADR-0013 | Política de reversión, revalidación y ciclos de resolución | S10 | `ACCEPTED` — decisión normativa; implementación no autorizada |
 | ADR-0014 | Modelo de usuario personalizado desde la primera migración | S1 | Aceptada |

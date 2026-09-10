@@ -7,9 +7,17 @@
 
 > **Propósito.** Este documento es la fuente de conciliación entre el texto académico y el estado técnico verificable del proyecto. No es un changelog ni reemplaza la redacción final de la tesis: indica qué conservar, qué corregir, qué agregar y qué todavía no puede presentarse como resultado.
 >
-> **Corte de auditoría actualizado:** 8 de septiembre de 2026, después del merge de S9-B2.<br>
+> **Corte de auditoría actualizado:** 10 de septiembre de 2026, después del merge de S9-B3.<br>
 > **Regla de lectura:** una funcionalidad sólo se describe como integrada cuando existe en
 > `main`. El cierre S9-B3 es exclusivamente documental: no añade endpoints ni adelanta S11–S13.
+
+**Baseline normativo de S10:** el Decision Gate está resuelto y ADR-0013 se encuentra
+`ACCEPTED`. La política aprobada fija la reversión administrativa de `ASIGNADO`, `EN_PROCESO`,
+`RESUELTO` o `CERRADO` hacia `CLASIFICADO` y adopta `resolution_cycle` monotónico. Esto no acredita
+implementación: S10 no comenzó ni está autorizado. El Implementation Preflight concluyó
+`READY_WITH_BLOCKERS`; faltan integrar este baseline documental y auditar en modo solo lectura los
+datos persistentes antes de diseñar o aplicar cualquier backfill. No se crearon ni ejecutaron
+migraciones S10, no se ejecutó un backfill y la auditoría de datos todavía está incompleta.
 
 ## Convenciones de estado
 
@@ -30,32 +38,33 @@
 | Elemento | Estado verificado |
 |---|---|
 | Repositorio local | `/home/monty/proyectos/ciudadania-activa` |
-| Rama actual | `feat/s09-b3-cierre-sprint9` |
-| Base de la rama | `4ecf502361156281cbec51764310c67f50ace449` — merge del PR #37 |
-| `origin/main` actualizado | `4ecf502361156281cbec51764310c67f50ace449` — `Merge pull request #37 from MontyPohl/feat/s09-b2-api-operador` |
+| Rama de cierre documental | `docs/s09-cierre-final-s11-preflight`, creada desde `main` sin modificar su historia |
+| Base de la rama | `730d69ede7033c3487b68f79b1828fe6f2f43180` — `main` vigente al iniciar este cierre |
+| `origin/main` actualizado | `730d69ede7033c3487b68f79b1828fe6f2f43180` — commit administrativo autorizado posterior a S9 |
 | Commit inicial de S9-B3 | `da2eb2984e2882a744c119ac9404f20d3a18cfb9` — implementación inicial y cierre documental. |
 | Commit de fixes post-review | `2088587cd32509e866fc2d1e171d1d6e1ccc556d` — corrige el estado de integración y las secuencias transaccionales; fue el `HEAD` verificado antes del ajuste final de trazabilidad. |
 | Fix final de trazabilidad | `41babc681181baf4c9ac805e3eb04edf9f8ab188` — registra la evolución acumulativa del PR; correspondía al `HEAD` al iniciar esta revisión post-review. |
 | Corrección final documental | `4472e459f8054f77fd0bff810264700f5206d284` — cierra los hallazgos de revisión y correspondía al `HEAD` al iniciar esta corrección final de trazabilidad. |
 | Corrección final de trazabilidad histórica | `f87ae07bab5675bb07b99b590ee7df8b955f2485` — incorpora `4472e459` a la historia documental; no añade cambios funcionales. |
 | Resolución de D-07 | `c99e769b6a72833301d7dbd142fa8a5bd47f5ada` — documenta `justification` y `model_name` como implementados y reconoce la migración `0002_aiclassification_justification_and_more.py` como existente. |
-| PR de S9-B3 | PR #38, `OPEN / NO MERGED`; pendiente de integración en `main`. |
+| Merge de S9-B3 | PR #38, `MERGED` mediante `7e95856c1b494d562ce1c267c06d5bebaec28cc8`. |
+| Commits posteriores ajenos a S9 | `f0e8ce1` y `730d69e`, cambios administrativos autorizados. |
 | Divergencia inicial | La rama fue creada directamente desde `origin/main`, sin divergencia inicial. |
 | Estado inicial del working tree | Limpio. |
 | PR de S9-B2 | PR #37, mergeado; Backend CI, Frontend CI, E2E y despliegues automáticos exitosos. |
 
 Los commits de integración de Sprint 9 son: S9-A mediante PR #34; S9-B1 mediante PR #35 y
-merge `a89b9efe676abfae0401e48145831383f6beaf3f`; y S9-B2 mediante PR #37 y merge
-`4ecf502361156281cbec51764310c67f50ace449`. S9-B3 documenta este cierre sin modificar código,
-pero permanece en el PR #38 y todavía no está integrado en `main`.
+merge `a89b9efe676abfae0401e48145831383f6beaf3f`; S9-B2 mediante PR #37 y merge
+`4ecf502361156281cbec51764310c67f50ace449`; y S9-B3 mediante PR #38 y merge
+`7e95856c1b494d562ce1c267c06d5bebaec28cc8`. S9-B3 documenta este cierre sin modificar código.
 
-La cadena histórica previa al `HEAD` actual de la rama es
-`main@4ecf5023 → da2eb298 → 2088587 → 41babc6 → 4472e45 → f87ae07 → c99e769b`. El `HEAD`
-actual del PR #38 debe verificarse en GitHub al revisar o integrar; no se fija aquí su SHA para
-evitar una referencia circular ni se presenta ningún commit intermedio, por sí solo, como
-representación autocontenida de toda la implementación.
+La cadena histórica integrada es
+`main@4ecf5023 → da2eb298 → 2088587 → 41babc6 → 4472e45 → f87ae07 → c99e769b → a089d3b
+→ 7e95856`. Ningún commit intermedio representa por sí solo el estado completo de la rama. Después
+del merge, `main` avanzó linealmente mediante `f0e8ce1 → 730d69e`, cambios administrativos
+autorizados y ajenos a S9.
 
-**Consecuencia académica:** S9-A, S9-B1 y S9-B2 pueden narrarse como integrados. Los estados de
+**Consecuencia académica:** S9-A, S9-B1, S9-B2 y S9-B3 pueden narrarse como integrados. Los estados de
 GitHub y de los despliegues automáticos prueban integración técnica, no adopción institucional,
 uso ciudadano real, impacto urbano ni validación de campo.
 
@@ -67,11 +76,12 @@ uso ciudadano real, impacto urbano ni validación de campo.
 | S8-E2-R1 | **ABORTED / sin resultado recuperable** | Sólo llegó al primer lote por cuota y no dejó evidencia apta para resultado académico. Fuente: `docs/PROGRESO_SPRINTS.md`. |
 | S8-E2-R2 | 🧪 **PREREGISTERED / NOT_EXECUTED** | El protocolo está integrado en `main` por `d18b77a`, pero no fue ejecutado. Fuente: `backend/apps/ai_client_app/evaluation/recovery.py`, `evaluation/README.md` y documentación de Sprint 8. |
 | CA-4 | ⚠️ **NOT_DEMONSTRATED** | No existe ejecución canónica que demuestre el criterio de aceptación del proveedor. |
-| Sprint 9 | 🟡 **IMPLEMENTACIÓN COMPLETA / CIERRE PENDIENTE DE MERGE** | S9-A, S9-B1 y S9-B2 están integrados; S9-B3 fija el cierre documental en el PR #38 todavía abierto. |
+| Sprint 9 | ✅ **COMPLETADO E INTEGRADO** | S9-A, S9-B1, S9-B2 y S9-B3 están integrados; PR #38 fue mergeado mediante `7e95856c`. |
 | S9-A | ✅ **COMPLETADO E INTEGRADO** | PR #34: lectura institucional, contexto multiinstitución y tenancy efectivo. |
 | S9-B1 | ✅ **COMPLETADO E INTEGRADO** | PR #35 / merge `a89b9efe`: dominio transaccional de validación/rechazo y ledger. |
 | S9-B2 | ✅ **COMPLETADO E INTEGRADO** | PR #37 / merge `4ecf5023`: API, autorización linealizable, panel institucional y E2E. |
-| S9-B3 | 🟡 **IMPLEMENTADO / NO INTEGRADO** | PR #38 `OPEN / NO MERGED`: trazabilidad de S9 y diferimiento explícito de créditos visibles, ranking, recompensas, dashboards, ingesta y notificaciones completas. |
+| S9-B3 | ✅ **COMPLETADO E INTEGRADO** | PR #38 / merge `7e95856c`: trazabilidad de S9 y diferimiento explícito de créditos visibles, ranking, recompensas, dashboards, ingesta y notificaciones completas. |
+| Sprint 10 | 📋 **DECISION GATE RESUELTO / IMPLEMENTACIÓN NO INICIADA** | ADR-0013 `ACCEPTED`; Implementation Preflight `READY_WITH_BLOCKERS`. El baseline aún debe integrarse y la auditoría persistente previa al backfill sigue pendiente. |
 
 Este cierre actualiza en conjunto `PROGRESO_SPRINTS.md`, `API.md` y `DICCIONARIO_DATOS.md` para
 que la frontera de Sprint 9 no se confunda con funcionalidades planificadas para S11–S13.
@@ -87,7 +97,7 @@ Se localizaron y pudieron leerse razonablemente los cuatro documentos académico
 | `docs/Matriz_Modificaciones_Ciudadania_Activa.docx` | Matriz de cambios académicos. | Texto extraído y contrastado. |
 | `docs/Cronograma_Ciudadania_Activa_Anexo_F.docx` | Cronograma académico. | Texto extraído y contrastado. |
 
-También se revisaron `README.md`, `docs/PLAN_DESARROLLO.md`, `docs/PROGRESO_SPRINTS.md`, `docs/BACKLOG.md`, `docs/CAMBIOS_TESIS_PENDIENTES.md`, `docs/DICCIONARIO_DATOS.md`, `docs/API.md`, `docs/AI_CLASSIFICATION_CONTRACT.md`, `docs/decisiones-incentivos.md`, los 14 archivos presentes en `docs/adr/`, modelos, migraciones, servicios, vistas, permisos, configuración, workflows y pruebas. El corpus previo a este entregable contiene 411 archivos visibles mediante `rg --files`; hay 13 migraciones de aplicación. No se encontraron fuentes gráficas independientes Mermaid/Draw.io bajo `docs/`, pero el DOCX revisado **sí incorpora 13 PNG internos**: un logotipo, ocho diagramas técnicos y cuatro wireframes. Se inspeccionaron; varios contienen componentes o capacidades futuras (PostgreSQL 15, Beat, FCM, ranking/canje/resolución), por lo que son activos reales pero desactualizados, no meros marcadores.
+También se revisaron `README.md`, `docs/PLAN_DESARROLLO.md`, `docs/PROGRESO_SPRINTS.md`, `docs/BACKLOG.md`, `docs/CAMBIOS_TESIS_PENDIENTES.md`, `docs/DICCIONARIO_DATOS.md`, `docs/API.md`, `docs/AI_CLASSIFICATION_CONTRACT.md`, `docs/decisiones-incentivos.md`, los 15 archivos presentes en `docs/adr/`, modelos, migraciones, servicios, vistas, permisos, configuración, workflows y pruebas. El corpus de este baseline contiene 425 archivos visibles mediante `rg --files`; hay 13 migraciones de aplicación. No se encontraron fuentes gráficas independientes Mermaid/Draw.io bajo `docs/`, pero el DOCX revisado **sí incorpora 13 PNG internos**: un logotipo, ocho diagramas técnicos y cuatro wireframes. Se inspeccionaron; varios contienen componentes o capacidades futuras (PostgreSQL 15, Beat, FCM, ranking/canje/resolución), por lo que son activos reales pero desactualizados, no meros marcadores.
 
 ### 1.4 Jerarquía de fuentes aplicada
 
@@ -113,7 +123,7 @@ de la primera fotografía. S9-B2 añadió la bandeja y el detalle frontend. Fuen
 auditoría, ledger y bloqueos. S9-B2 publicó las rutas HTTP, revalidó rol y membresía dentro de la
 misma transacción y añadió la interfaz de operador. Fuentes: `services/validation.py`,
 `operator_views.py` y sus pruebas.
-6. **Recompensas.** Son dos magnitudes en un mismo ledger: puntos de impacto globales, no consumibles, y créditos atribuibles a la institución definitiva, conceptualmente consumibles. Creación `+20/+20`, confirmación `+10/+10` y bonus por validación `+30/+30` están implementados en sus alcances; resolución, reversión, ranking, saldo de créditos y canje siguen incompletos o futuros. Fuentes: `backend/apps/rewards_app/models.py`, `services/ledger.py`, ADR-0004, ADR-0010 y ADR-0011.
+6. **Recompensas.** Son dos magnitudes en un mismo ledger: puntos de impacto globales, no consumibles, y créditos atribuibles a la institución definitiva, conceptualmente consumibles. Creación `+20/+20`, confirmación `+10/+10` y bonus por validación `+30/+30` están implementados en sus alcances; resolución, reversión, ranking, saldo de créditos y canje siguen incompletos o futuros. ADR-0013 ya fija normativamente el ledger por ciclos y la reversión, sin implementarlos. Fuentes: `backend/apps/rewards_app/models.py`, `services/ledger.py`, ADR-0004, ADR-0010, ADR-0011 y ADR-0013.
 7. **IA como asistencia, no autoridad.** Existe un adaptador desacoplado a Gemini Interactions API, ejecución asíncrona, parser estricto, allowlist de entrada, auditoría y proveedor falso. No hay modelo entrenado ni fine-tuning. Una salida válida puede aplicarse automáticamente por umbral como clasificación operativa inicial; la validación institucional posterior es la decisión humana de autoridad. R2 no se ejecutó y CA-4 no se demostró. Fuentes: `backend/apps/ai_client_app/`, `docs/AI_CLASSIFICATION_CONTRACT.md`, ADR-0008 y ADR-0009.
 8. **Diferencia crítica del contrato IA.** La documentación dice que una respuesta inválida deja una clasificación placeholder y avanza a `CLASIFICADO`; el código actual captura `ClassificationParseError`, no persiste clasificación/historial/auditoría y conserva `CREADO`. Debe prevalecer el código y sus pruebas hasta que el equipo decida lo contrario. Fuente: `backend/apps/ai_client_app/orchestration.py` y sus tests.
 9. **Estados.** No existe un estado `VALIDADO`: validar es un evento registrado mediante `validated_at` y `validated_by`, y lleva a `ASIGNADO`. Los estados declarados son `CREADO`, `CLASIFICADO`, `ASIGNADO`, `EN_PROCESO`, `RESUELTO`, `CERRADO` y `RECHAZADO`; sólo una parte de las transiciones tiene servicio real. Fuente: `backend/apps/core/enums.py`.
@@ -146,9 +156,9 @@ los binarios académicos.
 | Confirmación | ✅ IMPLEMENTADO en `main` | Ciudadano verificado confirma reporte activo ajeno una vez; genera `10/10`. | Sólo aplica a `CREADO`, `CLASIFICADO`, `ASIGNADO` o `EN_PROCESO`. | `backend/apps/reports_app/services/confirmations.py`, sus tests. |
 | Clasificación IA | 🟡 PARCIAL | Adaptador, parser, orquestación, tarea Celery, fake, auditoría y evaluación sintética. | Proveedor real/CA-4 no demostrado; flag apagado por defecto; error estructural conserva `CREADO`. | `backend/apps/ai_client_app/`, ADR-0008/0009. |
 | Consulta institucional | ✅ IMPLEMENTADO en `main` | Lista/detalle de reportes dentro de la institución efectiva, filtros, foto privada firmada y panel frontend de operador. | La bandeja se limita a `CREADO`/`CLASIFICADO`; no es un dashboard analítico. | `backend/apps/reports_app/operator_views.py`, `operator_serializers.py`, `selectors.py`, frontend `(operator)/bandeja`. |
-| Validar/rechazar | ✅ IMPLEMENTADO en `main` | Servicios de dominio atómicos, rutas HTTP y UI con locks, historial, auditoría y ledger. | La reversión posterior a validar pertenece a Sprint 10; las notificaciones completas siguen diferidas. | `backend/apps/reports_app/services/validation.py`, `operator_views.py`, pruebas y frontend de operador. |
-| Resolución/evidencia/cierre | 📋 DISEÑADO | Modelos, campos y estados existen. | No se encontró servicio/API/UI que complete `ASIGNADO → EN_PROCESO → RESUELTO → CERRADO`. | `backend/apps/reports_app/models.py`, `backend/apps/core/enums.py`, `docs/PLAN_DESARROLLO.md`. |
-| Ledger de participación | 🟡 PARCIAL | Creación, confirmación, acreditación/anulación y bonus de validación están en `main`. | No hay reversión, bonus de resolución, saldos visibles ni canje funcional. | `backend/apps/rewards_app/services/ledger.py`, ADR-0004/0010. |
+| Validar/rechazar | ✅ IMPLEMENTADO en `main` | Servicios de dominio atómicos, rutas HTTP y UI con locks, historial, auditoría y ledger. | ADR-0013 ya define la reversión posterior a validar, pero su implementación S10 no comenzó; las notificaciones completas siguen diferidas. | `backend/apps/reports_app/services/validation.py`, `operator_views.py`, pruebas y frontend de operador. |
+| Resolución/evidencia/cierre | 📋 DISEÑADO | ADR-0013 aprueba el contrato normativo; el modelo actual sólo aporta estructura y estados parciales. | No existe servicio/API/UI S10, evidencia privada por ciclo, `resolution_cycle`, `closed_at` ni autocierre operativo. | ADR-0013, `backend/apps/reports_app/models.py`, `backend/apps/core/enums.py`. |
+| Ledger de participación | 🟡 PARCIAL | Creación, confirmación, acreditación/anulación y bonus de validación están en `main`; ADR-0013 define los efectos futuros por ciclo. | No hay reversión ni bonus de resolución implementados; tampoco saldos visibles ni canje funcional. | `backend/apps/rewards_app/services/ledger.py`, ADR-0004/0010/0013. |
 | Ranking y créditos visibles | 📋 DISEÑADO | Preferencia de privacidad y esquema/índice para agregación. | No hay cálculo/API/UI de ranking ni saldo de créditos. | `backend/apps/auth_app/views.py`, `backend/apps/rewards_app/models.py`, ADR-0011. |
 | Recompensas/canje | 📋 DISEÑADO | Modelos `Reward` y `RewardRedemption`. | Sin catálogo API/UI ni servicio transaccional de canje; costo 1.000 es diseño futuro del MVP. | `backend/apps/rewards_app/models.py`, `services/ledger.py`. |
 | Notificaciones | 🟡 PARCIAL | Correo de aprobación/rechazo de identidad mediante Brevo, registro de estado y reenvío manual. | Los demás tipos son enum/esquema; no hay FCM ni retry automático general. | `backend/apps/notifications_app/`, ADR-0015. |
@@ -223,7 +233,7 @@ Reemplazar la frase absoluta “No se contempla un despliegue productivo”. Exi
 
 > El alcance comprende la construcción y el despliegue técnico de un prototipo funcional. No comprende la implantación oficial en instituciones públicas, la operación sostenida con ciudadanía real, la integración con registros estatales, una campaña pública ni la demostración de niveles de servicio productivos.
 
-Incluir dentro del alcance: Google + JWT, verificación manual, reportes con foto y geolocalización, mapa público con privacidad geográfica, confirmaciones, clasificación asistida vía API, consulta y decisión institucional, trazabilidad y ledger parcial. S9-A, S9-B1 y S9-B2 están integrados en `main`. Excluir o mover a futuro: Telegram; X real; PWA/offline; dashboard; ranking/canje completos; resolución/cierre/reversión hasta su implementación; notificaciones completas fuera del correo de identidad; OCR/biometría; RLS no verificado; prueba de carga; implantación institucional real.
+Incluir dentro del alcance: Google + JWT, verificación manual, reportes con foto y geolocalización, mapa público con privacidad geográfica, confirmaciones, clasificación asistida vía API, consulta y decisión institucional, trazabilidad y ledger parcial. S9-A, S9-B1, S9-B2 y S9-B3 están integrados en `main`. Excluir o mover a futuro: Telegram; X real; PWA/offline; dashboard; ranking/canje completos; resolución/cierre/reversión hasta su implementación; notificaciones completas fuera del correo de identidad; OCR/biometría; RLS no verificado; prueba de carga; implantación institucional real.
 
 ### 4.5 Marco teórico
 
@@ -235,7 +245,7 @@ Actualizar el marco conceptual en cinco ejes:
 4. **Incentivos:** separar reputación/puntos globales de créditos institucionales; explicar ledger por eventos, atribución histórica y prevención de doble emisión.
 5. **Integridad transaccional:** atomicidad, bloqueo pesimista y serialización de decisiones concurrentes como fundamento del dominio.
 
-Fuentes técnicas para vincular conceptos con diseño: ADR-0003, ADR-0004, ADR-0008, ADR-0009, ADR-0010, ADR-0011 y ADR-0012.
+Fuentes técnicas para vincular conceptos con diseño: ADR-0003, ADR-0004, ADR-0008, ADR-0009, ADR-0010, ADR-0011, ADR-0012 y ADR-0013.
 
 ### 4.6 Metodología
 
@@ -373,7 +383,8 @@ La tesis revisada ya formula muchos resultados como “esperados”; conservar e
 
 Declarar al menos:
 
-- ciclo institucional posterior a la decisión incompleto: resolución, evidencia, cierre y reversión siguen pendientes;
+- ciclo institucional posterior a la decisión incompleto: ADR-0013 aprobó el contrato de resolución,
+  evidencia, cierre y reversión, pero su implementación sigue pendiente;
 - dependencia externa opcional de IA y ausencia de resultado canónico;
 - clasificación inválida actualmente sin registro placeholder, en contradicción documental;
 - X/Telegram sin pipeline;
@@ -428,8 +439,8 @@ Los siguientes IDs son una **propuesta canónica nueva**. Conviene mantener una 
 | RF-27 | NUEVO | **Anular por rechazo.** Cambiar pendientes a `ANULADO` sin borrar ni revertir acreditados. | Sistema | Rechazo prevalidación exitoso. | `voided_at` común y trazabilidad conservada. | ✅ S9-B1 integrado. `ledger.py`. |
 | RF-28 | MODIFICAR | **Mostrar resumen ciudadano de puntos.** Agregar puntos de impacto pendientes y acreditados. | Ciudadano | Autenticado. | Totales propios derivados del ledger. | ✅ limitado a puntos. `backend/apps/reports_app/selectors.py`. |
 | RF-29 | MODIFICAR | **Calcular créditos y ranking mensual.** Derivar saldo por institución y ranking de acreditaciones respetando privacidad. | Ciudadano/Público | Movimientos acreditados y preferencia configurada. | Saldo/ranking consistente. | 📋 DISEÑADO, sin servicio/API/UI. ADR-0010/0011. |
-| RF-30 | MODIFICAR | **Resolver y adjuntar evidencia.** Avanzar el reporte y registrar evidencia institucional. | Operador | Reporte validado/asignado y scope válido. | Estado/proceso/evidencia/historial/bonus de resolución. | 🔮 FUTURO; modelo existe, servicio no. `backend/apps/reports_app/models.py`. |
-| RF-31 | NUEVO | **Revertir validación.** Compensar movimientos sin borrar historia. | Operador autorizado/administrador | Validación previa y política de reversión aprobada. | Movimientos negativos/revertidos y transición consistente. | 🔮 FUTURO; `revert_validation()` lanza `NotImplementedError`. |
+| RF-30 | MODIFICAR | **Gestionar proceso, evidencia, resolución y cierre.** Avanzar el ciclo vigente y registrar evidencia institucional privada. | Operador institucional activo; sistema sólo para autocierre | Institución asignada, membresía y ciclo vigentes; resolver exige evidencia del ciclo actual. | Historia/auditoría por transición, evidencia ligada al ciclo, bonus de resolución único y cierre manual o automático tras 72 horas. | 🔮 Contrato ADR-0013 `ACCEPTED`; implementación, APIs, evidencia y autocierre inexistentes. |
+| RF-31 | NUEVO | **Revertir validación.** Revertir el ciclo vigente sin borrar historia. | Administrador global | Reporte en `ASIGNADO`, `EN_PROCESO`, `RESUELTO` o `CERRADO`; ciclo esperado y motivo válido. | Retorno a `CLASIFICADO`; conserva institución, categoría, prioridad, historial y evidencia; limpia proyecciones vigentes y compensa el ledger conforme a ADR-0013. | 🔮 CONTRATO `ACCEPTED`, implementación no iniciada; `revert_validation()` aún lanza `NotImplementedError`. |
 | RF-32 | MODIFICAR | **Listar y canjear recompensas simuladas.** Consumir créditos de la misma institución. | Ciudadano verificado | Saldo suficiente, recompensa activa y límites aplicables. | Vale simulado y movimiento de canje atómicos. | 📋 modelo diseñado; servicio/API/UI no implementados. `backend/apps/rewards_app/models.py`. |
 | RF-33 | MODIFICAR | **Notificar eventos.** Registrar y enviar comunicaciones por canal disponible. | Sistema | Evento soportado y destinatario válido. | Estado `PENDIENTE/ENVIADO/FALLIDO`, con reenvío manual donde aplica. | 🟡 sólo email de identidad por Brevo. `backend/apps/notifications_app/`. |
 | RF-34 | MODIFICAR | **Ingerir reporte social simulado.** Convertir un mensaje sintético de X en dato de entrada controlado. | Administrador/Sistema | Dataset/importador sintético válido. | Mensaje registrado y, en futuro, reporte no verificado sin incentivos. | 🔮 FUTURO; hoy sólo `XMockMessage`. |
@@ -449,7 +460,7 @@ La mera presencia de enums, campos o tablas no satisface RF-29 a RF-32, RF-34 o 
 | RNF-03 | **Aislamiento institucional:** respuestas de operador no deben revelar existencia ni datos de otro tenant. | ✅ Lectura y decisión S9 usan el mismo scope efectivo y verifican membresía activa. | `operator_views.py`, `tests/test_operator_reports_api.py`, `tests/test_operator_report_actions_api.py`. |
 | RNF-04 | **Privacidad de identidad:** no persistir documento en claro y mantener selfies privadas con acceso temporal. | ✅ HMAC + bucket privado + firma de 300 s. | ADR-0006; `backend/apps/auth_app/services/identity.py`. |
 | RNF-05 | **Privacidad geográfica:** la API pública debe minimizar campos y reducir precisión. | ✅ Redondeo a 0,001° con `ROUND_HALF_UP`; operador autorizado recibe exactitud. | `backend/apps/map_app/serializers.py`. |
-| RNF-06 | **Integridad económica:** los deltas del ledger no se sobrescriben y todo saldo se deriva de movimientos acreditados. | 🟡 Modelo/servicios parciales; reversión/canje futuros. | ADR-0004; `backend/apps/rewards_app/models.py`. |
+| RNF-06 | **Integridad económica:** los deltas del ledger no se sobrescriben y todo saldo se deriva de movimientos acreditados. | 🟡 Modelo/servicios parciales; ADR-0013 aprueba la reversión por compensación, todavía no implementada; canje futuro. | ADR-0004, ADR-0013; `backend/apps/rewards_app/models.py`. |
 | RNF-07 | **Atomicidad:** cambios de estado, ledger, historial y auditoría de una decisión deben confirmar o revertir juntos. | 🟡 Demostrado para flujos implementados/candidatos, no para flujos futuros. | `transaction.atomic()` en servicios y tests de rollback. |
 | RNF-08 | **Consistencia concurrente:** decisiones incompatibles y cambios concurrentes de autoridad deben serializarse. | ✅ Demostrado en S9-B1/B2 e integrado. | `tests/test_validation_service.py`, `tests/test_operator_report_actions_api.py`. |
 | RNF-09 | **Trazabilidad:** decisiones críticas deben registrar actor, acción y resultado sin incluir secretos o identificadores sensibles innecesarios. | 🟡 Cobertura de acciones parcial; IA raw puede reproducir contenido del reporte. | `backend/apps/core/services/audit.py`; §14. |
@@ -500,7 +511,7 @@ Los valores de throttling actuales —controles antiabuso, no garantías de capa
 | RN-26 | Validar fija la institución definitiva, `validated_at`, `validated_by` y cambia el estado a `ASIGNADO` en un mismo instante de operación. | ✅ S9-B1/B2 | `services/validation.py`. |
 | RN-27 | Rechazar sólo admite `CREADO` o `CLASIFICADO` sin validación previa y uno de cuatro motivos cerrados. | ✅ S9-B1/B2 | `services/validation.py`, `backend/apps/core/enums.py`. |
 | RN-28 | Los motivos son `fuera_de_competencia`, `duplicado`, `informacion_insuficiente` y `contenido_inapropiado`. | ✅ S9-B1/B2 | `backend/apps/core/enums.py`. |
-| RN-29 | Rechazar después de validar produce `VALIDATION_REVERSAL_REQUIRED`; la reversión será otra política. | ✅ conflicto S9; reversión 🔮 | `services/validation.py`, ledger stub. |
+| RN-29 | Rechazar después de validar produce `VALIDATION_REVERSAL_REQUIRED`. ADR-0013 exige una reversión administrativa previa hacia `CLASIFICADO`; el rechazo posterior es una operación separada. | ✅ conflicto S9; política S10 `ACCEPTED`, implementación 🔮 | `services/validation.py`, ADR-0013, ledger stub. |
 | RN-30 | El rechazo no persiste una institución definitiva; registra en auditoría la institución que ejerció el scope. | ✅ S9-B1/B2 | `services/validation.py`. |
 | RN-31 | Crear un reporte con autor produce exactamente un `REPORT_CREATED` de `+20` puntos y `+20` créditos en `PENDIENTE`. | ✅ | `ledger.py`, constraint parcial. |
 | RN-32 | Confirmar produce exactamente un `CONFIRMATION_CREATED` de `+10/+10`; si ya estaba validado nace `ACREDITADO` con institución final, si no nace `PENDIENTE`. | ✅ | `ledger.py`, constraint parcial. |
@@ -510,8 +521,8 @@ Los valores de throttling actuales —controles antiabuso, no garantías de capa
 | RN-36 | Sólo movimientos `ACREDITADO` forman parte del saldo; `PENDIENTE`, `ANULADO` y `REVERTIDO` se excluyen. | 📋/parcial | `backend/apps/rewards_app/models.py`, ADR-0004. |
 | RN-37 | Los puntos son globales y no consumibles; los créditos pertenecen históricamente a la institución fijada y están destinados al canje. | 📋/parcial | ADR-0010 integrado. |
 | RN-38 | La emisión actual conserva relación 1:1 entre deltas de puntos y créditos en creación, confirmación y validación; no es una conversión de saldo posterior. | ✅ S9-B1 | `ledger.py`, ADR-0010. |
-| RN-39 | Los deltas económicos no se modifican; cambios posteriores usan estado/marcas o movimientos compensatorios futuros. | ✅ modelo; reversión futura | `backend/apps/rewards_app/models.py`, ADR-0004. |
-| RN-40 | Resolución `+50/+50`, canje `0/-1000` y reversión negativa figuran en el contrato, pero sus funciones no están implementadas y no deben contarse como reglas operativas. | 🔮 | `ledger.py` (`NotImplementedError`). |
+| RN-39 | Los deltas económicos no se modifican; ADR-0013 exige que la futura implementación de reversión use estado/marcas y movimientos compensatorios. | ✅ modelo; política de reversión `ACCEPTED`, implementación futura | `backend/apps/rewards_app/models.py`, ADR-0004/0013. |
+| RN-40 | Resolución `+50/+50`, canje `0/-1000` y reversión negativa figuran en los contratos, pero sus funciones no están implementadas y no deben contarse como reglas operativas. | 🔮 | `ledger.py` (`NotImplementedError`), ADR-0013. |
 | RN-41 | Ranking mensual y canje se derivarán por `credited_at` y créditos de institución, respetando la preferencia de privacidad; hoy no existen como capacidad. | 📋 | ADR-0010/0011, modelos. |
 | RN-42 | Las fuentes no verificadas/simuladas no deben generar incentivos; no existe aún pipeline que materialice esta política. | 📋 | `ReportSource` en `backend/apps/core/enums.py`, planificación. |
 | RN-43 | El mapa público sólo muestra estados visibles permitidos y nunca `RECHAZADO`; recursos rechazados/no existentes responden 404. | ✅ | `backend/apps/map_app/`. |
@@ -586,7 +597,7 @@ Las fichas detalladas deben usar para cada CU: objetivo, actor, precondiciones, 
 | `ASIGNADO` | Una institución validó y quedó como responsable definitiva. | ✅ S9-B1/B2. |
 | `EN_PROCESO` | La institución inició tratamiento. | 📋 Enum/modelo; sin servicio verificado. |
 | `RESUELTO` | La institución declaró resolución y debería adjuntar evidencia. | 📋 Enum/modelo; sin servicio verificado. |
-| `CERRADO` | Ciclo cerrado según política aún por implementar. | 📋 Enum/modelo; sin servicio verificado. |
+| `CERRADO` | Ciclo cerrado manualmente o después de 72 horas según la política aceptada en ADR-0013, todavía sin implementar. | 📋 Enum/modelo; sin servicio verificado. |
 | `RECHAZADO` | La institución rechazó antes de validar por motivo tipificado. | ✅ S9-B1/B2. |
 
 La validación **no es un estado**. Es un evento humano representado por `validated_at`, `validated_by` e institución final; su transición resultante es `ASIGNADO` (`backend/apps/core/enums.py`, `backend/apps/reports_app/models.py`).
@@ -600,10 +611,10 @@ La validación **no es un estado**. Es un evento humano representado por `valida
 | `CREADO` → `CLASIFICADO` sin cambiar categoría/institución/prioridad | Sistema/IA | Respuesta válida, pero requiere revisión humana o no altera campos | Se conserva `AiClassification` como sugerencia | `ai.report.classified`; sin ledger | ✅ `orchestration.py` |
 | `CREADO`/`CLASIFICADO` → `ASIGNADO` | Operador institucional | Rol/membresía activos; no validado; institución activa y scope exacto | Institución final, marcas, historial | `report.validated`; acredita pendientes y crea `30/30` | ✅ S9-B1/B2 |
 | `CREADO`/`CLASIFICADO` → `RECHAZADO` | Operador institucional | Rol/membresía activos; no validado; scope exacto; motivo cerrado | Motivo + historial; no fija institución final | `report.rejected`; pendientes → `ANULADO` | ✅ S9-B1/B2 |
-| `ASIGNADO` → `EN_PROCESO` | Operador | Política futura | Inicio de gestión | Por definir | 🔮 S10 |
-| `EN_PROCESO` → `RESUELTO` | Operador | Validación, scope y evidencia requeridos | Evidencia/resolución | Bonus `50/50` diseñado, no operativo | 🔮 S10 |
-| `RESUELTO` → `CERRADO` | Sistema/ciudadano según política futura | Criterio de cierre aún no implementado | Cierre | Por definir | 🔮 S10+ |
-| `ASIGNADO` → estado de reversión por definir | Actor autorizado | Política ADR-0013 pendiente | Compensaciones y reasignación | `REVERSAL` diseñado | 🔮 |
+| `ASIGNADO` → `EN_PROCESO` | Operador institucional activo | Institución asignada, membresía activa y ciclo vigente | Inicio de gestión del ciclo | `report.processing_started`; sin reward | 🔮 Contrato ADR-0013 `ACCEPTED`; no implementado |
+| `EN_PROCESO` → `RESUELTO` | Operador institucional activo | Institución asignada, ciclo vigente y al menos una evidencia de ese ciclo | `resolved_at`, historia y evidencia histórica del ciclo | `report.resolved`; bonus `50/50` único por reporte/ciclo | 🔮 Contrato ADR-0013 `ACCEPTED`; no implementado |
+| `RESUELTO` → `CERRADO` | Operador institucional activo o sistema | Mismo ciclo; manual por operador responsable o automático después de 72 horas transcurridas desde `resolved_at` | `closed_at` e historia; no elimina evidencia | `report.closed`; sin reward | 🔮 Contrato ADR-0013 `ACCEPTED`; no implementado |
+| `ASIGNADO`/`EN_PROCESO`/`RESUELTO`/`CERRADO` → `CLASIFICADO` | Administrador global | Ciclo esperado y motivo normalizado válido | Conserva institución, categoría, prioridad, historial y evidencia; limpia proyecciones vigentes; no incrementa `resolution_cycle` | `report.validation_reverted`; anula pendientes y revierte/compensa acreditados según ADR-0013 | 🔮 Contrato ADR-0013 `ACCEPTED`; no implementado |
 
 No existe una transición real desde salida IA inválida a `CLASIFICADO`. Tampoco se deben inferir transiciones desde registros seed que ya nacen en estados avanzados.
 
@@ -647,7 +658,7 @@ El modelo contiene **18 tablas de dominio**, además de tablas propias de Django
 - `RewardTransaction` impide más de un `REPORT_CREATED` por reporte y más de un `CONFIRMATION_CREATED` por confirmación mediante restricciones únicas parciales.
 - El check `reward_tx_status_timestamps_coherentes` relaciona estado con `credited_at`, `voided_at` y `reversed_at`.
 - Los saldos no se almacenan en una tabla `balances`: se calculan agregando movimientos acreditados.
-- Los deltas son enteros con signo; una futura reversión debe crear trazabilidad compensatoria, no editar la historia.
+- Los deltas son enteros con signo; ADR-0013 exige que la futura implementación de reversión cree trazabilidad compensatoria sin editar la historia.
 - `AiClassification` admite varias ejecuciones por reporte; “la última” es una selección de consulta, no una relación 1:1.
 - Los timestamps heredados de `BaseModel` deben incluirse en el diccionario cuando sean relevantes para ranking, locks, orden o evidencia; no necesitan saturar el DER conceptual.
 
@@ -859,7 +870,7 @@ El costo 1.000 está como default del modelo `Reward`, pero su inmutabilidad de 
 4. **Confirmación postvalidación:** al bloquear el reporte observa `validated_at` e institución final; nace acreditada usando `confirmation.created_at`.
 5. **Rechazo prevalidación:** valida las participaciones y cambia pendientes a `ANULADO`, con `voided_at`; no elimina nada.
 6. **Reporte sin autor:** no tiene movimiento de creación ni bonus; las confirmaciones sí se procesan.
-7. **Rechazo postvalidación:** se bloquea como conflicto porque requiere una reversión todavía no implementada.
+7. **Rechazo postvalidación:** se bloquea como conflicto porque requiere primero la reversión administrativa hacia `CLASIFICADO` definida por ADR-0013, todavía no implementada.
 
 ### 13.4 Integridad y cálculo
 
@@ -913,7 +924,7 @@ El modelo declara una política append-only y el Django admin aplica sólo lectu
 
 ### 14.4 Cobertura faltante
 
-No se auditan explícitamente login/refresh/me ni cada lectura; el envío normal de una notificación se rastrea por estado de `Notification`, mientras sólo el reenvío manual genera `notification.resent`. No hay API/pantalla de dominio para auditores; el acceso actual es admin Django, ligado a `is_staff` y no idéntico al rol `ADMIN`. Los eventos futuros de inicio/resolución/cierre/reversión/canje deberán definir payloads antes de implementarse.
+No se auditan explícitamente login/refresh/me ni cada lectura; el envío normal de una notificación se rastrea por estado de `Notification`, mientras sólo el reenvío manual genera `notification.resent`. No hay API/pantalla de dominio para auditores; el acceso actual es admin Django, ligado a `is_staff` y no idéntico al rol `ADMIN`. ADR-0013 ya fija el catálogo y el payload mínimo de los eventos S10 de inicio, evidencia, resolución, cierre y reversión, pero esos eventos todavía no están implementados; el canje continúa pendiente de su contrato posterior.
 
 ## 15. Concurrencia y transaccionalidad
 
@@ -1011,7 +1022,7 @@ rama de trabajo → pull request → CI filtrada por rutas → revisión/merge a
 | S9-A | Integrada mediante PR #34. | Checks y despliegues automáticos verificados en su cierre. |
 | S9-B1 | Integrada mediante PR #35, merge `a89b9efe`. | Checks y despliegues automáticos verificados en su cierre. |
 | S9-B2 | Integrada mediante PR #37, merge `4ecf5023`. | Backend, frontend, E2E, Vercel y Railway reportaron `success`. |
-| S9-B3 | Implementado en PR #38 desde `4ecf5023`; `OPEN / NO MERGED`, pendiente de integración. | Sin cambios funcionales ni acciones manuales de producción; no requiere despliegue funcional. |
+| S9-B3 | Integrado mediante PR #38, merge `7e95856c`. | Sin cambios funcionales ni acciones manuales de producción; los despliegues asociados fueron automáticos. |
 
 Los E2E de operador usan APIs interceptadas: verifican el comportamiento del navegador, pero no constituyen una prueba full-stack contra el backend desplegado.
 
@@ -1030,7 +1041,10 @@ Para el anexo técnico: hash del commit, URL/número de ejecución, jobs y resul
 
 ## 18. ADRs y decisiones arquitectónicas
 
-Se leyeron los **14 ADR presentes**. Todos declaran estado “Aceptada”. ADR-0010 está integrado en `main`; no existe archivo ADR-0013. La numeración salta del 0012 al 0014 porque 0013 está reservado conceptualmente para la política de reversión; no debe inventarse su contenido.
+Se leyeron los **15 ADR presentes en el baseline documental**. ADR-0010 declara estado
+“Aceptada” y está integrado en `main`. ADR-0013 existe y declara estado `ACCEPTED`; cierra el
+Decision Gate normativo de S10, pero todavía está pendiente de versionado/integración y no autoriza
+la implementación técnica.
 
 | ADR | Decisión | Estado/corte | Impacto documental | Secciones afectadas |
 |---|---|---|---|---|
@@ -1046,6 +1060,7 @@ Se leyeron los **14 ADR presentes**. Todos declaran estado “Aceptada”. ADR-0
 | ADR-0010 — Créditos por institución y 1:1 | Puntos globales, créditos por institución final y deltas 1:1. | Aceptada e integrada en `main` mediante PR #35 | Distinguir los efectos de ledger implementados de las consultas/ranking/canje futuros. | Recompensas, ledger, RF/RN, DER. |
 | ADR-0011 — Privacidad configurable del ranking | Alias/visibilidad configurables y resolución futura de nombre público. | Aceptada, `main` | Distinguir preferencia implementada de ranking no implementado. | Privacidad, ranking, CU-04/18. |
 | ADR-0012 — Duplicados por proximidad | Warning PostGIS consultivo, misma categoría/estados/radio y respuesta minimizada. | Aceptada, `main` | Sustituir deduplicación automática/bloqueante. | Reportes, geoespacial, secuencia de creación. |
+| ADR-0013 — Reversión, revalidación y ciclos de resolución | Reversión administrativa hacia `CLASIFICADO`, `resolution_cycle` monotónico y contratos de evidencia, cierre, concurrencia, auditoría y ledger. | `ACCEPTED` en el baseline documental; pendiente de versionado/integración; implementación no autorizada | Separar la decisión normativa aprobada de las migraciones, APIs, evidencia, autocierre y ledger S10 todavía inexistentes. | Estados, resolución, evidencia, reversión, auditoría, concurrencia y ledger. |
 | ADR-0014 — Custom User desde primera migración | Usar modelo `User` propio antes del primer migrate. | Aceptada, `main` | Corregir DER/autenticación y guía de instalación. | Datos, seguridad, manual técnico. |
 | ADR-0015 — Brevo por HTTPS | Correo transaccional vía API HTTPS, no SMTP. | Aceptada, `main` | Corregir infraestructura/notificaciones y variables. | Arquitectura, seguridad, notificaciones, despliegue. |
 
@@ -1054,7 +1069,9 @@ Se leyeron los **14 ADR presentes**. Todos declaran estado “Aceptada”. ADR-0
 1. ADR-0009/`docs/AI_CLASSIFICATION_CONTRACT.md` describen placeholder y transición ante JSON inválido; `orchestration.py` y sus tests hacen no-op. Debe prevalecer la implementación o abrirse una decisión nueva, no afirmar ambas.
 2. Un pasaje temprano de ADR-0003 alude a fotografías “públicas-firmadas”; ADR-0007, código y configuración establecen bucket privado. Debe prevalecer **privado + URL temporal autorizada**.
 3. ADR-0010 puede citarse como decisión aceptada e integrada; sus efectos de validación/rechazo están operativos, pero consulta de créditos, ranking y canje siguen fuera del alcance de S9.
-4. La futura reversión merece el ADR-0013 antes de describir políticas de saldo negativo, revalidación o vales ya emitidos como comportamiento firme.
+4. ADR-0013 resuelve la política normativa de reversión, saldo negativo, revalidación y vales ya
+   emitidos. Su aceptación no permite describir ese comportamiento como operativo mientras la
+   implementación S10 no exista.
 
 ## 19. Diagramas Mermaid propuestos
 
@@ -1588,9 +1605,10 @@ sequenceDiagram
     A-->>O: 200 + resultado
 ```
 
-### 19.13 Secuencia — resolver reporte (diseño futuro)
+### 19.13 Secuencia — resolver reporte (contrato aceptado, implementación futura)
 
-Este diagrama es una **propuesta que debe validarse en S10**. No es evidencia de implementación y no fija todavía la política de cierre/reversión.
+Este diagrama resume parte del contrato normativo `ACCEPTED` en ADR-0013. No es evidencia de
+implementación: las APIs, la evidencia privada, el autocierre y el ledger S10 todavía no existen.
 
 ```mermaid
 sequenceDiagram
@@ -1610,11 +1628,13 @@ sequenceDiagram
     A->>R: resolver con object key
     R->>D: BEGIN + lock Report
     R->>D: crear ResolutionEvidence + RESUELTO + history + audit
-    R->>L: bonus de resolución 50/50 por definir
+    R->>L: bonus de resolución 50/50 aprobado, no operativo
     R->>D: COMMIT
 ```
 
-Antes de usarlo como especificación se deben cerrar autorización, formatos de evidencia, compensación de Storage, transición de cierre, duplicidad e interacción con reversión.
+ADR-0013 cierra autorización, formatos, compensación de Storage, transición de cierre, idempotencia
+e interacción con reversión. El diseño técnico final queda condicionado por los blockers del
+Implementation Preflight y no debe inferirse de este diagrama como ya implementado.
 
 ### 19.14 Ciclo del ledger
 
@@ -1693,7 +1713,7 @@ La tesis revisada contiene ocho anexos. **Todos requieren actualización; ningun
 | **B. Especificación detallada de la API REST** | Describir únicamente endpoints existentes y contratos verificables. | Incorporar mapa/detalle, reportes/confirmación y consulta/decisión institucional S9; actualizar permisos, errores, throttles y ejemplos sin secretos. | `backend/config/urls.py`, `apps/*/urls*.py`, serializers/views, `docs/API.md`. | Inventario parcialmente automatizable; ejemplos/códigos y seguridad manual. | P1 |
 | **C. Diagramas técnicos complementarios y wireframes** | Reunir arquitectura, componentes, DER, estados y secuencias vigentes. | Auditar/reemplazar los ocho diagramas y cuatro wireframes PNG embebidos que anticipan capacidades; renderizar Mermaid de §19; crear capturas reales de pantallas existentes y marcar futuros. | PNG internos del DOCX, §19, `frontend/src/app/`, `frontend/src/features/`. | Mermaid automatizable; no hay fuente editable de los PNG; capturas/wireframes requieren revisión manual. | P1 |
 | **D. Casos de uso detallados** | Especificar el catálogo CU-01–CU-20 propuesto. | Renumerar, separar consulta/validación/rechazo, ampliar auditoría, retirar Telegram y marcar X/resolución/canje futuros. | §8; RF/RN; vistas/servicios/tests. | Tabla/fichas parcialmente automatizables; validación académica manual. | P1 |
-| **E. Roadmap, backlog MVP y análisis de riesgos** | Reflejar el estado por integración y las dependencias restantes. | Corregir S8/R2/CA-4, S9-A/B1/B2; agregar riesgos de proveedor, pipeline, backups, reversión, privacidad y deuda documental. | `docs/PLAN_DESARROLLO.md`, `BACKLOG.md`, `PROGRESO_SPRINTS.md`, PR/commits. | Resumen automatizable; fechas/propietarios/riesgo residual manuales. | P1 |
+| **E. Roadmap, backlog MVP y análisis de riesgos** | Reflejar el estado por integración y las dependencias restantes. | Corregir S8/R2/CA-4 y S9-A/B1/B2/B3; agregar riesgos de proveedor, pipeline, backups, reversión, privacidad y deuda documental. | `docs/PLAN_DESARROLLO.md`, `BACKLOG.md`, `PROGRESO_SPRINTS.md`, PR/commits. | Resumen automatizable; fechas/propietarios/riesgo residual manuales. | P1 |
 | **F. Cronograma semanal del trabajo** | Mostrar plan, ejecución real y desvíos. | Unificar ventana 01/08–15/11/2026 con fechas reales; no conservar “primer/segundo trimestre” incompatible; actualizar hitos S8/S9. | `docs/Cronograma_Ciudadania_Activa_Anexo_F.docx`, `PROGRESO_SPRINTS.md`, CT-27/29. | Manual por valor académico y firmas/fechas. | P1 |
 | **G. Cuestionario completo de encuesta ciudadana** | Preservar instrumento y evidencia empírica. | Verificar versión administrada, muestra, consentimiento, fechas y resultados; separar preguntas previstas de datos recogidos. No inferir respuestas del sistema. | DOCX revisado y artefactos de encuesta que aporte el equipo. | Manual; requiere fuente primaria y control ético. | P1 |
 | **H. Dataset sintético, prompts IA, plan de pruebas y resultados esperados** | Versionar dataset, contrato/prompts y evidencia experimental/técnica. | Corregir seis campos y slugs; distinguir fake/R1/R2; marcar R2 no ejecutado y CA-4 no demostrado; actualizar métricas CI y ausencia de carga. | `backend/apps/ai_client_app/evaluation/`, `prompts/`, `contracts.py`, workflows y §12/16. | Dataset/tablas parcialmente automatizables; resultados sólo tras ejecución controlada. | P1 |
@@ -1716,8 +1736,8 @@ Se recomiendan **seis anexos nuevos**. Si la facultad limita el número, pueden 
 | Nuevo anexo | Objetivo | Contenido mínimo | Fuente | Automatizable / captura-manual | Prioridad |
 |---|---|---|---|---|---|
 | **I. Catálogo consolidado de RF, RNF, RN y trazabilidad** | Dar una única referencia normativa y vincularla con objetivos/CU/evidencia. | Tablas de §5–8 y §23; estados al corte; equivalencias con IDs antiguos; criterios de aceptación. | Este documento, código/tests citados. | Tablas reutilizables; revisión de numeración y formato institucional manual. | P1 |
-| **J. Integridad, ledger, auditoría y concurrencia** | Explicar las decisiones transaccionales que ahora forman parte sustantiva del prototipo. | Eventos/deltas/estados; fórmulas; locks/orden; carreras; rollback; payloads; limitaciones; diagramas 19.14–19.16. | Servicios/modelos/tests de reports/rewards/core, ADR-0004/0010. | Texto/diagramas parcialmente automatizables; evidencia de DB/CI manual. | P1 |
-| **K. Registro de decisiones arquitectónicas** | Preservar por qué se eligieron tecnologías/políticas y qué cambió. | Índice de 14 ADR, resumen/estado/impacto; ausencia de ADR-0013; discrepancias pendientes. | `docs/adr/`, §18. | Índice automatizable; síntesis y aprobación manual. | P2 |
+| **J. Integridad, ledger, auditoría y concurrencia** | Explicar las decisiones transaccionales que ahora forman parte sustantiva del prototipo. | Eventos/deltas/estados; fórmulas; locks/orden; carreras; rollback; payloads; limitaciones; diagramas 19.14–19.16. | Servicios/modelos/tests de reports/rewards/core, ADR-0004/0010/0013. | Texto/diagramas parcialmente automatizables; evidencia de DB/CI manual. | P1 |
+| **K. Registro de decisiones arquitectónicas** | Preservar por qué se eligieron tecnologías/políticas y qué cambió. | Índice de 15 ADR, resumen/estado/impacto; ADR-0013 `ACCEPTED` como contrato normativo S10 aún no implementado; discrepancias pendientes. | `docs/adr/`, §18. | Índice automatizable; síntesis y aprobación manual. | P2 |
 | **L. Evidencias técnicas, CI/CD y despliegue** | Separar resultados reproducibles de afirmaciones generales. | Commits/runs/jobs; versiones; resultados de tests; deployments; health; matriz de evidencia; redacción de datos sensibles; fecha de corte. | `.github/workflows/`, GitHub, Vercel/Railway/Supabase y §16/17. | Metadatos parcialmente automatizables; capturas y redacción manual. | P1 |
 | **M. Manual de usuario del prototipo** | Permitir reproducir los flujos realmente disponibles. | Login, verificación, mapa, crear, duplicados, panel, historial, confirmar y revisión admin; roles/precondiciones/errores. Flujos de operador futuros separados. | `frontend/src/app/`, `features/`, API y pruebas E2E. | Texto base reutilizable; capturas y validación de recorrido manual. | P2 |
 | **N. Manual técnico de instalación, despliegue y operación** | Hacer reproducible el entorno sin revelar secretos. | Requisitos, variables por nombre, Docker, migraciones, worker, seeds, tests, backup/restore, deployment, troubleshooting y límites operativos. | `README.md`, `.env.example`, Dockerfiles/Compose, workflows, ADR-0003/0015. | Comandos base reutilizables; paneles/capturas/checklists manuales. | P2 |
@@ -1775,7 +1795,7 @@ Antes de la entrega final, cada fila debe vincularse a un identificador de prueb
 | D-05 | Tesis: PostgreSQL 15. | Entorno documentado: Supabase PostgreSQL 17.6/PostGIS 3.3.7; local/CI PostGIS 17-3.5. | ADR-0003, workflows/Compose. | Corregir versiones y explicar diferencia de entorno. | **ALTA** |
 | D-06 | Anexo B contiene una API histórica/completa. | `docs/API.md` y rutas incluyen consulta/validate/reject de S9; no existen HTTP de resolución/ranking/canje. | `urls*.py`, views/serializers/tests. | Regenerar Anexo B y marcar las rutas restantes como futuras. | **ALTA** |
 | D-07 | `docs/DICCIONARIO_DATOS.md` presentaba `justification`/`model_name` y su migración como futuros. | Ambos campos y la migración 0002 existen; el diccionario fue corregido en `c99e769b`. | Modelo/migración IA. | Corrección aplicada; conservar el DER alineado con el modelo actual. | **RESUELTA** |
-| D-08 | El tracker podía mantener estados anteriores de S9. | S9-A/B1/B2 y ADR-0010 están en `main`; R2 continúa prerregistrado/no ejecutado. | Git remoto/commits/PR. | Mantener el cierre S9 sin convertir R2 en ejecutado. | **RESUELTA** |
+| D-08 | El tracker podía mantener estados anteriores de S9. | S9-A/B1/B2/B3 y ADR-0010 están en `main`; R2 continúa prerregistrado/no ejecutado. | Git remoto/commits/PR. | Mantener el cierre S9 sin convertir R2 en ejecutado. | **RESUELTA** |
 | D-09 | Telegram aparece como caso/componente y el modelo todavía existe. | Decisión D-04/CT-43 lo retira; no hay pipeline. | Decisión vigente + ausencia de implementación. | Retirar de alcance/CU/diagramas; dejar nota histórica y futura migración de eliminación. | **ALTA** |
 | D-10 | X/#ReportePY/Zapier/Make puede aparecer como integración. | Sólo existe `XMockMessage`; sin loader, API, tarea o proveedor real. | `social_ingestion_app/models.py` y árbol de código. | Describir exclusivamente simulación futura. | **ALTA** |
 | D-11 | Flujos antiguos pueden incluir estado `VALIDADO` o transición libre. | No existe `VALIDADO`; validar lleva a `ASIGNADO`; sólo creación, clasificación, validación y rechazo tienen servicios actuales. | enums + servicios/tests. | Sustituir tabla/diagrama de estados. | **ALTA** |
@@ -1818,7 +1838,7 @@ Antes de la entrega final, cada fila debe vincularse a un identificador de prueb
 
   - **Dónde:** introducción del prototipo y capítulo de resultados técnicos.
   - **Motivo:** fijar exactamente el estado integrado que sustenta las afirmaciones.
-  - **Contenido nuevo:** fecha de corte, `origin/main=4ecf5023` y S9-A/B1/B2 integrados; S9-B3 como cierre documental.
+  - **Contenido nuevo:** fecha de corte, `origin/main=730d69e` y S9-A/B1/B2/B3 integrados; S9-B3 mediante merge `7e95856c`.
   - **Fuente:** §1; Git; `docs/PROGRESO_SPRINTS.md` sólo como historia.
   - **Diagrama/anexo/captura:** actualizar Anexo E; captura del PR/checks opcional y redactada.
 
@@ -2073,7 +2093,8 @@ Las verificaciones productivas puntuales registradas en `docs/PROGRESO_SPRINTS.m
 ### 27.1 Pendientes inmediatos de integración y documentación
 
 1. Alinear `docs/AI_CLASSIFICATION_CONTRACT.md` y ADR-0009 con `orchestration.py`, o aprobar un cambio técnico separado.
-2. Crear ADR-0013 antes de implementar reversión/revalidación y sus consecuencias económicas.
+2. Versionar e integrar el baseline documental que contiene ADR-0013 `ACCEPTED` y realizar la
+   auditoría de datos persistentes en modo solo lectura antes de diseñar o aplicar el backfill.
 3. Mantener el contrato de S9 cerrado y evitar trasladar a este sprint capacidades asignadas a S11–S13.
 
 ### 27.2 Pendientes funcionales
@@ -2143,10 +2164,12 @@ Las verificaciones productivas puntuales registradas en `docs/PROGRESO_SPRINTS.m
 - `docs/adr/ADR-0010-creditos-por-institucion-y-conversion-1-1.md` — integrado mediante PR #35.
 - `docs/adr/ADR-0011-privacidad-configurable-del-ranking.md`.
 - `docs/adr/ADR-0012-deteccion-de-duplicados-por-proximidad.md`.
+- `docs/adr/ADR-0013-politica-de-reversion.md` — `ACCEPTED` en el baseline documental; pendiente de versionado/integración; implementación S10 no autorizada.
 - `docs/adr/ADR-0014-custom-user-desde-la-primera-migracion.md`.
 - `docs/adr/ADR-0015-correo-transaccional-por-api-https.md`.
 
-No existe `ADR-0013` en el repositorio al corte.
+ADR-0013 existe en el baseline documental y está `ACCEPTED`; todavía no está integrado en `main` y
+no constituye evidencia de implementación funcional.
 
 ### 28.4 Código y configuración
 
@@ -2164,8 +2187,8 @@ No existe `ADR-0013` en el repositorio al corte.
 ### 28.5 Pruebas y evidencia remota verificadas
 
 - Suite backend y frontend bajo los directorios `tests/`, `__tests__/` y `frontend/e2e/`.
-- Git: `origin/main` en `4ecf502361156281cbec51764310c67f50ace449`, merge de S9-B2.
-- PR #34 (S9-A), #35 (S9-B1) y #37 (S9-B2): mergeados.
+- Git: `origin/main` en `730d69ede7033c3487b68f79b1828fe6f2f43180`; merge de S9-B3 en `7e95856c1b494d562ce1c267c06d5bebaec28cc8` y dos commits administrativos posteriores autorizados.
+- PR #34 (S9-A), #35 (S9-B1), #37 (S9-B2) y #38 (S9-B3): mergeados.
 - Validación integrada S9-B2: 1.807 backend, 341 Vitest y 48 Playwright.
 - Verificación focal S9-B3: 153 backend, 14 frontend y 2 Playwright.
 - Checks post-merge S9-B2: Backend, Frontend build, Frontend E2E, Vercel, Railway backend y worker exitosos.
