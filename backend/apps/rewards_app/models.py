@@ -101,6 +101,7 @@ class RewardTransaction(BaseModel):
     credited_at = models.DateTimeField(null=True, blank=True)
     voided_at = models.DateTimeField(null=True, blank=True)
     reversed_at = models.DateTimeField(null=True, blank=True)
+    resolution_cycle = models.PositiveIntegerField(null=True, blank=True)
 
     class Meta:
         db_table = "reward_transactions"
@@ -115,6 +116,10 @@ class RewardTransaction(BaseModel):
             models.Index(fields=["status", "credited_at"], name="reward_tx_ranking_idx"),
         ]
         constraints = [
+            models.CheckConstraint(
+                condition=Q(resolution_cycle__isnull=True) | Q(resolution_cycle__gte=0),
+                name="reward_tx_cycle_nonnegative_or_null",
+            ),
             # Coherencia estado <-> marca temporal (D2-08). REVERTIDO no exige que
             # `credited_at` sea NULL: la fila original acreditada conserva su
             # `credited_at` como rastro, y una fila REVERSAL puede nacer REVERTIDO sin
@@ -160,6 +165,21 @@ class RewardTransaction(BaseModel):
                 fields=["confirmation"],
                 condition=Q(event_type=RewardEventType.CONFIRMATION_CREATED),
                 name="reward_tx_confirmation_created_unico",
+            ),
+            models.UniqueConstraint(
+                fields=["report", "resolution_cycle"],
+                condition=Q(event_type=RewardEventType.VALIDATION_BONUS),
+                name="reward_tx_validation_bonus_cycle_unique",
+            ),
+            models.UniqueConstraint(
+                fields=["report", "resolution_cycle"],
+                condition=Q(event_type=RewardEventType.RESOLUTION_BONUS),
+                name="reward_tx_resolution_bonus_cycle_unique",
+            ),
+            models.UniqueConstraint(
+                fields=["related_transaction"],
+                condition=Q(event_type=RewardEventType.REVERSAL),
+                name="reward_tx_reversal_original_unique",
             ),
         ]
 

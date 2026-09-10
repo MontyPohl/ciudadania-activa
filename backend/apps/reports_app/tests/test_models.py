@@ -168,7 +168,10 @@ def test_historial_de_estados(report, citizen):
 
 def test_evidencia_de_resolucion(report):
     evidencia = ResolutionEvidence.objects.create(
-        report=report, description="Bache reparado.", evidence_url="https://example.test/e.jpg"
+        report=report,
+        description="Bache reparado.",
+        evidence_url="https://example.test/e.jpg",
+        resolution_cycle=1,
     )
 
     assert str(evidencia) == f"Evidencia de {report.pk}"

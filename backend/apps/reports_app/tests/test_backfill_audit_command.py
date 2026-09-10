@@ -1,0 +1,51 @@
+import json
+
+import pytest
+from django.contrib.gis.geos import Point
+from django.core.management import call_command
+from django.core.management.base import CommandError
+
+from apps.core.enums import ReportStatus
+from apps.reports_app.models import Report, ReportStatusHistory
+
+pytestmark = pytest.mark.django_db
+
+
+def test_audit_exige_confirmacion_de_todos_los_writers():
+    with pytest.raises(CommandError, match="scheduled writers"):
+        call_command(
+            "audit_resolution_cycle_backfill",
+            web_writers_off=True,
+            worker_writers_off=True,
+        )
+
+
+def test_audit_identifica_el_universo_aprobado(
+    category,
+    capsys,
+):
+    call_command("seed_reports", verbosity=0)
+    capsys.readouterr()
+    for index in range(2):
+        report = Report.objects.create(
+            category=category,
+            description=f"Reporte histórico real {index}",
+            status=ReportStatus.CREADO,
+            location=Point(-57.63 + index / 100, -25.26, srid=4326),
+        )
+        ReportStatusHistory.objects.create(report=report, new_status=ReportStatus.CREADO)
+
+    call_command(
+        "audit_resolution_cycle_backfill",
+        web_writers_off=True,
+        worker_writers_off=True,
+        scheduled_writers_off=True,
+    )
+
+    output = capsys.readouterr().out
+    payload = json.loads(output[: output.index("}\n") + 1])
+    assert payload["total_reports"] == 16
+    assert payload["class_a"] == 2
+    assert payload["class_b"] == 14
+    assert payload["unknown"] == payload["inconsistent"] == 0
+    assert "READONLY_AUDIT_COMPLETE" in output

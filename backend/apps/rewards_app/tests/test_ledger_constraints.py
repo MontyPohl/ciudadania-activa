@@ -159,9 +159,9 @@ def test_el_mismo_reporte_admite_otros_tipos_de_evento(citizen, report, institut
 
 
 def test_dos_validation_bonus_son_posibles_tras_una_reversion(citizen, report, institution):
-    """No se restringe VALIDATION_BONUS: revalidar tras revertir es legítimo."""
+    """Cada ciclo admite su propio VALIDATION_BONUS."""
     ahora = timezone.now()
-    for _ in range(2):
+    for cycle in (1, 2):
         _tx(
             citizen,
             report=report,
@@ -171,9 +171,56 @@ def test_dos_validation_bonus_son_posibles_tras_una_reversion(citizen, report, i
             status=RewardTxStatus.ACREDITADO,
             institution=institution,
             credited_at=ahora,
+            resolution_cycle=cycle,
         )
 
     assert RewardTransaction.objects.filter(event_type="VALIDATION_BONUS").count() == 2
+
+
+def test_validation_bonus_es_unico_por_reporte_y_ciclo(citizen, report, institution):
+    ahora = timezone.now()
+    values = {
+        "report": report,
+        "event_type": RewardEventType.VALIDATION_BONUS,
+        "impact_delta": 30,
+        "credit_delta": 30,
+        "status": RewardTxStatus.ACREDITADO,
+        "institution": institution,
+        "credited_at": ahora,
+        "resolution_cycle": 1,
+    }
+    _tx(citizen, **values)
+
+    with pytest.raises(IntegrityError), transaction.atomic():
+        _tx(citizen, **values)
+
+
+def test_reversal_es_unica_por_transaccion_original(citizen, report, institution):
+    ahora = timezone.now()
+    original = _tx(
+        citizen,
+        report=report,
+        status=RewardTxStatus.REVERTIDO,
+        institution=institution,
+        credited_at=ahora,
+        reversed_at=ahora,
+        resolution_cycle=1,
+    )
+    values = {
+        "report": report,
+        "event_type": RewardEventType.REVERSAL,
+        "impact_delta": -20,
+        "credit_delta": -20,
+        "status": RewardTxStatus.REVERTIDO,
+        "institution": institution,
+        "reversed_at": ahora,
+        "resolution_cycle": 1,
+        "related_transaction": original,
+    }
+    _tx(citizen, **values)
+
+    with pytest.raises(IntegrityError), transaction.atomic():
+        _tx(citizen, **values)
 
 
 def test_un_solo_confirmation_created_por_confirmacion(report, other_citizen):
