@@ -15,6 +15,7 @@ FUNCIONES = [
     ("revert_validation", ["report", "actor", "reason"]),
 ]
 
+
 @pytest.mark.parametrize(("nombre", "parametros"), FUNCIONES)
 def test_las_firmas_del_contrato_estan_declaradas(nombre, parametros):
     funcion = getattr(ledger, nombre)

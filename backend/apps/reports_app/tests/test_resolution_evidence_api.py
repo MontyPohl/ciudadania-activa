@@ -86,7 +86,9 @@ def test_operator_post_creates_private_evidence_contract(
         "expires_in",
     }
     assert response.json()["cycle"] == 1
-    assert response.json()["signed_url"].startswith("http://testserver/api/v1/reports/evidence-access/")
+    assert response.json()["signed_url"].startswith(
+        "http://testserver/api/v1/reports/evidence-access/"
+    )
     assert str(report.pk) not in response.json()["signed_url"]
     assert "resolution-evidence" not in response.json()["signed_url"]
     assert response.json()["expires_in"] == 300
@@ -222,9 +224,7 @@ def test_private_evidence_get_rejects_unknown_query_with_stable_code(
     report,
     citizen,
 ):
-    response = _client(citizen).get(
-        f"/api/v1/reports/{report.pk}/evidence/?unexpected=true"
-    )
+    response = _client(citizen).get(f"/api/v1/reports/{report.pk}/evidence/?unexpected=true")
 
     assert response.status_code == 400
     assert response.json()["code"] == "INVALID_REQUEST"

@@ -8,9 +8,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import connection
 
 SEED_NAMESPACE = uuid.UUID("b63c21b4-6ac8-4ed3-b1ca-c6ca6862ab1d")
-SEED_IDS = frozenset(
-    uuid.uuid5(SEED_NAMESPACE, f"s5-map-{index:02d}") for index in range(1, 15)
-)
+SEED_IDS = frozenset(uuid.uuid5(SEED_NAMESPACE, f"s5-map-{index:02d}") for index in range(1, 15))
 SEED_STATUS = {
     uuid.uuid5(SEED_NAMESPACE, f"s5-map-{index:02d}"): status
     for index, status in enumerate(
@@ -152,8 +150,7 @@ def _classify(report, histories, evidences, rewards):
         row and row[0] == "ASIGNADO" for row in histories
     )
     validation_markers = validation_markers or any(
-        row and row[0] in {"VALIDATION_BONUS", "RESOLUTION_BONUS", "REVERSAL"}
-        for row in rewards
+        row and row[0] in {"VALIDATION_BONUS", "RESOLUTION_BONUS", "REVERSAL"} for row in rewards
     )
     if report_id in SEED_IDS:
         if (
@@ -169,10 +166,6 @@ def _classify(report, histories, evidences, rewards):
         ):
             return "B"
         return "INCONSISTENT"
-    if (
-        status == "CREADO"
-        and histories == [("", "CREADO")]
-        and not validation_markers
-    ):
+    if status == "CREADO" and histories == [("", "CREADO")] and not validation_markers:
         return "A"
     return "INCONSISTENT" if validation_markers else "UNKNOWN"

@@ -200,9 +200,7 @@ def test_revalidacion_incrementa_exactamente_un_ciclo(
     )
     assert report.resolution_cycle == 2
     assert current_bonus.resolution_cycle == 2
-    assert list(
-        ReportStatusHistory.objects.values_list("resolution_cycle", flat=True)
-    ) == [2]
+    assert list(ReportStatusHistory.objects.values_list("resolution_cycle", flat=True)) == [2]
 
 
 @pytest.mark.parametrize("source_status", [ReportStatus.CREADO, ReportStatus.CLASIFICADO])

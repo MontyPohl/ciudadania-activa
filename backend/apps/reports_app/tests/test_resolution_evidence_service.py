@@ -79,9 +79,7 @@ def test_create_evidence_normaliza_sube_persiste_y_audita_sin_filtraciones(
     assert result.created is True
     assert evidence.description == "Reparación terminada.\nSin novedad."
     assert evidence.resolution_cycle == 1
-    assert evidence.evidence_url == (
-        f"resolution-evidence/{report.pk}/1/{evidence.pk}.jpg"
-    )
+    assert evidence.evidence_url == (f"resolution-evidence/{report.pk}/1/{evidence.pk}.jpg")
     assert len(evidence.content_hash) == 64
     assert len(fake_storage.uploads) == 1
     assert fake_storage.uploads[0]["key"] == evidence.evidence_url

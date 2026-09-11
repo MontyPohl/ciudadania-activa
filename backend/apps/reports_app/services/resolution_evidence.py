@@ -126,8 +126,7 @@ def create_resolution_evidence(
 
     evidence_id = uuid.uuid4()
     object_key = (
-        f"resolution-evidence/{report_id}/{expected_cycle}/"
-        f"{evidence_id}{prepared.extension}"
+        f"resolution-evidence/{report_id}/{expected_cycle}/" f"{evidence_id}{prepared.extension}"
     )
     bucket = storage.reports_bucket()
     storage.upload(bucket, object_key, prepared.content, prepared.content_type)
@@ -219,9 +218,7 @@ def _locked_context(*, report_id, operator_id, institution_id):
         raise EvidenceNotFound from exc
 
     Category.objects.select_for_update().only("id").get(pk=report.category_id)
-    institution = Institution.objects.select_for_update().only("is_active").get(
-        pk=institution_id
-    )
+    institution = Institution.objects.select_for_update().only("is_active").get(pk=institution_id)
     if not institution.is_active:
         raise EvidenceOperatorRequired
     return report, operator
