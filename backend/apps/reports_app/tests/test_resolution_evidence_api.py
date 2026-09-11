@@ -239,3 +239,25 @@ def test_admin_evidence_get_uses_stable_auth_codes(report, citizen):
     assert anonymous.json()["code"] == "AUTHENTICATION_REQUIRED"
     assert wrong_role.status_code == 403
     assert wrong_role.json()["code"] == "ADMIN_REQUIRED"
+
+
+@pytest.mark.parametrize(
+    "url_factory",
+    [
+        lambda report, institution: f"/api/v1/reports/{report.pk}/evidence/",
+        lambda report, institution: f"/api/v1/admin/reports/{report.pk}/evidence/",
+        lambda report, institution: _operator_url(report, institution),
+    ],
+)
+def test_invalid_jwt_uses_stable_authentication_code(url_factory, report, institution):
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION="Bearer invalid-token")
+
+    response = client.get(url_factory(report, institution))
+
+    assert response.status_code == 401
+    assert response.json() == {
+        "detail": "Se requiere autenticación.",
+        "code": "AUTHENTICATION_REQUIRED",
+    }
+    assert response["Cache-Control"] == "private, no-store"

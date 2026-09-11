@@ -3,7 +3,13 @@
 from django.core import signing
 from django.http import HttpResponse
 from rest_framework import status
-from rest_framework.exceptions import NotAuthenticated, NotFound, PermissionDenied, ValidationError
+from rest_framework.exceptions import (
+    AuthenticationFailed,
+    NotAuthenticated,
+    NotFound,
+    PermissionDenied,
+    ValidationError,
+)
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -24,7 +30,7 @@ EVIDENCE_UNAVAILABLE = "No se pudo obtener la evidencia en este momento."
 class _EvidenceListBase(APIView):
     def handle_exception(self, exc):
         response = super().handle_exception(exc)
-        if isinstance(exc, NotAuthenticated):
+        if isinstance(exc, NotAuthenticated | AuthenticationFailed):
             response.data = {
                 "detail": "Se requiere autenticación.",
                 "code": "AUTHENTICATION_REQUIRED",

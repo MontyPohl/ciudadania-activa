@@ -6,7 +6,13 @@ from collections.abc import Mapping
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from rest_framework import status
-from rest_framework.exceptions import NotAuthenticated, NotFound, PermissionDenied, ValidationError
+from rest_framework.exceptions import (
+    AuthenticationFailed,
+    NotAuthenticated,
+    NotFound,
+    PermissionDenied,
+    ValidationError,
+)
 from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -275,7 +281,7 @@ class OperatorReportEvidenceView(APIView):
 
     def handle_exception(self, exc):
         response = super().handle_exception(exc)
-        if isinstance(exc, NotAuthenticated):
+        if isinstance(exc, NotAuthenticated | AuthenticationFailed):
             response.data = {
                 "detail": "Se requiere autenticación.",
                 "code": "AUTHENTICATION_REQUIRED",
