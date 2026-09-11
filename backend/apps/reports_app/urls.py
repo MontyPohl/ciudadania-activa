@@ -1,6 +1,9 @@
 from django.urls import path
 
-from apps.reports_app.evidence_views import CitizenReportEvidenceView
+from apps.reports_app.evidence_views import (
+    CitizenReportEvidenceView,
+    ResolutionEvidenceDownloadView,
+)
 from apps.reports_app.views import (
     ConfirmReportView,
     ContextualReportDetailView,
@@ -11,6 +14,11 @@ from apps.reports_app.views import (
 )
 
 urlpatterns = [
+    path(
+        "evidence-access/<str:token>/",
+        ResolutionEvidenceDownloadView.as_view(),
+        name="resolution-evidence-download",
+    ),
     path("", ReportCreateView.as_view(), name="report-create"),
     path(
         "possible-duplicates/",

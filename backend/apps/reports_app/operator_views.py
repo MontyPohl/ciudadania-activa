@@ -6,7 +6,7 @@ from collections.abc import Mapping
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from rest_framework import status
-from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
+from rest_framework.exceptions import NotAuthenticated, NotFound, PermissionDenied, ValidationError
 from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -274,7 +274,21 @@ class OperatorReportEvidenceView(APIView):
         return serializer.validated_data
 
     def handle_exception(self, exc):
-        return self._private(super().handle_exception(exc))
+        response = super().handle_exception(exc)
+        if isinstance(exc, NotAuthenticated):
+            response.data = {
+                "detail": "Se requiere autenticación.",
+                "code": "AUTHENTICATION_REQUIRED",
+            }
+        elif isinstance(exc, PermissionDenied):
+            response.data = {
+                "detail": INSTITUTION_OPERATOR_REQUIRED,
+                "code": "INSTITUTION_OPERATOR_REQUIRED",
+            }
+        elif isinstance(exc, ValidationError):
+            if not isinstance(response.data, dict) or "code" not in response.data:
+                response.data = {"detail": response.data, "code": "INVALID_REQUEST"}
+        return self._private(response)
 
     @staticmethod
     def _private(response):
@@ -284,15 +298,29 @@ class OperatorReportEvidenceView(APIView):
     def get(self, request, report_id):
         institution_id = self._params()["institution_id"]
         try:
-            institution = _resolve_operator_institution(
-                operator=request.user,
-                requested_id=institution_id,
+            report = evidence_service.get_operator_evidence_report(
+                report_id=report_id,
+                operator_id=request.user.pk,
+                institution_id=institution_id,
             )
-            report = Report.objects.get(pk=report_id, institution=institution)
             evidences = report.resolution_evidences.order_by("-created_at", "-id")
-            response = Response(ResolutionEvidenceOutputSerializer(evidences, many=True).data)
-        except Report.DoesNotExist:
-            raise NotFound({"detail": REPORT_NOT_FOUND, "code": "REPORT_NOT_FOUND"}) from None
+            response = Response(
+                ResolutionEvidenceOutputSerializer(
+                    evidences,
+                    many=True,
+                    context={"request": request},
+                ).data
+            )
+        except evidence_service.EvidenceOperatorRequired:
+            response = Response(
+                {"detail": INSTITUTION_OPERATOR_REQUIRED, "code": "INSTITUTION_OPERATOR_REQUIRED"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        except evidence_service.EvidenceNotFound:
+            response = Response(
+                {"detail": REPORT_NOT_FOUND, "code": "REPORT_NOT_FOUND"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
         except storage.StorageError:
             response = Response(
                 {"detail": EVIDENCE_UNAVAILABLE, "code": "STORAGE_UNAVAILABLE"},
@@ -315,7 +343,10 @@ class OperatorReportEvidenceView(APIView):
                 uploaded_file=serializer.validated_data["file"],
             )
             response = Response(
-                ResolutionEvidenceOutputSerializer(result.evidence).data,
+                ResolutionEvidenceOutputSerializer(
+                    result.evidence,
+                    context={"request": request},
+                ).data,
                 status=(status.HTTP_201_CREATED if result.created else status.HTTP_200_OK),
             )
         except evidence_service.EvidenceOperatorRequired:

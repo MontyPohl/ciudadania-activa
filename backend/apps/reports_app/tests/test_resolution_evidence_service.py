@@ -129,6 +129,56 @@ def test_same_idempotency_key_and_content_returns_original_without_upload(
     assert AuditLog.objects.count() == 1
 
 
+def test_idempotent_replay_returns_historical_result_after_new_cycle(
+    report,
+    operator_user,
+    institution,
+    storage_config,
+    fake_storage,
+    selfie_factory,
+    jpeg_bytes,
+):
+    _in_process(report, operator_user, institution)
+    key = uuid.uuid4()
+    first = _create(
+        report=report,
+        operator_user=operator_user,
+        institution=institution,
+        uploaded_file=selfie_factory(jpeg_bytes),
+        key=key,
+    )
+    report.status = ReportStatus.CLASIFICADO
+    report.validated_at = None
+    report.validated_by = None
+    report.save(update_fields=["status", "validated_at", "validated_by", "updated_at"])
+    report.status = ReportStatus.ASIGNADO
+    report.validated_at = timezone.now()
+    report.validated_by = operator_user
+    report.resolution_cycle = 2
+    report.save(
+        update_fields=[
+            "status",
+            "validated_at",
+            "validated_by",
+            "resolution_cycle",
+            "updated_at",
+        ]
+    )
+
+    replay = _create(
+        report=report,
+        operator_user=operator_user,
+        institution=institution,
+        uploaded_file=selfie_factory(jpeg_bytes),
+        key=key,
+        cycle=1,
+    )
+
+    assert replay.created is False
+    assert replay.evidence.pk == first.evidence.pk
+    assert len(fake_storage.uploads) == 1
+
+
 def test_reused_key_with_different_content_conflicts(
     report,
     operator_user,

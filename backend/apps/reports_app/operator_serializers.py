@@ -7,6 +7,7 @@ from apps.core.enums import RejectionReason, ReportPriority
 from apps.core.services import storage
 from apps.reports_app.enums import OPERABLE_REPORT_STATUSES
 from apps.reports_app.serializers import StrictInputMixin
+from apps.reports_app.services import evidence_access
 
 OPERATOR_REPORT_PHOTO_SIGNED_URL_TTL_SECONDS = 300
 
@@ -33,6 +34,10 @@ class ResolutionEvidenceInputSerializer(StrictInputMixin, serializers.Serializer
     cycle = serializers.IntegerField(min_value=1)
 
 
+class EmptyStrictQuerySerializer(StrictInputMixin, serializers.Serializer):
+    pass
+
+
 class ResolutionEvidenceOutputSerializer(serializers.Serializer):
     id = serializers.UUIDField(read_only=True)
     cycle = serializers.IntegerField(source="resolution_cycle", read_only=True)
@@ -42,14 +47,13 @@ class ResolutionEvidenceOutputSerializer(serializers.Serializer):
     expires_in = serializers.SerializerMethodField()
 
     def get_signed_url(self, evidence):
-        return storage.create_signed_url(
-            storage.reports_bucket(),
-            evidence.evidence_url,
-            expires_in=OPERATOR_REPORT_PHOTO_SIGNED_URL_TTL_SECONDS,
+        return evidence_access.create_access_url(
+            evidence,
+            request=self.context.get("request"),
         )
 
     def get_expires_in(self, evidence):
-        return OPERATOR_REPORT_PHOTO_SIGNED_URL_TTL_SECONDS
+        return evidence_access.EVIDENCE_ACCESS_TTL_SECONDS
 
 
 class OperatorReportListQuerySerializer(OperatorReportContextQuerySerializer):

@@ -17,6 +17,10 @@ MIGRATE_TO = [
     ("reports_app", "0006_resolution_evidence_idempotency"),
     ("rewards_app", "0003_enforce_resolution_cycle_constraints"),
 ]
+PRE_EVIDENCE = [
+    ("reports_app", "0005_enforce_resolution_cycles"),
+    ("rewards_app", "0003_enforce_resolution_cycle_constraints"),
+]
 
 
 def _executor(targets):
@@ -146,3 +150,44 @@ def test_classifier_identifica_seed_alterado_como_inconsistente():
     )()
 
     assert migration._classify(report, [], [], []) == "INCONSISTENT"
+
+
+def test_evidence_migration_aborts_when_historical_rows_exist():
+    executor = _executor(PRE_EVIDENCE)
+    old_apps = _historical_apps(executor, PRE_EVIDENCE)
+    Report = old_apps.get_model("reports_app", "Report")
+    Evidence = old_apps.get_model("reports_app", "ResolutionEvidence")
+    category = _ensure_categories(old_apps)["baches"]
+    report = Report.objects.create(
+        citizen=None,
+        category=category,
+        description="Reporte inesperado con evidencia histórica",
+        status="CREADO",
+        priority="MEDIA",
+        source="platform",
+        location=Point(-57.63, -25.26, srid=4326),
+        resolution_cycle=0,
+    )
+    evidence = Evidence.objects.create(
+        report=report,
+        description="Fila no autorizada",
+        evidence_url="legacy/key.jpg",
+        resolution_cycle=1,
+    )
+
+    try:
+        with pytest.raises(RuntimeError, match="approved baseline has no historical evidence"):
+            _executor(MIGRATE_TO)
+        columns = {
+            column.name
+            for column in connection.introspection.get_table_description(
+                connection.cursor(),
+                "resolution_evidences",
+            )
+        }
+        assert "idempotency_key" not in columns
+        assert "content_hash" not in columns
+    finally:
+        Evidence.objects.filter(pk=evidence.pk).delete()
+        Report.objects.filter(pk=report.pk).delete()
+        _executor(MIGRATE_TO)

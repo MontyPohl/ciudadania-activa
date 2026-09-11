@@ -112,7 +112,6 @@ def create_resolution_evidence(
             operator_id=operator_id,
             institution_id=institution_id,
         )
-        _ensure_current_cycle(report, expected_cycle)
         existing = _idempotent_existing(
             report=report,
             cycle=expected_cycle,
@@ -121,6 +120,7 @@ def create_resolution_evidence(
         )
         if existing is not None:
             return EvidenceCreationResult(evidence=existing, created=False)
+        _ensure_current_cycle(report, expected_cycle)
         _ensure_evidence_allowed(report)
         _ensure_limit(report, expected_cycle)
 
@@ -140,7 +140,6 @@ def create_resolution_evidence(
                 operator_id=operator_id,
                 institution_id=institution_id,
             )
-            _ensure_current_cycle(report, expected_cycle)
             existing = _idempotent_existing(
                 report=report,
                 cycle=expected_cycle,
@@ -150,6 +149,7 @@ def create_resolution_evidence(
             if existing is not None:
                 result = EvidenceCreationResult(evidence=existing, created=False)
             else:
+                _ensure_current_cycle(report, expected_cycle)
                 _ensure_evidence_allowed(report)
                 _ensure_limit(report, expected_cycle)
                 evidence = ResolutionEvidence.objects.create(
@@ -182,6 +182,16 @@ def create_resolution_evidence(
     if cleanup_required:
         _cleanup_uploaded_object(bucket, object_key)
     return result
+
+
+def get_operator_evidence_report(*, report_id, operator_id, institution_id):
+    with transaction.atomic():
+        report, _operator = _locked_context(
+            report_id=report_id,
+            operator_id=operator_id,
+            institution_id=institution_id,
+        )
+        return report
 
 
 def _locked_context(*, report_id, operator_id, institution_id):
@@ -228,7 +238,10 @@ def _ensure_evidence_allowed(report):
 
 
 def _ensure_limit(report, cycle):
-    if ResolutionEvidence.objects.filter(report=report, resolution_cycle=cycle).count() >= 5:
+    if (
+        ResolutionEvidence.objects.filter(report=report, resolution_cycle=cycle).count()
+        >= EVIDENCE_LIMIT
+    ):
         raise EvidenceLimitReached
 
 
