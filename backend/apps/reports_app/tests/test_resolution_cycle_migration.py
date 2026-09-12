@@ -14,7 +14,7 @@ MIGRATE_FROM = [
     ("rewards_app", "0002_add_resolution_cycle_column"),
 ]
 MIGRATE_TO = [
-    ("reports_app", "0006_resolution_evidence_idempotency"),
+    ("reports_app", "0007_report_closed_at"),
     ("rewards_app", "0003_enforce_resolution_cycle_constraints"),
 ]
 PRE_EVIDENCE = [

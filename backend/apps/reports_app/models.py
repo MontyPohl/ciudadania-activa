@@ -75,6 +75,7 @@ class Report(BaseModel):
         related_name="validated_reports",
     )
     resolved_at = models.DateTimeField(null=True, blank=True)
+    closed_at = models.DateTimeField(null=True, blank=True)
     resolution_cycle = models.PositiveIntegerField(default=0)
     # Motivo tipificado del rechazo (RF-14). Vacío mientras el reporte no esté
     # rechazado; `report_status_history.reason` conserva la nota libre del operador.
@@ -94,6 +95,7 @@ class Report(BaseModel):
             models.Index(fields=["status"], name="report_status_idx"),
             models.Index(fields=["priority"], name="report_priority_idx"),
             models.Index(fields=["created_at"], name="report_created_at_idx"),
+            models.Index(fields=["status", "resolved_at"], name="report_auto_close_idx"),
         ]
         constraints = [
             models.CheckConstraint(

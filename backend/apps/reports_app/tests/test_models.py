@@ -25,6 +25,7 @@ def test_reporte_nuevo_nace_creado_con_prioridad_media_y_origen_plataforma(repor
     assert report.validated_at is None
     assert report.validated_by is None
     assert report.resolved_at is None
+    assert report.closed_at is None
     assert report.rejection_reason == ""
 
 

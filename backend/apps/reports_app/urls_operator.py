@@ -5,11 +5,17 @@ from apps.reports_app.operator_views import (
     OperatorReportEvidenceView,
     OperatorReportListView,
     OperatorReportRejectView,
+    OperatorReportStatusView,
     OperatorReportValidateView,
 )
 
 urlpatterns = [
     path("reports/", OperatorReportListView.as_view(), name="operator-report-list"),
+    path(
+        "reports/<uuid:report_id>/status/",
+        OperatorReportStatusView.as_view(),
+        name="operator-report-status",
+    ),
     path(
         "reports/<uuid:report_id>/evidence/",
         OperatorReportEvidenceView.as_view(),

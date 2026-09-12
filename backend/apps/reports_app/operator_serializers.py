@@ -3,7 +3,7 @@
 from rest_framework import serializers
 
 from apps.admin_app.models import Category
-from apps.core.enums import RejectionReason, ReportPriority
+from apps.core.enums import RejectionReason, ReportPriority, ReportStatus
 from apps.core.services import storage
 from apps.reports_app.enums import OPERABLE_REPORT_STATUSES
 from apps.reports_app.serializers import StrictInputMixin
@@ -36,6 +36,13 @@ class ResolutionEvidenceInputSerializer(StrictInputMixin, serializers.Serializer
 
 class EmptyStrictQuerySerializer(StrictInputMixin, serializers.Serializer):
     pass
+
+
+class OperatorStatusInputSerializer(StrictInputMixin, serializers.Serializer):
+    status = serializers.ChoiceField(
+        choices=[ReportStatus.EN_PROCESO, ReportStatus.RESUELTO, ReportStatus.CERRADO]
+    )
+    expected_cycle = serializers.IntegerField(min_value=1)
 
 
 class ResolutionEvidenceOutputSerializer(serializers.Serializer):
@@ -89,6 +96,16 @@ class OperatorInstitutionSerializer(serializers.Serializer):
     id = serializers.UUIDField(read_only=True)
     name = serializers.CharField(read_only=True)
     slug = serializers.SlugField(read_only=True)
+
+
+class OperatorLifecycleResponseSerializer(serializers.Serializer):
+    id = serializers.UUIDField(read_only=True)
+    status = serializers.CharField(read_only=True)
+    cycle = serializers.IntegerField(source="resolution_cycle", read_only=True)
+    institution = OperatorInstitutionSerializer(read_only=True)
+    validated_at = serializers.DateTimeField(read_only=True)
+    resolved_at = serializers.DateTimeField(read_only=True, allow_null=True)
+    closed_at = serializers.DateTimeField(read_only=True, allow_null=True)
 
 
 class OperatorReportActionResponseSerializer(serializers.Serializer):

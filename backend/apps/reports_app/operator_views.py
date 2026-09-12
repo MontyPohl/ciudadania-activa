@@ -24,6 +24,7 @@ from apps.core.permissions import IsInstitutionOperator
 from apps.core.services import storage
 from apps.reports_app.models import Report
 from apps.reports_app.operator_serializers import (
+    OperatorLifecycleResponseSerializer,
     OperatorRejectInputSerializer,
     OperatorReportActionQuerySerializer,
     OperatorReportActionResponseSerializer,
@@ -31,6 +32,7 @@ from apps.reports_app.operator_serializers import (
     OperatorReportDetailSerializer,
     OperatorReportListQuerySerializer,
     OperatorReportListSerializer,
+    OperatorStatusInputSerializer,
     OperatorValidateInputSerializer,
     ResolutionEvidenceInputSerializer,
     ResolutionEvidenceOutputSerializer,
@@ -41,8 +43,8 @@ from apps.reports_app.selectors import (
     operator_report_list,
     operator_reports_for_institution,
 )
+from apps.reports_app.services import lifecycle, validation
 from apps.reports_app.services import resolution_evidence as evidence_service
-from apps.reports_app.services import validation
 
 INSTITUTION_CONTEXT_FORBIDDEN = "No tenés acceso al contexto institucional solicitado."
 INSTITUTION_CONTEXT_REQUIRED = (
@@ -394,6 +396,66 @@ class OperatorReportEvidenceView(APIView):
             response = Response(
                 {"detail": EVIDENCE_UNAVAILABLE, "code": "STORAGE_UNAVAILABLE"},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        return self._private(response)
+
+
+class OperatorReportStatusView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @staticmethod
+    def _private(response):
+        response["Cache-Control"] = "private, no-store"
+        return response
+
+    def handle_exception(self, exc):
+        response = super().handle_exception(exc)
+        if isinstance(exc, NotAuthenticated | AuthenticationFailed):
+            response.data = {
+                "detail": "Se requiere autenticación.",
+                "code": "AUTHENTICATION_REQUIRED",
+            }
+        elif isinstance(exc, PermissionDenied):
+            response.data = {
+                "detail": INSTITUTION_OPERATOR_REQUIRED,
+                "code": "INSTITUTION_OPERATOR_REQUIRED",
+            }
+        elif isinstance(exc, ValidationError):
+            response.data = {"detail": response.data, "code": "INVALID_REQUEST"}
+        return self._private(response)
+
+    def patch(self, request, report_id):
+        query = OperatorReportActionQuerySerializer(data=request.query_params)
+        query.is_valid(raise_exception=True)
+        serializer = OperatorStatusInputSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            result = lifecycle.transition_report_status(
+                report_id=report_id,
+                operator_id=request.user.pk,
+                institution_id=query.validated_data["institution_id"],
+                target_status=serializer.validated_data["status"],
+                expected_cycle=serializer.validated_data["expected_cycle"],
+            )
+            response = Response(OperatorLifecycleResponseSerializer(result.report).data)
+        except lifecycle.OperatorRequired:
+            response = Response(
+                {"detail": INSTITUTION_OPERATOR_REQUIRED, "code": "INSTITUTION_OPERATOR_REQUIRED"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        except lifecycle.ReportNotFound:
+            response = Response(
+                {"detail": REPORT_NOT_FOUND, "code": "REPORT_NOT_FOUND"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        except (
+            lifecycle.StaleReportCycle,
+            lifecycle.ReportStateNotAllowed,
+            lifecycle.ResolutionEvidenceRequired,
+        ) as exc:
+            response = Response(
+                {"detail": str(exc) or exc.code, "code": exc.code},
+                status=status.HTTP_409_CONFLICT,
             )
         return self._private(response)
 
