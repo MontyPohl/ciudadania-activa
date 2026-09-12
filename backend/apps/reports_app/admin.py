@@ -50,10 +50,9 @@ class ReportStatusHistoryAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
 
 
 @admin.register(ResolutionEvidence)
-class ResolutionEvidenceAdmin(admin.ModelAdmin):
+class ResolutionEvidenceAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
     list_display = ["created_at", "report", "uploaded_by"]
     raw_id_fields = ["report", "uploaded_by"]
-    readonly_fields = ["created_at", "updated_at"]
 
 
 @admin.register(ReportConfirmation)

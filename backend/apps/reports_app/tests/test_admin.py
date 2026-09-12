@@ -1,8 +1,16 @@
 from django.contrib.admin.sites import AdminSite
 
 from apps.core.tests.fake_request import FakeRequest
-from apps.reports_app.admin import ReportConfirmationAdmin, ReportStatusHistoryAdmin
-from apps.reports_app.models import ReportConfirmation, ReportStatusHistory
+from apps.reports_app.admin import (
+    ReportConfirmationAdmin,
+    ReportStatusHistoryAdmin,
+    ResolutionEvidenceAdmin,
+)
+from apps.reports_app.models import (
+    ReportConfirmation,
+    ReportStatusHistory,
+    ResolutionEvidence,
+)
 
 
 def test_confirmaciones_e_historial_son_read_only_estrictos():
@@ -11,6 +19,7 @@ def test_confirmaciones_e_historial_son_read_only_estrictos():
     for admin_class, model in (
         (ReportConfirmationAdmin, ReportConfirmation),
         (ReportStatusHistoryAdmin, ReportStatusHistory),
+        (ResolutionEvidenceAdmin, ResolutionEvidence),
     ):
         model_admin = admin_class(model, AdminSite())
         assert model_admin.has_add_permission(request) is False
