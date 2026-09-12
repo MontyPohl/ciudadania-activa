@@ -3,6 +3,7 @@ from django.urls import path
 from apps.reports_app.operator_views import (
     OperatorReportDetailView,
     OperatorReportEvidenceView,
+    OperatorReportHistoryView,
     OperatorReportListView,
     OperatorReportRejectView,
     OperatorReportStatusView,
@@ -15,6 +16,11 @@ urlpatterns = [
         "reports/<uuid:report_id>/status/",
         OperatorReportStatusView.as_view(),
         name="operator-report-status",
+    ),
+    path(
+        "reports/<uuid:report_id>/history/",
+        OperatorReportHistoryView.as_view(),
+        name="operator-report-history",
     ),
     path(
         "reports/<uuid:report_id>/evidence/",

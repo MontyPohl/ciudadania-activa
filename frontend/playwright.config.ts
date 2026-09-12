@@ -2,6 +2,9 @@ import { defineConfig, devices } from "@playwright/test";
 
 const PORT = 3106;
 const BASE_URL = `http://127.0.0.1:${PORT}`;
+const WEB_SERVER_COMMAND = process.env.PLAYWRIGHT_PRODUCTION
+  ? `npm run start -- --hostname 127.0.0.1 --port ${PORT}`
+  : `npm run dev -- --webpack --hostname 127.0.0.1 --port ${PORT}`;
 
 export default defineConfig({
   testDir: "./e2e",
@@ -21,7 +24,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `npm run dev -- --webpack --hostname 127.0.0.1 --port ${PORT}`,
+    command: WEB_SERVER_COMMAND,
     env: {
       NEXT_PUBLIC_API_URL: BASE_URL,
     },

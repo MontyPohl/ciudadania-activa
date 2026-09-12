@@ -15,6 +15,8 @@ import type {
   MyReportsPage,
   PrivateReportDetail,
   ReportHistoryEntry,
+  ReportHistoryPage,
+  ResolutionEvidence,
 } from "@/types/api";
 import type { ReportPriority, ReportStatus } from "@/types/domain";
 
@@ -230,6 +232,7 @@ const ELIGIBILITY_CODES = [
   "SELF_CONFIRMATION_NOT_ALLOWED",
   "ALREADY_CONFIRMED",
 ] as const;
+const REWARD_STATUSES = ["PENDIENTE", "ACREDITADO", "ANULADO", "REVERTIDO"] as const;
 
 function invalidResponse(): never {
   throw new CitizenPanelApiError("INVALID_RESPONSE");
@@ -342,6 +345,19 @@ function isEligibility(value: unknown): value is ConfirmationEligibility {
   return value.can_confirm ? value.code === null : value.code !== null;
 }
 
+function isResolutionBonus(value: unknown): boolean {
+  return (
+    value === null ||
+    (isRecord(value) &&
+      hasExactKeys(value, ["impact_points", "credits", "status", "cycle"]) &&
+      isNonNegativeInteger(value.impact_points) &&
+      isNonNegativeInteger(value.credits) &&
+      REWARD_STATUSES.includes(value.status as (typeof REWARD_STATUSES)[number]) &&
+      Number.isInteger(value.cycle) &&
+      Number(value.cycle) >= 1)
+  );
+}
+
 function parsePrivateReportDetail(value: unknown): PrivateReportDetail {
   if (
     !isRecord(value) ||
@@ -358,6 +374,11 @@ function parsePrivateReportDetail(value: unknown): PrivateReportDetail {
       "confirmation_count",
       "confirmed_by_me",
       "confirmation_eligibility",
+      "cycle",
+      "validated_at",
+      "resolved_at",
+      "closed_at",
+      "resolution_bonus",
     ]) ||
     !isMyReport({
       id: value.id,
@@ -376,31 +397,46 @@ function parsePrivateReportDetail(value: unknown): PrivateReportDetail {
     !Number.isFinite(value.longitude) ||
     value.longitude < -180 ||
     value.longitude > 180 ||
+    !isNonNegativeInteger(value.cycle) ||
+    !(value.validated_at === null || isIsoDateTime(value.validated_at)) ||
+    !(value.resolved_at === null || isIsoDateTime(value.resolved_at)) ||
+    !(value.closed_at === null || isIsoDateTime(value.closed_at)) ||
     !isNonNegativeInteger(value.confirmation_count) ||
     typeof value.confirmed_by_me !== "boolean" ||
-    !isEligibility(value.confirmation_eligibility)
+    !isEligibility(value.confirmation_eligibility) ||
+    !isResolutionBonus(value.resolution_bonus)
   ) {
     invalidResponse();
   }
   return value as unknown as PrivateReportDetail;
 }
 
-function parseReportHistory(value: unknown): ReportHistoryEntry[] {
+function isReportHistoryEntry(entry: unknown): entry is ReportHistoryEntry {
+  return (
+    isRecord(entry) &&
+    hasExactKeys(entry, ["previous_status", "new_status", "cycle", "reason", "created_at"]) &&
+    (entry.previous_status === "" || isReportStatus(entry.previous_status)) &&
+    isReportStatus(entry.new_status) &&
+    isNonNegativeInteger(entry.cycle) &&
+    typeof entry.reason === "string" &&
+    isIsoDateTime(entry.created_at)
+  );
+}
+
+function parseReportHistory(value: unknown): ReportHistoryPage {
   if (
-    !Array.isArray(value) ||
-    !value.every(
-      (entry) =>
-        isRecord(entry) &&
-        hasExactKeys(entry, ["previous_status", "new_status", "reason", "created_at"]) &&
-        (entry.previous_status === "" || isReportStatus(entry.previous_status)) &&
-        isReportStatus(entry.new_status) &&
-        typeof entry.reason === "string" &&
-        isIsoDateTime(entry.created_at),
-    )
+    !isRecord(value) ||
+    !hasExactKeys(value, ["count", "next", "previous", "results"]) ||
+    !isNonNegativeInteger(value.count) ||
+    !(value.next === null || typeof value.next === "string") ||
+    !(value.previous === null || typeof value.previous === "string") ||
+    !Array.isArray(value.results) ||
+    value.results.length > 20 ||
+    !value.results.every(isReportHistoryEntry)
   ) {
     invalidResponse();
   }
-  return value as ReportHistoryEntry[];
+  return value as unknown as ReportHistoryPage;
 }
 
 function panelErrorFromHttp(error: ApiError): CitizenPanelApiError {
@@ -458,9 +494,51 @@ export async function getReportDetail(
   return detail;
 }
 
-export function getReportHistory(id: string, signal?: AbortSignal): Promise<ReportHistoryEntry[]> {
+export function getReportHistory(
+  id: string,
+  signal?: AbortSignal,
+  page = 1,
+): Promise<ReportHistoryPage> {
   requireReportId(id);
-  return panelGet(`/api/v1/reports/${id}/history/`, parseReportHistory, signal);
+  if (!Number.isInteger(page) || page < 1) {
+    return Promise.reject(new CitizenPanelApiError("INVALID_RESPONSE"));
+  }
+  return panelGet(`/api/v1/reports/${id}/history/?page=${page}`, parseReportHistory, signal);
+}
+
+function parseResolutionEvidence(value: unknown): ResolutionEvidence[] {
+  if (
+    !Array.isArray(value) ||
+    !value.every(
+      (entry) =>
+        isRecord(entry) &&
+        hasExactKeys(entry, [
+          "id",
+          "cycle",
+          "description",
+          "created_at",
+          "signed_url",
+          "expires_in",
+        ]) &&
+        isUuid(entry.id) &&
+        Number.isInteger(entry.cycle) &&
+        Number(entry.cycle) >= 1 &&
+        typeof entry.description === "string" &&
+        isIsoDateTime(entry.created_at) &&
+        typeof entry.signed_url === "string" &&
+        entry.signed_url.length > 0 &&
+        Number.isInteger(entry.expires_in) &&
+        Number(entry.expires_in) > 0,
+    )
+  ) {
+    invalidResponse();
+  }
+  return value as ResolutionEvidence[];
+}
+
+export function getReportEvidence(id: string, signal?: AbortSignal): Promise<ResolutionEvidence[]> {
+  requireReportId(id);
+  return panelGet(`/api/v1/reports/${id}/evidence/`, parseResolutionEvidence, signal);
 }
 
 /* -------------------------------------------------------------------------- */

@@ -7,6 +7,7 @@ import {
   getCitizenSummary,
   getMyReports,
   getReportDetail,
+  getReportEvidence,
   getReportHistory,
 } from "@/lib/api/reports";
 import type {
@@ -14,7 +15,7 @@ import type {
   MyReport,
   MyReportsPage,
   PrivateReportDetail,
-  ReportHistoryEntry,
+  ReportHistoryPage,
 } from "@/types/api";
 
 vi.mock("@/lib/api/reports", async (importOriginal) => {
@@ -24,6 +25,7 @@ vi.mock("@/lib/api/reports", async (importOriginal) => {
     getCitizenSummary: vi.fn(),
     getMyReports: vi.fn(),
     getReportDetail: vi.fn(),
+    getReportEvidence: vi.fn(),
     getReportHistory: vi.fn(),
   };
 });
@@ -64,22 +66,33 @@ function page(overrides: Partial<MyReportsPage> = {}): MyReportsPage {
 function detail(item = report()): PrivateReportDetail {
   return {
     ...item,
+    cycle: 0,
+    validated_at: null,
+    resolved_at: null,
+    closed_at: null,
     latitude: -25.3,
     longitude: -57.6,
     confirmation_count: 4,
     confirmed_by_me: false,
     confirmation_eligibility: { can_confirm: false, code: "SELF_CONFIRMATION_NOT_ALLOWED" },
+    resolution_bonus: null,
   };
 }
 
-const HISTORY: ReportHistoryEntry[] = [
-  {
-    previous_status: "",
-    new_status: "CREADO",
-    reason: "",
-    created_at: "2026-08-28T12:00:00Z",
-  },
-];
+const HISTORY: ReportHistoryPage = {
+  count: 1,
+  next: null,
+  previous: null,
+  results: [
+    {
+      previous_status: "",
+      new_status: "CREADO",
+      cycle: 0,
+      reason: "",
+      created_at: "2026-08-28T12:00:00Z",
+    },
+  ],
+};
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -96,6 +109,7 @@ describe("panel ciudadano", () => {
     vi.mocked(getCitizenSummary).mockReset().mockResolvedValue(SUMMARY);
     vi.mocked(getMyReports).mockReset().mockResolvedValue(page());
     vi.mocked(getReportDetail).mockReset().mockResolvedValue(detail());
+    vi.mocked(getReportEvidence).mockReset().mockResolvedValue([]);
     vi.mocked(getReportHistory).mockReset().mockResolvedValue(HISTORY);
   });
 
@@ -113,6 +127,7 @@ describe("panel ciudadano", () => {
     expect(getMyReports).toHaveBeenCalledOnce();
     expect(getMyReports).toHaveBeenCalledWith({ page: 1 }, expect.any(AbortSignal));
     expect(getReportDetail).not.toHaveBeenCalled();
+    expect(getReportEvidence).not.toHaveBeenCalled();
     expect(getReportHistory).not.toHaveBeenCalled();
   });
 
@@ -216,9 +231,9 @@ describe("panel ciudadano", () => {
     expect(screen.getByRole("button", { name: "Anterior" })).toBeEnabled();
   });
 
-  it("carga como máximo un detail y un history al solicitar seguimiento", async () => {
+  it("carga una vez el detalle, historial y evidencia al solicitar seguimiento", async () => {
     const pendingDetail = deferred<PrivateReportDetail>();
-    const pendingHistory = deferred<ReportHistoryEntry[]>();
+    const pendingHistory = deferred<ReportHistoryPage>();
     vi.mocked(getReportDetail).mockReturnValue(pendingDetail.promise);
     vi.mocked(getReportHistory).mockReturnValue(pendingHistory.promise);
     render(<CitizenPanel />);
@@ -228,6 +243,7 @@ describe("panel ciudadano", () => {
     fireEvent.click(open);
     expect(screen.getByRole("status")).toHaveTextContent("detalle e historial");
     expect(getReportDetail).toHaveBeenCalledOnce();
+    expect(getReportEvidence).not.toHaveBeenCalled();
     expect(getReportHistory).toHaveBeenCalledOnce();
     expect(getReportDetail).toHaveBeenCalledWith(REPORT_A, expect.any(AbortSignal));
 
@@ -237,9 +253,75 @@ describe("panel ciudadano", () => {
     });
 
     expect(await screen.findByText("Confirmaciones ciudadanas: 4")).toBeVisible();
+    expect(getReportEvidence).toHaveBeenCalledOnce();
+    expect(getReportHistory).toHaveBeenCalledWith(REPORT_A, expect.any(AbortSignal), 1);
     expect(screen.getByText("Reporte creado")).toBeVisible();
     expect(screen.queryByRole("button", { name: /confirm/i })).not.toBeInTheDocument();
     expect(screen.queryByText("SELF_CONFIRMATION_NOT_ALLOWED")).not.toBeInTheDocument();
+  });
+
+  it("muestra evidencia privada con el ciclo al autor", async () => {
+    vi.mocked(getReportDetail).mockResolvedValue({
+      ...detail(),
+      status: "RESUELTO",
+      cycle: 1,
+      validated_at: "2026-08-28T13:00:00Z",
+      resolved_at: "2026-08-29T12:00:00Z",
+      resolution_bonus: {
+        impact_points: 50,
+        credits: 50,
+        status: "ACREDITADO",
+        cycle: 1,
+      },
+    });
+    vi.mocked(getReportEvidence).mockResolvedValue([
+      {
+        id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        cycle: 1,
+        description: "Reparación concluida.",
+        created_at: "2026-08-29T11:00:00Z",
+        signed_url: "/api/v1/reports/evidence-access/token/",
+        expires_in: 300,
+      },
+    ]);
+    const user = userEvent.setup();
+    render(<CitizenPanel />);
+
+    await user.click(await screen.findByRole("button", { name: "Ver seguimiento" }));
+
+    expect(await screen.findByText("Reparación concluida.")).toBeVisible();
+    expect(screen.getByText("Ciclo actual: 1")).toBeVisible();
+    expect(screen.getByText("Bono de resolución")).toBeVisible();
+    expect(screen.getByText(/\+50 puntos y \+50 créditos · Acreditado · Ciclo 1/)).toBeVisible();
+    expect(
+      screen.getByRole("img", { name: "Evidencia de resolución del ciclo 1" }),
+    ).toHaveAttribute("referrerpolicy", "no-referrer");
+  });
+
+  it("mantiene estado, historial y bono visibles si falla la evidencia", async () => {
+    vi.mocked(getReportDetail).mockResolvedValue({
+      ...detail(),
+      status: "RESUELTO",
+      cycle: 1,
+      resolution_bonus: {
+        impact_points: 50,
+        credits: 50,
+        status: "ACREDITADO",
+        cycle: 1,
+      },
+    });
+    vi.mocked(getReportEvidence).mockRejectedValue(new CitizenPanelApiError("SERVER_ERROR", 503));
+    const user = userEvent.setup();
+    render(<CitizenPanel />);
+
+    await user.click(await screen.findByRole("button", { name: "Ver seguimiento" }));
+
+    expect(await screen.findByText("Estado actual: Resuelto")).toBeVisible();
+    expect(screen.getByText("Reporte creado")).toBeVisible();
+    expect(screen.getByText("Bono de resolución")).toBeVisible();
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "El servicio no está disponible en este momento",
+    );
   });
 
   it("maneja 404 de seguimiento y permite un retry independiente", async () => {
@@ -256,6 +338,7 @@ describe("panel ciudadano", () => {
 
     expect(await screen.findByText("Reporte creado")).toBeVisible();
     expect(getReportDetail).toHaveBeenCalledTimes(2);
+    expect(getReportEvidence).toHaveBeenCalledTimes(1);
     expect(getReportHistory).toHaveBeenCalledTimes(2);
   });
 
@@ -265,8 +348,8 @@ describe("panel ciudadano", () => {
     vi.mocked(getMyReports).mockResolvedValue(page({ count: 2, results: [reportA, reportB] }));
     const detailA = deferred<PrivateReportDetail>();
     const detailB = deferred<PrivateReportDetail>();
-    const historyA = deferred<ReportHistoryEntry[]>();
-    const historyB = deferred<ReportHistoryEntry[]>();
+    const historyA = deferred<ReportHistoryPage>();
+    const historyB = deferred<ReportHistoryPage>();
     vi.mocked(getReportDetail).mockImplementation((id) =>
       id === REPORT_A ? detailA.promise : detailB.promise,
     );

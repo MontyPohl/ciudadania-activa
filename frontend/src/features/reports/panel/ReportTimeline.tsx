@@ -22,6 +22,11 @@ export function ReportTimeline({ entries }: { entries: ReportHistoryEntry[] }) {
               ? "Reporte creado"
               : `${REPORT_STATUS_LABELS[entry.previous_status]} → ${REPORT_STATUS_LABELS[entry.new_status]}`}
           </p>
+          {entry.cycle > 0 && (
+            <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-brand-black/55">
+              Ciclo {entry.cycle}
+            </p>
+          )}
           {entry.reason.trim() !== "" && (
             <p className="mt-1 whitespace-pre-wrap text-sm text-brand-black/75">{entry.reason}</p>
           )}

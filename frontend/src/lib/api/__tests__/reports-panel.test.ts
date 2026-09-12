@@ -3,6 +3,7 @@ import {
   getCitizenSummary,
   getMyReports,
   getReportDetail,
+  getReportEvidence,
   getReportHistory,
 } from "@/lib/api/reports";
 
@@ -94,6 +95,10 @@ describe("clientes GET del panel ciudadano", () => {
   it("parsea el detalle contextual exacto sin convertir eligibility en acción", async () => {
     const detail = {
       ...report(),
+      cycle: 0,
+      validated_at: null,
+      resolved_at: null,
+      closed_at: null,
       latitude: -25.3,
       longitude: -57.6,
       confirmation_count: 4,
@@ -101,6 +106,12 @@ describe("clientes GET del panel ciudadano", () => {
       confirmation_eligibility: {
         can_confirm: false,
         code: "SELF_CONFIRMATION_NOT_ALLOWED",
+      },
+      resolution_bonus: {
+        impact_points: 50,
+        credits: 50,
+        status: "ACREDITADO",
+        cycle: 1,
       },
     };
     vi.mocked(fetch).mockResolvedValue(jsonResponse(detail));
@@ -113,25 +124,52 @@ describe("clientes GET del panel ciudadano", () => {
   });
 
   it("parsea history 200 cronológico y sin actor", async () => {
-    const history = [
-      {
-        previous_status: "",
-        new_status: "CREADO",
-        reason: "",
-        created_at: "2026-08-28T10:00:00Z",
-      },
-      {
-        previous_status: "CREADO",
-        new_status: "CLASIFICADO",
-        reason: "Clasificación inicial",
-        created_at: "2026-08-28T11:00:00Z",
-      },
-    ];
+    const history = {
+      count: 2,
+      next: null,
+      previous: null,
+      results: [
+        {
+          previous_status: "CREADO",
+          new_status: "CLASIFICADO",
+          cycle: 0,
+          reason: "Clasificación inicial",
+          created_at: "2026-08-28T11:00:00Z",
+        },
+        {
+          previous_status: "",
+          new_status: "CREADO",
+          cycle: 0,
+          reason: "",
+          created_at: "2026-08-28T10:00:00Z",
+        },
+      ],
+    };
     vi.mocked(fetch).mockResolvedValue(jsonResponse(history));
 
     const result = await getReportHistory(REPORT_ID);
     expect(result).toEqual(history);
     expect(JSON.stringify(result)).not.toContain("changed_by");
+    expect(String(vi.mocked(fetch).mock.calls[0][0])).toContain("history/?page=1");
+  });
+
+  it("parsea evidencia privada sin aceptar campos de almacenamiento", async () => {
+    const evidence = [
+      {
+        id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        cycle: 1,
+        description: "Reparación concluida.",
+        created_at: "2026-08-29T12:00:00Z",
+        signed_url: "/api/v1/reports/evidence-access/token/",
+        expires_in: 300,
+      },
+    ];
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(evidence));
+
+    await expect(getReportEvidence(REPORT_ID)).resolves.toEqual(evidence);
+    expect(String(vi.mocked(fetch).mock.calls[0][0])).toContain(
+      `/api/v1/reports/${REPORT_ID}/evidence/`,
+    );
   });
 
   it.each([
@@ -179,7 +217,30 @@ describe("clientes GET del panel ciudadano", () => {
     [
       "history",
       () => getReportHistory(REPORT_ID),
-      [{ previous_status: null, new_status: "CREADO", reason: "", created_at: "fecha" }],
+      [
+        {
+          previous_status: null,
+          new_status: "CREADO",
+          cycle: 0,
+          reason: "",
+          created_at: "fecha",
+        },
+      ],
+    ],
+    [
+      "evidence",
+      () => getReportEvidence(REPORT_ID),
+      [
+        {
+          id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          cycle: 1,
+          description: "ok",
+          created_at: "2026-08-29T12:00:00Z",
+          signed_url: "/token/",
+          expires_in: 300,
+          object_key: "secreto",
+        },
+      ],
     ],
   ] as const)("rechaza shape 200 inválido de %s", async (_name, request, body) => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(body));

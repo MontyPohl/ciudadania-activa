@@ -147,9 +147,21 @@ class ConfirmationEligibilitySerializer(serializers.Serializer):
     code = serializers.CharField(read_only=True, allow_null=True)
 
 
+class ResolutionBonusSerializer(serializers.Serializer):
+    impact_points = serializers.IntegerField(read_only=True)
+    credits = serializers.IntegerField(read_only=True)
+    status = serializers.CharField(read_only=True)
+    cycle = serializers.IntegerField(read_only=True)
+
+
 class ContextualReportDetailSerializer(PublicReportDetailSerializer):
+    cycle = serializers.IntegerField(source="resolution_cycle", read_only=True)
+    validated_at = serializers.DateTimeField(read_only=True, allow_null=True)
+    resolved_at = serializers.DateTimeField(read_only=True, allow_null=True)
+    closed_at = serializers.DateTimeField(read_only=True, allow_null=True)
     confirmed_by_me = serializers.BooleanField(read_only=True)
     confirmation_eligibility = serializers.SerializerMethodField()
+    resolution_bonus = serializers.SerializerMethodField()
 
     def get_confirmation_eligibility(self, report):
         eligibility = get_confirmation_eligibility(
@@ -159,10 +171,25 @@ class ContextualReportDetailSerializer(PublicReportDetailSerializer):
         )
         return ConfirmationEligibilitySerializer(eligibility).data
 
+    def get_resolution_bonus(self, report):
+        request = self.context["request"]
+        impact_points = report.resolution_bonus_impact_points
+        if report.citizen_id != request.user.pk or impact_points is None:
+            return None
+        return ResolutionBonusSerializer(
+            {
+                "impact_points": impact_points,
+                "credits": report.resolution_bonus_credits,
+                "status": report.resolution_bonus_status,
+                "cycle": report.resolution_bonus_cycle,
+            }
+        ).data
+
 
 class ReportStatusHistorySerializer(serializers.Serializer):
     previous_status = serializers.CharField(read_only=True)
     new_status = serializers.CharField(read_only=True)
+    cycle = serializers.IntegerField(source="resolution_cycle", read_only=True)
     reason = serializers.CharField(read_only=True)
     created_at = serializers.DateTimeField(read_only=True)
 

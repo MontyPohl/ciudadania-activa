@@ -5,7 +5,7 @@ from rest_framework import serializers
 from apps.admin_app.models import Category
 from apps.core.enums import RejectionReason, ReportPriority, ReportStatus
 from apps.core.services import storage
-from apps.reports_app.enums import OPERABLE_REPORT_STATUSES
+from apps.reports_app.enums import OPERATOR_QUEUE_REPORT_STATUSES
 from apps.reports_app.serializers import StrictInputMixin
 from apps.reports_app.services import evidence_access
 
@@ -18,6 +18,10 @@ class OperatorReportContextQuerySerializer(StrictInputMixin, serializers.Seriali
 
 class OperatorReportActionQuerySerializer(StrictInputMixin, serializers.Serializer):
     institution_id = serializers.UUIDField()
+
+
+class OperatorReportHistoryQuerySerializer(OperatorReportActionQuerySerializer):
+    page = serializers.IntegerField(min_value=1, required=False)
 
 
 class OperatorValidateInputSerializer(StrictInputMixin, serializers.Serializer):
@@ -64,7 +68,7 @@ class ResolutionEvidenceOutputSerializer(serializers.Serializer):
 
 
 class OperatorReportListQuerySerializer(OperatorReportContextQuerySerializer):
-    status = serializers.ChoiceField(choices=OPERABLE_REPORT_STATUSES, required=False)
+    status = serializers.ChoiceField(choices=OPERATOR_QUEUE_REPORT_STATUSES, required=False)
     priority = serializers.ChoiceField(choices=ReportPriority.values, required=False)
     category = serializers.SlugRelatedField(
         slug_field="slug",
@@ -120,6 +124,7 @@ class OperatorReportActionResponseSerializer(serializers.Serializer):
 class OperatorReportListSerializer(serializers.Serializer):
     id = serializers.UUIDField(read_only=True)
     status = serializers.CharField(read_only=True)
+    cycle = serializers.IntegerField(source="resolution_cycle", read_only=True)
     priority = serializers.CharField(read_only=True)
     category = OperatorCategorySerializer(read_only=True)
     institution = OperatorInstitutionSerializer(read_only=True, allow_null=True)
@@ -150,6 +155,9 @@ class OperatorAiClassificationSerializer(serializers.Serializer):
 
 class OperatorReportDetailSerializer(OperatorReportListSerializer):
     description = serializers.CharField(read_only=True)
+    validated_at = serializers.DateTimeField(read_only=True, allow_null=True)
+    resolved_at = serializers.DateTimeField(read_only=True, allow_null=True)
+    closed_at = serializers.DateTimeField(read_only=True, allow_null=True)
     latitude = serializers.SerializerMethodField()
     longitude = serializers.SerializerMethodField()
     photo_signed_url = serializers.SerializerMethodField()

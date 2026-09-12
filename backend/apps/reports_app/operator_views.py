@@ -22,7 +22,7 @@ from apps.admin_app.models import Institution, InstitutionOperator
 from apps.auth_app.enums import UserRole
 from apps.core.permissions import IsInstitutionOperator
 from apps.core.services import storage
-from apps.reports_app.models import Report
+from apps.reports_app.models import Report, ReportStatusHistory
 from apps.reports_app.operator_serializers import (
     OperatorLifecycleResponseSerializer,
     OperatorRejectInputSerializer,
@@ -30,6 +30,7 @@ from apps.reports_app.operator_serializers import (
     OperatorReportActionResponseSerializer,
     OperatorReportContextQuerySerializer,
     OperatorReportDetailSerializer,
+    OperatorReportHistoryQuerySerializer,
     OperatorReportListQuerySerializer,
     OperatorReportListSerializer,
     OperatorStatusInputSerializer,
@@ -43,6 +44,7 @@ from apps.reports_app.selectors import (
     operator_report_list,
     operator_reports_for_institution,
 )
+from apps.reports_app.serializers import ReportStatusHistorySerializer
 from apps.reports_app.services import lifecycle, validation
 from apps.reports_app.services import resolution_evidence as evidence_service
 
@@ -84,6 +86,10 @@ class _OperatorInstitutionContextMixin:
         response["Cache-Control"] = "private, no-store"
         return response
 
+    def finalize_response(self, request, response, *args, **kwargs):
+        response = super().finalize_response(request, response, *args, **kwargs)
+        return self._private_no_store(response)
+
 
 class OperatorReportListView(_OperatorInstitutionContextMixin, ListAPIView):
     serializer_class = OperatorReportListSerializer
@@ -119,6 +125,21 @@ class OperatorReportDetailView(_OperatorInstitutionContextMixin, RetrieveAPIView
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
         return self._private_no_store(response)
+
+
+class OperatorReportHistoryView(_OperatorInstitutionContextMixin, ListAPIView):
+    serializer_class = ReportStatusHistorySerializer
+    query_serializer_class = OperatorReportHistoryQuerySerializer
+
+    def get_queryset(self):
+        visible = operator_reports_for_institution(institution=self._institution()).filter(
+            pk=self.kwargs["report_id"]
+        )
+        if not visible.exists():
+            raise NotFound({"detail": REPORT_NOT_FOUND, "code": "REPORT_NOT_FOUND"})
+        return ReportStatusHistory.objects.filter(report_id=self.kwargs["report_id"]).order_by(
+            "-created_at", "-id"
+        )
 
 
 class _OperatorReportActionView(APIView):

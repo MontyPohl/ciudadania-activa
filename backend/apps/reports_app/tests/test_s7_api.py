@@ -204,6 +204,7 @@ def test_private_detail_contexto_sin_side_effects(
     response = authenticated(verified_other).get(detail_url(report.id))
 
     assert response.status_code == 200
+    assert response["Cache-Control"] == "private, no-store"
     payload = response.json()
     assert set(payload) == {
         "id",
@@ -218,12 +219,18 @@ def test_private_detail_contexto_sin_side_effects(
         "confirmation_count",
         "confirmed_by_me",
         "confirmation_eligibility",
+        "cycle",
+        "validated_at",
+        "resolved_at",
+        "closed_at",
+        "resolution_bonus",
     }
     assert payload["confirmed_by_me"] is already
     assert payload["confirmation_eligibility"] == {
         "can_confirm": can_confirm,
         "code": code,
     }
+    assert payload["resolution_bonus"] is None
     assert ReportConfirmation.objects.count() == before
     serialized = str(payload)
     for forbidden in ("citizen", "email", "changed_by", "file_hash", "file_url", "audit"):
@@ -235,8 +242,52 @@ def test_private_detail_rechazado_o_inexistente_404(report, verified_other):
     report.save(update_fields=["status", "updated_at"])
     client = authenticated(verified_other)
 
-    assert client.get(detail_url(report.id)).status_code == 404
-    assert client.get(detail_url(uuid.uuid4())).status_code == 404
+    rejected = client.get(detail_url(report.id))
+    missing = client.get(detail_url(uuid.uuid4()))
+
+    assert rejected.status_code == missing.status_code == 404
+    assert rejected["Cache-Control"] == missing["Cache-Control"] == "private, no-store"
+
+
+def test_private_detail_muestra_bono_de_resolucion_solo_al_autor(
+    verified_citizen,
+    verified_other,
+    category,
+    institution,
+):
+    now = timezone.now()
+    report = report_for(
+        verified_citizen,
+        category,
+        status=ReportStatus.RESUELTO,
+        institution=institution,
+        resolution_cycle=1,
+        validated_at=now - timedelta(hours=2),
+        resolved_at=now - timedelta(hours=1),
+    )
+    RewardTransaction.objects.create(
+        user=verified_citizen,
+        report=report,
+        institution=institution,
+        event_type=RewardEventType.RESOLUTION_BONUS,
+        impact_delta=50,
+        credit_delta=50,
+        status=RewardTxStatus.ACREDITADO,
+        credited_at=now - timedelta(hours=1),
+        resolution_cycle=1,
+    )
+
+    owner = authenticated(verified_citizen).get(detail_url(report.id))
+    other = authenticated(verified_other).get(detail_url(report.id))
+
+    assert owner.status_code == other.status_code == 200
+    assert owner.json()["resolution_bonus"] == {
+        "impact_points": 50,
+        "credits": 50,
+        "status": RewardTxStatus.ACREDITADO,
+        "cycle": 1,
+    }
+    assert other.json()["resolution_bonus"] is None
 
 
 def test_history_owner_only_privado_y_cronologico(verified_citizen, verified_other, category):
@@ -262,15 +313,19 @@ def test_history_owner_only_privado_y_cronologico(verified_citizen, verified_oth
     response = authenticated(verified_citizen).get(history_url(report.id))
 
     assert response.status_code == 200
-    assert [row["new_status"] for row in response.json()] == [
-        ReportStatus.CLASIFICADO,
+    assert response["Cache-Control"] == "private, no-store"
+    payload = response.json()
+    assert set(payload) == {"count", "next", "previous", "results"}
+    assert [row["new_status"] for row in payload["results"]] == [
         ReportStatus.ASIGNADO,
+        ReportStatus.CLASIFICADO,
     ]
     assert all(
-        set(row) == {"previous_status", "new_status", "reason", "created_at"}
-        for row in response.json()
+        set(row) == {"previous_status", "new_status", "cycle", "reason", "created_at"}
+        for row in payload["results"]
     )
-    assert "changed_by" not in str(response.json())
+    assert [row["cycle"] for row in payload["results"]] == [0, 0]
+    assert "changed_by" not in str(payload)
     assert newer.pk
 
 
@@ -284,6 +339,7 @@ def test_history_ajeno_e_inexistente_devuelven_mismo_404(report, verified_citize
 
     assert foreign.status_code == missing.status_code == 404
     assert foreign.json() == missing.json()
+    assert foreign["Cache-Control"] == missing["Cache-Control"] == "private, no-store"
 
 
 def test_summary_claves_estables_conteos_y_solo_impact_points(
@@ -337,7 +393,7 @@ def test_query_budgets_detail_history_summary(
     client.force_authenticate(verified_citizen)
     with django_assert_num_queries(1):
         assert client.get(detail_url(report.id)).status_code == 200
-    with django_assert_num_queries(2):
+    with django_assert_num_queries(3):
         assert client.get(history_url(report.id)).status_code == 200
     with django_assert_num_queries(3):
         assert client.get(SUMMARY_URL).status_code == 200

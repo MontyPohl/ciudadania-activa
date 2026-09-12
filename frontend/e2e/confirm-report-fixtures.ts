@@ -73,9 +73,14 @@ function contextualDetail(
   const confirmedByMe = overrides.confirmedByMe ?? options.confirmedByMe ?? false;
   return {
     ...publicDetail(options),
+    cycle: 0,
+    validated_at: null,
+    resolved_at: null,
+    closed_at: null,
     confirmation_count: overrides.count ?? options.privateCount ?? options.publicCount ?? 0,
     confirmed_by_me: confirmedByMe,
     confirmation_eligibility: { can_confirm: code === null && !confirmedByMe, code },
+    resolution_bonus: null,
   };
 }
 

@@ -7,6 +7,14 @@ OPERABLE_REPORT_STATUSES = (
     ReportStatus.CLASIFICADO,
 )
 
+OPERATOR_QUEUE_REPORT_STATUSES = (
+    *OPERABLE_REPORT_STATUSES,
+    ReportStatus.ASIGNADO,
+    ReportStatus.EN_PROCESO,
+    ReportStatus.RESUELTO,
+    ReportStatus.CERRADO,
+)
+
 
 class MediaType(models.TextChoices):
     """Tipo de archivo adjunto a un reporte (Anexo A.1).

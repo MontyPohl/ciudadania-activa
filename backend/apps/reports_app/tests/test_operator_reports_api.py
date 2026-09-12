@@ -22,17 +22,19 @@ from apps.auth_app.enums import UserRole
 from apps.core.enums import ActorType, ReportPriority, ReportStatus
 from apps.core.services import storage
 from apps.reports_app.enums import MediaType
-from apps.reports_app.models import Report, ReportConfirmation, ReportMedia
+from apps.reports_app.models import Report, ReportConfirmation, ReportMedia, ReportStatusHistory
 
 pytestmark = pytest.mark.django_db
 
 LIST_URL = "/api/v1/operator/reports/"
 SIGNED_URL = "https://storage.example.test/object/sign/report.jpg?token=firma-efimera"
+REPORT_NOT_FOUND = "No se encontró el reporte solicitado."
 
 SUMMARY_FIELDS = {"id", "name", "slug"}
 LIST_FIELDS = {
     "id",
     "status",
+    "cycle",
     "priority",
     "category",
     "institution",
@@ -41,6 +43,9 @@ LIST_FIELDS = {
 }
 DETAIL_FIELDS = LIST_FIELDS | {
     "description",
+    "validated_at",
+    "resolved_at",
+    "closed_at",
     "latitude",
     "longitude",
     "photo_signed_url",
@@ -75,6 +80,11 @@ def _detail_url(report, institution_id=None):
     if institution_id is not None:
         return f"{url}?institution_id={institution_id}"
     return url
+
+
+def _history_url(report, institution_id, page=1):
+    report_id = getattr(report, "pk", report)
+    return f"{LIST_URL}{report_id}/history/?institution_id={institution_id}" f"&page={page}"
 
 
 def _report(category, *, index=0, **overrides):
@@ -185,6 +195,10 @@ def test_una_membresia_activa_resuelve_contexto_sin_parametro(
     assert detailed.json()["id"] == str(report.pk)
     assert detailed.json()["institution"] is None
     assert detailed.json()["effective_read_institution"] == _summary(institution)
+    assert detailed.json()["cycle"] == 0
+    assert detailed.json()["validated_at"] is None
+    assert detailed.json()["resolved_at"] is None
+    assert detailed.json()["closed_at"] is None
 
 
 def test_scope_comun_da_precedencia_a_asignada_y_fallback_solo_si_es_null(
@@ -453,7 +467,7 @@ def test_filtros_de_estado_prioridad_y_categoria(
     }
 
 
-def test_bandeja_devuelve_solo_estados_operables_y_preserva_tenancy(
+def test_bandeja_devuelve_estados_s10_y_preserva_tenancy(
     operator_user,
     institution,
     category,
@@ -470,8 +484,15 @@ def test_bandeja_devuelve_solo_estados_operables_y_preserva_tenancy(
     assert response.status_code == 200
     ids = {row["id"] for row in response.json()["results"]}
     assert ids == {
-        str(reports[ReportStatus.CREADO].pk),
-        str(reports[ReportStatus.CLASIFICADO].pk),
+        str(reports[status].pk)
+        for status in (
+            ReportStatus.CREADO,
+            ReportStatus.CLASIFICADO,
+            ReportStatus.ASIGNADO,
+            ReportStatus.EN_PROCESO,
+            ReportStatus.RESUELTO,
+            ReportStatus.CERRADO,
+        )
     }
     assert str(outside.pk) not in ids
 
@@ -504,7 +525,7 @@ def test_rango_de_fechas_es_inclusivo_en_zona_horaria_local(operator_user, categ
     ("params", "field"),
     [
         ({"status": "NUEVO"}, "status"),
-        ({"status": ReportStatus.ASIGNADO}, "status"),
+        ({"status": ReportStatus.RECHAZADO}, "status"),
         ({"priority": "URGENTE"}, "priority"),
         ({"category": "no-existe"}, "category"),
         ({"created_from": "2026-02-30"}, "created_from"),
@@ -1154,6 +1175,63 @@ def test_lista_de_20_no_tiene_n_mas_uno(
     assert response.status_code == 200
     assert len(response.json()["results"]) == 20
     assert len(captured) <= 6
+
+
+def test_historial_institucional_pagina_20_descendente_y_privado(
+    operator_user,
+    institution,
+    category,
+):
+    report = _report(category, institution=institution)
+    base = timezone.now() - timedelta(days=2)
+    entries = []
+    for index in range(21):
+        entry = ReportStatusHistory.objects.create(
+            report=report,
+            previous_status=ReportStatus.CREADO,
+            new_status=ReportStatus.CLASIFICADO,
+            resolution_cycle=index,
+        )
+        entries.append(_set_created_at(entry, base + timedelta(minutes=index)))
+
+    response = _client(operator_user).get(_history_url(report, institution.pk))
+
+    assert response.status_code == 200
+    assert response["Cache-Control"] == "private, no-store"
+    payload = response.json()
+    assert set(payload) == {"count", "next", "previous", "results"}
+    assert payload["count"] == 21
+    assert len(payload["results"]) == 20
+    assert [row["cycle"] for row in payload["results"]] == list(range(20, 0, -1))
+    assert all(
+        set(row) == {"previous_status", "new_status", "cycle", "reason", "created_at"}
+        for row in payload["results"]
+    )
+    assert entries
+
+
+def test_historial_institucional_oculta_cross_tenant_y_no_cachea_errores(
+    operator_user,
+    institution,
+    ande,
+    category,
+):
+    report = _report(category, institution=ande)
+    client = _client(operator_user)
+
+    foreign = client.get(_history_url(report, institution.pk))
+    missing = client.get(_history_url(uuid.uuid4(), institution.pk))
+
+    assert foreign.status_code == missing.status_code == 404
+    assert (
+        foreign.json()
+        == missing.json()
+        == {
+            "detail": REPORT_NOT_FOUND,
+            "code": "REPORT_NOT_FOUND",
+        }
+    )
+    assert foreign["Cache-Control"] == missing["Cache-Control"] == "private, no-store"
 
 
 def test_detalle_completo_tiene_presupuesto_razonable_de_queries(

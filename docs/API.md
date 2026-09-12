@@ -707,7 +707,7 @@ de privacidad aceptado y documentado en ADR-0012.
 
 ---
 
-## 6. Panel ciudadano y confirmaciones — backend local S7-A
+## 6. Panel ciudadano, confirmaciones y seguimiento S10
 
 Las rutas de esta sección exigen `IsVerifiedCitizen`. S7-A implementa el contrato backend; no
 incluye UI, acreditación, notificaciones, ranking, retiro de confirmaciones ni despliegue.
@@ -726,24 +726,38 @@ agrega:
 
 ```json
 {
+  "cycle": 1,
+  "validated_at": "2026-09-10T12:00:00Z",
+  "resolved_at": "2026-09-10T16:00:00Z",
+  "closed_at": null,
   "confirmation_count": 2,
   "confirmed_by_me": false,
   "confirmation_eligibility": {
     "can_confirm": true,
     "code": null
+  },
+  "resolution_bonus": {
+    "impact_points": 50,
+    "credits": 50,
+    "status": "ACREDITADO",
+    "cycle": 1
   }
 }
 ```
 
 `code` puede ser `REPORT_NOT_ACTIVE`, `SELF_CONFIRMATION_NOT_ALLOWED` o
-`ALREADY_CONFIRMED`, en ese orden de prioridad. Un reporte rechazado o inexistente devuelve `404`.
-El GET no crea confirmaciones ni otra clase de efecto.
+`ALREADY_CONFIRMED`, en ese orden de prioridad. `resolution_bonus` solo se muestra al autor y es
+`null` cuando el ciclo actual no tiene bono. Un reporte rechazado o inexistente devuelve `404`.
+El GET no crea confirmaciones ni otra clase de efecto y siempre responde con
+`Cache-Control: private, no-store`, también ante errores.
 
 ### 6.3 `GET /api/v1/reports/{id}/history/`
 
 Historial disponible solo para el autor. Un UUID ajeno e inexistente producen el mismo `404` para
-evitar un oráculo de ownership. La respuesta está en orden cronológico ascendente y cada asiento
-contiene exactamente `previous_status`, `new_status`, `reason` y `created_at`; no expone actor.
+evitar un oráculo de ownership. Usa páginas fijas de 20, ordenadas por `created_at, id`
+descendentes, y la envoltura global `{count, next, previous, results}`. Cada asiento contiene
+exactamente `previous_status`, `new_status`, `cycle`, `reason` y `created_at`; no expone actor.
+Solo admite `page` y siempre responde con `Cache-Control: private, no-store`, también ante errores.
 
 ### 6.4 `POST /api/v1/reports/{id}/confirm/`
 
@@ -806,7 +820,7 @@ movimientos ni IDs del ledger.
 
 ---
 
-## 7. Panel institucional — lectura S9-A y decisiones S9-B2
+## 7. Panel institucional — lectura y ciclo de resolución S10
 
 S9-A incorpora únicamente la superficie de **lectura** de la bandeja institucional. Las dos rutas
 de esta sección exigen `IsInstitutionOperator`: una sesión anónima o un token inválido recibe
@@ -850,9 +864,9 @@ el reporte y, si aún no está asignado, con el catálogo de su categoría.
 
 ### 7.2 `GET /api/v1/operator/reports/`
 
-Listado paginado de la bandeja del contexto institucional efectivo. La bandeja es operativa y el
-servidor la limita siempre a reportes `CREADO` o `CLASIFICADO`; quitar filtros en el cliente no
-permite obtener estados sobre los que estas decisiones ya no son válidas.
+Listado paginado de la bandeja del contexto institucional efectivo. Incluye el ciclo completo de
+trabajo: `CREADO`, `CLASIFICADO`, `ASIGNADO`, `EN_PROCESO`, `RESUELTO` y `CERRADO`.
+`RECHAZADO` queda fuera de la cola institucional.
 
 ```http
 GET /api/v1/operator/reports/?institution_id=33333333-3333-4333-8333-333333333333&status=CREADO&priority=ALTA&category=baches&created_from=2026-09-01&created_to=2026-09-30&page=1
@@ -861,7 +875,7 @@ GET /api/v1/operator/reports/?institution_id=33333333-3333-4333-8333-33333333333
 | Parámetro | Contrato |
 |---|---|
 | `institution_id` | UUID del contexto. Opcional solo cuando el operador tiene exactamente un vínculo activo |
-| `status` | Opcional. `CREADO` o `CLASIFICADO`; solamente refina el conjunto operable impuesto por el servidor |
+| `status` | Opcional. Uno de los seis estados de la bandeja; solamente refina el conjunto impuesto por el servidor |
 | `priority` | Opcional. `ALTA`, `MEDIA` o `BAJA` |
 | `category` | Opcional. `slug` de una categoría activa existente |
 | `created_from` | Opcional. Fecha ISO `YYYY-MM-DD`, inclusiva en `America/Asuncion` |
@@ -888,6 +902,7 @@ envoltura global `{count, next, previous, results}`.
     {
       "id": "11111111-1111-4111-8111-111111111111",
       "status": "CREADO",
+      "cycle": 0,
       "priority": "ALTA",
       "category": {
         "id": "22222222-2222-4222-8222-222222222222",
@@ -906,7 +921,7 @@ envoltura global `{count, next, previous, results}`.
 }
 ```
 
-El listado termina en esos siete campos superiores. En particular, no entrega descripción, foto,
+El listado termina en esos ocho campos superiores. En particular, no entrega descripción, foto,
 coordenadas, clasificación IA, confirmaciones, autor, ciudadanía, ledger ni auditoría.
 La respuesta lleva `Cache-Control: private, no-store`.
 
@@ -922,6 +937,7 @@ efectivo del operador producen el mismo `404`.
 {
   "id": "11111111-1111-4111-8111-111111111111",
   "status": "CLASIFICADO",
+  "cycle": 1,
   "priority": "ALTA",
   "category": {
     "id": "22222222-2222-4222-8222-222222222222",
@@ -935,6 +951,9 @@ efectivo del operador producen el mismo `404`.
     "slug": "municipalidad-de-asuncion"
   },
   "description": "Bache profundo de demostración en una vía principal.",
+  "validated_at": "2026-09-10T12:00:00Z",
+  "resolved_at": null,
+  "closed_at": null,
   "latitude": -25.2637,
   "longitude": -57.5759,
   "photo_signed_url": "<url-firmada-efimera>",
@@ -1002,7 +1021,15 @@ válida · `403` rol incorrecto, ausencia de vínculo activo o contexto fuera de
 operador · `404` detalle inexistente o fuera del alcance efectivo · `503` imposibilidad de firmar
 la fotografía privada del detalle.
 
-### 7.4 Decisiones institucionales S9-B2
+### 7.4 `GET /api/v1/operator/reports/{id}/history/`
+
+Historial institucional paginado del reporte dentro del mismo contexto de tenencia. Exige
+`institution_id`, acepta opcionalmente `page`, usa páginas de 20 y orden estable
+`created_at, id` descendente. Cada fila contiene únicamente `previous_status`, `new_status`,
+`cycle`, `reason` y `created_at`. Un reporte inexistente y uno cross-tenant producen el mismo
+`404 REPORT_NOT_FOUND`. Éxitos y errores llevan `Cache-Control: private, no-store`.
+
+### 7.5 Decisiones institucionales S9-B2
 
 Las mutaciones reutilizan los servicios transaccionales de dominio y exigen siempre un contexto
 institucional explícito. El valor enviado por el cliente no concede permisos: el servidor valida
@@ -1066,9 +1093,53 @@ invalidación generacional del mapa público se agenda con `transaction.on_commi
 invalida; si Redis falla después del commit, se registra un aviso sin revertir la decisión ni
 convertir el éxito en `500`. Las respuestas llevan `Cache-Control: private, no-store`.
 
-### 7.5 Cierre de alcance de Sprint 9
+### 7.6 Ciclo institucional, evidencia y cierre S10
 
-S9-B3 no añade endpoints ni modifica los contratos de §7.1–§7.4. Sprint 9 termina en la consulta,
+#### `PATCH /api/v1/operator/reports/{id}/status/?institution_id={uuid}`
+
+Recibe `{"status": "EN_PROCESO|RESUELTO|CERRADO", "expected_cycle": 1}`. Implementa
+`ASIGNADO → EN_PROCESO → RESUELTO → CERRADO`; repetir la misma transición en el mismo ciclo es
+un `200` sin nueva historia ni auditoría. Resolver exige al menos una evidencia del ciclo actual.
+Un ciclo distinto responde `409 STALE_REPORT_CYCLE`. La respuesta contiene `id`, `status`,
+`cycle`, `institution`, `validated_at`, `resolved_at` y `closed_at`.
+
+#### `GET|POST /api/v1/operator/reports/{id}/evidence/?institution_id={uuid}`
+
+El GET lista evidencia privada por `created_at, id` descendentes. El POST crea una evidencia por
+request multipart durante `EN_PROCESO`, con `file`, `description` y `cycle`; exige
+`Idempotency-Key` UUID. Admite JPEG/PNG recodificado, descripción normalizada de 1–1000 caracteres,
+máximo 5 MiB y hasta cinco evidencias por reporte/ciclo. La repetición de la misma clave y payload
+devuelve el mismo recurso; reutilizarla con otro payload produce `409 IDEMPOTENCY_KEY_REUSED`.
+
+Autor y administrador pueden consultar la evidencia mediante
+`GET /api/v1/reports/{id}/evidence/` y `GET /api/v1/admin/reports/{id}/evidence/`. Las respuestas
+incluyen `id`, `cycle`, `description`, `created_at`, `signed_url` y `expires_in`; la URL efímera
+dura 300 segundos. Ninguna ruta expone object keys y todas usan `Cache-Control: private, no-store`.
+
+#### Reversión administrativa
+
+`POST /api/v1/admin/reports/{id}/revert-validation/` recibe un motivo normalizado de 10–1000
+caracteres y el `cycle` esperado. Solo un administrador puede devolver el reporte a `CLASIFICADO`.
+La operación preserva historial, evidencia y ledger, limpia las proyecciones actuales y no reduce
+el ciclo. Repetir la misma reversión/ciclo es `200` sin duplicados; un ciclo distinto es
+`409 STALE_REPORT_CYCLE`.
+
+#### Auditoría administrativa
+
+`GET /api/v1/admin/audit-logs/` es admin-only, paginado de 20 y ordenado por `created_at, id`
+descendentes. Admite `action`, `actor_type`, `actor_user_id`, `report_id`, `institution_id`,
+`created_from`, `created_to` y `page`. Devuelve únicamente `id`, `actor_user_id`, `actor_type`,
+`action`, `payload` y `created_at`, siempre con `Cache-Control: private, no-store`.
+
+#### Autocierre
+
+El worker evalúa cada 15 minutos reportes `RESUELTO` cuyo `resolved_at` tenga al menos 72 horas.
+El cierre se registra con actor `SYSTEM`, `changed_by = null`, sin puntos, créditos ni
+notificaciones. El cierre manual concurrente y las repeticiones se resuelven idempotentemente.
+
+### 7.7 Cierre de alcance de Sprint 9
+
+S9-B3 no añadió endpoints ni modificó los contratos entonces existentes. Sprint 9 terminó en la consulta,
 validación y rechazo institucionales ya descritos. Quedan explícitamente fuera de este sprint:
 
 - `GET /api/v1/rewards/summary/`, `GET /api/v1/rewards/transactions/`, la página

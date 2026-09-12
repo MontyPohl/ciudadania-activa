@@ -1,14 +1,18 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { useSession } from "@/features/auth/useSession";
 import { OperatorReportDetail } from "@/features/reports/operator/OperatorReportDetail";
 import { OperatorReportQueue } from "@/features/reports/operator/OperatorReportQueue";
 import {
+  createOperatorEvidence,
+  getOperatorEvidence,
   getOperatorReport,
+  getOperatorReportHistory,
   getOperatorReports,
   OperatorApiError,
   rejectOperatorReport,
+  transitionOperatorReport,
   validateOperatorReport,
 } from "@/lib/api/operatorReports";
 
@@ -19,6 +23,10 @@ vi.mock("@/lib/api/operatorReports", async (original) => {
     ...actual,
     getOperatorReports: vi.fn(),
     getOperatorReport: vi.fn(),
+    getOperatorReportHistory: vi.fn(),
+    getOperatorEvidence: vi.fn(),
+    createOperatorEvidence: vi.fn(),
+    transitionOperatorReport: vi.fn(),
     validateOperatorReport: vi.fn(),
     rejectOperatorReport: vi.fn(),
   };
@@ -37,6 +45,7 @@ const ande = {
 const report = {
   id: "33333333-3333-4333-8333-333333333333",
   status: "CREADO" as const,
+  cycle: 0,
   priority: "MEDIA" as const,
   category: { id: "44444444-4444-4444-8444-444444444444", name: "Baches", slug: "baches" },
   institution: null,
@@ -66,6 +75,9 @@ const andeReport = {
 const detail = {
   ...report,
   description: "Bache profundo",
+  validated_at: null,
+  resolved_at: null,
+  closed_at: null,
   latitude: -25.3,
   longitude: -57.6,
   photo_signed_url: null,
@@ -86,6 +98,9 @@ const detail = {
 describe("interfaz institucional S9-B2", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubGlobal("crypto", {
+      randomUUID: () => "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+    });
     vi.mocked(useSession).mockReturnValue({
       status: "authenticated",
       user: {
@@ -107,6 +122,38 @@ describe("interfaz institucional S9-B2", () => {
       results: [report],
     });
     vi.mocked(getOperatorReport).mockResolvedValue(detail);
+    vi.mocked(getOperatorReportHistory).mockResolvedValue({
+      count: 1,
+      next: null,
+      previous: null,
+      results: [
+        {
+          previous_status: "",
+          new_status: "CREADO",
+          cycle: 0,
+          reason: "",
+          created_at: "2026-09-01T10:00:00Z",
+        },
+      ],
+    });
+    vi.mocked(getOperatorEvidence).mockResolvedValue([]);
+    vi.mocked(createOperatorEvidence).mockResolvedValue({
+      id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      cycle: 1,
+      description: "Trabajo terminado.",
+      created_at: "2026-09-01T12:00:00Z",
+      signed_url: "/api/v1/reports/evidence-access/token/",
+      expires_in: 300,
+    });
+    vi.mocked(transitionOperatorReport).mockResolvedValue({
+      id: report.id,
+      status: "EN_PROCESO",
+      cycle: 1,
+      institution: municipal,
+      validated_at: "2026-09-01T11:00:00Z",
+      resolved_at: null,
+      closed_at: null,
+    });
     vi.mocked(validateOperatorReport).mockResolvedValue({
       id: report.id,
       status: "ASIGNADO",
@@ -124,6 +171,8 @@ describe("interfaz institucional S9-B2", () => {
       rejection_reason: "duplicado",
     });
   });
+
+  afterEach(() => vi.unstubAllGlobals());
 
   it("muestra bandeja, institución efectiva y cambia el contexto multiinstitución", async () => {
     const user = userEvent.setup();
@@ -246,6 +295,8 @@ describe("interfaz institucional S9-B2", () => {
     const user = userEvent.setup();
     render(<OperatorReportDetail id={report.id} initialInstitutionId={municipal.id} />);
     await screen.findByText("Bache profundo");
+    expect(screen.getByRole("heading", { name: "Línea de tiempo institucional" })).toBeVisible();
+    expect(screen.getByText("Reporte creado")).toBeVisible();
     await user.click(screen.getByRole("button", { name: "Validar" }));
     expect(screen.getByText(/acreditará los incentivos pendientes/i)).toBeInTheDocument();
     expect(validateOperatorReport).not.toHaveBeenCalled();
@@ -282,6 +333,133 @@ describe("interfaz institucional S9-B2", () => {
     await user.click(screen.getByRole("button", { name: "Confirmar validación" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("cambió mientras lo revisabas");
     expect(validateOperatorReport).toHaveBeenCalledOnce();
+    await waitFor(() => expect(getOperatorReport).toHaveBeenCalledTimes(2));
+  });
+
+  it("envía el ciclo vigente al resolver y exige confirmación visible", async () => {
+    const inProcess = {
+      ...detail,
+      status: "EN_PROCESO" as const,
+      cycle: 2,
+      institution: municipal,
+      validated_at: "2026-09-01T11:00:00Z",
+    };
+    vi.mocked(getOperatorReport).mockResolvedValue(inProcess);
+    vi.mocked(getOperatorEvidence).mockResolvedValue([
+      {
+        id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        cycle: 2,
+        description: "Trabajo terminado.",
+        created_at: "2026-09-01T12:00:00Z",
+        signed_url: "/api/v1/reports/evidence-access/token/",
+        expires_in: 300,
+      },
+    ]);
+    const user = userEvent.setup();
+    render(<OperatorReportDetail id={report.id} initialInstitutionId={municipal.id} />);
+
+    await user.click(await screen.findByRole("button", { name: "Marcar como resuelto" }));
+    expect(screen.getByRole("dialog")).toHaveTextContent("evidencia del ciclo actual");
+    await user.click(screen.getByRole("button", { name: "Confirmar: marcar como resuelto" }));
+
+    await waitFor(() =>
+      expect(transitionOperatorReport).toHaveBeenCalledWith(report.id, municipal.id, "RESUELTO", 2),
+    );
+  });
+
+  it("carga evidencia con Idempotency-Key y el ciclo vigente", async () => {
+    const inProcess = {
+      ...detail,
+      status: "EN_PROCESO" as const,
+      cycle: 1,
+      institution: municipal,
+      validated_at: "2026-09-01T11:00:00Z",
+    };
+    vi.mocked(getOperatorReport).mockResolvedValue(inProcess);
+    const user = userEvent.setup();
+    render(<OperatorReportDetail id={report.id} initialInstitutionId={municipal.id} />);
+    await screen.findByRole("heading", { name: "Agregar evidencia al ciclo 1" });
+
+    await user.upload(
+      screen.getByLabelText("Imagen"),
+      new File(["imagen"], "trabajo.png", { type: "image/png" }),
+    );
+    await user.type(screen.getByLabelText("Descripción de lo que demuestra"), "Trabajo terminado.");
+    const save = screen.getByRole("button", { name: "Guardar evidencia" });
+    fireEvent.submit(save.closest("form") as HTMLFormElement);
+
+    await waitFor(() => expect(createOperatorEvidence).toHaveBeenCalledOnce());
+    expect(createOperatorEvidence).toHaveBeenCalledWith(
+      report.id,
+      municipal.id,
+      expect.objectContaining({
+        cycle: 1,
+        description: "Trabajo terminado.",
+        idempotencyKey: expect.stringMatching(/^[0-9a-f-]{36}$/i),
+      }),
+    );
+  });
+
+  it("conserva Idempotency-Key si la respuesta de evidencia queda incierta", async () => {
+    const inProcess = {
+      ...detail,
+      status: "EN_PROCESO" as const,
+      cycle: 1,
+      institution: municipal,
+      validated_at: "2026-09-01T11:00:00Z",
+    };
+    vi.mocked(getOperatorReport).mockResolvedValue(inProcess);
+    vi.mocked(createOperatorEvidence)
+      .mockRejectedValueOnce(new OperatorApiError("INVALID_RESPONSE", 201))
+      .mockResolvedValueOnce({
+        id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        cycle: 1,
+        description: "Trabajo terminado.",
+        created_at: "2026-09-01T12:00:00Z",
+        signed_url: "/api/v1/reports/evidence-access/token/",
+        expires_in: 300,
+      });
+    const user = userEvent.setup();
+    render(<OperatorReportDetail id={report.id} initialInstitutionId={municipal.id} />);
+    await screen.findByRole("heading", { name: "Agregar evidencia al ciclo 1" });
+
+    await user.upload(
+      screen.getByLabelText("Imagen"),
+      new File(["imagen"], "trabajo.png", { type: "image/png" }),
+    );
+    await user.type(screen.getByLabelText("Descripción de lo que demuestra"), "Trabajo terminado.");
+    const form = screen
+      .getByRole("button", { name: "Guardar evidencia" })
+      .closest("form") as HTMLFormElement;
+    fireEvent.submit(form);
+    await waitFor(() => expect(createOperatorEvidence).toHaveBeenCalledTimes(1));
+    fireEvent.submit(form);
+    await waitFor(() => expect(createOperatorEvidence).toHaveBeenCalledTimes(2));
+
+    const firstKey = vi.mocked(createOperatorEvidence).mock.calls[0][2].idempotencyKey;
+    const secondKey = vi.mocked(createOperatorEvidence).mock.calls[1][2].idempotencyKey;
+    expect(secondKey).toBe(firstKey);
+  });
+
+  it("refresca sin reintentar una transición con ciclo obsoleto", async () => {
+    vi.mocked(getOperatorReport).mockResolvedValue({
+      ...detail,
+      status: "ASIGNADO",
+      cycle: 1,
+      institution: municipal,
+      validated_at: "2026-09-01T11:00:00Z",
+    });
+    vi.mocked(transitionOperatorReport).mockRejectedValue(
+      new OperatorApiError("STALE_REPORT_CYCLE", 409),
+    );
+    const user = userEvent.setup();
+    render(<OperatorReportDetail id={report.id} initialInstitutionId={municipal.id} />);
+
+    await user.click(await screen.findByRole("button", { name: "Iniciar atención" }));
+    await user.click(screen.getByRole("button", { name: "Confirmar: iniciar atención" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("cambió mientras lo revisabas");
+    expect(transitionOperatorReport).toHaveBeenCalledOnce();
     await waitFor(() => expect(getOperatorReport).toHaveBeenCalledTimes(2));
   });
 
