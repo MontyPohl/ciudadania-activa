@@ -221,6 +221,7 @@ def test_backfill_rechaza_ownership_contradictorio_y_deja_cero_escrituras():
     ("scenario", "reason"),
     [
         ("fractional_cycle", "AUDIT_CYCLE_NEGATIVE"),
+        ("audit_state", "AUDIT_TRANSITION_MISSING"),
         ("institution_mismatch", "AUDIT_INSTITUTION_MISMATCH"),
         ("validation_signal", "VALIDATION_SIGNAL_CONTRADICTION"),
         ("reversal_original", "REVERSAL_ORIGINAL_NOT_REVERTED"),
@@ -237,11 +238,11 @@ def test_backfill_rechaza_evidencia_inconsistente_sin_ninguna_escritura(scenario
     created_audit_ids = []
     user = None
 
-    if scenario in {"fractional_cycle", "institution_mismatch"}:
+    if scenario in {"fractional_cycle", "audit_state", "institution_mismatch"}:
         payload = {"report_id": str(first.pk)}
         if scenario == "fractional_cycle":
             payload["cycle"] = -0.5
-        else:
+        elif scenario == "institution_mismatch":
             Institution = old_apps.get_model("admin_app", "Institution")
             other_institution = Institution.objects.create(
                 slug="migration-other-institution",
@@ -250,7 +251,7 @@ def test_backfill_rechaza_evidencia_inconsistente_sin_ninguna_escritura(scenario
             payload["institution_id"] = str(other_institution.pk)
         audit_entry = AuditLog.objects.create(
             actor_type="system",
-            action="report.created",
+            action="ai.report.classified" if scenario == "audit_state" else "report.created",
             payload=payload,
         )
         created_audit_ids.append(audit_entry.pk)

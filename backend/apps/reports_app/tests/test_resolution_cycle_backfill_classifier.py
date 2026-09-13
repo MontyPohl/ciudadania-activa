@@ -298,6 +298,23 @@ def test_auditoria_con_institucion_incompatible_es_inconsistente():
     assert "AUDIT_INSTITUTION_MISMATCH" in _reason_codes(result)
 
 
+def test_auditoria_de_clasificacion_exige_transicion_correspondiente():
+    report = _report()
+    audit_entry = AuditSnapshot(
+        id=uuid.uuid4(),
+        action="ai.report.classified",
+        report_id=report.id,
+        institution_id=None,
+        cycle=None,
+        created_at=NOW + timedelta(seconds=2),
+    )
+
+    result = _classify(reports=[report], histories=[_history(report)], audits=[audit_entry])
+
+    assert result.invalid is True
+    assert "AUDIT_TRANSITION_MISSING" in _reason_codes(result)
+
+
 def test_estado_actual_debe_coincidir_con_cadena_historica_ordenada():
     report = _report(
         status="CREADO",

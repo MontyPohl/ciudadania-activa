@@ -52,6 +52,21 @@ ALLOWED_HISTORY_TRANSITIONS = {
     ("RESUELTO", "CLASIFICADO"),
     ("CERRADO", "CLASIFICADO"),
 }
+AUDIT_TRANSITIONS = {
+    "report.created": {("", "CREADO")},
+    "ai.report.classified": {("CREADO", "CLASIFICADO")},
+    "report.validated": {("CREADO", "ASIGNADO"), ("CLASIFICADO", "ASIGNADO")},
+    "report.processing_started": {("ASIGNADO", "EN_PROCESO")},
+    "report.resolved": {("EN_PROCESO", "RESUELTO")},
+    "report.closed": {("RESUELTO", "CERRADO")},
+    "report.rejected": {("CREADO", "RECHAZADO"), ("CLASIFICADO", "RECHAZADO")},
+    "report.validation_reverted": {
+        ("ASIGNADO", "CLASIFICADO"),
+        ("EN_PROCESO", "CLASIFICADO"),
+        ("RESUELTO", "CLASIFICADO"),
+        ("CERRADO", "CLASIFICADO"),
+    },
+}
 
 
 class Classification(StrEnum):
@@ -544,6 +559,11 @@ def _classify_real_report(report, histories, evidences, rewards, audits, reasons
     actions = {item.action for item in audits}
     transitions = {(item.previous_status, item.new_status) for item in histories}
     reward_events = {item.event_type for item in rewards}
+
+    for audit in audits:
+        expected_transitions = AUDIT_TRANSITIONS.get(audit.action)
+        if expected_transitions is not None and transitions.isdisjoint(expected_transitions):
+            reasons.append(Reason("AUDIT_TRANSITION_MISSING", "audit", str(audit.id)))
 
     for index, history in enumerate(histories):
         if (history.previous_status, history.new_status) not in ALLOWED_HISTORY_TRANSITIONS:
