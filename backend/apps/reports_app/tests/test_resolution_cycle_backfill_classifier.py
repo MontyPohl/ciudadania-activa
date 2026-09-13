@@ -298,6 +298,85 @@ def test_auditoria_con_institucion_incompatible_es_inconsistente():
     assert "AUDIT_INSTITUTION_MISMATCH" in _reason_codes(result)
 
 
+def test_estado_actual_debe_coincidir_con_cadena_historica_ordenada():
+    report = _report(
+        status="CREADO",
+        validated_at=NOW + timedelta(seconds=1),
+        validated_by_id=uuid.uuid4(),
+    )
+    histories = [
+        _history(report),
+        _history(
+            report,
+            previous_status="CREADO",
+            new_status="ASIGNADO",
+            created_at=NOW + timedelta(seconds=2),
+        ),
+    ]
+    audit_entry = AuditSnapshot(
+        id=uuid.uuid4(),
+        action="report.validated",
+        report_id=report.id,
+        institution_id=report.institution_id,
+        cycle=1,
+        created_at=NOW + timedelta(seconds=2),
+    )
+
+    result = _classify(reports=[report], histories=histories, audits=[audit_entry])
+
+    assert result.invalid is True
+    assert "HISTORY_FINAL_STATUS_MISMATCH" in _reason_codes(result)
+
+
+def test_reversal_exige_original_marcada_como_revertida():
+    report = _report(
+        status="ASIGNADO",
+        validated_at=NOW + timedelta(seconds=1),
+        validated_by_id=uuid.uuid4(),
+    )
+    histories = [
+        _history(report),
+        _history(
+            report,
+            previous_status="CREADO",
+            new_status="ASIGNADO",
+            created_at=NOW + timedelta(seconds=2),
+        ),
+    ]
+    original = replace(
+        _reward(report),
+        status="ACREDITADO",
+        institution_id=report.institution_id,
+        credited_at=NOW + timedelta(seconds=2),
+    )
+    reversal = replace(
+        _reward(report),
+        event_type="REVERSAL",
+        status="REVERTIDO",
+        impact_delta=-20,
+        credit_delta=-20,
+        institution_id=report.institution_id,
+        created_at=NOW + timedelta(seconds=4),
+        reversed_at=NOW + timedelta(seconds=3),
+        related_transaction_id=original.id,
+    )
+    audit_entry = AuditSnapshot(
+        id=uuid.uuid4(),
+        action="report.validated",
+        report_id=report.id,
+        institution_id=report.institution_id,
+        cycle=1,
+        created_at=NOW + timedelta(seconds=2),
+    )
+
+    result = _classify(
+        reports=[report], histories=histories, rewards=[original, reversal], audits=[audit_entry]
+    )
+
+    assert result.invalid is True
+    assert "REVERSAL_ORIGINAL_NOT_REVERTED" in _reason_codes(result)
+
+
 def test_reporte_no_reconocido_es_unknown():
     report = _report(status="CLASIFICADO")
 
@@ -326,3 +405,6 @@ def test_snapshot_sintetico_alterado_es_inconsistent():
 def test_parseo_de_auditoria_conserva_uuid_invalido_para_rechazarlo():
     assert parse_uuid_reference("no-es-uuid") == "no-es-uuid"
     assert parse_cycle(True) == -1
+    assert parse_cycle(-0.5) == -1
+    assert parse_cycle(1.5) == -1
+    assert parse_cycle("1") == -1

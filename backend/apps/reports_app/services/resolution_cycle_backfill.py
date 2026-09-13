@@ -37,6 +37,21 @@ SEED_STATUS = {
 }
 
 ADVANCED_STATUSES = {"ASIGNADO", "EN_PROCESO", "RESUELTO", "CERRADO"}
+ALLOWED_HISTORY_TRANSITIONS = {
+    ("", "CREADO"),
+    ("CREADO", "CLASIFICADO"),
+    ("CREADO", "ASIGNADO"),
+    ("CLASIFICADO", "ASIGNADO"),
+    ("CREADO", "RECHAZADO"),
+    ("CLASIFICADO", "RECHAZADO"),
+    ("ASIGNADO", "EN_PROCESO"),
+    ("EN_PROCESO", "RESUELTO"),
+    ("RESUELTO", "CERRADO"),
+    ("ASIGNADO", "CLASIFICADO"),
+    ("EN_PROCESO", "CLASIFICADO"),
+    ("RESUELTO", "CLASIFICADO"),
+    ("CERRADO", "CLASIFICADO"),
+}
 
 
 class Classification(StrEnum):
@@ -160,12 +175,9 @@ def parse_uuid_reference(value):
 def parse_cycle(value):
     if value is None:
         return None
-    if isinstance(value, bool):
-        return -1
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return -1
+    # JSON distingue enteros, flotantes, booleanos y cadenas. Solo un entero
+    # real es una señal histórica admisible; convertir truncaría evidencia.
+    return value if type(value) is int else -1
 
 
 def classify_universe(
@@ -313,7 +325,11 @@ def classify_universe(
                 reject(f"{name}_BEFORE_REPORT", "reward", reward.id, owner_id)
         if reward.voided_at is not None and reward.voided_at < reward.created_at:
             reject("VOID_BEFORE_REWARD", "reward", reward.id, owner_id)
-        if reward.reversed_at is not None and reward.reversed_at < reward.created_at:
+        if (
+            reward.event_type != "REVERSAL"
+            and reward.reversed_at is not None
+            and reward.reversed_at < reward.created_at
+        ):
             reject("REVERSAL_BEFORE_REWARD", "reward", reward.id, owner_id)
         if reward.institution_id is not None and reward.institution_id != report.institution_id:
             reject("REWARD_INSTITUTION_MISMATCH", "reward", reward.id, owner_id)
@@ -490,6 +506,14 @@ def _validate_reward_shape(
         else:
             if reward_owner_by_id.get(original.id) != owner_id:
                 reject("REVERSAL_OWNERSHIP_MISMATCH", "reward", reward.id, owner_id)
+            if original.status != "REVERTIDO" or original.reversed_at is None:
+                reject("REVERSAL_ORIGINAL_NOT_REVERTED", "reward", reward.id, owner_id)
+            if reward.created_at < original.created_at or (
+                reward.reversed_at is not None
+                and original.reversed_at is not None
+                and reward.reversed_at < original.reversed_at
+            ):
+                reject("REVERSAL_TIMESTAMP_MISMATCH", "reward", reward.id, owner_id)
             if (
                 reward.impact_delta != -original.impact_delta
                 or reward.credit_delta != -original.credit_delta
@@ -521,6 +545,17 @@ def _classify_real_report(report, histories, evidences, rewards, audits, reasons
     transitions = {(item.previous_status, item.new_status) for item in histories}
     reward_events = {item.event_type for item in rewards}
 
+    for index, history in enumerate(histories):
+        if (history.previous_status, history.new_status) not in ALLOWED_HISTORY_TRANSITIONS:
+            reasons.append(Reason("HISTORY_TRANSITION_INVALID", "history", str(history.id)))
+        if index == 0:
+            if history.previous_status != "" or history.new_status != "CREADO":
+                reasons.append(Reason("HISTORY_INITIAL_STATE_INVALID", "history", str(history.id)))
+        elif history.previous_status != histories[index - 1].new_status:
+            reasons.append(Reason("HISTORY_CHAIN_BROKEN", "history", str(history.id)))
+    if histories and histories[-1].new_status != report.status:
+        reasons.append(Reason("HISTORY_FINAL_STATUS_MISMATCH", "report", str(report.id)))
+
     has_report_validation = report.validated_at is not None or report.validated_by_id is not None
     historical_validation = bool(
         transitions.intersection(
@@ -547,6 +582,10 @@ def _classify_real_report(report, histories, evidences, rewards, audits, reasons
             reasons.append(Reason("VALIDATION_AUDIT_MISSING", "report", str(report.id)))
     if report.status in ADVANCED_STATUSES and not has_report_validation:
         reasons.append(Reason("ADVANCED_STATE_WITHOUT_VALIDATION", "report", str(report.id)))
+
+    expected_audit_cycle = 1 if report.validated_at is not None else 0
+    if any(audit.cycle is not None and audit.cycle != expected_audit_cycle for audit in audits):
+        reasons.append(Reason("AUDIT_CYCLE_MISMATCH", "report", str(report.id)))
 
     resolution_signals = bool(
         report.resolved_at is not None

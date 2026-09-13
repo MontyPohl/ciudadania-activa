@@ -100,6 +100,22 @@ def _create_approved_universe(apps):
     return real_reports
 
 
+def _cycle_state(apps):
+    model_fields = (
+        ("reports_app", "Report", ("id", "resolution_cycle")),
+        ("reports_app", "ReportStatusHistory", ("id", "resolution_cycle")),
+        ("reports_app", "ResolutionEvidence", ("id", "resolution_cycle")),
+        ("rewards_app", "RewardTransaction", ("id", "resolution_cycle")),
+        ("admin_app", "AuditLog", ("id", "action", "payload")),
+    )
+    return {
+        model_name: tuple(
+            apps.get_model(app_label, model_name).objects.order_by("id").values_list(*fields)
+        )
+        for app_label, model_name, fields in model_fields
+    }
+
+
 def test_backfill_aprobado_clasifica_16_reportes_como_cycle_zero():
     executor = _executor(MIGRATE_FROM)
     old_apps = _historical_apps(executor, MIGRATE_FROM)
@@ -198,6 +214,100 @@ def test_backfill_rechaza_ownership_contradictorio_y_deja_cero_escrituras():
         Reward.objects.filter(pk=contradictory.pk).delete()
         Confirmation.objects.filter(pk=confirmation.pk).delete()
         get_user_model().objects.filter(pk=user.pk).delete()
+        _executor(MIGRATE_TO)
+
+
+@pytest.mark.parametrize(
+    ("scenario", "reason"),
+    [
+        ("fractional_cycle", "AUDIT_CYCLE_NEGATIVE"),
+        ("institution_mismatch", "AUDIT_INSTITUTION_MISMATCH"),
+        ("validation_signal", "VALIDATION_SIGNAL_CONTRADICTION"),
+        ("reversal_original", "REVERSAL_ORIGINAL_NOT_REVERTED"),
+    ],
+)
+def test_backfill_rechaza_evidencia_inconsistente_sin_ninguna_escritura(scenario, reason):
+    executor = _executor(MIGRATE_FROM)
+    old_apps = _historical_apps(executor, MIGRATE_FROM)
+    Report = old_apps.get_model("reports_app", "Report")
+    Reward = old_apps.get_model("rewards_app", "RewardTransaction")
+    AuditLog = old_apps.get_model("admin_app", "AuditLog")
+    first, _ = _create_approved_universe(old_apps)
+    created_reward_ids = []
+    created_audit_ids = []
+    user = None
+
+    if scenario in {"fractional_cycle", "institution_mismatch"}:
+        payload = {"report_id": str(first.pk)}
+        if scenario == "fractional_cycle":
+            payload["cycle"] = -0.5
+        else:
+            Institution = old_apps.get_model("admin_app", "Institution")
+            other_institution = Institution.objects.create(
+                slug="migration-other-institution",
+                name="Otra institución de migración",
+            )
+            payload["institution_id"] = str(other_institution.pk)
+        audit_entry = AuditLog.objects.create(
+            actor_type="system",
+            action="report.created",
+            payload=payload,
+        )
+        created_audit_ids.append(audit_entry.pk)
+    else:
+        user = get_user_model().objects.create_user(email=f"migration-{scenario}@example.test")
+        Report.objects.filter(pk=first.pk).update(citizen_id=user.pk)
+        if scenario == "validation_signal":
+            reward = Reward.objects.create(
+                user_id=user.pk,
+                report_id=first.pk,
+                institution_id=first.institution_id,
+                event_type="VALIDATION_BONUS",
+                impact_delta=30,
+                credit_delta=30,
+                status="ACREDITADO",
+                credited_at=first.created_at + timedelta(seconds=1),
+                resolution_cycle=None,
+            )
+            created_reward_ids.append(reward.pk)
+        else:
+            original = Reward.objects.create(
+                user_id=user.pk,
+                report_id=first.pk,
+                institution_id=first.institution_id,
+                event_type="REPORT_CREATED",
+                impact_delta=20,
+                credit_delta=20,
+                status="ACREDITADO",
+                credited_at=first.created_at + timedelta(seconds=1),
+                resolution_cycle=None,
+            )
+            reversal = Reward.objects.create(
+                user_id=user.pk,
+                report_id=first.pk,
+                institution_id=first.institution_id,
+                event_type="REVERSAL",
+                impact_delta=-20,
+                credit_delta=-20,
+                status="REVERTIDO",
+                reversed_at=first.created_at + timedelta(seconds=2),
+                related_transaction_id=original.pk,
+                resolution_cycle=None,
+            )
+            created_reward_ids.extend((original.pk, reversal.pk))
+
+    before = _cycle_state(old_apps)
+    try:
+        with pytest.raises(RuntimeError, match=reason):
+            _executor(MIGRATE_TO)
+        assert _cycle_state(old_apps) == before
+    finally:
+        for reward_id in reversed(created_reward_ids):
+            Reward.objects.filter(pk=reward_id).delete()
+        AuditLog.objects.filter(pk__in=created_audit_ids).delete()
+        Report.objects.filter(pk=first.pk).update(citizen_id=None)
+        if user is not None:
+            get_user_model().objects.filter(pk=user.pk).delete()
         _executor(MIGRATE_TO)
 
 
