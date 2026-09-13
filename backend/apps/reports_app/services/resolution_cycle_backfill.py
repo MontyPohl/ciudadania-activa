@@ -576,10 +576,25 @@ def _classify_real_report(report, histories, evidences, rewards, audits, reasons
     if report.validated_at is not None:
         if report.institution_id is None:
             reasons.append(Reason("VALIDATED_WITHOUT_INSTITUTION", "report", str(report.id)))
-        if not transitions.intersection({("CREADO", "ASIGNADO"), ("CLASIFICADO", "ASIGNADO")}):
+        validation_histories = [item for item in histories if item.new_status == "ASIGNADO"]
+        validation_audits = [item for item in audits if item.action == "report.validated"]
+        if not validation_histories:
             reasons.append(Reason("VALIDATION_HISTORY_MISSING", "report", str(report.id)))
-        if "report.validated" not in actions:
+        elif any(item.created_at < report.validated_at for item in validation_histories):
+            reasons.append(Reason("VALIDATION_HISTORY_BEFORE_MARKER", "report", str(report.id)))
+        if not validation_audits:
             reasons.append(Reason("VALIDATION_AUDIT_MISSING", "report", str(report.id)))
+        elif any(item.created_at < report.validated_at for item in validation_audits):
+            reasons.append(Reason("VALIDATION_AUDIT_BEFORE_MARKER", "report", str(report.id)))
+        if any(item.created_at < report.validated_at for item in evidences):
+            reasons.append(Reason("EVIDENCE_BEFORE_VALIDATION", "report", str(report.id)))
+        if any(
+            item.event_type in {"VALIDATION_BONUS", "RESOLUTION_BONUS"}
+            and item.credited_at is not None
+            and item.credited_at < report.validated_at
+            for item in rewards
+        ):
+            reasons.append(Reason("BONUS_BEFORE_VALIDATION", "report", str(report.id)))
     if report.status in ADVANCED_STATUSES and not has_report_validation:
         reasons.append(Reason("ADVANCED_STATE_WITHOUT_VALIDATION", "report", str(report.id)))
 
@@ -598,6 +613,26 @@ def _classify_real_report(report, histories, evidences, rewards, audits, reasons
         reasons.append(Reason("RESOLUTION_WITHOUT_VALIDATION", "report", str(report.id)))
     if report.status in {"RESUELTO", "CERRADO"} and report.resolved_at is None:
         reasons.append(Reason("RESOLVED_STATE_WITHOUT_TIMESTAMP", "report", str(report.id)))
+    if report.resolved_at is not None:
+        resolution_histories = [item for item in histories if item.new_status == "RESUELTO"]
+        resolution_audits = [item for item in audits if item.action == "report.resolved"]
+        if not resolution_histories:
+            reasons.append(Reason("RESOLUTION_HISTORY_MISSING", "report", str(report.id)))
+        elif any(item.created_at < report.resolved_at for item in resolution_histories):
+            reasons.append(Reason("RESOLUTION_HISTORY_BEFORE_MARKER", "report", str(report.id)))
+        if not resolution_audits:
+            reasons.append(Reason("RESOLUTION_AUDIT_MISSING", "report", str(report.id)))
+        elif any(item.created_at < report.resolved_at for item in resolution_audits):
+            reasons.append(Reason("RESOLUTION_AUDIT_BEFORE_MARKER", "report", str(report.id)))
+        if any(item.created_at > report.resolved_at for item in evidences):
+            reasons.append(Reason("EVIDENCE_AFTER_RESOLUTION", "report", str(report.id)))
+        if any(
+            item.event_type == "RESOLUTION_BONUS"
+            and item.credited_at is not None
+            and item.credited_at < report.resolved_at
+            for item in rewards
+        ):
+            reasons.append(Reason("RESOLUTION_BONUS_BEFORE_MARKER", "report", str(report.id)))
 
     if reasons:
         return Classification.INCONSISTENT

@@ -328,6 +328,68 @@ def test_estado_actual_debe_coincidir_con_cadena_historica_ordenada():
     assert "HISTORY_FINAL_STATUS_MISMATCH" in _reason_codes(result)
 
 
+def test_cycle_one_coherente_es_aceptado():
+    report = _report(
+        status="ASIGNADO",
+        validated_at=NOW + timedelta(seconds=1),
+        validated_by_id=uuid.uuid4(),
+    )
+    histories = [
+        _history(report),
+        _history(
+            report,
+            previous_status="CREADO",
+            new_status="ASIGNADO",
+            created_at=NOW + timedelta(seconds=2),
+        ),
+    ]
+    audit_entry = AuditSnapshot(
+        id=uuid.uuid4(),
+        action="report.validated",
+        report_id=report.id,
+        institution_id=report.institution_id,
+        cycle=1,
+        created_at=NOW + timedelta(seconds=2),
+    )
+
+    result = _classify(reports=[report], histories=histories, audits=[audit_entry])
+
+    assert result.invalid is False
+    assert result.reports[0].classification == Classification.CYCLE_1
+
+
+def test_senales_de_validacion_no_pueden_anteceder_validated_at():
+    report = _report(
+        status="ASIGNADO",
+        validated_at=NOW + timedelta(seconds=3),
+        validated_by_id=uuid.uuid4(),
+    )
+    histories = [
+        _history(report),
+        _history(
+            report,
+            previous_status="CREADO",
+            new_status="ASIGNADO",
+            created_at=NOW + timedelta(seconds=2),
+        ),
+    ]
+    audit_entry = AuditSnapshot(
+        id=uuid.uuid4(),
+        action="report.validated",
+        report_id=report.id,
+        institution_id=report.institution_id,
+        cycle=1,
+        created_at=NOW + timedelta(seconds=2),
+    )
+
+    result = _classify(reports=[report], histories=histories, audits=[audit_entry])
+
+    assert result.invalid is True
+    assert {"VALIDATION_HISTORY_BEFORE_MARKER", "VALIDATION_AUDIT_BEFORE_MARKER"}.issubset(
+        _reason_codes(result)
+    )
+
+
 def test_reversal_exige_original_marcada_como_revertida():
     report = _report(
         status="ASIGNADO",
