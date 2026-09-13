@@ -3,34 +3,28 @@
 import hashlib
 import json
 import uuid
+from dataclasses import asdict
 
 from django.core.management.base import BaseCommand, CommandError
-from django.db import connection
 
-SEED_NAMESPACE = uuid.UUID("b63c21b4-6ac8-4ed3-b1ca-c6ca6862ab1d")
-SEED_IDS = frozenset(uuid.uuid5(SEED_NAMESPACE, f"s5-map-{index:02d}") for index in range(1, 15))
-SEED_STATUS = {
-    uuid.uuid5(SEED_NAMESPACE, f"s5-map-{index:02d}"): status
-    for index, status in enumerate(
-        (
-            "CREADO",
-            "CREADO",
-            "CLASIFICADO",
-            "CLASIFICADO",
-            "ASIGNADO",
-            "ASIGNADO",
-            "EN_PROCESO",
-            "EN_PROCESO",
-            "RESUELTO",
-            "RESUELTO",
-            "CERRADO",
-            "CERRADO",
-            "RECHAZADO",
-            "RECHAZADO",
-        ),
-        start=1,
-    )
-}
+from apps.admin_app.models import AuditLog
+from apps.reports_app.models import (
+    Report,
+    ReportConfirmation,
+    ReportStatusHistory,
+    ResolutionEvidence,
+)
+from apps.reports_app.services.resolution_cycle_backfill import (
+    AuditSnapshot,
+    Classification,
+    ConfirmationSnapshot,
+    EvidenceSnapshot,
+    HistorySnapshot,
+    ReportSnapshot,
+    RewardSnapshot,
+    classify_universe,
+)
+from apps.rewards_app.models import RewardTransaction
 
 
 class Command(BaseCommand):
@@ -52,81 +46,62 @@ class Command(BaseCommand):
                 "ABORT: confirmar web writers, worker writers y scheduled writers OFF."
             )
 
-        with connection.cursor() as cursor:
-            cursor.execute(
-                """
-                SELECT id, status, citizen_id, validated_at, validated_by_id,
-                       resolved_at, description
-                FROM reports
-                ORDER BY id
-                """
-            )
-            reports = cursor.fetchall()
-            cursor.execute(
-                """
-                SELECT report_id, previous_status, new_status
-                FROM report_status_history
-                ORDER BY report_id, created_at, id
-                """
-            )
-            histories = cursor.fetchall()
-            cursor.execute(
-                "SELECT report_id FROM resolution_evidences ORDER BY report_id, created_at, id"
-            )
-            evidences = cursor.fetchall()
-            cursor.execute(
-                """
-                SELECT COALESCE(rt.report_id, rc.report_id), rt.event_type
-                FROM reward_transactions rt
-                LEFT JOIN report_confirmations rc ON rc.id = rt.confirmation_id
-                WHERE COALESCE(rt.report_id, rc.report_id) IS NOT NULL
-                ORDER BY COALESCE(rt.report_id, rc.report_id), rt.created_at, rt.id
-                """
-            )
-            rewards = cursor.fetchall()
-
-        history_map = _group_rows(histories)
-        evidence_map = _group_rows(evidences)
-        reward_map = _group_rows(rewards)
-        classes = {label: [] for label in ("A", "B", "UNKNOWN", "INCONSISTENT")}
-        fingerprint_rows = []
-        for row in reports:
-            report_id = row[0]
-            label = _classify(
-                row,
-                history_map.get(report_id, []),
-                evidence_map.get(report_id, []),
-                reward_map.get(report_id, []),
-            )
-            classes[label].append(str(report_id))
-            fingerprint_rows.append(
-                [str(value) if value is not None else None for value in row]
-                + [history_map.get(report_id, [])]
-                + [evidence_map.get(report_id, [])]
-                + [reward_map.get(report_id, [])]
-            )
-
+        snapshots = _load_readonly_snapshots()
+        result = classify_universe(**snapshots)
+        classes = {
+            classification.value: [
+                str(item.report_id)
+                for item in result.reports
+                if item.classification == classification
+            ]
+            for classification in Classification
+        }
+        reasons = [
+            {
+                "report_id": str(item.report_id),
+                "code": reason.code,
+                "entity": reason.entity,
+                "entity_id": reason.entity_id,
+            }
+            for item in result.reports
+            for reason in item.reasons
+        ] + [
+            {
+                "report_id": None,
+                "code": reason.code,
+                "entity": reason.entity,
+                "entity_id": reason.entity_id,
+            }
+            for reason in result.global_reasons
+        ]
+        fingerprint_rows = {
+            key: [_serializable(item) for item in value] for key, value in snapshots.items()
+        }
         payload = {
-            "total_reports": len(reports),
-            "class_a": len(classes["A"]),
-            "class_b": len(classes["B"]),
-            "unknown": len(classes["UNKNOWN"]),
-            "inconsistent": len(classes["INCONSISTENT"]),
+            "total_reports": len(snapshots["reports"]),
+            "synthetic": len(classes[Classification.SYNTHETIC.value]),
+            "cycle_0": len(classes[Classification.CYCLE_0.value]),
+            "cycle_1": len(classes[Classification.CYCLE_1.value]),
+            "unknown": len(classes[Classification.UNKNOWN.value]),
+            "inconsistent": len(classes[Classification.INCONSISTENT.value]),
             "report_ids": classes,
+            "reasons": reasons,
             "fingerprint_sha256": hashlib.sha256(
                 json.dumps(fingerprint_rows, sort_keys=True, default=str).encode()
             ).hexdigest(),
         }
         self.stdout.write(json.dumps(payload, indent=2, sort_keys=True))
 
-        expected = (16, 2, 14, 0, 0)
         actual = (
             payload["total_reports"],
-            payload["class_a"],
-            payload["class_b"],
+            payload["synthetic"],
+            payload["cycle_0"],
+            payload["cycle_1"],
             payload["unknown"],
             payload["inconsistent"],
+            len(result.global_reasons),
         )
+        expected = (16, 14, 2, 0, 0, 0, 0)
         if actual != expected:
             raise CommandError(
                 f"ABORT: universo no autorizado; esperado={expected}, actual={actual}"
@@ -134,38 +109,100 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS("READONLY_AUDIT_COMPLETE"))
 
 
-def _group_rows(rows):
-    grouped = {}
-    for row in rows:
-        grouped.setdefault(row[0], []).append(
-            tuple(str(value) if value is not None else None for value in row[1:])
+def _load_readonly_snapshots():
+    reports = [
+        ReportSnapshot(**row, resolution_cycle=None)
+        for row in Report.objects.order_by("id").values(
+            "id",
+            "status",
+            "citizen_id",
+            "institution_id",
+            "created_at",
+            "validated_at",
+            "validated_by_id",
+            "resolved_at",
+            "description",
         )
-    return grouped
+    ]
+    confirmations = [
+        ConfirmationSnapshot(**row)
+        for row in ReportConfirmation.objects.order_by("id").values(
+            "id", "report_id", "citizen_id", "created_at"
+        )
+    ]
+    histories = [
+        HistorySnapshot(**row, resolution_cycle=None)
+        for row in ReportStatusHistory.objects.order_by("id").values(
+            "id", "report_id", "previous_status", "new_status", "created_at"
+        )
+    ]
+    evidences = [
+        EvidenceSnapshot(**row, resolution_cycle=None)
+        for row in ResolutionEvidence.objects.order_by("id").values("id", "report_id", "created_at")
+    ]
+    rewards = [
+        RewardSnapshot(**row, resolution_cycle=None)
+        for row in RewardTransaction.objects.order_by("id").values(
+            "id",
+            "event_type",
+            "user_id",
+            "report_id",
+            "confirmation_id",
+            "institution_id",
+            "status",
+            "impact_delta",
+            "credit_delta",
+            "created_at",
+            "credited_at",
+            "voided_at",
+            "reversed_at",
+            "related_transaction_id",
+        )
+    ]
+    audits = []
+    for row in AuditLog.objects.order_by("id").values("id", "action", "payload", "created_at"):
+        payload = row["payload"] if isinstance(row["payload"], dict) else {}
+        audits.append(
+            AuditSnapshot(
+                id=row["id"],
+                action=row["action"],
+                report_id=_uuid_or_none(payload.get("report_id")),
+                institution_id=_uuid_or_none(payload.get("institution_id")),
+                cycle=_integer_or_invalid(payload.get("cycle")),
+                created_at=row["created_at"],
+            )
+        )
+    return {
+        "reports": reports,
+        "confirmations": confirmations,
+        "histories": histories,
+        "evidences": evidences,
+        "rewards": rewards,
+        "audits": audits,
+    }
 
 
-def _classify(report, histories, evidences, rewards):
-    report_id, status, citizen_id, validated_at, validated_by_id, resolved_at, description = report
-    validation_markers = bool(validated_at or validated_by_id or resolved_at or evidences)
-    validation_markers = validation_markers or any(
-        row and row[0] == "ASIGNADO" for row in histories
-    )
-    validation_markers = validation_markers or any(
-        row and row[0] in {"VALIDATION_BONUS", "RESOLUTION_BONUS", "REVERSAL"} for row in rewards
-    )
-    if report_id in SEED_IDS:
-        if (
-            citizen_id is None
-            and status == SEED_STATUS[report_id]
-            and validated_at is None
-            and validated_by_id is None
-            and resolved_at is None
-            and not histories
-            and not evidences
-            and not rewards
-            and description.startswith("Dato sintético S5-A ")
-        ):
-            return "B"
-        return "INCONSISTENT"
-    if status == "CREADO" and histories == [("", "CREADO")] and not validation_markers:
-        return "A"
-    return "INCONSISTENT" if validation_markers else "UNKNOWN"
+def _uuid_or_none(value):
+    if value in (None, ""):
+        return None
+    try:
+        return uuid.UUID(str(value))
+    except (TypeError, ValueError, AttributeError):
+        return None
+
+
+def _integer_or_invalid(value):
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return -1
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return -1
+
+
+def _serializable(item):
+    return {
+        field: str(value) if value is not None else None for field, value in asdict(item).items()
+    }

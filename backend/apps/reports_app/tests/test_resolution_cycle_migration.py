@@ -1,6 +1,7 @@
-from importlib import import_module
+from datetime import timedelta
 
 import pytest
+from django.contrib.auth import get_user_model
 from django.contrib.gis.geos import Point
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
@@ -58,12 +59,10 @@ def _ensure_categories(apps):
     }
 
 
-def test_backfill_aprobado_clasifica_16_reportes_como_cycle_zero():
-    executor = _executor(MIGRATE_FROM)
-    old_apps = _historical_apps(executor, MIGRATE_FROM)
-    Report = old_apps.get_model("reports_app", "Report")
-    History = old_apps.get_model("reports_app", "ReportStatusHistory")
-    categories = _ensure_categories(old_apps)
+def _create_approved_universe(apps):
+    Report = apps.get_model("reports_app", "Report")
+    History = apps.get_model("reports_app", "ReportStatusHistory")
+    categories = _ensure_categories(apps)
     for item in SEED_REPORTS:
         category = categories[item.category_slug]
         Report.objects.create(
@@ -79,6 +78,7 @@ def test_backfill_aprobado_clasifica_16_reportes_como_cycle_zero():
             resolution_cycle=None,
         )
 
+    real_reports = []
     for index in range(2):
         report = Report.objects.create(
             citizen=None,
@@ -96,6 +96,14 @@ def test_backfill_aprobado_clasifica_16_reportes_como_cycle_zero():
             new_status="CREADO",
             resolution_cycle=None,
         )
+        real_reports.append(report)
+    return real_reports
+
+
+def test_backfill_aprobado_clasifica_16_reportes_como_cycle_zero():
+    executor = _executor(MIGRATE_FROM)
+    old_apps = _historical_apps(executor, MIGRATE_FROM)
+    _create_approved_universe(old_apps)
 
     _executor(MIGRATE_TO)
 
@@ -111,6 +119,7 @@ def test_backfill_rechaza_universo_desconocido_sin_escribir():
     executor = _executor(MIGRATE_FROM)
     old_apps = _historical_apps(executor, MIGRATE_FROM)
     Report = old_apps.get_model("reports_app", "Report")
+    _create_approved_universe(old_apps)
     category = _ensure_categories(old_apps)["baches"]
     unknown = Report.objects.create(
         citizen=None,
@@ -133,23 +142,86 @@ def test_backfill_rechaza_universo_desconocido_sin_escribir():
         _executor(MIGRATE_TO)
 
 
-def test_classifier_identifica_seed_alterado_como_inconsistente():
-    migration = import_module("apps.reports_app.migrations.0004_backfill_resolution_cycle")
-    report = type(
-        "ReportSnapshot",
-        (),
-        {
-            "pk": next(iter(migration.SEED_IDS)),
-            "citizen_id": None,
-            "status": "CREADO",
-            "validated_at": None,
-            "validated_by_id": None,
-            "resolved_at": None,
-            "description": "contenido alterado",
-        },
-    )()
+def test_backfill_rechaza_ownership_contradictorio_y_deja_cero_escrituras():
+    executor = _executor(MIGRATE_FROM)
+    old_apps = _historical_apps(executor, MIGRATE_FROM)
+    Confirmation = old_apps.get_model("reports_app", "ReportConfirmation")
+    History = old_apps.get_model("reports_app", "ReportStatusHistory")
+    Evidence = old_apps.get_model("reports_app", "ResolutionEvidence")
+    Reward = old_apps.get_model("rewards_app", "RewardTransaction")
+    AuditLog = old_apps.get_model("admin_app", "AuditLog")
+    first, second = _create_approved_universe(old_apps)
+    user = get_user_model().objects.create_user(email="migration-owner@example.test")
+    confirmation = Confirmation.objects.create(report=second, citizen_id=user.pk)
+    contradictory = Reward.objects.create(
+        user_id=user.pk,
+        report=first,
+        confirmation=confirmation,
+        event_type="CONFIRMATION_CREATED",
+        impact_delta=10,
+        credit_delta=10,
+        status="PENDIENTE",
+        resolution_cycle=None,
+    )
+    before = {
+        "reports": tuple(
+            old_apps.get_model("reports_app", "Report")
+            .objects.order_by("id")
+            .values_list("id", "resolution_cycle")
+        ),
+        "histories": tuple(History.objects.order_by("id").values_list("id", "resolution_cycle")),
+        "evidences": tuple(Evidence.objects.order_by("id").values_list("id", "resolution_cycle")),
+        "rewards": tuple(Reward.objects.order_by("id").values_list("id", "resolution_cycle")),
+        "audits": tuple(AuditLog.objects.order_by("id").values_list("id", flat=True)),
+    }
 
-    assert migration._classify(report, [], [], []) == "INCONSISTENT"
+    try:
+        with pytest.raises(RuntimeError, match="REWARD_OWNERSHIP_CONTRADICTORY"):
+            _executor(MIGRATE_TO)
+        after = {
+            "reports": tuple(
+                old_apps.get_model("reports_app", "Report")
+                .objects.order_by("id")
+                .values_list("id", "resolution_cycle")
+            ),
+            "histories": tuple(
+                History.objects.order_by("id").values_list("id", "resolution_cycle")
+            ),
+            "evidences": tuple(
+                Evidence.objects.order_by("id").values_list("id", "resolution_cycle")
+            ),
+            "rewards": tuple(Reward.objects.order_by("id").values_list("id", "resolution_cycle")),
+            "audits": tuple(AuditLog.objects.order_by("id").values_list("id", flat=True)),
+        }
+        assert after == before
+    finally:
+        Reward.objects.filter(pk=contradictory.pk).delete()
+        Confirmation.objects.filter(pk=confirmation.pk).delete()
+        get_user_model().objects.filter(pk=user.pk).delete()
+        _executor(MIGRATE_TO)
+
+
+def test_backfill_falla_tarde_sin_escribir_clasificaciones_previas():
+    executor = _executor(MIGRATE_FROM)
+    old_apps = _historical_apps(executor, MIGRATE_FROM)
+    Report = old_apps.get_model("reports_app", "Report")
+    History = old_apps.get_model("reports_app", "ReportStatusHistory")
+    real_reports = _create_approved_universe(old_apps)
+    invalid = real_reports[-1]
+    history = History.objects.get(report=invalid)
+    original_created_at = history.created_at
+    History.objects.filter(pk=history.pk).update(
+        created_at=invalid.created_at - timedelta(seconds=1)
+    )
+
+    try:
+        with pytest.raises(RuntimeError, match="HISTORY_BEFORE_REPORT"):
+            _executor(MIGRATE_TO)
+        assert Report.objects.filter(resolution_cycle__isnull=True).count() == 16
+        assert History.objects.filter(resolution_cycle__isnull=True).count() == 2
+    finally:
+        History.objects.filter(pk=history.pk).update(created_at=original_created_at)
+        _executor(MIGRATE_TO)
 
 
 def test_evidence_migration_aborts_when_historical_rows_exist():

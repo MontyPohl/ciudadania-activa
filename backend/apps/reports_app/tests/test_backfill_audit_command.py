@@ -45,7 +45,8 @@ def test_audit_identifica_el_universo_aprobado(
     output = capsys.readouterr().out
     payload = json.loads(output[: output.index("}\n") + 1])
     assert payload["total_reports"] == 16
-    assert payload["class_a"] == 2
-    assert payload["class_b"] == 14
+    assert payload["synthetic"] == 14
+    assert payload["cycle_0"] == 2
+    assert payload["cycle_1"] == 0
     assert payload["unknown"] == payload["inconsistent"] == 0
     assert "READONLY_AUDIT_COMPLETE" in output

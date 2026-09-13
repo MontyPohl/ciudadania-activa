@@ -1,145 +1,203 @@
 import uuid
 
 from django.db import migrations
-from django.db.models import Q
 
-SEED_NAMESPACE = uuid.UUID("b63c21b4-6ac8-4ed3-b1ca-c6ca6862ab1d")
-SEED_CODES = tuple(f"s5-map-{index:02d}" for index in range(1, 15))
-SEED_IDS = frozenset(uuid.uuid5(SEED_NAMESPACE, code) for code in SEED_CODES)
-SEED_STATUS = {
-    "s5-map-01": "CREADO",
-    "s5-map-02": "CREADO",
-    "s5-map-03": "CLASIFICADO",
-    "s5-map-04": "CLASIFICADO",
-    "s5-map-05": "ASIGNADO",
-    "s5-map-06": "ASIGNADO",
-    "s5-map-07": "EN_PROCESO",
-    "s5-map-08": "EN_PROCESO",
-    "s5-map-09": "RESUELTO",
-    "s5-map-10": "RESUELTO",
-    "s5-map-11": "CERRADO",
-    "s5-map-12": "CERRADO",
-    "s5-map-13": "RECHAZADO",
-    "s5-map-14": "RECHAZADO",
-}
-SEED_EXPECTED_STATUS = {
-    uuid.uuid5(SEED_NAMESPACE, code): status for code, status in SEED_STATUS.items()
-}
+from apps.reports_app.services.resolution_cycle_backfill import (
+    AuditSnapshot,
+    Classification,
+    ConfirmationSnapshot,
+    EvidenceSnapshot,
+    HistorySnapshot,
+    ReportSnapshot,
+    RewardSnapshot,
+    classify_universe,
+)
 
 EXPECTED_TOTAL = 16
-EXPECTED_CLASS_A = 2
-EXPECTED_CLASS_B = 14
+EXPECTED_SYNTHETIC = 14
+EXPECTED_CYCLE_0 = 2
+EXPECTED_CYCLE_1 = 0
 
 
 class BackfillAborted(RuntimeError):
     pass
 
 
-def _has_validation_markers(report, histories, evidences, rewards):
-    if report.validated_at is not None or report.validated_by_id is not None:
-        return True
-    if report.resolved_at is not None or evidences:
-        return True
-    if any(history.new_status == "ASIGNADO" for history in histories):
-        return True
-    return any(
-        reward.event_type in {"VALIDATION_BONUS", "RESOLUTION_BONUS", "REVERSAL"}
-        for reward in rewards
-    )
+def _uuid_or_none(value):
+    if value in (None, ""):
+        return None
+    try:
+        return uuid.UUID(str(value))
+    except (TypeError, ValueError, AttributeError):
+        return None
 
 
-def _classify(report, histories, evidences, rewards):
-    validation_markers = _has_validation_markers(report, histories, evidences, rewards)
+def _integer_or_invalid(value):
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return -1
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return -1
 
-    if report.pk in SEED_IDS:
-        if (
-            report.citizen_id is None
-            and report.status == SEED_EXPECTED_STATUS[report.pk]
-            and report.validated_at is None
-            and report.validated_by_id is None
-            and report.resolved_at is None
-            and not histories
-            and not evidences
-            and not rewards
-            and report.description.startswith("Dato sintético S5-A ")
-        ):
-            return "B"
-        return "INCONSISTENT"
 
-    initial_histories = [
-        history
-        for history in histories
-        if history.previous_status == "" and history.new_status == "CREADO"
+def _load_snapshots(apps):
+    Report = apps.get_model("reports_app", "Report")
+    Confirmation = apps.get_model("reports_app", "ReportConfirmation")
+    History = apps.get_model("reports_app", "ReportStatusHistory")
+    Evidence = apps.get_model("reports_app", "ResolutionEvidence")
+    Reward = apps.get_model("rewards_app", "RewardTransaction")
+    AuditLog = apps.get_model("admin_app", "AuditLog")
+
+    reports = [
+        ReportSnapshot(
+            id=item.id,
+            status=item.status,
+            citizen_id=item.citizen_id,
+            institution_id=item.institution_id,
+            created_at=item.created_at,
+            validated_at=item.validated_at,
+            validated_by_id=item.validated_by_id,
+            resolved_at=item.resolved_at,
+            description=item.description,
+            resolution_cycle=item.resolution_cycle,
+        )
+        for item in Report.objects.order_by("id")
     ]
-    if (
-        report.status == "CREADO"
-        and len(histories) == 1
-        and len(initial_histories) == 1
-        and not validation_markers
-    ):
-        return "A"
+    confirmations = [
+        ConfirmationSnapshot(
+            id=item.id,
+            report_id=item.report_id,
+            citizen_id=item.citizen_id,
+            created_at=item.created_at,
+        )
+        for item in Confirmation.objects.order_by("id")
+    ]
+    histories = [
+        HistorySnapshot(
+            id=item.id,
+            report_id=item.report_id,
+            previous_status=item.previous_status,
+            new_status=item.new_status,
+            created_at=item.created_at,
+            resolution_cycle=item.resolution_cycle,
+        )
+        for item in History.objects.order_by("id")
+    ]
+    evidences = [
+        EvidenceSnapshot(
+            id=item.id,
+            report_id=item.report_id,
+            created_at=item.created_at,
+            resolution_cycle=item.resolution_cycle,
+        )
+        for item in Evidence.objects.order_by("id")
+    ]
+    rewards = [
+        RewardSnapshot(
+            id=item.id,
+            event_type=item.event_type,
+            user_id=item.user_id,
+            report_id=item.report_id,
+            confirmation_id=item.confirmation_id,
+            institution_id=item.institution_id,
+            status=item.status,
+            impact_delta=item.impact_delta,
+            credit_delta=item.credit_delta,
+            created_at=item.created_at,
+            credited_at=item.credited_at,
+            voided_at=item.voided_at,
+            reversed_at=item.reversed_at,
+            related_transaction_id=item.related_transaction_id,
+            resolution_cycle=item.resolution_cycle,
+        )
+        for item in Reward.objects.order_by("id")
+    ]
+    audits = []
+    for item in AuditLog.objects.order_by("id"):
+        payload = item.payload if isinstance(item.payload, dict) else {}
+        audits.append(
+            AuditSnapshot(
+                id=item.id,
+                action=item.action,
+                report_id=_uuid_or_none(payload.get("report_id")),
+                institution_id=_uuid_or_none(payload.get("institution_id")),
+                cycle=_integer_or_invalid(payload.get("cycle")),
+                created_at=item.created_at,
+            )
+        )
+    return reports, confirmations, histories, evidences, rewards, audits
 
-    if validation_markers:
-        return "INCONSISTENT"
-    return "UNKNOWN"
+
+def _ids(items):
+    return frozenset(item.id for item in items)
+
+
+def _assert_universe_unchanged(apps, snapshots):
+    model_names = (
+        ("reports_app", "Report"),
+        ("reports_app", "ReportConfirmation"),
+        ("reports_app", "ReportStatusHistory"),
+        ("reports_app", "ResolutionEvidence"),
+        ("rewards_app", "RewardTransaction"),
+        ("admin_app", "AuditLog"),
+    )
+    for (app_label, model_name), expected in zip(model_names, snapshots, strict=True):
+        model = apps.get_model(app_label, model_name)
+        if frozenset(model.objects.values_list("id", flat=True)) != _ids(expected):
+            raise BackfillAborted(
+                f"S10 {model_name} universe changed after classification; aborting."
+            )
 
 
 def backfill_resolution_cycles(apps, schema_editor):
-    Report = apps.get_model("reports_app", "Report")
-    ReportStatusHistory = apps.get_model("reports_app", "ReportStatusHistory")
-    ResolutionEvidence = apps.get_model("reports_app", "ResolutionEvidence")
-    RewardTransaction = apps.get_model("rewards_app", "RewardTransaction")
-
-    reports = list(Report.objects.order_by("id"))
+    snapshots = _load_snapshots(apps)
+    reports, confirmations, histories, evidences, rewards, audits = snapshots
     if not reports:
         return
 
-    classifications = {}
-    histories_by_report = {}
-    evidences_by_report = {}
-    rewards_by_report = {}
-
-    for report in reports:
-        histories = list(ReportStatusHistory.objects.filter(report_id=report.pk).order_by("id"))
-        evidences = list(ResolutionEvidence.objects.filter(report_id=report.pk).order_by("id"))
-        rewards = list(
-            RewardTransaction.objects.filter(
-                Q(report_id=report.pk) | Q(confirmation__report_id=report.pk)
-            ).order_by("created_at", "id")
-        )
-        histories_by_report[report.pk] = histories
-        evidences_by_report[report.pk] = evidences
-        rewards_by_report[report.pk] = rewards
-        classifications[report.pk] = _classify(report, histories, evidences, rewards)
-
-    grouped = {
-        label: sorted(
-            str(report_id)
-            for report_id, value in classifications.items()
-            if value == label
-        )
-        for label in ("A", "B", "UNKNOWN", "INCONSISTENT")
+    result = classify_universe(
+        reports=reports,
+        confirmations=confirmations,
+        histories=histories,
+        evidences=evidences,
+        rewards=rewards,
+        audits=audits,
+    )
+    counts = {
+        classification: len(result.ids_for(classification)) for classification in Classification
     }
-    if (
-        len(reports) != EXPECTED_TOTAL
-        or len(grouped["A"]) != EXPECTED_CLASS_A
-        or len(grouped["B"]) != EXPECTED_CLASS_B
-        or grouped["UNKNOWN"]
-        or grouped["INCONSISTENT"]
-    ):
+    expected = {
+        Classification.SYNTHETIC: EXPECTED_SYNTHETIC,
+        Classification.CYCLE_0: EXPECTED_CYCLE_0,
+        Classification.CYCLE_1: EXPECTED_CYCLE_1,
+        Classification.UNKNOWN: 0,
+        Classification.INCONSISTENT: 0,
+    }
+    if len(reports) != EXPECTED_TOTAL or counts != expected or result.global_reasons:
+        reasons = [
+            f"{reason.code}:{reason.entity}:{reason.entity_id}"
+            for item in result.reports
+            for reason in item.reasons
+        ] + [
+            f"{reason.code}:{reason.entity}:{reason.entity_id}" for reason in result.global_reasons
+        ]
+        count_text = ", ".join(
+            f"{classification.value}:{count}" for classification, count in counts.items()
+        )
         raise BackfillAborted(
             "S10 resolution-cycle backfill aborted before writes: "
-            f"total={len(reports)} class_a={len(grouped['A'])} class_b={len(grouped['B'])} "
-            f"unknown={grouped['UNKNOWN']} inconsistent={grouped['INCONSISTENT']}"
+            f"total={len(reports)} counts={{{count_text}}} reasons={sorted(reasons)}"
         )
 
-    classified_ids = frozenset(classifications)
-    current_ids = frozenset(Report.objects.values_list("id", flat=True))
-    if current_ids != classified_ids:
-        raise BackfillAborted("S10 report universe changed after classification; aborting.")
-
-    Report.objects.filter(pk__in=classified_ids).update(resolution_cycle=0)
-    ReportStatusHistory.objects.filter(report_id__in=classified_ids).update(resolution_cycle=0)
+    _assert_universe_unchanged(apps, snapshots)
+    Report = apps.get_model("reports_app", "Report")
+    History = apps.get_model("reports_app", "ReportStatusHistory")
+    cycle_zero_ids = result.ids_for(Classification.SYNTHETIC, Classification.CYCLE_0)
+    Report.objects.filter(pk__in=cycle_zero_ids).update(resolution_cycle=0)
+    History.objects.filter(report_id__in=cycle_zero_ids).update(resolution_cycle=0)
 
 
 class Migration(migrations.Migration):
