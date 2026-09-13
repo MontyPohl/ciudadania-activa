@@ -13,6 +13,8 @@ from apps.reports_app.services.resolution_cycle_backfill import (
     ReportSnapshot,
     RewardSnapshot,
     classify_universe,
+    parse_cycle,
+    parse_uuid_reference,
 )
 
 NOW = datetime.now(UTC)
@@ -165,6 +167,45 @@ def test_report_created_no_admite_linkage_de_confirmacion():
     assert "REPORT_CREATED_OWNERSHIP_INVALID" in _reason_codes(result)
 
 
+def test_report_created_debe_pertenecer_al_autor_del_reporte():
+    report = _report()
+    reward = replace(_reward(report), user_id=uuid.uuid4())
+
+    result = _classify(reports=[report], histories=[_history(report)], rewards=[reward])
+
+    assert result.invalid is True
+    assert "REPORT_CREATED_USER_MISMATCH" in _reason_codes(result)
+
+
+def test_confirmation_created_debe_pertenecer_al_autor_de_la_confirmacion():
+    report = _report()
+    confirmation = ConfirmationSnapshot(
+        id=uuid.uuid4(),
+        report_id=report.id,
+        citizen_id=uuid.uuid4(),
+        created_at=NOW + timedelta(seconds=1),
+    )
+    reward = replace(
+        _reward(report),
+        event_type="CONFIRMATION_CREATED",
+        user_id=uuid.uuid4(),
+        report_id=None,
+        confirmation_id=confirmation.id,
+        impact_delta=10,
+        credit_delta=10,
+    )
+
+    result = _classify(
+        reports=[report],
+        histories=[_history(report)],
+        confirmations=[confirmation],
+        rewards=[reward],
+    )
+
+    assert result.invalid is True
+    assert "CONFIRMATION_CREATED_USER_MISMATCH" in _reason_codes(result)
+
+
 def test_institucion_del_reward_debe_coincidir_con_report():
     report = _report()
     reward = replace(_reward(report), institution_id=uuid.uuid4())
@@ -280,3 +321,8 @@ def test_snapshot_sintetico_alterado_es_inconsistent():
     assert result.invalid is True
     assert result.reports[0].classification == Classification.INCONSISTENT
     assert "SYNTHETIC_SIGNATURE_MISMATCH" in _reason_codes(result)
+
+
+def test_parseo_de_auditoria_conserva_uuid_invalido_para_rechazarlo():
+    assert parse_uuid_reference("no-es-uuid") == "no-es-uuid"
+    assert parse_cycle(True) == -1
