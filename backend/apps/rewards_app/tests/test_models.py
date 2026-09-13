@@ -72,10 +72,11 @@ def test_no_se_puede_borrar_un_reporte_con_historia_economica(citizen, report):
         report.delete()
 
 
-def test_la_fila_reversal_apunta_a_su_original(citizen, institution):
+def test_la_fila_reversal_apunta_a_su_original(citizen, institution, report):
     ahora = timezone.now()
     original = RewardTransaction.objects.create(
         user=citizen,
+        report=report,
         institution=institution,
         event_type=RewardEventType.VALIDATION_BONUS,
         impact_delta=30,
@@ -83,9 +84,11 @@ def test_la_fila_reversal_apunta_a_su_original(citizen, institution):
         status=RewardTxStatus.REVERTIDO,
         credited_at=ahora,
         reversed_at=ahora,
+        resolution_cycle=1,
     )
     reversal = RewardTransaction.objects.create(
         user=citizen,
+        report=report,
         institution=institution,
         event_type=RewardEventType.REVERSAL,
         impact_delta=-30,
@@ -93,6 +96,7 @@ def test_la_fila_reversal_apunta_a_su_original(citizen, institution):
         status=RewardTxStatus.REVERTIDO,
         reversed_at=ahora,
         related_transaction=original,
+        resolution_cycle=1,
     )
 
     assert reversal.related_transaction == original

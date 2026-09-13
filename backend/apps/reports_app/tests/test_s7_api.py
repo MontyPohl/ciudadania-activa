@@ -368,6 +368,7 @@ def test_summary_claves_estables_conteos_y_solo_impact_points(
         credit_delta=777,
         status=RewardTxStatus.ACREDITADO,
         credited_at=timezone.now(),
+        resolution_cycle=1,
     )
 
     response = authenticated(verified_citizen).get(SUMMARY_URL)

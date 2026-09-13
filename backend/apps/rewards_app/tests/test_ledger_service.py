@@ -90,7 +90,7 @@ def test_on_confirmation_created_acredita_si_el_reporte_ya_fue_validado(
     report.validated_at = timezone.now()
     report.institution = institution
     report.status = "ASIGNADO"
-    report.resolution_cycle = 1
+    report.resolution_cycle = 2
     report.save(
         update_fields=[
             "validated_at",
@@ -246,7 +246,7 @@ def test_reversal_anula_pendientes_null_y_aisla_otros_ciclos(
         status=RewardTxStatus.REVERTIDO,
         credited_at=now,
         reversed_at=now,
-        resolution_cycle=0,
+        resolution_cycle=1,
     )
     redemption = RewardTransaction.objects.create(
         user=report.citizen,
