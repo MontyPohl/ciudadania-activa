@@ -34,8 +34,9 @@ El resultado autorizado es exactamente:
 
 ```text
 total_reports = 16
-class_a = 2
-class_b = 14
+synthetic = 14
+cycle_0 = 2
+cycle_1 = 0
 unknown = 0
 inconsistent = 0
 ```
@@ -54,6 +55,11 @@ python manage.py migrate --no-input
 La migración vuelve a clasificar el universo completo dentro de una transacción y no escribe hasta
 haber validado las 16 filas. Una base nueva sin reportes también es válida. Cualquier otro universo,
 fila desconocida o inconsistencia aborta la operación completa.
+
+El clasificador compartido de migración y preflight vive en
+`apps/reports_app/services/resolution_cycle_backfill.py`. Es parte inmutable del contrato de esta
+migración histórica: no debe modificarse, moverse ni eliminarse después de integrar S10 sin crear
+antes una migración correctiva y volver a verificar bases nuevas desde cero.
 
 ## Validación posterior
 

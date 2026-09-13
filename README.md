@@ -228,7 +228,7 @@ y repartir credenciales de más es un riesgo gratuito.
 | `SUPABASE_STORAGE_BUCKET_PRIVATE` | **Sí** | No | No | No |
 | `BREVO_API_KEY` · `BREVO_API_URL` · `DEFAULT_FROM_EMAIL` | No | **Sí** | No | No |
 | `DATABASE_URL` · `REDIS_URL` · `DJANGO_SECRET_KEY` | **Sí** | **Sí** | **Sí** | No |
-| `REPORT_AUTO_CLOSE_HOURS` | No | No | **Sí** | No |
+| `REPORT_AUTO_CLOSE_HOURS` | No | **Opcional** | **Opcional** | No |
 | `PUBLIC_MAP_CACHE_TTL_SECONDS` | **Sí** | No | No | No |
 | `NEXT_PUBLIC_API_URL` · `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | No | No | No | **Sí** (públicas) |
 
@@ -244,10 +244,12 @@ comportamiento es fallo cerrado **local**: el endpoint que las necesita responde
 y el resto del sistema sigue funcionando.
 
 El scheduler se despliega como un proceso único separado del worker, con el comando
-`celery -A config.celery:app beat --loglevel=info`. `REPORT_AUTO_CLOSE_HOURS` debe ser un entero
-positivo y vale `72` por defecto; un valor inválido impide el arranque. Ejecutar más de una
-instancia de Beat duplicaría entregas innecesarias, aunque el servicio conserva idempotencia bajo
-lock del reporte.
+`celery -A config.celery:app beat --loglevel=info`. Beat agenda `reports.auto_close`, pero es el
+worker quien ejecuta la tarea y consulta `REPORT_AUTO_CLOSE_HOURS`; si se sobrescribe el valor por
+defecto, debe configurarse de forma consistente al menos en todos los workers que consuman esa
+cola. La variable es opcional, debe ser un entero positivo y vale `72` por defecto; un valor
+inválido impide el arranque del proceso que lo reciba. Ejecutar más de una instancia de Beat
+duplicaría entregas innecesarias, aunque el servicio conserva idempotencia bajo lock del reporte.
 
 ### `DOCUMENT_HMAC_SECRET`
 
