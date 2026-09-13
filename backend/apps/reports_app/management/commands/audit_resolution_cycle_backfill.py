@@ -2,7 +2,6 @@
 
 import hashlib
 import json
-import uuid
 from dataclasses import asdict
 
 from django.core.management.base import BaseCommand, CommandError
@@ -23,6 +22,8 @@ from apps.reports_app.services.resolution_cycle_backfill import (
     ReportSnapshot,
     RewardSnapshot,
     classify_universe,
+    parse_cycle,
+    parse_uuid_reference,
 )
 from apps.rewards_app.models import RewardTransaction
 
@@ -166,9 +167,9 @@ def _load_readonly_snapshots():
             AuditSnapshot(
                 id=row["id"],
                 action=row["action"],
-                report_id=_uuid_or_none(payload.get("report_id")),
-                institution_id=_uuid_or_none(payload.get("institution_id")),
-                cycle=_integer_or_invalid(payload.get("cycle")),
+                report_id=parse_uuid_reference(payload.get("report_id")),
+                institution_id=parse_uuid_reference(payload.get("institution_id")),
+                cycle=parse_cycle(payload.get("cycle")),
                 created_at=row["created_at"],
             )
         )
@@ -180,26 +181,6 @@ def _load_readonly_snapshots():
         "rewards": rewards,
         "audits": audits,
     }
-
-
-def _uuid_or_none(value):
-    if value in (None, ""):
-        return None
-    try:
-        return uuid.UUID(str(value))
-    except (TypeError, ValueError, AttributeError):
-        return None
-
-
-def _integer_or_invalid(value):
-    if value is None:
-        return None
-    if isinstance(value, bool):
-        return -1
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return -1
 
 
 def _serializable(item):

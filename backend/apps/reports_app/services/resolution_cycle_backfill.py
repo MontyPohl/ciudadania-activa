@@ -36,21 +36,6 @@ SEED_STATUS = {
     )
 }
 
-REPORT_EVENTS = {
-    "REPORT_CREATED",
-    "CONFIRMATION_CREATED",
-    "VALIDATION_BONUS",
-    "RESOLUTION_BONUS",
-    "REVERSAL",
-}
-VALIDATION_ACTIONS = {
-    "report.validated",
-    "report.processing_started",
-    "report.resolution_evidence_created",
-    "report.resolved",
-    "report.closed",
-    "report.validation_reverted",
-}
 ADVANCED_STATUSES = {"ASIGNADO", "EN_PROCESO", "RESUELTO", "CERRADO"}
 
 
@@ -160,6 +145,27 @@ class UniverseClassification:
     def ids_for(self, *classifications: Classification) -> tuple[object, ...]:
         accepted = set(classifications)
         return tuple(item.report_id for item in self.reports if item.classification in accepted)
+
+
+def parse_uuid_reference(value):
+    """Conserva referencias inválidas para que el clasificador las rechace."""
+    if value in (None, ""):
+        return None
+    try:
+        return uuid.UUID(str(value))
+    except (TypeError, ValueError, AttributeError):
+        return str(value)
+
+
+def parse_cycle(value):
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return -1
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return -1
 
 
 def classify_universe(
@@ -314,6 +320,7 @@ def classify_universe(
         _validate_reward_shape(
             reward,
             report,
+            confirmation,
             reward_by_id,
             reward_owner_by_id,
             reject,
@@ -322,7 +329,7 @@ def classify_universe(
 
     for audit_entry in audits:
         if audit_entry.report_id is None:
-            if audit_entry.action in VALIDATION_ACTIONS:
+            if audit_entry.action.startswith("report."):
                 reject("AUDIT_REPORT_MISSING", "audit", audit_entry.id)
             continue
         report = report_by_id.get(audit_entry.report_id)
@@ -398,6 +405,7 @@ def _explicit_reward_owner(reward, confirmation_report_id):
 def _validate_reward_shape(
     reward,
     report,
+    confirmation,
     reward_by_id,
     reward_owner_by_id,
     reject,
@@ -449,6 +457,14 @@ def _validate_reward_shape(
             or reward.institution_id is None
         ):
             reject("ACCREDITED_WITHOUT_VALIDATION", "reward", reward.id, owner_id)
+        if reward.event_type == "REPORT_CREATED" and reward.user_id != report.citizen_id:
+            reject("REPORT_CREATED_USER_MISMATCH", "reward", reward.id, owner_id)
+        if (
+            reward.event_type == "CONFIRMATION_CREATED"
+            and confirmation is not None
+            and reward.user_id != confirmation.citizen_id
+        ):
+            reject("CONFIRMATION_CREATED_USER_MISMATCH", "reward", reward.id, owner_id)
 
     if reward.event_type in {"VALIDATION_BONUS", "RESOLUTION_BONUS"}:
         if (

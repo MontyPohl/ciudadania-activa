@@ -1,5 +1,3 @@
-import uuid
-
 from django.db import migrations
 
 from apps.reports_app.services.resolution_cycle_backfill import (
@@ -11,6 +9,8 @@ from apps.reports_app.services.resolution_cycle_backfill import (
     ReportSnapshot,
     RewardSnapshot,
     classify_universe,
+    parse_cycle,
+    parse_uuid_reference,
 )
 
 EXPECTED_TOTAL = 16
@@ -21,26 +21,6 @@ EXPECTED_CYCLE_1 = 0
 
 class BackfillAborted(RuntimeError):
     pass
-
-
-def _uuid_or_none(value):
-    if value in (None, ""):
-        return None
-    try:
-        return uuid.UUID(str(value))
-    except (TypeError, ValueError, AttributeError):
-        return None
-
-
-def _integer_or_invalid(value):
-    if value is None:
-        return None
-    if isinstance(value, bool):
-        return -1
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return -1
 
 
 def _load_snapshots(apps):
@@ -122,9 +102,9 @@ def _load_snapshots(apps):
             AuditSnapshot(
                 id=item.id,
                 action=item.action,
-                report_id=_uuid_or_none(payload.get("report_id")),
-                institution_id=_uuid_or_none(payload.get("institution_id")),
-                cycle=_integer_or_invalid(payload.get("cycle")),
+                report_id=parse_uuid_reference(payload.get("report_id")),
+                institution_id=parse_uuid_reference(payload.get("institution_id")),
+                cycle=parse_cycle(payload.get("cycle")),
                 created_at=item.created_at,
             )
         )
