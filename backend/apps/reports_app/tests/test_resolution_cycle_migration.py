@@ -16,7 +16,7 @@ MIGRATE_FROM = [
 ]
 MIGRATE_TO = [
     ("reports_app", "0007_report_closed_at"),
-    ("rewards_app", "0003_enforce_resolution_cycle_constraints"),
+    ("rewards_app", "0004_enforce_reward_event_linkage"),
 ]
 PRE_EVIDENCE = [
     ("reports_app", "0005_enforce_resolution_cycles"),

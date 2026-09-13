@@ -120,6 +120,40 @@ class RewardTransaction(BaseModel):
                 condition=Q(resolution_cycle__isnull=True) | Q(resolution_cycle__gte=0),
                 name="reward_tx_cycle_nonnegative_or_null",
             ),
+            models.CheckConstraint(
+                condition=(
+                    ~Q(
+                        event_type__in=[
+                            RewardEventType.VALIDATION_BONUS,
+                            RewardEventType.RESOLUTION_BONUS,
+                        ]
+                    )
+                    | (
+                        Q(report__isnull=False)
+                        & Q(resolution_cycle__isnull=False)
+                        & Q(resolution_cycle__gte=1)
+                    )
+                ),
+                name="reward_tx_bonus_cycle_required",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    ~Q(event_type=RewardEventType.REVERSAL)
+                    | (
+                        Q(report__isnull=False)
+                        & Q(resolution_cycle__isnull=False)
+                        & Q(resolution_cycle__gte=1)
+                        & Q(related_transaction__isnull=False)
+                    )
+                ),
+                name="reward_tx_reversal_fields_required",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    Q(related_transaction__isnull=True) | Q(event_type=RewardEventType.REVERSAL)
+                ),
+                name="reward_tx_related_only_reversal",
+            ),
             # Coherencia estado <-> marca temporal (D2-08). REVERTIDO no exige que
             # `credited_at` sea NULL: la fila original acreditada conserva su
             # `credited_at` como rastro, y una fila REVERSAL puede nacer REVERTIDO sin
