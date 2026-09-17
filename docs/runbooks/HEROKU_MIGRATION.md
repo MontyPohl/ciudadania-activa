@@ -1,7 +1,9 @@
 # Runbook — Migración de infraestructura Railway → Heroku (baseline S9)
 
-**Estado:** BLOQUEADO en la Fase D (acceso a Heroku).
+**Estado:** BASELINE S9 OPERATIVO en Heroku. Pendiente: secretos heredados de Railway y
+repunte del frontend en Vercel.
 **Fecha de la verificación:** 2026-09-17.
+**App:** `ciudadania-activa-api` · `https://ciudadania-activa-api-5b4f8e81977b.herokuapp.com`
 **Alcance:** mover el consumidor de la base (backend Django + Celery) de Railway a Heroku,
 manteniendo **la misma** instancia Supabase. No es un gate de S10.
 
@@ -19,8 +21,8 @@ manteniendo **la misma** instancia Supabase. No es un gate de S10.
 | Datos de producción | **Presentes** (16 reportes, 4 usuarios, 3 instituciones) | conteos reales, no estimaciones |
 | Migraciones aplicadas | **31**, ninguna de S10 | `django_migrations` |
 | Storage | 2 buckets **privados**, 4 objetos | `storage.buckets` |
-| Backend Railway | **INEXISTENTE** — `404 Application not found` | `GET /api/v1/health/` |
-| Frontend Vercel | **200**, pero apunta a la API caída | `GET /` |
+| Backend Heroku | **web.1 up + worker.1 up**, `{"status":"ok","db":true,"redis":true}` | `GET /api/v1/health/` |
+| Frontend Vercel | **200**, todavía apuntando a la URL vieja de Railway | `GET /` |
 
 La API de producción está caída desde que expiró Railway. La base **no** está comprometida:
 la migración cambia únicamente quién consume la base, no la base.
@@ -257,17 +259,66 @@ fuera de Supabase: `--exclude-schema=vault` evita el error esperado.
 
 ---
 
-## 10. Bloqueo actual
+## 10. Estado real tras el despliegue
+
+### Verificado en Heroku
 
 ```text
-HEROKU_ACCESS_UNAVAILABLE
+app            ciudadania-activa-api   (stack container, región us, release v6)
+web.1          up      gunicorn config.wsgi:application --bind 0.0.0.0:$PORT
+worker.1       up      celery ... ready, 2 tareas (ai.classify_report, notifications.send_notification)
+beat           0 dynos (S9 no tiene CELERY_BEAT_SCHEDULE)
+redis          heroku-redis:mini  redis-symmetrical-73308  (rediss://, ssl_cert_reqs=none)
+health         {"status":"ok","version":"0.1.0","db":true,"redis":true}
+migraciones    reports_app [X]0001 [X]0002 · rewards_app [X]0001 — ninguna S10
+datos          reports=16 users=4 institutions=3 categories=10 audit_logs=9 · SRID 4326 · PostGIS 3.3.7
+API            /api/v1/public/categories/ → 10 categorías
+               /api/v1/public/reports/?bbox=… → 10 reportes (consulta espacial real)
+CORS           permite https://ciudadania-activa.vercel.app, rechaza otros orígenes
 ```
 
-No hay CLI de Heroku instalada, ni `~/.netrc`, ni `~/.heroku`, ni `HEROKU_API_KEY`, ni remote
-git de Heroku. No se puede inspeccionar apps, pipelines, addons, regiones ni stacks, y por
-tanto no se puede desplegar ni validar web/worker/beat/Redis.
+El worker registra **solo** las dos tareas de S9. La ausencia de `reports.auto_close` confirma
+que el código desplegado es el baseline y no S10.
 
-**Desbloqueo:** instalar la CLI y autenticarse en una sesión interactiva
-(`curl https://cli-assets.heroku.com/install.sh | sh` y `heroku login`), o exportar un
-`HEROKU_API_KEY` de una cuenta con acceso al proyecto. Hecho eso, la Fase D se reanuda desde
-`heroku apps`.
+### Pendiente — secretos que vivían en el panel de Railway
+
+El `.env` local es de **desarrollo** (`DJANGO_DEBUG=True`, CORS a `localhost:3000`), así que no
+sirve como fuente de los valores de producción. Estas variables quedaron **sin configurar** en
+Heroku a propósito: inventarlas habría sido peor que omitirlas.
+
+| Variable | Qué queda degradado | Por qué no se inventó |
+|---|---|---|
+| `DOCUMENT_HMAC_SECRET` | Verificación de identidad → 503 | `citizen_profiles.document_hmac` tiene 2 registros; un secreto distinto los vuelve irreconciliables |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase Storage → `StorageConfigurationError` | Es una credencial; no es derivable |
+| `GOOGLE_OAUTH_CLIENT_ID` | Login con Google | Es el `audience` del ID token: uno distinto rechaza todos los tokens |
+| `DJANGO_SECRET_KEY` | — | Se usó el del `.env` local. Impacto nulo hoy (`django_session` = 0 filas), pero conviene igualarlo al de Railway |
+
+Ambos módulos afectados **fallan cerrado** por diseño (`IdentityConfigurationError`,
+`StorageConfigurationError`): devuelven 503 en vez de operar con datos inconsistentes. El
+baseline arranca y sirve tráfico igualmente.
+
+Para completarlas, copiándolas del panel de Railway (los valores nunca deben pegarse en un
+chat ni quedar en el historial del shell):
+
+```bash
+read -rs -p "DOCUMENT_HMAC_SECRET: "      A; echo
+read -rs -p "SUPABASE_SERVICE_ROLE_KEY: " B; echo
+read -rs -p "GOOGLE_OAUTH_CLIENT_ID: "    C; echo
+read -rs -p "DJANGO_SECRET_KEY: "         D; echo
+heroku config:set --app ciudadania-activa-api \
+  DOCUMENT_HMAC_SECRET="$A" SUPABASE_SERVICE_ROLE_KEY="$B" \
+  GOOGLE_OAUTH_CLIENT_ID="$C" DJANGO_SECRET_KEY="$D"
+unset A B C D
+```
+
+Conviene además contrastar el `SUPABASE_URL` de Railway con el derivado aquí
+(`https://<project-ref>.supabase.co`) y el `DB_SEARCH_PATH`, que debe ser
+`public,gis,extensions`.
+
+**`REPORT_AUTO_CLOSE_HOURS` no se migra**: `main` no la lee, la consume S10.
+
+### Pendiente — Vercel
+
+`NEXT_PUBLIC_API_URL` sigue apuntando a la URL de Railway. Hay que cambiarla a
+`https://ciudadania-activa-api-5b4f8e81977b.herokuapp.com` y redesplegar el frontend. El lado
+Heroku ya está listo: CORS acepta el origen de Vercel y lo comprobamos con un preflight real.
