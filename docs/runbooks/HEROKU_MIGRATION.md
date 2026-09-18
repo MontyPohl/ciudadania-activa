@@ -1,7 +1,7 @@
 # Runbook — Migración de infraestructura Railway → Heroku (baseline S9)
 
-**Estado:** BASELINE S9 OPERATIVO en Heroku. Pendiente: secretos heredados de Railway y
-repunte del frontend en Vercel.
+**Estado:** BASELINE S9 OPERATIVO en Heroku, con los secretos de Railway ya cargados.
+Único pendiente: repuntar `NEXT_PUBLIC_API_URL` en Vercel y redesplegar el frontend.
 **Fecha de la verificación:** 2026-09-17.
 **App:** `ciudadania-activa-api` · `https://ciudadania-activa-api-5b4f8e81977b.herokuapp.com`
 **Alcance:** mover el consumidor de la base (backend Django + Celery) de Railway a Heroku,
@@ -280,45 +280,48 @@ CORS           permite https://ciudadania-activa.vercel.app, rechaza otros oríg
 El worker registra **solo** las dos tareas de S9. La ausencia de `reports.auto_close` confirma
 que el código desplegado es el baseline y no S10.
 
-### Pendiente — secretos que vivían en el panel de Railway
+### Secretos heredados de Railway — cargados y verificados
 
-El `.env` local es de **desarrollo** (`DJANGO_DEBUG=True`, CORS a `localhost:3000`), así que no
-sirve como fuente de los valores de producción. Estas variables quedaron **sin configurar** en
-Heroku a propósito: inventarlas habría sido peor que omitirlas.
+Los cuatro valores se copiaron del panel de Railway el 2026-09-18 y se cargaron como config vars
+de Heroku. Nunca pasaron por el repositorio ni por un archivo.
 
-| Variable | Qué queda degradado | Por qué no se inventó |
-|---|---|---|
-| `DOCUMENT_HMAC_SECRET` | Verificación de identidad → 503 | `citizen_profiles.document_hmac` tiene 2 registros; un secreto distinto los vuelve irreconciliables |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase Storage → `StorageConfigurationError` | Es una credencial; no es derivable |
-| `GOOGLE_OAUTH_CLIENT_ID` | Login con Google | Es el `audience` del ID token: uno distinto rechaza todos los tokens |
-| `DJANGO_SECRET_KEY` | — | Se usó el del `.env` local. Impacto nulo hoy (`django_session` = 0 filas), pero conviene igualarlo al de Railway |
-
-Ambos módulos afectados **fallan cerrado** por diseño (`IdentityConfigurationError`,
-`StorageConfigurationError`): devuelven 503 en vez de operar con datos inconsistentes. El
-baseline arranca y sirve tráfico igualmente.
-
-Para completarlas, copiándolas del panel de Railway (los valores nunca deben pegarse en un
-chat ni quedar en el historial del shell):
-
-```bash
-read -rs -p "DOCUMENT_HMAC_SECRET: "      A; echo
-read -rs -p "SUPABASE_SERVICE_ROLE_KEY: " B; echo
-read -rs -p "GOOGLE_OAUTH_CLIENT_ID: "    C; echo
-read -rs -p "DJANGO_SECRET_KEY: "         D; echo
-heroku config:set --app ciudadania-activa-api \
-  DOCUMENT_HMAC_SECRET="$A" SUPABASE_SERVICE_ROLE_KEY="$B" \
-  GOOGLE_OAUTH_CLIENT_ID="$C" DJANGO_SECRET_KEY="$D"
-unset A B C D
+```text
+DOCUMENT_HMAC_SECRET        presente   → verificación de identidad operativa
+SUPABASE_SERVICE_ROLE_KEY   presente   → Storage operativo
+GOOGLE_OAUTH_CLIENT_ID      presente   → login con Google operativo
+DJANGO_SECRET_KEY           presente   → igualado al de producción
 ```
 
-Conviene además contrastar el `SUPABASE_URL` de Railway con el derivado aquí
-(`https://<project-ref>.supabase.co`) y el `DB_SEARCH_PATH`, que debe ser
-`public,gis,extensions`.
+`SUPABASE_URL` se había derivado del project-ref antes de tener acceso al panel; las URLs
+firmadas resuelven contra ese mismo proyecto, de modo que la derivación era correcta.
 
-**`REPORT_AUTO_CLOSE_HOURS` no se migra**: `main` no la lee, la consume S10.
+Storage comprobado contra los objetos reales, en **solo lectura**:
+
+```text
+bucket privado  = verificaciones     bucket reportes = reportes
+signed_url      OK en ambos buckets, host = el proyecto Supabase original
+download        OK byte-exacto: 16720 y 57077 bytes, coinciden con storage.objects
+objeto ausente  falla limpio, sin exponer el bucket
+buckets         siguen privados (public = f), 2 objetos cada uno, nada modificado
+```
+
+Detalle menor, **preexistente y no introducido por la migración**: un objeto inexistente levanta
+`StorageUnavailableError` en vez de `StorageObjectNotFoundError`, porque Supabase responde `400`
+y no `404` a la descarga. El comportamiento es idéntico al que había en Railway; queda anotado
+para cuando se toque `apps/core/services/storage.py`.
+
+**`REPORT_AUTO_CLOSE_HOURS` no se migró**: `main` no la lee, la consume S10.
 
 ### Pendiente — Vercel
 
-`NEXT_PUBLIC_API_URL` sigue apuntando a la URL de Railway. Hay que cambiarla a
-`https://ciudadania-activa-api-5b4f8e81977b.herokuapp.com` y redesplegar el frontend. El lado
-Heroku ya está listo: CORS acepta el origen de Vercel y lo comprobamos con un preflight real.
+`NEXT_PUBLIC_API_URL` sigue apuntando a la URL de Railway: los bundles servidos en
+`https://ciudadania-activa.vercel.app` todavía contienen
+`https://ciudadania-activa-production.up.railway.app` incrustado. Hay que cambiar la variable a
+`https://ciudadania-activa-api-5b4f8e81977b.herokuapp.com` **y redesplegar**.
+
+El redeploy no es opcional: Next.js incrusta las variables `NEXT_PUBLIC_*` en el bundle durante
+el build, así que cambiarla sin reconstruir no surte efecto. Comprobar el resultado buscando el
+host nuevo en los chunks servidos, no solo en el panel de Vercel.
+
+El lado Heroku ya está listo: CORS acepta el origen de Vercel y se comprobó con un preflight
+real, y rechaza cualquier otro origen.
