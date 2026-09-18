@@ -349,7 +349,7 @@ paneles y no se automatiza desde este repositorio.
 
 | Servicio | Proveedor | URL pública | Notas |
 |---|---|---|---|
-| Frontend | Vercel | `https://ciudadania-activa.vercel.app` | `Root Directory: frontend`; solo la variable pública `NEXT_PUBLIC_API_URL`. **Ningún secreto de backend se carga en Vercel** |
+| Frontend | Vercel | `https://ciudadania-activa.vercel.app` | `Root Directory: frontend`; solo las dos variables públicas que el código lee, `NEXT_PUBLIC_API_URL` y `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, ambas de tipo *Config*. **Ningún secreto de backend se carga en Vercel** (verificado en la remediación S9.5, ver [runbook](docs/runbooks/HEROKU_MIGRATION.md)) |
 | Backend | Heroku | `https://ciudadania-activa-api-5b4f8e81977b.herokuapp.com` | App `ciudadania-activa-api`, stack `container`; proceso `web`: `gunicorn config.wsgi:application --bind 0.0.0.0:$PORT`. **Sin fase `release`: ningún deploy migra la base** |
 | Worker de Celery | Heroku | — | Proceso `worker` de la misma app: `celery -A config.celery:app worker --loglevel=info --concurrency=2` |
 | Celery Beat | Heroku | — | Proceso `beat` definido y escalado a **0 dynos**; lo activa el Sprint 10 con exactamente 1 instancia |
