@@ -97,6 +97,77 @@ def test_cycle_zero_explicito_es_aceptado():
     assert result.reports[0].classification == Classification.CYCLE_0
 
 
+def test_cycle_zero_admite_confirmacion_ciudadana():
+    """Una confirmación no abre ciclo, así que el reporte sigue en el ciclo 0.
+
+    Reproduce el caso real que abortó la auditoría de producción: un reporte en CREADO,
+    sin validar, con una confirmación ciudadana registrada en auditoría.
+    """
+    report = _report()
+    created = AuditSnapshot(
+        id=uuid.uuid4(),
+        action="report.created",
+        report_id=report.id,
+        institution_id=None,
+        cycle=None,
+        created_at=NOW + timedelta(seconds=1),
+    )
+    confirmed = AuditSnapshot(
+        id=uuid.uuid4(),
+        action="report.confirmed",
+        report_id=report.id,
+        institution_id=None,
+        cycle=None,
+        created_at=NOW + timedelta(seconds=3),
+    )
+
+    result = _classify(
+        reports=[report],
+        histories=[_history(report)],
+        rewards=[_reward(report)],
+        audits=[created, confirmed],
+    )
+
+    assert result.invalid is False
+    assert result.reports[0].classification == Classification.CYCLE_0
+
+
+def test_accion_de_ciclo_avanzado_sigue_siendo_unknown():
+    """`report.resolution_evidence_created` exige ciclo >= 1: no puede colarse en la lista.
+
+    Se usa esta acción y no `report.closed` porque las acciones con transición de estado
+    asociada se rechazan antes, como INCONSISTENT por `AUDIT_TRANSITION_MISSING`. Esta
+    llega hasta el filtro de acciones permitidas, que es justo lo que se quiere cubrir.
+    """
+    report = _report()
+    created = AuditSnapshot(
+        id=uuid.uuid4(),
+        action="report.created",
+        report_id=report.id,
+        institution_id=None,
+        cycle=None,
+        created_at=NOW + timedelta(seconds=1),
+    )
+    evidence_created = AuditSnapshot(
+        id=uuid.uuid4(),
+        action="report.resolution_evidence_created",
+        report_id=report.id,
+        institution_id=None,
+        cycle=None,
+        created_at=NOW + timedelta(seconds=3),
+    )
+
+    result = _classify(
+        reports=[report],
+        histories=[_history(report)],
+        rewards=[_reward(report)],
+        audits=[created, evidence_created],
+    )
+
+    assert result.invalid is True
+    assert result.reports[0].classification == Classification.UNKNOWN
+
+
 def test_report_created_sin_report_id_es_inconsistente():
     report = _report()
     reward = replace(_reward(report), report_id=None)

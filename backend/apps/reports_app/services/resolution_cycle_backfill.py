@@ -662,7 +662,18 @@ def _classify_real_report(report, histories, evidences, rewards, audits, reasons
     initial_history = [
         item for item in histories if item.previous_status == "" and item.new_status == "CREADO"
     ]
-    allowed_cycle_zero_actions = {"report.created", "ai.report.classified", "report.rejected"}
+    # `report.confirmed` pertenece al ciclo 0: una confirmación ciudadana no cambia
+    # `report.status`, no escribe `resolution_cycle`, no crea historial y no guarda el
+    # reporte. Solo la validación abre ciclo (`services/validation.py`), y el trigger de
+    # `0005` impide que otra operación lo avance. Un reporte confirmado sin validar sigue
+    # en CREADO, que es ciclo 0 por el `default=0` del modelo. Permitirla no puede ocultar
+    # un reporte validado: `validated_at is not None` devuelve CYCLE_1 antes de este filtro.
+    allowed_cycle_zero_actions = {
+        "report.created",
+        "ai.report.classified",
+        "report.rejected",
+        "report.confirmed",
+    }
     if any(item.action not in allowed_cycle_zero_actions for item in audits):
         return Classification.UNKNOWN
     if report.status == "CREADO" and len(histories) == 1 and len(initial_history) == 1:

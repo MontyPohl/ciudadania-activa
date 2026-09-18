@@ -44,6 +44,29 @@ inconsistent = 0
 Guardar la salida en el registro operacional. Si el conteo, los UUID identificados o cualquier
 clase difieren, no aplicar la migración y registrar `ABORT`. No corregir datos silenciosamente.
 
+### Acciones de auditoría compatibles con el ciclo 0
+
+El clasificador exige que todas las entradas de auditoría del reporte pertenezcan a:
+
+```text
+report.created · ai.report.classified · report.rejected · report.confirmed
+```
+
+**`report.confirmed` es compatible con el ciclo 0.** Una confirmación ciudadana no cambia
+`report.status`, no escribe `resolution_cycle`, no crea historial y no guarda el reporte: solo la
+validación abre ciclo (`services/validation.py`), y el trigger de `0005` impide que otra operación
+lo avance. Un reporte confirmado sin validar sigue en `CREADO`, que es ciclo 0 por el `default=0`
+del modelo.
+
+Permitirla no puede ocultar un reporte validado: `validated_at is not None` clasifica como
+`CYCLE_1` antes de llegar a este filtro.
+
+Las acciones que exigen un ciclo `>= 1` siguen produciendo `UNKNOWN` en el ciclo 0:
+`report.validated`, `report.validation_reverted`, `report.resolved`, `report.closed` y
+`report.resolution_evidence_created`.
+
+Los conteos autorizados **no cambian** por esto: siguen siendo 16 / 14 / 2 / 0 / 0 / 0.
+
 ## Migración
 
 Aplicar con los escritores todavía detenidos:
