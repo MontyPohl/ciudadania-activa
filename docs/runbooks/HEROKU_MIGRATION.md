@@ -1,7 +1,7 @@
 # Runbook — Migración de infraestructura Railway → Heroku (baseline S9)
 
-**Estado:** BASELINE S9 OPERATIVO en Heroku, con los secretos de Railway ya cargados.
-Único pendiente: repuntar `NEXT_PUBLIC_API_URL` en Vercel y redesplegar el frontend.
+**Estado:** MIGRACIÓN COMPLETA. Baseline S9 operativo en Heroku, Storage verificado y Vercel
+apuntando al backend nuevo. Queda una deuda de seguridad abierta (§11).
 **Fecha de la verificación:** 2026-09-17.
 **App:** `ciudadania-activa-api` · `https://ciudadania-activa-api-5b4f8e81977b.herokuapp.com`
 **Alcance:** mover el consumidor de la base (backend Django + Celery) de Railway a Heroku,
@@ -312,16 +312,81 @@ para cuando se toque `apps/core/services/storage.py`.
 
 **`REPORT_AUTO_CLOSE_HOURS` no se migró**: `main` no la lee, la consume S10.
 
-### Pendiente — Vercel
+### Vercel — repuntado y verificado
 
-`NEXT_PUBLIC_API_URL` sigue apuntando a la URL de Railway: los bundles servidos en
-`https://ciudadania-activa.vercel.app` todavía contienen
-`https://ciudadania-activa-production.up.railway.app` incrustado. Hay que cambiar la variable a
-`https://ciudadania-activa-api-5b4f8e81977b.herokuapp.com` **y redesplegar**.
+`NEXT_PUBLIC_API_URL` = `https://ciudadania-activa-api-5b4f8e81977b.herokuapp.com`, y el
+frontend se redesplegó (deployment `j1r07tkc7`, aliasado a `ciudadania-activa.vercel.app`).
 
-El redeploy no es opcional: Next.js incrusta las variables `NEXT_PUBLIC_*` en el bundle durante
-el build, así que cambiarla sin reconstruir no surte efecto. Comprobar el resultado buscando el
-host nuevo en los chunks servidos, no solo en el panel de Vercel.
+Comprobado sobre los **bundles realmente servidos**, no sobre el panel:
 
-El lado Heroku ya está listo: CORS acepta el origen de Vercel y se comprobó con un preflight
-real, y rechaza cualquier otro origen.
+```text
+8 chunks analizados → 1 host de backend: ciudadania-activa-api-…herokuapp.com
+referencias a railway.app: 0
+GET / y GET /mapa → 200
+```
+
+Y las tres llamadas que hace el navegador, con el `Origin` de Vercel:
+
+```text
+/api/v1/health/                   200  status=ok    ACAO = https://ciudadania-activa.vercel.app
+/api/v1/public/categories/        200  10 items     ACAO = https://ciudadania-activa.vercel.app
+/api/v1/public/reports/?bbox=…    200  10 items     ACAO = https://ciudadania-activa.vercel.app
+```
+
+#### Por qué el panel de Vercel no dejaba cambiarla
+
+La variable existía con tipo **Secret** (sensible) y prefijo `NEXT_PUBLIC_`, que son requisitos
+contradictorios: el prefijo ordena incrustar el valor en el bundle del navegador y el tipo
+prohíbe exponerlo. Vercel bloquea esa combinación y sugiere convertirla a *Config*, pero **no
+permite convertir el tipo de una variable existente**. Hay que borrarla y recrearla:
+
+```bash
+vercel env rm  NEXT_PUBLIC_API_URL production --yes
+printf 'https://ciudadania-activa-api-5b4f8e81977b.herokuapp.com' \
+  | vercel env add NEXT_PUBLIC_API_URL production      # se crea como Config
+```
+
+`vercel env ls` muestra después un blob `eyJ2IjoidjIi…`, que es el sobre cifrado y no el valor.
+Para confirmar el valor real hay que usar `vercel env pull`. **Ese archivo trae todas las
+variables de producción en claro: hay que borrarlo en cuanto se lea.**
+
+`NEXT_PUBLIC_GOOGLE_CLIENT_ID` arrastra la misma contradicción (Secret + prefijo público). Hoy
+funciona porque se creó antes de que Vercel impusiera la restricción, pero cualquier edición
+futura va a chocar con el mismo diálogo.
+
+---
+
+## 11. Deuda abierta — secretos de backend en el proyecto de Vercel
+
+`vercel env ls` sobre el proyecto `ciudadania-activa` devuelve **30 variables, y 28 son del
+backend**. El frontend solo necesita las dos `NEXT_PUBLIC_*`.
+
+Entre las 28 hay credenciales de producción de primer orden:
+
+```text
+DATABASE_URL                 DJANGO_SECRET_KEY            DOCUMENT_HMAC_SECRET
+SUPABASE_SERVICE_ROLE_KEY    GOOGLE_OAUTH_CLIENT_SECRET   EMAIL_HOST_PASSWORD
+TELEGRAM_BOT_TOKEN           GEMINI_API_KEY               REDIS_URL
+```
+
+Esto **contradice lo que afirma el README** sobre el despliegue en Vercel («solo la variable
+pública `NEXT_PUBLIC_API_URL`; ningún secreto de backend se carga en Vercel»). La afirmación
+describe la intención, no el estado real.
+
+**Alcance preciso, sin alarmismo:** Next.js solo incrusta en el bundle del navegador las
+variables con prefijo `NEXT_PUBLIC_`, así que estas 28 **no** se están sirviendo a los usuarios
+—lo verificamos leyendo los chunks—. El problema es de radio de exposición: están disponibles
+para cualquier paso de build, para cualquier código server-side del frontend y para cualquier
+persona con acceso al proyecto de Vercel, sin que nada de eso las necesite. Un `vercel env pull`
+las baja todas en claro, como acabamos de comprobar.
+
+**Remediación sugerida**, que no se ejecutó porque borrar variables del proyecto de producción
+es destructivo y excede este gate:
+
+1. confirmar que ningún build ni ruta server-side del frontend las lee;
+2. eliminar las 28 del proyecto de Vercel, dejando solo las dos `NEXT_PUBLIC_*`;
+3. **rotar** las que quedaron expuestas —especialmente `DOCUMENT_HMAC_SECRET`, que no puede
+   rotarse sin recalcular `citizen_profiles.document_hmac`, así que necesita su propio plan—;
+4. corregir la afirmación del README una vez que sea cierta.
+
+El paso 3 es el que tiene coste real y conviene planificarlo aparte.
