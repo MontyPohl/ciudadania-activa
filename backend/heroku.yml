@@ -1,0 +1,33 @@
+# Despliegue en Heroku con el stack `container`: reutiliza backend/Dockerfile tal
+# cual, que es el único build que ya trae GDAL/GEOS/PROJ. El buildpack Python de
+# Heroku no provee esas bibliotecas nativas y GeoDjango no arranca sin ellas, por
+# eso NO se usa buildpack. Ver docs/runbooks/HEROKU_MIGRATION.md.
+#
+# El árbol que Heroku recibe es `backend/` (subtree push), de modo que el contexto
+# de build es este directorio y las rutas del Dockerfile no cambian respecto de
+# Railway (`Root Directory: /backend`).
+#
+# AUSENCIA DELIBERADA DE `release:`
+# Railway ejecutaba `python manage.py migrate --noinput` en su pre-deploy, así que
+# un push aplicaba migraciones a producción de inmediato. Ese comportamiento NO se
+# replica: no hay fase `release`, y las migraciones son una operación manual,
+# explícita y respaldada por un pg_dump previo (ADR-0003 y README §Migraciones
+# estructurales). Añadir aquí un `release:` reintroduce el riesgo que esta
+# migración de infraestructura elimina.
+
+build:
+  docker:
+    web: Dockerfile
+    worker: Dockerfile
+    beat: Dockerfile
+
+run:
+  # Heroku enruta el tráfico al puerto de $PORT, no al 8000 fijo del Dockerfile.
+  web: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT
+  # --concurrency=2 es obligatorio: sin él Celery detecta todas las CPU del dyno y
+  # levanta decenas de procesos innecesarios (README §Migraciones estructurales).
+  worker: celery -A config.celery:app worker --loglevel=info --concurrency=2
+  # Beat queda DEFINIDO pero se escala a 0 dynos en el baseline S9: `main` no tiene
+  # CELERY_BEAT_SCHEDULE, así que no hay nada que planificar todavía. S10 lo activa
+  # con exactamente una instancia (`heroku ps:scale beat=1`).
+  beat: celery -A config beat --loglevel=info

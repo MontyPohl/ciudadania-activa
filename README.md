@@ -22,7 +22,7 @@ Las diferencias entre el prototipo real y lo declarado en la tesis se registran 
 | Almacenamiento | Supabase Storage |
 | Caché / broker | Redis 7 |
 | Asincronía | Celery (worker desplegado; Beat previsto para las tareas periódicas del Sprint 10) |
-| Hosting | Vercel (frontend) · Railway (backend + workers) · Supabase (DB + storage) |
+| Hosting | Vercel (frontend) · Heroku (backend + workers) · Supabase (DB + storage) |
 | Calidad | Ruff (Python) · ESLint + Prettier (TypeScript) · GitHub Actions |
 
 ## Estructura del repositorio
@@ -41,7 +41,7 @@ ciudadania-activa/
 - Python 3.11+
 - Node.js 22+
 - Docker Desktop (para PostGIS y Redis locales)
-- Cuenta de Supabase (base de datos + storage) y de Railway/Vercel para despliegue
+- Cuenta de Supabase (base de datos + storage) y de Heroku/Vercel para despliegue
 
 ## Puesta en marcha local
 
@@ -218,7 +218,7 @@ Ningún valor real vive en el repositorio: `.env.example` declara **solo los nom
 `.env` está en `.gitignore`. Lo importante es que **no todos los servicios necesitan todo**,
 y repartir credenciales de más es un riesgo gratuito.
 
-| Variable | Backend web (Railway) | Worker de Celery | Frontend (Vercel) |
+| Variable | Backend web (Heroku) | Worker de Celery | Frontend (Vercel) |
 |---|:--:|:--:|:--:|
 | `DOCUMENT_HMAC_SECRET` | **Sí** | No | No |
 | `SUPABASE_URL` | **Sí** | No | No |
@@ -265,8 +265,9 @@ en el backend web.
 
 ### Correo transaccional
 
-**No se usa SMTP.** El plan **Free de Railway no ofrece SMTP saliente**: la conexión no se
-rechaza, se queda colgada hasta agotar el timeout. Eso es exactamente lo que ocurrió en la
+**No se usa SMTP.** El plan Free de Railway no ofrecía SMTP saliente: la conexión no se
+rechazaba, se quedaba colgada hasta agotar el timeout. La decisión sigue vigente tras migrar a
+Heroku, que tampoco garantiza SMTP saliente en los planes en uso. Eso es exactamente lo que ocurrió en la
 validación E2E productiva del 23/08/2026 —`TimeoutError` tras 135 s, notificación en `FALLIDO`
 y correo que nunca llegó—. El envío va contra la **API HTTPS de correo transaccional de Brevo**,
 `POST https://api.brevo.com/v3/smtp/email`, que sale por el puerto 443 como cualquier otra
@@ -339,7 +340,7 @@ Cada Pull Request ejecuta `ci-backend.yml` (Ruff + `pytest` con servicios PostGI
 rama `main` está protegida: solo se integra con ambos checks en verde.
 
 El despliegue continuo parte de `main`: el frontend se despliega en **Vercel** y el backend junto
-con los workers de Celery en **Railway**, conectados a la base de datos y el storage de
+con los workers de Celery en **Heroku**, conectados a la base de datos y el storage de
 **Supabase** mediante `DATABASE_URL`. La configuración de estos proveedores (creación de
 proyectos, variables de entorno de producción y conexión del repositorio) se realiza desde sus
 paneles y no se automatiza desde este repositorio.
@@ -349,8 +350,10 @@ paneles y no se automatiza desde este repositorio.
 | Servicio | Proveedor | URL pública | Notas |
 |---|---|---|---|
 | Frontend | Vercel | `https://ciudadania-activa.vercel.app` | `Root Directory: frontend`; solo la variable pública `NEXT_PUBLIC_API_URL`. **Ningún secreto de backend se carga en Vercel** |
-| Backend | Railway | `https://ciudadania-activa-production.up.railway.app` | `Root Directory: /backend`; Gunicorn en `0.0.0.0:8000`; pre-deploy `python manage.py migrate --noinput` |
-| Worker de Celery | Railway | — | Servicio separado, sin dominio público ni healthcheck HTTP: `celery -A config.celery:app worker --loglevel=info --concurrency=2` |
+| Backend | Heroku | `https://ciudadania-activa-api-5b4f8e81977b.herokuapp.com` | App `ciudadania-activa-api`, stack `container`; proceso `web`: `gunicorn config.wsgi:application --bind 0.0.0.0:$PORT`. **Sin fase `release`: ningún deploy migra la base** |
+| Worker de Celery | Heroku | — | Proceso `worker` de la misma app: `celery -A config.celery:app worker --loglevel=info --concurrency=2` |
+| Celery Beat | Heroku | — | Proceso `beat` definido y escalado a **0 dynos**; lo activa el Sprint 10 con exactamente 1 instancia |
+| Redis | Heroku Key-Value Store | — | Plan `mini`. Entrega `rediss://`, que exige `?ssl_cert_reqs=none` en `REDIS_URL` |
 | Base de datos y storage | Supabase | — | PostgreSQL 17 + PostGIS en el esquema `gis` |
 
 Estado del backend: `GET /api/v1/health/` → `{"status":"ok","db":true,"redis":true}`. El backend
@@ -358,25 +361,29 @@ restringe `CORS_ALLOWED_ORIGINS` al dominio del frontend.
 
 ### Migraciones estructurales: orden obligatorio
 
-El pre-deploy del backend ejecuta `python manage.py migrate --noinput`, de modo que **un push a
-`main` con migraciones nuevas las aplica a producción de inmediato**, antes incluso de que CI
-termine. Por eso el respaldo previo que exige `ADR-0003` debe generarse **antes** del push, no
-después de ver CI en verde:
+Railway ejecutaba `python manage.py migrate --noinput` en su pre-deploy, así que un push a `main`
+aplicaba migraciones a producción de inmediato. **Heroku no reproduce ese comportamiento**:
+`backend/heroku.yml` no define fase `release`, y esa ausencia es deliberada. Migrar es ahora un
+acto explícito:
 
 1. trabajar en rama o *pull request* y esperar **CI en verde**;
 2. generar el **`pg_dump` productivo previo** (ver [Respaldos de la base de datos](#respaldos-de-la-base-de-datos));
-3. hacer *merge*/push a `main`;
-4. Railway aplica las migraciones en su pre-deploy;
-5. **verificar producción** con consultas de solo lectura (`showmigrations`, esquema, catálogos);
-6. generar un respaldo posterior si el cambio es estructuralmente relevante.
+3. hacer *merge*/push a `main` y desplegar (`git subtree push --prefix backend heroku main`);
+4. comprobar que el deploy **no** alteró el esquema (`showmigrations`);
+5. aplicar la migración a mano, y solo entonces:
+   `heroku run --app ciudadania-activa-api python manage.py migrate --noinput`;
+6. **verificar producción** con consultas de solo lectura (`showmigrations`, esquema, catálogos);
+7. generar un respaldo posterior si el cambio es estructuralmente relevante.
 
-Nunca se ejecuta `migrate` a mano contra Supabase para adelantarse al pre-deploy.
+El respaldo deja de ser una carrera contra el pre-deploy, pero sigue siendo obligatorio: el paso 5
+es irreversible. El procedimiento completo está en
+[docs/runbooks/HEROKU_MIGRATION.md](docs/runbooks/HEROKU_MIGRATION.md).
 
 Dos detalles de configuración que no son opcionales y conviene no "simplificar":
 
-- `SECURE_REDIRECT_EXEMPT = [r"^api/v1/health/$"]` en `config/settings/prod.py`. Railway consulta el
-  healthcheck por HTTP plano y sin `X-Forwarded-Proto`; sin esta exención, `SECURE_SSL_REDIRECT`
-  devuelve `301` y el deploy falla. HTTPS sigue forzado para el resto de las rutas.
+- `SECURE_REDIRECT_EXEMPT = [r"^api/v1/health/$"]` en `config/settings/prod.py`. Se introdujo para
+  el healthcheck de Railway, que llegaba por HTTP plano y sin `X-Forwarded-Proto`, y sigue siendo
+  necesario para sondear `/api/v1/health/` sin recibir un `301`. HTTPS sigue forzado para el resto.
 - `--concurrency=2` en el worker. Sin el parámetro, Celery detecta todas las CPU del host y levanta
   decenas de procesos innecesarios.
 
