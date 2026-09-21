@@ -1610,6 +1610,17 @@ experimentos.
 
 Gate formal de cierre: `S11A_METHODOLOGY_FROZEN`.
 
+### Decisión metodológica previa a S11-C2
+
+- **Autoridad:** Monty Emmanuel Pohl Amarilla, autor y custodio.
+- **Decisión humana explícita:** **OPCIÓN A — mantener `S11A-v1.0`**.
+- EX-02 y EX-03 permanecen independientes: cada escenario usa su propio run, reset, reporte y
+  evidencia; EX-03 no reutiliza el reporte de EX-02.
+- Esta constancia no modifica S11-A, indicadores, matriz de eventos, denominadores, hipótesis ni
+  harness, y no crea una nueva versión metodológica.
+- La constancia no incorpora una firma criptográfica y no autoriza por sí sola la ejecución de
+  C2. Los gates de credenciales operacionales deben resolverse por separado.
+
 ### Pruebas realizadas
 
 - Gate inicial: rama `main`, HEAD exacto y working tree limpio.
