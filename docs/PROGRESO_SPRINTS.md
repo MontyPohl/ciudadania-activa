@@ -1649,6 +1649,42 @@ Gate formal de cierre: `S11A_METHODOLOGY_FROZEN`.
   denominadores, criterios de decisión, matriz de eventos, harness ni la independencia de EX-02 y
   EX-03.
 
+### S11-C2 / EX-02 — intento posterior al rebaseline (21/09/2026)
+
+- Baseline: `main@e76061b864c03d1c37004316779cdc77f839adae`; árbol inicialmente limpio; gates
+  S11-A, S11-B, P02/P03, C1 y metodología Opción A verificados. La clave custodial conservó el
+  fingerprint `7205a04f93cc3da9` y la clave pública el fingerprint `8c1e5a8ad7390f4d`.
+- El harness oficial se invocó exclusivamente con `--scenario EX-02` y creó el run independiente
+  `s11-3b48870b-7979-542b-8a46-1c6dfce7bed8`. Compose asignó dinámicamente
+  `http://127.0.0.1:32771`; DB `ciudadania_s11_experiment`, Redis DB `11`, storage
+  `/s11-objects` y dataset `s11-functional-v1` con SHA-256
+  `66074d1617c4e1b7a32b854090d26556faa9b35a000452787ff3b47d6f0edc1c` quedaron fijados en el
+  manifest.
+- La infraestructura completó arranque, health check, create/reset y manifest inicial, pero el
+  host no tenía `npm` disponible. El proceso terminó con `FileNotFoundError` antes de iniciar
+  Playwright; por tanto no se crearon actor sintético, identidad, reporte, confirmación,
+  validación, audit ni trazas HTTP/Celery del escenario. EX-03 y los escenarios posteriores no se
+  ejecutaron.
+- Al faltar el scope que debía producir Playwright, el exportador rechazó la recolección y la
+  validación registró `missing-artifact:source-export`, `missing-log:http` y
+  `missing-log:celery`. El manifest final quedó `FAILED`; metodológicamente el resultado es
+  `S11C2_EX02_NOT_DEMONSTRATED`, no un `FAIL` funcional.
+- Se preservó el paquete fallido en
+  `var/s11-runs/runs/s11-3b48870b-7979-542b-8a46-1c6dfce7bed8/`. Sus tres registros y el sello
+  final pasaron SHA-256/HMAC con la clave custodial actual; el manifest final tiene SHA-256
+  `02bc34d0ed51c69780b958e91cfe59f8d26a0b06ddba56a835cd985196be4dc0`.
+- Anomalía de instrumentación: `harness-execution.json` quedó con `status=COMPLETED` y
+  `failure=null`, mientras el manifest final quedó `FAILED` y `invalidity_reason=null`. La causa
+  es que el `FileNotFoundError` del ejecutable ausente no se normalizó como `HarnessError`; la
+  validación de completitud posterior sí impidió cerrar el run como exitoso.
+- La suite acotada de identidad, creación, ciclo 0, harness y evidencia obtuvo `260 passed` y dos
+  fallos en casos que simulan caída del storage externo: el overlay S11 fuerza storage local y las
+  respuestas fueron `201`, no el `503` esperado por esos tests. Se registra como discrepancia de
+  configuración de prueba y no como resultado experimental.
+- El reset oficial final dejó cero reportes, Redis DB 11 vacío y `/s11-objects` sólo con su
+  marcador. Se eliminaron contenedores, red y volumen de `ciudadania-s11`; producción permaneció
+  intacta. No se avanzó a S11-C3.
+
 ### Pruebas realizadas
 
 - Gate inicial: rama `main`, HEAD exacto y working tree limpio.
@@ -1723,7 +1759,9 @@ Emmanuel Pohl Amarilla; `SENSITIVE` permanece deshabilitado y `SECRET` nunca se 
 Primary, backup y restore se ubican respectivamente en `var/s11-runs`, `var/s11-backup` y
 `var/s11-restore`. La evidencia histórica permanece `HISTORICAL_UNVERIFIABLE`, pero la repetición
 independiente bajo la nueva época dejó `S11A-P02=PASS`, `S11A-P03=PASS` y C1 `PASS`. EX-02 y EX-03
-no se ejecutaron ni quedaron autorizados por este cierre; requieren su propio pre-gate.
+no quedaron autorizados por el cierre C1. El intento posterior de EX-02 no alcanzó Playwright y
+quedó `S11C2_EX02_NOT_DEMONSTRATED`; EX-03 no se ejecutó. Cualquier nuevo intento requiere su
+propio pre-gate.
 
 ---
 
