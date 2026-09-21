@@ -102,8 +102,9 @@ Todos los pasos requieren una ventana de mantenimiento. No se reactivan writers 
 12. Ejecutar las verificaciones posteriores de la sección 4. Sólo entonces retirar mantenimiento y
     restaurar el tráfico de writers.
 
-El predeploy automático que ejecute `migrate` después de los pasos explícitos debe observar un
-no-op. No se permite que ese hook sustituya la secuencia controlada anterior.
+Heroku no tiene fase `release` ni predeploy automático. Si, después de los pasos explícitos, se
+repite manualmente `migrate`, debe observar un no-op; esa comprobación nunca sustituye la secuencia
+controlada anterior.
 
 ## 4. Verificación posterior
 

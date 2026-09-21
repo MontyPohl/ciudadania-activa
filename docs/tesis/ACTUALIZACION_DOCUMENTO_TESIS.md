@@ -116,7 +116,7 @@ producción.
 
 La actualización académica necesaria no consiste en cambiar un framework aislado. El prototipo real ya tiene un núcleo funcional considerable, pero su frontera actual no coincide con varios flujos completos descritos por la tesis revisada.
 
-1. **Arquitectura real.** El sistema es un monorepo con frontend Next.js 16/React 19 y backend modular Django 5.2/DRF, PostgreSQL/PostGIS, Redis y Celery. Se despliega en Vercel, Railway y Supabase. S10 incorpora configuración versionada de Celery Beat para autocierre, todavía no desplegada; no hay PWA, Cloudflare ni Flower. Fuentes: `frontend/package.json`, `frontend/next.config.ts`, `backend/requirements/base.txt`, `backend/config/settings/`, `backend/config/celery.py`, `infra/docker-compose.yml`, `.github/workflows/` y `docs/adr/ADR-0003-postgis-y-alojamiento-en-supabase.md`.
+1. **Arquitectura real.** El sistema es un monorepo con frontend Next.js 16/React 19 y backend modular Django 5.2/DRF, PostgreSQL/PostGIS, Redis y Celery. Actualmente se despliega en Vercel, Heroku y Supabase; Railway fue el proveedor anterior. S10 incorpora configuración versionada de Celery Beat para autocierre, definida en Heroku pero mantenida en 0 dynos hasta una activación autorizada; no hay PWA, Cloudflare ni Flower. Fuentes: `frontend/package.json`, `frontend/next.config.ts`, `backend/requirements/base.txt`, `backend/config/settings/`, `backend/config/celery.py`, `backend/heroku.yml`, `infra/docker-compose.yml`, `.github/workflows/` y `docs/adr/ADR-0003-postgis-y-alojamiento-en-supabase.md`.
 2. **Identidad y acceso.** Se usa Google Identity Services para acreditar la cuenta Google y JWT propios para la sesión; la verificación ciudadana posterior es un flujo separado con HMAC-SHA256 del documento, selfie privada y revisión administrativa. No existe OCR, biometría ni consulta a un registro estatal. Fuentes: `backend/apps/auth_app/`, `backend/apps/admin_app/views.py`, `frontend/src/app/api/auth/`, ADR-0005 y ADR-0006.
 3. **Reportes ciudadanos.** Crear reporte, detectar posibles duplicados, consultar los propios, ver historial, confirmar reportes y consultar el mapa público están implementados. La fotografía se normaliza y almacena en un bucket privado, con compensación ante fallo transaccional. Fuentes: `backend/apps/reports_app/views.py`, `backend/apps/reports_app/services/reports.py`, `confirmations.py`, `photos.py`, ADR-0007 y ADR-0012.
 4. **Consulta institucional.** S9-A agregó listados y detalles institucionales con contexto de
@@ -193,7 +193,7 @@ Fuente: `backend/apps/admin_app/migrations/0002_seed_catalogs.py`. La lista hist
 
 ### 3.3 Lectura correcta del alcance
 
-El prototipo es funcional en autenticación, verificación, creación/consulta/confirmación de reportes, mapa público, procesamiento IA desacoplado y consulta, validación y rechazo institucionales. S9 está integrado en `main`; la rama S10 completa localmente proceso, evidencia, resolución, cierre y reversión, con controles de concurrencia y tenancy. Ranking/créditos visibles y canje siguen pendientes en S11/S12. S10 no está desplegado. Hay despliegues técnicos anteriores, pero no evidencia de adopción institucional, operación con ciudadanos reales, prueba de campo, SLA, capacidad o impacto urbano.
+El prototipo es funcional en autenticación, verificación, creación/consulta/confirmación de reportes, mapa público, procesamiento IA desacoplado y consulta, validación y rechazo institucionales. S9 está integrado en `main`; la rama S10 completa localmente proceso, evidencia, resolución, cierre y reversión, con controles de concurrencia y tenancy. Ranking/créditos visibles y canje siguen pendientes en S11/S12. La aplicación S10 no está activa: el intento se revirtió a S9 después de aplicar únicamente las dos migraciones aditivas ya registradas, sin backfill ni escrituras de negocio. Hay despliegues técnicos anteriores, pero no evidencia de adopción institucional, operación con ciudadanos reales, prueba de campo, SLA, capacidad o impacto urbano.
 
 ## 4. Cambios que debe recibir el documento principal
 
@@ -372,9 +372,9 @@ La cobertura no debe equipararse con cumplimiento funcional o calidad en producc
 
 ### 4.17 Infraestructura y despliegue
 
-Explicar dos topologías: local/CI y desplegada. Localmente `infra/docker-compose.yml` orquesta PostGIS, Redis, backend y worker; CI levanta servicios PostGIS/Redis. En despliegue, Vercel sirve el frontend, Railway el backend Gunicorn y worker, Supabase provee PostgreSQL/PostGIS y Storage, Redis actúa como broker/caché, Brevo envía correo y Gemini es opcional.
+Explicar dos topologías: local/CI y desplegada. Localmente `infra/docker-compose.yml` orquesta PostGIS, Redis, backend y worker; CI levanta servicios PostGIS/Redis. En el despliegue vigente, Vercel sirve el frontend; Heroku ejecuta Gunicorn, el worker y Redis; Supabase provee PostgreSQL/PostGIS y Storage; Brevo envía correo y Gemini es opcional.
 
-El flujo observable es `rama → PR → CI por rutas → merge a main → despliegue automático`. Los PR #34, #35 y #37 están integrados; el corte post-merge de S9-B2 registró CI backend/frontend/E2E y despliegues automáticos Vercel/Railway exitosos. No se encontraron manifiestos nativos integrales de Railway/Vercel en el repositorio, por lo que parte de la configuración vive en paneles externos. El predeploy aplica migraciones y ADR-0003 exige backup manual antes de cambios riesgosos; Supabase gratuito no aporta backup programado verificado y `sslmode=verify-full` continúa como mejora pendiente.
+El flujo vigente es `rama → PR → CI por rutas → merge a main`; Vercel despliega el frontend automáticamente, mientras el backend se despliega manualmente a Heroku mediante `git subtree push`. Heroku no tiene fase `release`: las migraciones se ejecutan como una operación manual separada después del respaldo y las verificaciones. Los PR #34, #35 y #37 pertenecen a la etapa histórica de Railway y registraron allí CI backend/frontend/E2E y despliegues automáticos exitosos. Parte de la configuración de Vercel/Heroku vive en paneles externos; el manifiesto versionado de procesos Heroku es `backend/heroku.yml`. ADR-0003 exige backup manual antes de cambios riesgosos; Supabase gratuito no aporta backup programado verificado y `sslmode=verify-full` continúa como mejora pendiente.
 
 ### 4.18 Resultados
 
@@ -390,7 +390,7 @@ La tesis revisada ya formula muchos resultados como “esperados”; conservar e
 
 Declarar al menos:
 
-- ciclo institucional S10 implementado en rama pero todavía no integrado ni desplegado;
+- ciclo institucional S10 implementado en rama pero todavía no integrado ni activo en producción; el esquema productivo conserva sólo las dos columnas aditivas del intento revertido;
 - dependencia externa opcional de IA y ausencia de resultado canónico;
 - clasificación inválida actualmente sin registro placeholder, en contradicción documental;
 - X/Telegram sin pipeline;
@@ -445,8 +445,8 @@ Los siguientes IDs son una **propuesta canónica nueva**. Conviene mantener una 
 | RF-27 | NUEVO | **Anular por rechazo.** Cambiar pendientes a `ANULADO` sin borrar ni revertir acreditados. | Sistema | Rechazo prevalidación exitoso. | `voided_at` común y trazabilidad conservada. | ✅ S9-B1 integrado. `ledger.py`. |
 | RF-28 | MODIFICAR | **Mostrar resumen ciudadano de puntos.** Agregar puntos de impacto pendientes y acreditados. | Ciudadano | Autenticado. | Totales propios derivados del ledger. | ✅ limitado a puntos. `backend/apps/reports_app/selectors.py`. |
 | RF-29 | MODIFICAR | **Calcular créditos y ranking mensual.** Derivar saldo por institución y ranking de acreditaciones respetando privacidad. | Ciudadano/Público | Movimientos acreditados y preferencia configurada. | Saldo/ranking consistente. | 📋 DISEÑADO, sin servicio/API/UI. ADR-0010/0011. |
-| RF-30 | MODIFICAR | **Gestionar proceso, evidencia, resolución y cierre.** Avanzar el ciclo vigente y registrar evidencia institucional privada. | Operador institucional activo; sistema sólo para autocierre | Institución asignada, membresía y ciclo vigentes; resolver exige evidencia del ciclo actual. | Historia/auditoría por transición, evidencia ligada al ciclo, bonus de resolución único y cierre manual o automático tras 72 horas. | ✅ rama S10; no desplegado. |
-| RF-31 | NUEVO | **Revertir validación.** Revertir el ciclo vigente sin borrar historia. | Administrador global | Reporte en `ASIGNADO`, `EN_PROCESO`, `RESUELTO` o `CERRADO`; ciclo esperado y motivo válido. | Retorno a `CLASIFICADO`; conserva institución, categoría, prioridad, historial y evidencia; limpia proyecciones vigentes y compensa el ledger conforme a ADR-0013. | ✅ rama S10; no desplegado. |
+| RF-30 | MODIFICAR | **Gestionar proceso, evidencia, resolución y cierre.** Avanzar el ciclo vigente y registrar evidencia institucional privada. | Operador institucional activo; sistema sólo para autocierre | Institución asignada, membresía y ciclo vigentes; resolver exige evidencia del ciclo actual. | Historia/auditoría por transición, evidencia ligada al ciclo, bonus de resolución único y cierre manual o automático tras 72 horas. | ✅ rama S10; aplicación no activa en producción. |
+| RF-31 | NUEVO | **Revertir validación.** Revertir el ciclo vigente sin borrar historia. | Administrador global | Reporte en `ASIGNADO`, `EN_PROCESO`, `RESUELTO` o `CERRADO`; ciclo esperado y motivo válido. | Retorno a `CLASIFICADO`; conserva institución, categoría, prioridad, historial y evidencia; limpia proyecciones vigentes y compensa el ledger conforme a ADR-0013. | ✅ rama S10; aplicación no activa en producción. |
 | RF-32 | MODIFICAR | **Listar y canjear recompensas simuladas.** Consumir créditos de la misma institución. | Ciudadano verificado | Saldo suficiente, recompensa activa y límites aplicables. | Vale simulado y movimiento de canje atómicos. | 📋 modelo diseñado; servicio/API/UI no implementados. `backend/apps/rewards_app/models.py`. |
 | RF-33 | MODIFICAR | **Notificar eventos.** Registrar y enviar comunicaciones por canal disponible. | Sistema | Evento soportado y destinatario válido. | Estado `PENDIENTE/ENVIADO/FALLIDO`, con reenvío manual donde aplica. | 🟡 sólo email de identidad por Brevo. `backend/apps/notifications_app/`. |
 | RF-34 | MODIFICAR | **Ingerir reporte social simulado.** Convertir un mensaje sintético de X en dato de entrada controlado. | Administrador/Sistema | Dataset/importador sintético válido. | Mensaje registrado y, en futuro, reporte no verificado sin incentivos. | 🔮 FUTURO; hoy sólo `XMockMessage`. |
@@ -1053,13 +1053,14 @@ Los E2E de operador usan APIs interceptadas: verifican el comportamiento del nav
 
 ### 17.3 Operación y riesgos
 
-- Railway aloja Gunicorn y un worker Celery como servicios separados; Redis es dependencia de broker/caché.
-- El predeploy documentado ejecuta `python manage.py migrate --noinput`.
-- `docs/PROGRESO_SPRINTS.md` registra que una migración de `main` llegó a producción antes de finalizar la CI backend. Por tanto, se requiere backup/verificación previa y conviene revisar el gate del pipeline; no debe afirmarse que CI siempre antecede a toda mutación productiva.
+- Heroku aloja actualmente Gunicorn y un worker Celery como procesos separados; Heroku Key-Value Store provee Redis como broker/caché.
+- Heroku no tiene fase `release` ni predeploy automático; `migrate` es una operación manual posterior al respaldo y a las verificaciones previas.
+- `docs/PROGRESO_SPRINTS.md` registra que, durante la etapa histórica de Railway, una migración de `main` llegó a producción antes de finalizar la CI backend. El flujo Heroku elimina ese auto-migrate, pero sigue exigiendo backup y verificación antes de cada ejecución manual.
 - Supabase Free no ofrece backup programado accesible para el proyecto según ADR-0003; existe procedimiento `pg_dump` manual y se documentó una restauración, pero no un sistema continuo automatizado.
 - Las variables y credenciales se configuran fuera del repositorio. Capturas académicas deben ocultarlas.
 - No hay configuración versionada de autoscaling, monitoreo, alertas o Flower. S10 sí incorpora
-  Beat para el autocierre, aún no desplegado; esto no constituye evidencia de SLA/capacidad.
+  Beat para el autocierre, definido en Heroku pero mantenido en 0 dynos; esto no constituye
+  evidencia de SLA/capacidad.
 
 ### 17.4 Evidencia que conviene conservar
 
@@ -1085,7 +1086,7 @@ está implementado en la rama S10; el despliegue todavía no está autorizado.
 | ADR-0010 — Créditos por institución y 1:1 | Puntos globales, créditos por institución final y deltas 1:1. | Aceptada e integrada en `main` mediante PR #35 | Distinguir los efectos de ledger implementados de las consultas/ranking/canje futuros. | Recompensas, ledger, RF/RN, DER. |
 | ADR-0011 — Privacidad configurable del ranking | Alias/visibilidad configurables y resolución futura de nombre público. | Aceptada, `main` | Distinguir preferencia implementada de ranking no implementado. | Privacidad, ranking, CU-04/18. |
 | ADR-0012 — Duplicados por proximidad | Warning PostGIS consultivo, misma categoría/estados/radio y respuesta minimizada. | Aceptada, `main` | Sustituir deduplicación automática/bloqueante. | Reportes, geoespacial, secuencia de creación. |
-| ADR-0013 — Reversión, revalidación y ciclos de resolución | Reversión administrativa hacia `CLASIFICADO`, `resolution_cycle` monotónico y contratos de evidencia, cierre, concurrencia, auditoría y ledger. | `ACCEPTED`; implementada en rama S10, no desplegada | Distinguir implementación local verificada, integración y despliegue productivo. | Estados, resolución, evidencia, reversión, auditoría, concurrencia y ledger. |
+| ADR-0013 — Reversión, revalidación y ciclos de resolución | Reversión administrativa hacia `CLASIFICADO`, `resolution_cycle` monotónico y contratos de evidencia, cierre, concurrencia, auditoría y ledger. | `ACCEPTED`; implementada en rama S10, aplicación revertida a S9 con esquema aditivo parcial | Distinguir implementación local verificada, integración y activación productiva. | Estados, resolución, evidencia, reversión, auditoría, concurrencia y ledger. |
 | ADR-0014 — Custom User desde primera migración | Usar modelo `User` propio antes del primer migrate. | Aceptada, `main` | Corregir DER/autenticación y guía de instalación. | Datos, seguridad, manual técnico. |
 | ADR-0015 — Brevo por HTTPS | Correo transaccional vía API HTTPS, no SMTP. | Aceptada, `main` | Corregir infraestructura/notificaciones y variables. | Arquitectura, seguridad, notificaciones, despliegue. |
 
@@ -1095,8 +1096,8 @@ está implementado en la rama S10; el despliegue todavía no está autorizado.
 2. Un pasaje temprano de ADR-0003 alude a fotografías “públicas-firmadas”; ADR-0007, código y configuración establecen bucket privado. Debe prevalecer **privado + URL temporal autorizada**.
 3. ADR-0010 puede citarse como decisión aceptada e integrada; sus efectos de validación/rechazo están operativos, pero consulta de créditos, ranking y canje siguen fuera del alcance de S9.
 4. ADR-0013 resuelve la política normativa de reversión, saldo negativo, revalidación y vales ya
-   emitidos. La rama S10 implementa el contrato, pero no debe describirse como desplegado u
-   operativo en producción.
+   emitidos. La rama S10 implementa el contrato, pero no debe describirse como totalmente
+   desplegado u operativo: la aplicación está en S9 y sólo persiste el esquema aditivo parcial.
 
 ## 19. Diagramas Mermaid propuestos
 
@@ -1630,10 +1631,11 @@ sequenceDiagram
     A-->>O: 200 + resultado
 ```
 
-### 19.13 Secuencia — resolver reporte (implementación S10 no desplegada)
+### 19.13 Secuencia — resolver reporte (implementación S10 no activa)
 
 Este diagrama resume la implementación local del contrato `ACCEPTED` en ADR-0013. Las APIs, la
-evidencia privada, el autocierre y el ledger existen en la rama S10, pero no fueron desplegados.
+evidencia privada, el autocierre y el ledger existen en la rama S10, pero no están activos en
+producción; el intento se detuvo antes del backfill y la aplicación se revirtió a S9.
 
 ```mermaid
 sequenceDiagram
@@ -2097,7 +2099,7 @@ Antes de la entrega final, cada fila debe vincularse a un identificador de prueb
 | “El sistema escala a X usuarios/reportes.” | No demostrado. | Prueba de carga reproducible con entorno, dataset, percentiles y límites. |
 | “Disponibilidad/SLA de X %.” | No demostrado. | Monitoreo continuo y ventana/método definidos. |
 | “E2E completo en CI contra producción/backend real.” | Los 48 Playwright usan APIs interceptadas. | Suite full-stack controlada y evidencia del entorno. |
-| “Todo el ciclo institucional está disponible en producción.” | S10 lo implementa en rama; no está integrado ni desplegado. | Autorización, despliegue y smoke tests productivos posteriores. |
+| “Todo el ciclo institucional está disponible en producción.” | S10 lo implementa en rama; no está integrado ni activo. Sólo persisten las dos migraciones aditivas del intento revertido. | Autorización, despliegue y smoke tests productivos posteriores. |
 | “El ciclo ASIGNADO→CERRADO funciona en producción.” | El flujo tiene servicios/API/UI/pruebas locales S10; producción permanece en el corte anterior. | Despliegue autorizado y evidencia productiva redactada. |
 | “Ranking y canje funcionan.” | Preferencia/esquema solamente; servicios ausentes. | S11/S12 integrados y pruebas/evidencia. |
 | “Hay integración con X/Telegram.” | No existe; Telegram fuera de alcance. | X sólo podría llamarse simulado tras loader/flujo; integración real requeriría otra decisión/evidencia. |
@@ -2191,12 +2193,12 @@ Las verificaciones productivas puntuales registradas en `docs/PROGRESO_SPRINTS.m
 - `docs/adr/ADR-0011-privacidad-configurable-del-ranking.md`.
 - `docs/adr/ADR-0012-deteccion-de-duplicados-por-proximidad.md`.
 - `docs/adr/ADR-0013-politica-de-reversion.md` — `ACCEPTED`, implementada localmente en la rama
-  S10; producción no desplegada.
+  S10; aplicación productiva revertida a S9, con esquema aditivo parcial.
 - `docs/adr/ADR-0014-custom-user-desde-la-primera-migracion.md`.
 - `docs/adr/ADR-0015-correo-transaccional-por-api-https.md`.
 
 ADR-0013 existe en el baseline documental y está `ACCEPTED`; la rama S10 constituye evidencia de
-implementación funcional local, pero todavía no está integrada en `main` ni desplegada.
+implementación funcional local, pero todavía no está integrada en `main` ni activa en producción.
 
 ### 28.4 Código y configuración
 
