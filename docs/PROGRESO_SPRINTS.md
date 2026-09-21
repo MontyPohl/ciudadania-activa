@@ -1702,10 +1702,11 @@ Gate formal de cierre: `S11A_METHODOLOGY_FROZEN`.
   caché local. La CLI respondió y un smoke técnico abrió/cerró Chromium sin backend ni tests.
 - El harness ahora valida primero Node `>=20.9.0` y npm, y después `package-lock.json` y la CLI
   local de Playwright, antes de levantar Compose. Un rechazo de este preflight host no crea run ni
-  evidencia experimental. Si un `OSError` ocurre después del preflight, durante una fase del
-  escenario anterior a persistir el log, queda como fase `FAILED` con timestamp, comando,
-  excepción y código `127`; `harness-execution.json` v2 registra `failure` no nulo y la
-  finalización usa manifest `FAILED`. La regresión se demostró primero en rojo y luego en verde.
+  evidencia experimental. Si un `OSError` ocurre después del preflight y de crear el run y su
+  manifest inicial, durante una fase anterior a persistir el log, queda como fase `FAILED` con
+  timestamp, comando, excepción y código `127`; `harness-execution.json` v2 registra `failure` no
+  nulo y la finalización usa manifest `FAILED`. La regresión se demostró primero en rojo y luego en
+  verde.
 - El contrato v2 añade `recorded_at` y `started_at` por fase sin alterar los logs históricos v1.
   La garantía de coherencia anterior se limita al fallo pre-Playwright observado y a fases previas
   a persistir el log; fallos posteriores de record/custodia/finalize/shutdown deben tratarse como
@@ -1713,7 +1714,7 @@ Gate formal de cierre: `S11A_METHODOLOGY_FROZEN`.
 - Los dos tests de storage externo fueron diagnosticados: el overlay S11 activaba el adaptador
   local, por lo que el parche de `requests` no intervenía. Sin cambiar los tests, ambos pasaron al
   ejecutarse con `S11_LOCAL_STORAGE_ENABLED=false`, que es el contexto externo que presuponen.
-- Verificación posterior: `128 passed` en `experiments_app`; `24 passed` en la suite del harness;
+- Verificación posterior: `129 passed` en `experiments_app`; `25 passed` en la suite del harness;
   los dos casos externos pasaron; Ruff y formato pasaron; `manage.py check` no informó problemas y
   `makemigrations --check --dry-run` no detectó cambios.
 - El entorno de infraestructura respondió health sobre el puerto dinámico `32772`, con DB

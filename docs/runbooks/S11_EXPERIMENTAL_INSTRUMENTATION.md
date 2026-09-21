@@ -138,10 +138,11 @@ npx playwright install --list
 
 El harness repite automáticamente las comprobaciones de Node, npm, lockfile y CLI local antes de
 levantar Compose. Si falta cualquiera, el **preflight host** aborta sin crear un `run_id`, manifest
-ni evidencia experimental. Si el preflight ya pasó y un ejecutable desaparece durante una fase del
-escenario anterior a la persistencia del log —incluido el arranque de Playwright—, la fase queda
-registrada con timestamp, comando, excepción y código `127`; `harness-execution.json` v2 y el
-manifest final quedan ambos `FAILED`. El campo `invalidity_reason` continúa reservado
+ni evidencia experimental. Si el preflight ya pasó, el run y su manifest inicial ya existen, y un
+ejecutable desaparece durante una fase anterior a la persistencia del log —incluido el arranque de
+Playwright—, la fase queda registrada con timestamp, comando, excepción y código `127`;
+`harness-execution.json` v2 y el manifest final quedan ambos `FAILED`. El campo
+`invalidity_reason` continúa reservado
 exclusivamente para manifests `INVALID`; un manifest `FAILED` lo conserva en `null` por contrato.
 
 `harness-execution.json` v2 añade `recorded_at` y `started_at` por fase. Los artefactos históricos
