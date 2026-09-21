@@ -63,9 +63,9 @@ El intento previo de S11-C2/EX-02 queda registrado como
 
 ## 4. Nueva época de custodia
 
-La nueva época no entra en vigor hasta que Monty configure una nueva
-`S11_CUSTODY_HMAC_KEY` estable mediante el mecanismo local aprobado. Esta tarea documental no
-genera la clave ni modifica `.env`.
+La nueva época entró en vigor para la repetición P02/P03 cuando el runtime cargó la
+`S11_CUSTODY_HMAC_KEY` estable configurada mediante el mecanismo local aprobado y comprobó su
+fingerprint no secreto `7205a04f93cc3da9`. La repetición no generó la clave ni modificó `.env`.
 
 La clave de la nueva época debe:
 
@@ -76,32 +76,34 @@ La clave de la nueva época debe:
 - conservarse hasta terminar la retención aprobada de todos los artefactos que autentique.
 
 La nueva época no resigna ni reautentica la evidencia histórica y no introduce un keyring en el
-runtime. Antes de la próxima ejecución también queda pendiente que Monty agregue manualmente
-`S11_HOST_GID=1003` a `.env`; el valor proviene de `id -g`, no se versiona y no fue escrito por
-este registro.
+runtime. Para la repetición P02/P03, `S11_HOST_GID=1003` se exportó sólo al proceso a partir de
+`id -g`, como permite el runbook; no se versionó ni se escribió en `.env`.
 
 ## 5. Gates y secuencia obligatoria
 
-| Componente | Estado posterior al registro |
+| Componente | Estado actual |
 |---|---|
 | S11-A | `PASS` |
 | S11-B | `PASS` |
 | Metodología Opción A | `PASS` |
 | Diagnóstico HMAC | `COMPLETE` |
-| P02/P03 | `REPEAT_REQUIRED` |
+| P02/P03 | `PASS` |
 | C1 | `REPEAT_REQUIRED` |
 | EX-02 | `BLOCKED_PENDING_CUSTODY_REBASELINE` |
 | EX-03 | `BLOCKED_PENDING_CUSTODY_REBASELINE` |
 
-La secuencia obligatoria siguiente es:
+La secuencia ya completada fue:
 
 1. configurar la nueva `S11_CUSTODY_HMAC_KEY` estable;
 2. configurar localmente `S11_HOST_GID=1003`;
 3. repetir P02/P03;
 4. verificar la nueva evidencia P02/P03;
-5. repetir C1;
-6. verificar la nueva evidencia C1;
-7. sólo entonces evaluar el desbloqueo de EX-02.
+
+La secuencia pendiente es:
+
+1. repetir C1 con la misma clave custodial;
+2. verificar la nueva evidencia C1;
+3. sólo entonces evaluar el desbloqueo de EX-02.
 
 No se avanza a S11-C3 mientras esta secuencia siga incompleta.
 
@@ -109,9 +111,44 @@ No se avanza a S11-C3 mientras esta secuencia siga incompleta.
 
 Este registro no cambia objetivos, hipótesis, indicadores, fórmulas, escenarios, denominadores,
 criterios `PASS`/`FAIL`/`NOT_DEMONSTRATED`, la matriz de eventos, el harness ni la independencia
-de EX-02 y EX-03. No ejecuta experimentos, no levanta Compose, no crea evidencia C2 y no modifica
-DB, Redis, storage ni despliegues productivos.
+de EX-02 y EX-03. La repetición sólo utilizó Compose local aislado para P02/P03; no ejecutó C1 ni
+experimentos, no creó evidencia C2 y no modificó DB, Redis, storage ni despliegues productivos.
 
 ## 7. Gate documental
 
 `S11_HMAC_CUSTODY_REBASELINED`
+
+## 8. Repetición P02/P03 bajo la nueva época
+
+**Fecha:** 21/09/2026
+
+**Baseline de ejecución:** `main@5895329c2587704da4af321624082d6b9b97c38d`
+
+**Verification/run ID:** `s11-custody-20260921-p02p03-v6`
+
+**Ruta:** `var/s11-runs/custody-verifications/s11-custody-20260921-p02p03-v6/`
+
+**Fingerprint custodial:** `7205a04f93cc3da9`
+
+| Registro | SHA-256 |
+|---|---|
+| `prepare.json` | `8dcce577f19bb0d7b72db3015b2b460b20df54a12a84831ae640cf256e35a53b` |
+| `complete.json` | `d92490f5bb1c04eaefd6795d070adfd468ccc103e4329d5c9f477d01049279c2` |
+| `attestation.json` | `bb929a390171899c948bbaaeb2c1faea49397bcd15114ad09d12adace94840d2` |
+| `custody-epoch.json` | `5282c4b4d5dafacfb1782b286f8f3c4e4117b876a8da42e1daf540a189af15aa` |
+| `destruction.intent.json` | `d61007a41b6325a7cfe4e8b2f9cb811b5806cbaa3615fc141e193acd3b37f0e3` |
+| `destruction.json` | `69995c04b65a96d92cfb4c0ba89842993e067f72918ccd6143e14ce214639eb6` |
+
+Los seis registros y sus sidecars SHA-256/HMAC/commit fueron releídos con la clave actual. La
+frontera `container-recreated`, backup, restore, comparación byte a byte, matriz nominal,
+retención, gate `PUBLIC`, rechazo de `SENSITIVE` y no persistencia de `SECRET` quedaron en
+`PASS`. El canario sintético fue destruido de primary, backup y restore según el procedimiento,
+mientras el paquete de verificación se conservó con permisos privados.
+
+**Evidencia nueva:** `VERIFIABLE_WITH_CURRENT_CUSTODY_KEY`
+
+**Resultado P02:** `PASS`
+
+**Resultado P03:** `PASS`
+
+**Gate operativo:** `S11_P02_P03_REPEATED_PASS`

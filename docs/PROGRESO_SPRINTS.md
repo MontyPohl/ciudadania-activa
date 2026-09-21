@@ -1635,15 +1635,15 @@ Gate formal de cierre: `S11A_METHODOLOGY_FROZEN`.
   `HISTORICAL_UNVERIFIABLE`, iniciar una nueva época de custodia con una clave estable y repetir
   P02/P03 y C1 antes de ejecutar EX-02. La decisión completa y los hashes preservados constan en
   [`S11_HMAC_CUSTODY_CONTINUITY_INCIDENT.md`](runbooks/S11_HMAC_CUSTODY_CONTINUITY_INCIDENT.md).
-- La nueva clave aún no fue generada ni configurada. Debe permanecer fuera de Git, artefactos,
-  logs e informes; mantenerse estable durante P02/P03, C1 y los runs posteriores; y conservarse
-  durante toda la retención aplicable. También queda pendiente que Monty agregue manualmente
-  `S11_HOST_GID=1003` a `.env` antes de la próxima ejecución.
+- La nueva clave custodial fue configurada fuera de Git y el runtime comprobó el fingerprint no
+  secreto `7205a04f93cc3da9`. Debe mantenerse estable durante C1 y los runs posteriores, y
+  conservarse durante toda la retención aplicable. Para la repetición P02/P03,
+  `S11_HOST_GID=1003` se exportó al proceso desde `id -g`; `.env` no fue modificado.
 - El intento previo S11-C2/EX-02 queda `S11C2_EX02_NOT_DEMONSTRATED` por una causa de
   infraestructura/custodia. No es un `FAIL` funcional: no se creó un run C2 y el experimento no
   comenzó.
 - Gates vigentes: S11-A `PASS`; S11-B `PASS`; metodología Opción A `PASS`; diagnóstico HMAC
-  `COMPLETE`; P02/P03 `REPEAT_REQUIRED`; C1 `REPEAT_REQUIRED`; EX-02 y EX-03
+  `COMPLETE`; P02/P03 `PASS`; C1 `REPEAT_REQUIRED`; EX-02 y EX-03
   `BLOCKED_PENDING_CUSTODY_REBASELINE`. No se avanza a S11-C3.
 - La decisión no modifica `S11A-v1.0`, objetivos, hipótesis, indicadores, fórmulas, escenarios,
   denominadores, criterios de decisión, matriz de eventos, harness ni la independencia de EX-02 y
@@ -1660,7 +1660,12 @@ Gate formal de cierre: `S11A_METHODOLOGY_FROZEN`.
 - P02/P03: la verificación histórica `s11-custody-20260921-p02p03-v5` se ejecutó en dos
   contenedores efímeros separados y sus bytes siguen preservados. Sus artefactos `complete.json`
   y `attestation.json` están ahora `HISTORICAL_UNVERIFIABLE` por `KEY_CONTINUITY_FAILURE`; no
-  sirven como atestación criptográfica para el gate vigente y P02/P03 deben repetirse.
+  sirven como atestación criptográfica para el gate vigente.
+- Repetición P02/P03: `s11-custody-20260921-p02p03-v6` se ejecutó con la nueva época HMAC y quedó
+  `VERIFIABLE_WITH_CURRENT_CUSTODY_KEY`. Los seis registros autenticados pasaron SHA-256/HMAC,
+  frontera entre contenedores, backup, restore, matriz nominal, retención, gates de clasificación
+  y destrucción controlada del canario. `125` tests de `experiments_app` y `manage.py check`
+  pasaron. Gate: `S11_P02_P03_REPEATED_PASS`.
 - C1: la verificación histórica `s11-c1-20260921-isolation-repro-reset-v1` fue ejecutada y su
   `complete.json` conserva el SHA-256 registrado. El artefacto está
   `HISTORICAL_UNVERIFIABLE` por el mismo incidente y C1 debe repetirse después de P02/P03.
@@ -1673,16 +1678,16 @@ Gate formal de cierre: `S11A_METHODOLOGY_FROZEN`.
 
 - EX-01/HE tiene cuestionario en el Anexo G, pero carece de formulario aprobado, dataset y N
   observados; permanece `NOT_DEMONSTRATED`.
-- La retención, ubicaciones y matriz nominal de P02/P03 permanecen formalizadas, pero la pérdida
-  de continuidad HMAC impide usar la atestación histórica para el gate actual. P02/P03 y C1 están
-  `REPEAT_REQUIRED` y deben repetirse, en ese orden, bajo la nueva época de custodia.
+- La atestación histórica P02/P03 continúa inutilizable por pérdida de continuidad HMAC, pero la
+  repetición independiente `s11-custody-20260921-p02p03-v6` cerró nuevamente P02/P03 en `PASS`.
+  C1 sigue `REPEAT_REQUIRED` y debe repetirse con la misma clave antes de EX-02.
 - El intento previo S11-C2/EX-02 no inició el experimento y queda
   `S11C2_EX02_NOT_DEMONSTRATED` por infraestructura/custodia, no como fallo funcional.
 - R2 no fue ejecutada y su evidencia válida no existe.
 - La cobertura global previa no decide HT-5; falta instrumentación de cobertura acotada.
-- El harness sigue exigiendo confirmación explícita por run. La nueva clave HMAC custodial estable
-  y `S11_HOST_GID=1003` deben ser configurados manualmente fuera de Git antes de repetir P02/P03;
-  la verificación histórica no utilizó `--custody-approved` ni ejecutó el harness.
+- El harness sigue exigiendo confirmación explícita por run. La clave HMAC custodial estable debe
+  conservarse para C1 y todos los runs posteriores; ninguna verificación P02/P03 utilizó
+  `--custody-approved` ni ejecutó el harness.
 
 ### Commits relevantes
 
@@ -1707,10 +1712,10 @@ La política `S11-CUSTODY-v1.0` fija retención `INTERNAL=90 días` y
 `EXPERIMENTAL=365 días` desde `finished_at`; `PUBLIC` exige aprobación explícita de Monty
 Emmanuel Pohl Amarilla; `SENSITIVE` permanece deshabilitado y `SECRET` nunca se persiste.
 Primary, backup y restore se ubican respectivamente en `var/s11-runs`, `var/s11-backup` y
-`var/s11-restore`. La política permanece aprobada, pero la evidencia custodial histórica está
-`HISTORICAL_UNVERIFIABLE`: `S11A-P02` y `S11A-P03` están `REPEAT_REQUIRED`, al igual que C1.
-EX-02 y EX-03 permanecen `BLOCKED_PENDING_CUSTODY_REBASELINE` hasta completar y verificar ambas
-repeticiones.
+`var/s11-restore`. La evidencia histórica permanece `HISTORICAL_UNVERIFIABLE`, pero la repetición
+independiente bajo la nueva época dejó `S11A-P02=PASS` y `S11A-P03=PASS`. C1 continúa
+`REPEAT_REQUIRED`; EX-02 y EX-03 permanecen `BLOCKED_PENDING_CUSTODY_REBASELINE` hasta repetir y
+verificar C1.
 
 ---
 

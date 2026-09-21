@@ -12,9 +12,10 @@ verificación histórica `s11-custody-20260921-p02p03-v5` se conserva, pero sus 
 `HISTORICAL_UNVERIFIABLE` por `KEY_CONTINUITY_FAILURE`. La decisión humana de iniciar una nueva
 época y repetir P02/P03 y C1 está documentada en
 [`S11_HMAC_CUSTODY_CONTINUITY_INCIDENT.md`](S11_HMAC_CUSTODY_CONTINUITY_INCIDENT.md).
-Hasta verificar ambas repeticiones, P02/P03 y C1 están `REPEAT_REQUIRED`, y EX-02/EX-03 siguen
+P02/P03 se repitieron con `s11-custody-20260921-p02p03-v6` y quedaron en `PASS`, con evidencia
+`VERIFIABLE_WITH_CURRENT_CUSTODY_KEY`. C1 sigue `REPEAT_REQUIRED`; por ello EX-02/EX-03 continúan
 `BLOCKED_PENDING_CUSTODY_REBASELINE`. `--custody-approved` continúa siendo una afirmación
-explícita del operador por run y no se utilizó en la verificación histórica.
+explícita del operador por run y no se utilizó en ninguna verificación P02/P03.
 
 Los flags S11 están apagados por defecto y el guard rechaza todo target que no cumpla
 simultáneamente:
@@ -283,10 +284,19 @@ confirmar que el working tree está limpio, ejecutar una tercera fase con los mi
 y `--baseline-sha`. `attest` comprueba que el SHA exista, coincida con `HEAD` y que sus blobs tengan
 los mismos hashes verificados; además comprueba que el baseline aprobado sea ancestro del commit:
 
+La imagen de backend debe estar construida desde el `Dockerfile.dev` versionado, que incluye Git.
+Como `/s11-source` es un montaje compuesto read-only cuyo directorio raíz pertenece a `root`, la
+excepción `safe.directory` se limita al contenedor efímero mediante `GIT_CONFIG_*`; no se escribe
+configuración Git global ni local.
+
 ```bash
 docker compose -p ciudadania-s11 \
   -f infra/docker-compose.yml -f infra/docker-compose.s11.yml \
-  run --rm --no-deps backend python manage.py s11_verify_custody attest \
+  run --rm --no-deps \
+  -e GIT_CONFIG_COUNT=1 \
+  -e GIT_CONFIG_KEY_0=safe.directory \
+  -e GIT_CONFIG_VALUE_0=/s11-source \
+  backend python manage.py s11_verify_custody attest \
   --verification-id <verification_id> \
   --source-root /s11-source \
   --baseline-sha d3b492a7f5d203fc1dbd8c63e1732b7fd9227656 \
