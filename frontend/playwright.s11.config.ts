@@ -2,6 +2,11 @@ import { defineConfig, devices } from "@playwright/test";
 
 const PORT = 3111;
 const FRONTEND_URL = `http://127.0.0.1:${PORT}`;
+const BACKEND_URL = process.env.S11_BACKEND_URL;
+
+if (BACKEND_URL === undefined || !/^http:\/\/127\.0\.0\.1:\d+$/.test(BACKEND_URL)) {
+  throw new Error("S11_BACKEND_URL debe contener la URL loopback descubierta por el harness.");
+}
 
 export default defineConfig({
   testDir: "./e2e-s11",
@@ -21,7 +26,7 @@ export default defineConfig({
   webServer: {
     command: `npm run dev -- --webpack --hostname 127.0.0.1 --port ${PORT}`,
     env: {
-      NEXT_PUBLIC_API_URL: "http://127.0.0.1:8000",
+      NEXT_PUBLIC_API_URL: BACKEND_URL,
     },
     url: FRONTEND_URL,
     reuseExistingServer: false,

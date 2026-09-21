@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
@@ -26,6 +27,8 @@ class Command(BaseCommand):
         parser.add_argument("--seed", type=int, default=20260921)
         parser.add_argument("--git-sha", required=True)
         parser.add_argument("--git-clean", action="store_true", required=True)
+        parser.add_argument("--backend-url", required=True)
+        parser.add_argument("--backend-discovered-at", required=True)
 
     def handle(self, *args, **options):
         require_isolation()
@@ -62,6 +65,9 @@ class Command(BaseCommand):
                 "worker_concurrency": 2,
                 "ai_adapter": "s11-deterministic-fake-v1",
                 "sensitive_persistence": settings.S11_ALLOW_SENSITIVE_PERSISTENCE,
+                "backend": backend_runtime_configuration(
+                    options["backend_url"], options["backend_discovered_at"]
+                ),
                 **collect_provenance(),
             },
             expected_git_sha=options["git_sha"],
@@ -93,3 +99,41 @@ class Command(BaseCommand):
                 )
             )
         )
+
+
+def backend_runtime_configuration(backend_url: str, discovered_at: str) -> dict:
+    try:
+        parsed = urlsplit(backend_url)
+        host_port = parsed.port
+    except ValueError as exc:
+        raise CommandError("La URL runtime del backend contiene un puerto inválido.") from exc
+    if (
+        parsed.scheme != "http"
+        or parsed.hostname != "127.0.0.1"
+        or host_port is None
+        or not 1 <= host_port <= 65535
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.path not in {"", "/"}
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise CommandError("La URL runtime del backend debe ser HTTP sobre loopback IPv4.")
+    canonical_url = f"http://127.0.0.1:{host_port}"
+    if backend_url != canonical_url:
+        raise CommandError("La URL runtime del backend no está en su forma canónica.")
+    try:
+        discovered = datetime.fromisoformat(discovered_at.replace("Z", "+00:00"))
+    except (AttributeError, ValueError) as exc:
+        raise CommandError("El timestamp de descubrimiento del backend no es ISO-8601.") from exc
+    if discovered.tzinfo is None or discovered.utcoffset() != UTC.utcoffset(discovered):
+        raise CommandError("El timestamp de descubrimiento del backend debe estar en UTC.")
+    return {
+        "host": "127.0.0.1",
+        "host_port": host_port,
+        "container_port": 8000,
+        "url": canonical_url,
+        "allocation": "docker-compose-dynamic",
+        "discovered_at": discovered.astimezone(UTC).isoformat().replace("+00:00", "Z"),
+        "compose_services": ["backend", "db", "redis", "worker"],
+    }

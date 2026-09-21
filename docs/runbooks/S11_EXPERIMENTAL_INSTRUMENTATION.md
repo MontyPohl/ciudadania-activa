@@ -31,11 +31,11 @@ Los insumos versionados están en
 `backend/apps/experiments_app/data/` y su registro es
 `dataset-registry.json`:
 
-| Dataset | Escenarios | Seed | SHA-256 |
-|---|---|---:|---|
-| `s11-functional-v1` | EX-02…EX-08 | `20260921` | `66074d1617c4e1b7a32b854090d26556faa9b35a000452787ff3b47d6f0edc1c` |
-| `s8-evaluation-v1` | EX-09, sólo referencia congelada | — | `3bc54d591dc104aeabeecb2f5cc7c7a38e70ba042e7f045321ab33ae9b5efad4` |
-| `s11-load-v1` | EX-10 | `20260921` | `c6883b59dc861fb07fae730594c929fdd572a9ed71aee6d8b85c87f71ede0acb` |
+| Dataset             | Escenarios                       |       Seed | SHA-256                                                            |
+| ------------------- | -------------------------------- | ---------: | ------------------------------------------------------------------ |
+| `s11-functional-v1` | EX-02…EX-08                      | `20260921` | `66074d1617c4e1b7a32b854090d26556faa9b35a000452787ff3b47d6f0edc1c` |
+| `s8-evaluation-v1`  | EX-09, sólo referencia congelada |          — | `3bc54d591dc104aeabeecb2f5cc7c7a38e70ba042e7f045321ab33ae9b5efad4` |
+| `s11-load-v1`       | EX-10                            | `20260921` | `c6883b59dc861fb07fae730594c929fdd572a9ed71aee6d8b85c87f71ede0acb` |
 
 Para regenerar en una ruta nueva —el comando se niega a sobrescribir—:
 
@@ -75,6 +75,13 @@ docker compose -p ciudadania-s11 \
   up -d db redis backend worker
 ```
 
+El backend conserva el puerto `8000` dentro de la red Compose, pero el overlay S11
+no publica `8000` como puerto fijo del host. Solicita a Docker un puerto efímero
+limitado a `127.0.0.1`; el harness consulta la asignación exclusivamente con
+`docker compose port backend 8000`, construye una única `S11_BACKEND_URL` y espera
+`/api/v1/health/` antes de preparar el run. Ni el operador, Playwright ni el spec
+seleccionan o descubren el puerto por su cuenta.
+
 Los comandos siguientes migran únicamente la base aislada, reponen los catálogos y
 comprueban que existen 3 instituciones, 10 categorías y 0 reportes:
 
@@ -102,8 +109,9 @@ El harness real admite `EX-02`…`EX-08`. Levanta frontend, backend, PostgreSQL/
 Redis y un worker Celery con concurrencia 2; Playwright no intercepta la API. El flujo es:
 
 ```text
-setup → manifest inicial → execute → export read-only → validate → reset
-      → log redactado → manifest final → shutdown
+start → discover backend port → health check → setup → manifest inicial
+      → execute → export read-only → validate → reset → log redactado
+      → manifest final → shutdown
 ```
 
 Una ejecución futura autorizada se inicia así:
@@ -126,8 +134,16 @@ SHA de Git, dataset, escenario, seed y nonce explícito: no usa aleatoriedad no 
 El host verifica `HEAD` y limpieza antes de iniciar; el manifest también fija versiones de
 Python/Django/Celery/PostgreSQL/PostGIS/Redis, hashes de requirements, fingerprint de
 migraciones, tags de imagen declarados y contadores iniciales del estado aislado.
-Un fallo se propaga al proceso, se registra y produce un manifest `FAILED`; nunca se
-convierte silenciosamente en éxito. El harness no calcula ni declara HT-1…HT-6.
+El manifest registra además el host loopback, URL runtime, puerto host asignado,
+puerto interno `8000`, mecanismo `docker-compose-dynamic`, timestamp de descubrimiento
+y servicios Compose relevantes. El número efímero no forma parte de la metodología:
+la reproducibilidad consiste en solicitarlo, descubrirlo, registrarlo y propagar la
+misma URL a todos los consumidores. Si Compose no informa una publicación IPv4 loopback
+válida o el health check no responde, el harness falla cerrado y nunca usa `8000` como fallback.
+Los fallos de arranque, descubrimiento o health previos al manifest abortan sin crear
+un run ni evidencia experimental. Después de crear el manifest inicial, un fallo se
+propaga al proceso, se registra y produce un manifest `FAILED`; nunca se convierte
+silenciosamente en éxito. El harness no calcula ni declara HT-1…HT-6.
 
 EX-09 queda preparado mediante el registro del dataset R2 y el exportador; EX-10 mediante
 `s11-load-v1`, instrumentación HTTP/Celery y el overlay aislado. Ambos están

@@ -13,6 +13,13 @@ services:
 
   backend:
     user: "${S11_HOST_UID:?Set S11_HOST_UID with id -u}:${S11_HOST_GID:?Set S11_HOST_GID with id -g}"
+    # El backend conserva 8000 dentro de Compose. Docker publica un puerto
+    # efímero sólo en loopback y el harness lo descubre con `compose port`.
+    ports: !override
+      - target: 8000
+        published: "0"
+        host_ip: 127.0.0.1
+        protocol: tcp
     environment: &s11-environment
       DATABASE_URL: postgis://ciudadania:ciudadania@db:5432/ciudadania_s11_experiment
       S11_DATABASE_URL: postgis://ciudadania:ciudadania@db:5432/ciudadania_s11_experiment

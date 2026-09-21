@@ -12,7 +12,7 @@ import {
   type Page,
 } from "@playwright/test";
 
-const BACKEND_URL = "http://127.0.0.1:8000";
+const BACKEND_URL = process.env.S11_BACKEND_URL ?? "";
 const RUN_ID = process.env.S11_RUN_ID ?? "";
 const SCENARIO = process.env.S11_SCENARIO_ID ?? "";
 const PNG = Buffer.from(
@@ -46,6 +46,9 @@ const reportIds: string[] = [];
 test.beforeAll(async () => {
   expect(RUN_ID, "S11_RUN_ID es obligatorio").toMatch(/^s11-[0-9a-f-]{36}$/);
   expect(SCENARIO, "S11_SCENARIO_ID es obligatorio").toMatch(/^EX-0[2-8]$/);
+  expect(BACKEND_URL, "S11_BACKEND_URL debe proceder del harness").toMatch(
+    /^http:\/\/127\.0\.0\.1:\d+$/,
+  );
   fixture = fixtureActors(SCENARIO);
   api = await playwrightRequest.newContext({ baseURL: BACKEND_URL });
 });

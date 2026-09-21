@@ -4,7 +4,12 @@ import json
 import os
 import re
 import subprocess
+import time
+import urllib.error
+import urllib.request
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, replace
+from datetime import UTC, datetime
 from pathlib import Path
 from time import perf_counter
 from typing import Protocol
@@ -14,6 +19,9 @@ from .constants import FULLSTACK_SCENARIOS
 from .redaction import redact
 
 _RUN_ID = re.compile(r"^s11-[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
+_COMPOSE_PORT = re.compile(r"^127\.0\.0\.1:(?P<port>[0-9]{1,5})$")
+_BACKEND_CONTAINER_PORT = 8000
+_BACKEND_ALLOCATION = "docker-compose-dynamic"
 
 
 class HarnessError(RuntimeError):
@@ -24,6 +32,8 @@ class HarnessError(RuntimeError):
 class ScenarioPlan:
     scenario_id: str
     expected_git_sha: str
+    start: tuple[tuple[str, ...], ...]
+    discover_backend: tuple[str, ...]
     setup: tuple[tuple[str, ...], ...]
     execute: tuple[str, ...]
     collect: tuple[tuple[str, ...], ...]
@@ -52,6 +62,7 @@ class PhaseResult:
 class HarnessResult:
     run_id: str
     scenario_id: str
+    backend_url: str
     status: str
     phases: tuple[PhaseResult, ...]
 
@@ -92,8 +103,9 @@ def build_plan(
     return ScenarioPlan(
         scenario_id=scenario_id,
         expected_git_sha=expected_git_sha,
+        start=((*compose, "up", "-d", "db", "redis", "backend", "worker"),),
+        discover_backend=(*compose, "port", "backend", str(_BACKEND_CONTAINER_PORT)),
         setup=(
-            (*compose, "up", "-d", "db", "redis", "backend", "worker"),
             (*backend_exec, "s11_environment", "create"),
             (*backend_exec, "s11_environment", "reset"),
             (
@@ -110,6 +122,10 @@ def build_plan(
                 "--git-sha",
                 expected_git_sha,
                 "--git-clean",
+                "--backend-url",
+                "{backend_url}",
+                "--backend-discovered-at",
+                "{backend_discovered_at}",
             ),
         ),
         execute=(
@@ -144,9 +160,15 @@ def build_plan(
 class FullStackHarness:
     """Orquestador setup→execute→collect→validate→cleanup sin ocultar fallos."""
 
-    def __init__(self, repo_root: Path, runner: CommandRunner | None = None) -> None:
+    def __init__(
+        self,
+        repo_root: Path,
+        runner: CommandRunner | None = None,
+        backend_probe: Callable[[str], None] | None = None,
+    ) -> None:
         self.repo_root = repo_root.resolve()
         self.runner = runner or _run
+        self.backend_probe = backend_probe or _wait_for_backend
 
     def execute(self, plan: ScenarioPlan, *, environment: dict[str, str]) -> HarnessResult:
         required = {
@@ -167,6 +189,9 @@ class FullStackHarness:
         results: list[PhaseResult] = []
         failure: HarnessError | None = None
         try:
+            self._phases(results, "start", plan.start, runtime_environment)
+            self._discover_backend(results, plan, runtime_environment)
+            self._probe_backend(results, runtime_environment)
             self._phases(results, "setup", plan.setup, runtime_environment)
             self._phases(
                 results,
@@ -229,6 +254,7 @@ class FullStackHarness:
         return HarnessResult(
             run_id=run_id,
             scenario_id=plan.scenario_id,
+            backend_url=runtime_environment["S11_BACKEND_URL"],
             status="COMPLETED",
             phases=tuple(
                 replace(
@@ -273,6 +299,76 @@ class FullStackHarness:
                 environment["S11_SCOPE_HOST_PATH"] = (
                     f"../var/s11-runs/control/scopes/{run_id}-{environment['S11_SCENARIO_ID']}.json"
                 )
+
+    def _discover_backend(
+        self,
+        results: list[PhaseResult],
+        plan: ScenarioPlan,
+        environment: dict[str, str],
+    ) -> None:
+        started = perf_counter()
+        completed = self.runner(
+            plan.discover_backend,
+            cwd=self.repo_root,
+            env=self._render_environment(environment),
+        )
+        results.append(
+            PhaseResult(
+                phase="discover_backend",
+                command=plan.discover_backend,
+                returncode=completed.returncode,
+                duration_ms=round((perf_counter() - started) * 1000, 3),
+                stdout=completed.stdout,
+                stderr=completed.stderr,
+            )
+        )
+        if completed.returncode != 0:
+            raise HarnessError("Docker Compose no pudo informar el puerto publicado del backend.")
+        backend_url, host_port = _backend_url_from_compose_port(completed.stdout)
+        environment.update(
+            {
+                "S11_BACKEND_URL": backend_url,
+                "S11_BACKEND_HOST": "127.0.0.1",
+                "S11_BACKEND_HOST_PORT": str(host_port),
+                "S11_BACKEND_CONTAINER_PORT": str(_BACKEND_CONTAINER_PORT),
+                "S11_BACKEND_PORT_ALLOCATION": _BACKEND_ALLOCATION,
+                "S11_BACKEND_DISCOVERED_AT": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+            }
+        )
+
+    def _probe_backend(
+        self,
+        results: list[PhaseResult],
+        environment: dict[str, str],
+    ) -> None:
+        backend_url = environment["S11_BACKEND_URL"]
+        started = perf_counter()
+        try:
+            self.backend_probe(backend_url)
+        except Exception as exc:
+            results.append(
+                PhaseResult(
+                    phase="backend_ready",
+                    command=("http-healthcheck", f"{backend_url}/api/v1/health/"),
+                    returncode=1,
+                    duration_ms=round((perf_counter() - started) * 1000, 3),
+                    stdout="",
+                    stderr=str(exc),
+                )
+            )
+            raise HarnessError(
+                "El backend S11 no quedó disponible en el puerto descubierto."
+            ) from exc
+        results.append(
+            PhaseResult(
+                phase="backend_ready",
+                command=("http-healthcheck", f"{backend_url}/api/v1/health/"),
+                returncode=0,
+                duration_ms=round((perf_counter() - started) * 1000, 3),
+                stdout="ready",
+                stderr="",
+            )
+        )
 
     def _persist_harness_log(
         self,
@@ -325,8 +421,14 @@ class FullStackHarness:
 
     @staticmethod
     def _render(command: tuple[str, ...], environment: dict[str, str]) -> tuple[str, ...]:
-        run_id = environment.get("S11_RUN_ID", "{run_id}")
-        return tuple(part.format(run_id=run_id) for part in command)
+        values = {
+            "run_id": environment.get("S11_RUN_ID", "{run_id}"),
+            "backend_url": environment.get("S11_BACKEND_URL", "{backend_url}"),
+            "backend_discovered_at": environment.get(
+                "S11_BACKEND_DISCOVERED_AT", "{backend_discovered_at}"
+            ),
+        }
+        return tuple(part.format(**values) for part in command)
 
     @staticmethod
     def _render_environment(environment: dict[str, str]) -> dict[str, str]:
@@ -343,6 +445,49 @@ def _run(command: tuple[str, ...], *, cwd: Path, env: dict[str, str]):
         capture_output=True,
         text=True,
     )
+
+
+def _backend_url_from_compose_port(stdout: str) -> tuple[str, int]:
+    value = stdout.strip()
+    match = _COMPOSE_PORT.fullmatch(value)
+    if match is None:
+        raise HarnessError(
+            "Docker Compose devolvió un puerto inválido; se exige una publicación IPv4 loopback."
+        )
+    port = int(match.group("port"))
+    if not 1 <= port <= 65535:
+        raise HarnessError("Docker Compose devolvió un puerto fuera del rango TCP válido.")
+    return f"http://127.0.0.1:{port}", port
+
+
+def _wait_for_backend(backend_url: str, *, timeout_seconds: float = 60.0) -> None:
+    endpoint = f"{backend_url}/api/v1/health/"
+    deadline = time.monotonic() + timeout_seconds
+    last_error: Exception | None = None
+    while time.monotonic() < deadline:
+        try:
+            with urllib.request.urlopen(endpoint, timeout=2) as response:  # noqa: S310
+                try:
+                    payload = json.loads(response.read())
+                except (json.JSONDecodeError, UnicodeDecodeError, TypeError) as exc:
+                    last_error = RuntimeError(f"El health check no devolvió JSON válido: {exc}")
+                    time.sleep(0.25)
+                    continue
+                if (
+                    response.status == 200
+                    and isinstance(payload, dict)
+                    and payload.get("status") == "ok"
+                    and payload.get("db") is True
+                    and payload.get("redis") is True
+                ):
+                    return
+                last_error = RuntimeError(
+                    f"Health no disponible: HTTP {response.status}, payload={payload!r}"
+                )
+        except (OSError, urllib.error.URLError) as exc:
+            last_error = exc
+        time.sleep(0.25)
+    raise HarnessError(f"Timeout esperando {endpoint}: {last_error}")
 
 
 def _valid_run_id(value: str) -> bool:
