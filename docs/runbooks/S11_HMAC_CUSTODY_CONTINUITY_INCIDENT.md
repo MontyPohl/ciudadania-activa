@@ -63,9 +63,11 @@ El intento previo de S11-C2/EX-02 queda registrado como
 
 ## 4. Nueva época de custodia
 
-La nueva época entró en vigor para la repetición P02/P03 cuando el runtime cargó la
+La nueva época entró en vigor para la repetición P02/P03 y se mantuvo durante la repetición C1
+cuando el runtime cargó la
 `S11_CUSTODY_HMAC_KEY` estable configurada mediante el mecanismo local aprobado y comprobó su
-fingerprint no secreto `7205a04f93cc3da9`. La repetición no generó la clave ni modificó `.env`.
+fingerprint no secreto `7205a04f93cc3da9`. Las repeticiones no generaron la clave ni modificaron
+`.env`.
 
 La clave de la nueva época debe:
 
@@ -76,8 +78,8 @@ La clave de la nueva época debe:
 - conservarse hasta terminar la retención aprobada de todos los artefactos que autentique.
 
 La nueva época no resigna ni reautentica la evidencia histórica y no introduce un keyring en el
-runtime. Para la repetición P02/P03, `S11_HOST_GID=1003` se exportó sólo al proceso a partir de
-`id -g`, como permite el runbook; no se versionó ni se escribió en `.env`.
+runtime. Para las repeticiones P02/P03 y C1, `S11_HOST_GID=1003` se exportó sólo al proceso a
+partir de `id -g`, como permite el runbook; no se versionó ni se escribió en `.env`.
 
 ## 5. Gates y secuencia obligatoria
 
@@ -88,9 +90,9 @@ runtime. Para la repetición P02/P03, `S11_HOST_GID=1003` se exportó sólo al p
 | Metodología Opción A | `PASS` |
 | Diagnóstico HMAC | `COMPLETE` |
 | P02/P03 | `PASS` |
-| C1 | `REPEAT_REQUIRED` |
-| EX-02 | `BLOCKED_PENDING_CUSTODY_REBASELINE` |
-| EX-03 | `BLOCKED_PENDING_CUSTODY_REBASELINE` |
+| C1 | `PASS` |
+| EX-02 | `NOT_EXECUTED — REQUIERE PRE-GATE SEPARADO` |
+| EX-03 | `NOT_EXECUTED — REQUIERE PRE-GATE SEPARADO` |
 
 La secuencia ya completada fue:
 
@@ -98,21 +100,19 @@ La secuencia ya completada fue:
 2. configurar localmente `S11_HOST_GID=1003`;
 3. repetir P02/P03;
 4. verificar la nueva evidencia P02/P03;
+5. repetir C1 con la misma clave custodial;
+6. verificar la nueva evidencia C1.
 
-La secuencia pendiente es:
-
-1. repetir C1 con la misma clave custodial;
-2. verificar la nueva evidencia C1;
-3. sólo entonces evaluar el desbloqueo de EX-02.
-
-No se avanza a S11-C3 mientras esta secuencia siga incompleta.
+La secuencia de rebaseline de custodia queda completa. Este cierre no ejecuta ni autoriza EX-02 o
+EX-03, no declara listo su pre-gate y no avanza a S11-C3.
 
 ## 6. Preservación de alcance
 
 Este registro no cambia objetivos, hipótesis, indicadores, fórmulas, escenarios, denominadores,
 criterios `PASS`/`FAIL`/`NOT_DEMONSTRATED`, la matriz de eventos, el harness ni la independencia
-de EX-02 y EX-03. La repetición sólo utilizó Compose local aislado para P02/P03; no ejecutó C1 ni
-experimentos, no creó evidencia C2 y no modificó DB, Redis, storage ni despliegues productivos.
+de EX-02 y EX-03. Las repeticiones utilizaron únicamente Compose local aislado para P02/P03 y C1;
+no ejecutaron escenarios funcionales, no crearon evidencia C2 y no modificaron DB, Redis, storage
+ni despliegues de producción.
 
 ## 7. Gate documental
 
@@ -152,3 +152,43 @@ mientras el paquete de verificación se conservó con permisos privados.
 **Resultado P03:** `PASS`
 
 **Gate operativo:** `S11_P02_P03_REPEATED_PASS`
+
+## 9. Repetición C1 bajo la nueva época
+
+**Fecha:** 21/09/2026
+
+**Baseline de ejecución:** `main@f0bce178a22f3a80f15619caab7a3aeaa7c63d14`
+
+**Run ID:** `s11-8448491d-3347-5c00-9f44-d8ae110e9095`
+
+**Verification ID:** `s11-c1-20260921-isolation-repro-reset-v2`
+
+**Fingerprint custodial:** `7205a04f93cc3da9`
+
+La repetición usó el entorno `isolated-experiment`, PostgreSQL
+`ciudadania_s11_experiment`, Redis DB `11`, storage `/s11-objects` y un puerto host dinámico. El
+dataset `s11-functional-v1`, versión `v1`, seed `20260921`, fue generado dos veces con bytes y
+cantidades idénticos al artefacto versionado; su SHA-256 fue
+`66074d1617c4e1b7a32b854090d26556faa9b35a000452787ff3b47d6f0edc1c`.
+
+Los canarios controlados en DB, Redis y storage desaparecieron mediante el reset oficial. Un
+segundo reset produjo nuevamente el estado aislado esperado. El manifest final quedó
+`COMPLETED`, con SHA-256
+`8a2c809839336d4c3c2ba5cd70bc649e2a2a6e72077ff549da40954bc1cc9a9a`, sin escenarios
+funcionales ejecutados.
+
+Primary, backup y restore conservaron los mismos siete registros, clasificación, retención,
+SHA-256 y HMAC. El cierre verificable está en
+`var/s11-runs/custody-verifications/s11-c1-20260921-isolation-repro-reset-v2/complete.json`, cuyo
+SHA-256 es `18170777ea896e3ef8bd6b752aac40d695f84c3a652282c5c69433c18fd748f0`.
+Tras la verificación se limpiaron DB, Redis y storage experimentales y se desmontaron los
+contenedores, la red y el volumen de Compose S11. No se ejecutaron EX-02, EX-03 ni otro escenario
+funcional; producción permaneció intacta.
+
+**Evidencia histórica:** `HISTORICAL_UNVERIFIABLE — PRESERVED`
+
+**Evidencia nueva:** `VERIFIABLE_WITH_CURRENT_CUSTODY_KEY`
+
+**Resultado C1:** `PASS`
+
+**Gate operativo:** `S11C1_REPEATED_PASS`

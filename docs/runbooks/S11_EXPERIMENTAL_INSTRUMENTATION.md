@@ -13,9 +13,11 @@ verificación histórica `s11-custody-20260921-p02p03-v5` se conserva, pero sus 
 época y repetir P02/P03 y C1 está documentada en
 [`S11_HMAC_CUSTODY_CONTINUITY_INCIDENT.md`](S11_HMAC_CUSTODY_CONTINUITY_INCIDENT.md).
 P02/P03 se repitieron con `s11-custody-20260921-p02p03-v6` y quedaron en `PASS`, con evidencia
-`VERIFIABLE_WITH_CURRENT_CUSTODY_KEY`. C1 sigue `REPEAT_REQUIRED`; por ello EX-02/EX-03 continúan
-`BLOCKED_PENDING_CUSTODY_REBASELINE`. `--custody-approved` continúa siendo una afirmación
-explícita del operador por run y no se utilizó en ninguna verificación P02/P03.
+`VERIFIABLE_WITH_CURRENT_CUSTODY_KEY`. C1 se repitió con el run
+`s11-8448491d-3347-5c00-9f44-d8ae110e9095` y quedó en `PASS`, también verificable con la clave
+actual. Esto completa el rebaseline de custodia, pero no ejecuta ni autoriza EX-02/EX-03: cada
+escenario requiere su propio pre-gate. `--custody-approved` continúa siendo una afirmación
+explícita del operador por run y no se utilizó en las verificaciones P02/P03 o C1.
 
 Los flags S11 están apagados por defecto y el guard rechaza todo target que no cumpla
 simultáneamente:

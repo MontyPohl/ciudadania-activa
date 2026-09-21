@@ -1636,15 +1636,15 @@ Gate formal de cierre: `S11A_METHODOLOGY_FROZEN`.
   P02/P03 y C1 antes de ejecutar EX-02. La decisión completa y los hashes preservados constan en
   [`S11_HMAC_CUSTODY_CONTINUITY_INCIDENT.md`](runbooks/S11_HMAC_CUSTODY_CONTINUITY_INCIDENT.md).
 - La nueva clave custodial fue configurada fuera de Git y el runtime comprobó el fingerprint no
-  secreto `7205a04f93cc3da9`. Debe mantenerse estable durante C1 y los runs posteriores, y
-  conservarse durante toda la retención aplicable. Para la repetición P02/P03,
+  secreto `7205a04f93cc3da9`. Se mantuvo durante C1 y debe continuar estable para los runs
+  posteriores y durante toda la retención aplicable. Para las repeticiones P02/P03 y C1,
   `S11_HOST_GID=1003` se exportó al proceso desde `id -g`; `.env` no fue modificado.
 - El intento previo S11-C2/EX-02 queda `S11C2_EX02_NOT_DEMONSTRATED` por una causa de
   infraestructura/custodia. No es un `FAIL` funcional: no se creó un run C2 y el experimento no
   comenzó.
 - Gates vigentes: S11-A `PASS`; S11-B `PASS`; metodología Opción A `PASS`; diagnóstico HMAC
-  `COMPLETE`; P02/P03 `PASS`; C1 `REPEAT_REQUIRED`; EX-02 y EX-03
-  `BLOCKED_PENDING_CUSTODY_REBASELINE`. No se avanza a S11-C3.
+  `COMPLETE`; P02/P03 `PASS`; C1 `PASS`. EX-02 y EX-03 no fueron ejecutados ni autorizados y
+  requieren un pre-gate separado. No se avanza a S11-C3.
 - La decisión no modifica `S11A-v1.0`, objetivos, hipótesis, indicadores, fórmulas, escenarios,
   denominadores, criterios de decisión, matriz de eventos, harness ni la independencia de EX-02 y
   EX-03.
@@ -1668,7 +1668,15 @@ Gate formal de cierre: `S11A_METHODOLOGY_FROZEN`.
   pasaron. Gate: `S11_P02_P03_REPEATED_PASS`.
 - C1: la verificación histórica `s11-c1-20260921-isolation-repro-reset-v1` fue ejecutada y su
   `complete.json` conserva el SHA-256 registrado. El artefacto está
-  `HISTORICAL_UNVERIFIABLE` por el mismo incidente y C1 debe repetirse después de P02/P03.
+  `HISTORICAL_UNVERIFIABLE` por el mismo incidente y permanece preservado.
+- Repetición C1: el run `s11-8448491d-3347-5c00-9f44-d8ae110e9095` verificó aislamiento,
+  generación byte a byte reproducible de `s11-functional-v1`, reset idempotente con canarios,
+  manifest `COMPLETED`, evidencia persistente y backup/restore. Primary, backup y restore
+  conservaron siete registros con SHA-256/HMAC, clasificación y retención válidos bajo la nueva
+  época. El paquete `s11-c1-20260921-isolation-repro-reset-v2` quedó
+  `VERIFIABLE_WITH_CURRENT_CUSTODY_KEY`; su `complete.json` tiene SHA-256
+  `18170777ea896e3ef8bd6b752aac40d695f84c3a652282c5c69433c18fd748f0`. Pasaron `125` tests de
+  `experiments_app` y `manage.py check`. Gate: `S11C1_REPEATED_PASS`.
 - Backend completo: 2095 tests, 95 % de cobertura. Ruff, `manage.py check`,
   `makemigrations --check --dry-run` y el compose combinado pasan. El frontend no cambió; se
   conserva su baseline previo de 360 tests, ESLint, typecheck y build.
@@ -1680,14 +1688,15 @@ Gate formal de cierre: `S11A_METHODOLOGY_FROZEN`.
   observados; permanece `NOT_DEMONSTRATED`.
 - La atestación histórica P02/P03 continúa inutilizable por pérdida de continuidad HMAC, pero la
   repetición independiente `s11-custody-20260921-p02p03-v6` cerró nuevamente P02/P03 en `PASS`.
-  C1 sigue `REPEAT_REQUIRED` y debe repetirse con la misma clave antes de EX-02.
+- La evidencia C1 histórica también permanece `HISTORICAL_UNVERIFIABLE`, pero la repetición
+  independiente `s11-c1-20260921-isolation-repro-reset-v2` cerró C1 en `PASS` bajo la nueva época.
 - El intento previo S11-C2/EX-02 no inició el experimento y queda
   `S11C2_EX02_NOT_DEMONSTRATED` por infraestructura/custodia, no como fallo funcional.
 - R2 no fue ejecutada y su evidencia válida no existe.
 - La cobertura global previa no decide HT-5; falta instrumentación de cobertura acotada.
 - El harness sigue exigiendo confirmación explícita por run. La clave HMAC custodial estable debe
-  conservarse para C1 y todos los runs posteriores; ninguna verificación P02/P03 utilizó
-  `--custody-approved` ni ejecutó el harness.
+  conservarse para todos los runs posteriores; las verificaciones P02/P03 y C1 no utilizaron
+  `--custody-approved` ni ejecutaron escenarios funcionales.
 
 ### Commits relevantes
 
@@ -1713,9 +1722,8 @@ La política `S11-CUSTODY-v1.0` fija retención `INTERNAL=90 días` y
 Emmanuel Pohl Amarilla; `SENSITIVE` permanece deshabilitado y `SECRET` nunca se persiste.
 Primary, backup y restore se ubican respectivamente en `var/s11-runs`, `var/s11-backup` y
 `var/s11-restore`. La evidencia histórica permanece `HISTORICAL_UNVERIFIABLE`, pero la repetición
-independiente bajo la nueva época dejó `S11A-P02=PASS` y `S11A-P03=PASS`. C1 continúa
-`REPEAT_REQUIRED`; EX-02 y EX-03 permanecen `BLOCKED_PENDING_CUSTODY_REBASELINE` hasta repetir y
-verificar C1.
+independiente bajo la nueva época dejó `S11A-P02=PASS`, `S11A-P03=PASS` y C1 `PASS`. EX-02 y EX-03
+no se ejecutaron ni quedaron autorizados por este cierre; requieren su propio pre-gate.
 
 ---
 
