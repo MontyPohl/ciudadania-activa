@@ -21,7 +21,7 @@ Las diferencias entre el prototipo real y lo declarado en la tesis se registran 
 | Base de datos | PostgreSQL 17 + PostGIS, alojada en **Supabase** |
 | Almacenamiento | Supabase Storage |
 | Caché / broker | Redis 7 |
-| Asincronía | Celery (worker desplegado; Beat definido para S10 y mantenido en 0 dynos hasta su activación autorizada) |
+| Asincronía | Celery (`worker=1` y un único `beat=1` activos desde el cierre productivo de S10) |
 | Hosting | Vercel (frontend) · Heroku (backend + workers) · Supabase (DB + storage) |
 | Calidad | Ruff (Python) · ESLint + Prettier (TypeScript) · GitHub Actions |
 
@@ -350,11 +350,12 @@ Cada Pull Request ejecuta `ci-backend.yml` (Ruff + `pytest` con servicios PostGI
 `ci-frontend.yml` (Prettier + Vitest + ESLint + `tsc --noEmit` + `next build`) mediante GitHub Actions. La
 rama `main` está protegida: solo se integra con ambos checks en verde.
 
-El despliegue continuo parte de `main`: el frontend se despliega en **Vercel** y el backend junto
-con los workers de Celery en **Heroku**, conectados a la base de datos y el storage de
-**Supabase** mediante `DATABASE_URL`. La configuración de estos proveedores (creación de
-proyectos, variables de entorno de producción y conexión del repositorio) se realiza desde sus
-paneles y no se automatiza desde este repositorio.
+El frontend se despliega automáticamente en **Vercel** desde `main`. El backend y los procesos de
+Celery se publican por separado en **Heroku** mediante un push explícito a su remote Git; un merge
+en GitHub no despliega Heroku. Los procesos backend acceden a PostgreSQL en **Supabase** mediante
+`DATABASE_URL`; sólo el backend web accede a Storage con `SUPABASE_URL` y las credenciales privadas
+correspondientes. La configuración de los proveedores se administra desde sus paneles y no se
+versiona en el repositorio.
 
 ### Entornos desplegados
 
@@ -363,12 +364,23 @@ paneles y no se automatiza desde este repositorio.
 | Frontend | Vercel | `https://ciudadania-activa.vercel.app` | `Root Directory: frontend`; sólo necesita las variables públicas `NEXT_PUBLIC_*`. El proyecto conserva 28 variables de backend heredadas que no llegan al navegador, pero amplían el radio de exposición y deben retirarse en una operación de seguridad separada |
 | Backend | Heroku | `https://ciudadania-activa-api-5b4f8e81977b.herokuapp.com` | App `ciudadania-activa-api`, stack `container`; proceso `web`: `gunicorn config.wsgi:application --bind 0.0.0.0:$PORT`. **Sin fase `release`: ningún deploy migra la base** |
 | Worker de Celery | Heroku | — | Proceso `worker` de la misma app: `celery -A config.celery:app worker --loglevel=info --concurrency=2` |
-| Celery Beat | Heroku | — | Proceso `beat` definido y escalado a **0 dynos**; lo activa el Sprint 10 con exactamente 1 instancia |
+| Celery Beat | Heroku | — | Proceso `beat` activo con exactamente **1 dyno**; agenda `reports.auto_close` cada 15 minutos |
 | Redis | Heroku Key-Value Store | — | Plan `mini`. Entrega `rediss://`, que exige `?ssl_cert_reqs=none` en `REDIS_URL` |
 | Base de datos y storage | Supabase | — | PostgreSQL 17 + PostGIS en el esquema `gis` |
 
 Estado del backend: `GET /api/v1/health/` → `{"status":"ok","db":true,"redis":true}`. El backend
 restringe `CORS_ALLOWED_ORIGINS` al dominio del frontend.
+
+Estado operativo tras el cierre de S10: Heroku `v14`, `web=1`, `worker=1`, `beat=1` y
+`REPORT_AUTO_CLOSE_HOURS=72`. Pendientes conocidos que no deben confundirse con funcionalidad
+operativa completa:
+
+- `BREVO_API_KEY` está ausente; el correo transaccional no está operativo. Las entregas fallan de
+  forma controlada y consultable, sin impedir el arranque del worker.
+- HSTS permanece pendiente.
+- Redis usa TLS con `CERT_NONE` (`ssl_cert_reqs=none`), deuda de seguridad conocida.
+- La clasificación por IA está intencionalmente deshabilitada mediante
+  `AI_CLASSIFICATION_ENABLED=false`.
 
 ### Migraciones estructurales: orden obligatorio
 
@@ -379,14 +391,19 @@ acto explícito:
 
 1. trabajar en rama o *pull request* y esperar **CI en verde**;
 2. generar el **`pg_dump` productivo previo** (ver [Respaldos de la base de datos](#respaldos-de-la-base-de-datos));
-3. hacer *merge*/push a `main` y desplegar (`git subtree push --prefix backend heroku main`);
-4. comprobar que el deploy **no** alteró el esquema (`showmigrations`);
-5. aplicar la migración a mano, y solo entonces:
+3. hacer *merge*/push a `main`; esto despliega Vercel, pero **no** Heroku;
+4. activar mantenimiento y detener todos los writers (`web=0`, `worker=0`, `beat=0`);
+5. desplegar el backend con el artefacto autorizado mediante push al remote de Heroku. En esta
+   infraestructura, ese push inicia inmediatamente el build y el deployment;
+6. comprobar que el deploy **no** alteró el esquema (`showmigrations`);
+7. aplicar la migración a mano, y solo entonces:
    `heroku run --app ciudadania-activa-api python manage.py migrate --noinput`;
-6. **verificar producción** con consultas de solo lectura (`showmigrations`, esquema, catálogos);
-7. generar un respaldo posterior si el cambio es estructuralmente relevante.
+8. **verificar producción** con consultas de solo lectura (`showmigrations`, esquema, catálogos);
+9. restaurar primero `web=1`, después `worker=1` y finalmente un único `beat=1`, verificando cada
+   proceso antes de retirar el mantenimiento;
+10. generar un respaldo posterior si el cambio es estructuralmente relevante.
 
-El respaldo deja de ser una carrera contra el pre-deploy, pero sigue siendo obligatorio: el paso 5
+El respaldo deja de ser una carrera contra el pre-deploy, pero sigue siendo obligatorio: el paso 7
 es irreversible. El procedimiento completo está en
 [docs/runbooks/HEROKU_MIGRATION.md](docs/runbooks/HEROKU_MIGRATION.md).
 
@@ -412,6 +429,12 @@ pg_dump --format=custom --no-owner --no-acl \
 
 pg_restore --list <archivo.dump>   # validación: debe leerse sin errores
 ```
+
+Para evitar validar un archivo todavía abierto por `pg_dump`, los respaldos operativos se escriben
+primero con sufijo `.partial`. Se espera al proceso real, se exige `exit=0` y `size > 0`, se ejecuta
+`pg_restore --list` y sólo entonces se renombra el archivo final. Durante S10 un archivo fue
+observado con 0 bytes mientras `pg_dump` seguía activo; no fue corrupción de PostgreSQL, sino una
+validación prematura que este procedimiento corrige.
 
 Al restaurar en una instancia PostgreSQL estándar, la extensión `supabase_vault` no existe y sus
 objetos fallan: es esperado y no afecta a los datos de la aplicación (`--exclude-schema=vault` lo
