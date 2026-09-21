@@ -36,6 +36,12 @@ class Command(BaseCommand):
             raise CommandError("run_id no tiene el formato S11 esperado.")
 
         store = evidence_store()
+        with store.mutation():
+            result = self._finalize_locked(store, run_id, options)
+        self.stdout.write(self.style.SUCCESS(json.dumps(result, sort_keys=True)))
+
+    def _finalize_locked(self, store, run_id, options):
+        store.recover_finalization(run_id)
         records = store.records(run_id)
         initial = [
             record for record in records if record["artifact_type"] == "run-manifest-initial"
@@ -91,17 +97,19 @@ class Command(BaseCommand):
         ]
 
         status = RunStatus(options["status"])
+        finished_at = datetime.now(UTC)
         try:
             final = finalize_manifest(
                 manifest,
-                finished_at=datetime.now(UTC),
+                finished_at=finished_at,
                 status=status,
                 artifacts=references,
                 invalidity_reason=options["invalidity_reason"],
             )
         except ValueError as exc:
             raise CommandError(str(exc)) from exc
-        record = store.persist_json(
+        record = store.finalize_with_json_artifact(
+            finished_at=finished_at,
             run_id=run_id,
             scenario_id=manifest.scenario_id,
             artifact_type="run-manifest-final",
@@ -114,17 +122,10 @@ class Command(BaseCommand):
         final_errors = store.verify(run_id)
         if final_errors:
             raise CommandError(f"Falló la verificación final: {final_errors}")
-        self.stdout.write(
-            self.style.SUCCESS(
-                json.dumps(
-                    {
-                        "artifact_count": len(references),
-                        "manifest_sha256": record.sha256,
-                        "run_id": run_id,
-                        "status": final.status,
-                        "verification": "PASS",
-                    },
-                    sort_keys=True,
-                )
-            )
-        )
+        return {
+            "artifact_count": len(references),
+            "manifest_sha256": record.sha256,
+            "run_id": run_id,
+            "status": final.status,
+            "verification": "PASS",
+        }

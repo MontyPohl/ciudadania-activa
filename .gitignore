@@ -35,6 +35,8 @@ frontend/test-results/
 
 # Artefactos y objetos persistentes S11 (custodia local, nunca Git)
 /var/s11-runs/
+/var/s11-backup/
+/var/s11-restore/
 /var/s11-objects/
 /backend/.s11-test-artifacts/
 

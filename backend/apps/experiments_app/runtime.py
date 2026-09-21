@@ -5,6 +5,7 @@ from pathlib import Path
 
 from django.conf import settings
 
+from .custody import CustodyManager
 from .evidence import EvidenceStore
 from .isolation import IsolationConfig, IsolationReport, verify_isolation
 
@@ -43,7 +44,34 @@ def evidence_store() -> EvidenceStore:
     return EvidenceStore(
         Path(settings.S11_ARTIFACT_ROOT),
         allow_sensitive=bool(getattr(settings, "S11_ALLOW_SENSITIVE_PERSISTENCE", False)),
+        custody_hmac_key=(
+            settings.S11_CUSTODY_HMAC_KEY.encode() if settings.S11_CUSTODY_HMAC_KEY else None
+        ),
+        publication_verification_key=_publication_verification_key(),
     )
+
+
+def custody_manager() -> CustodyManager:
+    require_isolation()
+    return CustodyManager(
+        Path(settings.S11_ARTIFACT_ROOT),
+        Path(settings.S11_BACKUP_ROOT),
+        Path(settings.S11_RESTORE_ROOT),
+        custody_hmac_key=(
+            settings.S11_CUSTODY_HMAC_KEY.encode() if settings.S11_CUSTODY_HMAC_KEY else None
+        ),
+        publication_verification_key=_publication_verification_key(),
+    )
+
+
+def _publication_verification_key() -> bytes | None:
+    value = settings.S11_PUBLICATION_APPROVAL_PUBLIC_KEY
+    if not value:
+        return None
+    try:
+        return bytes.fromhex(value)
+    except ValueError:
+        return None
 
 
 def valid_run_id(value: str) -> bool:

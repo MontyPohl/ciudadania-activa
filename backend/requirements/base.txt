@@ -13,6 +13,8 @@ requests>=2.32,<3.0
 # determinan el formato de verdad, no la extensión ni el Content-Type del cliente.
 # Se prefiere a python-magic, que exige libmagic como paquete de sistema.
 Pillow>=11.0,<12.0
+# Firma Ed25519 offline para aprobaciones PUBLIC de evidencia S11.
+cryptography>=45.0,<51.0
 psycopg[binary]>=3.2,<3.3
 # SDK oficial de Google para Gemini (Sprint 8). Es `google-genai`, no el legado
 # `google-generativeai`: la Interactions API que usa el adapter solo existe aquí.

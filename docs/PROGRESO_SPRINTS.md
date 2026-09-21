@@ -1600,6 +1600,8 @@ ausente. S11, S12 y S13 no fueron iniciados durante este cierre.
   `resolution_cycle` y protocolo común.
 - `docs/tesis/S11A_DATOS_EVIDENCIA_Y_REBASELINE.md`: datasets, aislamiento, privacidad,
   retención, cadena de evidencia y rebaseline.
+- `docs/tesis/S11A_POLITICA_CUSTODIA_Y_ACCESO.md`: política aprobada de retención,
+  responsables nominales, primary/backup/restore, acceso y destrucción para cerrar P02/P03.
 
 La versión `S11A-v1.0` fue redactada contra
 `main@635d89956ca0632d620916dc0ab298af48079ec4` y quedó oficialmente versionada en
@@ -1613,22 +1615,30 @@ Gate formal de cierre: `S11A_METHODOLOGY_FROZEN`.
 - Gate inicial: rama `main`, HEAD exacto y working tree limpio.
 - Control documental: IDs, clasificaciones, estados, escenarios, umbrales, hashes R2 y referencias
   cruzadas verificados sobre los artefactos S11-A.
-- S11-B: 57 tests específicos verifican manifests, datasets, aislamiento/reset, export read-only,
-  instrumentación HTTP/Celery, trazabilidad, harness y custodia/redacción.
-- Backend completo: 2043 tests; frontend: 360 tests. Ruff, ESLint, typecheck TypeScript, build
-  Next.js, `manage.py check` y `makemigrations --check --dry-run` pasan.
+- S11-B/P02-P03: 109 tests de `experiments_app` verifican manifests, datasets,
+  aislamiento/reset, export read-only, instrumentación HTTP/Celery, trazabilidad, harness y
+  custodia/redacción; 60 corresponden específicamente a evidencia y custodia.
+- P02/P03: verificación `s11-custody-20260921-p02p03-v5` ejecutada en dos contenedores
+  efímeros separados. Persistencia, matriz nominal, gate PUBLIC, rechazo SENSITIVE/SECRET,
+  backup, restore, hashes y destrucción del canario sintético quedaron verificados. Evidencia local
+  en `var/s11-runs/custody-verifications/s11-custody-20260921-p02p03-v5/`; SHA-256 de
+  `complete.json`: `6891300d407d2666c25c3eedfcc4b4a5d7057a5ea9d6e299df0b4f0baf6fbd32`.
+  `attestation.json` liga el mismo snapshot al commit final usando blobs Git.
+- Backend completo: 2095 tests, 95 % de cobertura. Ruff, `manage.py check`,
+  `makemigrations --check --dry-run` y el compose combinado pasan. El frontend no cambió; se
+  conserva su baseline previo de 360 tests, ESLint, typecheck y build.
 - No se ejecutó Playwright S11, ningún escenario oficial ni ninguna medición HT.
 
 ### Problemas encontrados
 
 - EX-01/HE tiene cuestionario en el Anexo G, pero carece de formulario aprobado, dataset y N
   observados; permanece `NOT_DEMONSTRATED`.
-- La retención institucional y la ubicación/matriz de acceso a artefactos requieren decisión antes
-  de S11-C.
+- La retención, ubicaciones y matriz nominal que bloqueaban P02/P03 fueron formalizadas y
+  verificadas el 21/09/2026. S11-C1 continúa sin ejecutarse y conserva sus gates propios.
 - R2 no fue ejecutada y su evidencia válida no existe.
 - La cobertura global previa no decide HT-5; falta instrumentación de cobertura acotada.
-- El harness exige aprobación explícita de custodia y un secreto HMAC efímero no versionado; S11-B
-  no interpreta su existencia como cierre de `S11A-P02/P03`.
+- El harness sigue exigiendo confirmación explícita por run y un secreto HMAC efímero no
+  versionado. La verificación de P02/P03 no utilizó `--custody-approved` ni ejecutó el harness.
 
 ### Commits relevantes
 
@@ -1648,6 +1658,13 @@ reset idempotente, exportación ORM read-only, telemetría correlacionada HTTP/C
 full-stack futuro para EX-02…EX-08 y custodia persistente con clasificación, redacción y SHA-256.
 EX-09 y EX-10 quedan preparados a nivel de insumos e instrumentación para S11-C. Esta preparación
 no contiene `PASS/FAIL` de hipótesis, resultados académicos ni cambios sobre producción.
+
+La política `S11-CUSTODY-v1.0` fija retención `INTERNAL=90 días` y
+`EXPERIMENTAL=365 días` desde `finished_at`; `PUBLIC` exige aprobación explícita de Monty
+Emmanuel Pohl Amarilla; `SENSITIVE` permanece deshabilitado y `SECRET` nunca se persiste.
+Primary, backup y restore se ubican respectivamente en `var/s11-runs`, `var/s11-backup` y
+`var/s11-restore`. Con la evidencia custodial indicada, `S11A-P02=RESOLVED` y
+`S11A-P03=RESOLVED`. Esto no constituye ejecución ni aprobación de S11-C1.
 
 ---
 
