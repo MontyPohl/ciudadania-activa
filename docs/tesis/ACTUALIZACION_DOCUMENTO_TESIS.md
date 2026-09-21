@@ -390,7 +390,7 @@ La tesis revisada ya formula muchos resultados como “esperados”; conservar e
 
 Declarar al menos:
 
-- ciclo institucional S10 implementado en rama pero todavía no integrado ni activo en producción; el esquema productivo conserva sólo las dos columnas aditivas del intento revertido;
+- ciclo institucional S10 implementado en rama pero todavía no integrado ni activo en producción; el esquema productivo conserva sólo las dos migraciones aditivas —cuatro columnas en total— del intento revertido;
 - dependencia externa opcional de IA y ausencia de resultado canónico;
 - clasificación inválida actualmente sin registro placeholder, en contradicción documental;
 - X/Telegram sin pipeline;
