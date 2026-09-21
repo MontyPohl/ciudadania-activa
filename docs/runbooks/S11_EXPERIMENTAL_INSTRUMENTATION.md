@@ -121,6 +121,32 @@ start → discover backend port → health check → setup → manifest inicial
       → manifest final → shutdown
 ```
 
+### Preflight frontend del host
+
+El frontend usa **npm** con `frontend/package-lock.json` (lockfile v3). Next.js exige
+Node `>=20.9.0` y Playwright exige Node `>=20`. Antes de autorizar un run, preparar las
+dependencias y comprobar la CLI sin ejecutar escenarios:
+
+```bash
+node --version
+npm --version
+cd frontend
+npm ci
+npm exec playwright -- --version
+npx playwright install --list
+```
+
+El harness repite automáticamente las comprobaciones de Node, npm, lockfile y CLI local antes de
+levantar Compose. Si falta cualquiera, aborta sin crear un run. Si un ejecutable desaparece después
+de crear el manifest, la fase queda registrada con timestamp, comando, excepción y código `127`;
+`harness-execution.json` y el manifest final quedan ambos `FAILED`. El campo
+`invalidity_reason` continúa reservado exclusivamente para manifests `INVALID`; un manifest
+`FAILED` lo conserva en `null` por contrato.
+
+Los tests que simulan fallos del storage externo deben ejecutarse fuera del adaptador local S11,
+por ejemplo con `S11_LOCAL_STORAGE_ENABLED=false`. Con el overlay S11 activo, el adaptador local
+evita deliberadamente `requests` y esos casos no prueban la ruta externa.
+
 Una ejecución futura autorizada se inicia así:
 
 ```bash

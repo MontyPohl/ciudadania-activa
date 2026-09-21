@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import subprocess
 import time
 import urllib.error
@@ -22,6 +23,7 @@ _RUN_ID = re.compile(r"^s11-[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{
 _COMPOSE_PORT = re.compile(r"^127\.0\.0\.1:(?P<port>[0-9]{1,5})$")
 _BACKEND_CONTAINER_PORT = 8000
 _BACKEND_ALLOCATION = "docker-compose-dynamic"
+_MINIMUM_NODE_VERSION = (20, 9, 0)
 
 
 class HarnessError(RuntimeError):
@@ -52,6 +54,7 @@ class ScenarioPlan:
 class PhaseResult:
     phase: str
     command: tuple[str, ...]
+    started_at: str
     returncode: int
     duration_ms: float
     stdout: str
@@ -183,6 +186,7 @@ class FullStackHarness:
             raise HarnessError("Falta el secreto HMAC efímero S11; no se usa un valor versionado.")
         if self.runner is _run:
             verify_repository(self.repo_root, plan.expected_git_sha)
+            verify_frontend_tooling(self.repo_root)
         self._prepare_control_directories()
 
         runtime_environment = {**environment, "S11_SCENARIO_ID": plan.scenario_id}
@@ -204,6 +208,10 @@ class FullStackHarness:
             self._phases(results, "validate", plan.validate, runtime_environment)
         except HarnessError as exc:
             failure = exc
+        except Exception as exc:
+            failure = HarnessError(
+                f"Excepción de infraestructura no controlada: {type(exc).__name__}: {exc}"
+            )
         finally:
             if runtime_environment.get("S11_RUN_ID"):
                 if not any(
@@ -276,15 +284,33 @@ class FullStackHarness:
     ) -> None:
         for command_template in commands:
             command = self._render(command_template, environment)
+            started_at = _utc_timestamp()
             started = perf_counter()
-            completed = self.runner(
-                command,
-                cwd=self.repo_root / cwd if cwd else self.repo_root,
-                env=self._render_environment(environment),
-            )
+            try:
+                completed = self.runner(
+                    command,
+                    cwd=self.repo_root / cwd if cwd else self.repo_root,
+                    env=self._render_environment(environment),
+                )
+            except OSError as exc:
+                results.append(
+                    PhaseResult(
+                        phase=phase,
+                        command=command,
+                        started_at=started_at,
+                        returncode=127,
+                        duration_ms=round((perf_counter() - started) * 1000, 3),
+                        stdout="",
+                        stderr=f"{type(exc).__name__}: {exc}",
+                    )
+                )
+                raise HarnessError(
+                    f"{phase} no pudo iniciar {command[0]}: {type(exc).__name__}: {exc}"
+                ) from exc
             result = PhaseResult(
                 phase=phase,
                 command=command,
+                started_at=started_at,
                 returncode=completed.returncode,
                 duration_ms=round((perf_counter() - started) * 1000, 3),
                 stdout=completed.stdout,
@@ -306,6 +332,7 @@ class FullStackHarness:
         plan: ScenarioPlan,
         environment: dict[str, str],
     ) -> None:
+        started_at = _utc_timestamp()
         started = perf_counter()
         completed = self.runner(
             plan.discover_backend,
@@ -316,6 +343,7 @@ class FullStackHarness:
             PhaseResult(
                 phase="discover_backend",
                 command=plan.discover_backend,
+                started_at=started_at,
                 returncode=completed.returncode,
                 duration_ms=round((perf_counter() - started) * 1000, 3),
                 stdout=completed.stdout,
@@ -342,6 +370,7 @@ class FullStackHarness:
         environment: dict[str, str],
     ) -> None:
         backend_url = environment["S11_BACKEND_URL"]
+        started_at = _utc_timestamp()
         started = perf_counter()
         try:
             self.backend_probe(backend_url)
@@ -350,6 +379,7 @@ class FullStackHarness:
                 PhaseResult(
                     phase="backend_ready",
                     command=("http-healthcheck", f"{backend_url}/api/v1/health/"),
+                    started_at=started_at,
                     returncode=1,
                     duration_ms=round((perf_counter() - started) * 1000, 3),
                     stdout="",
@@ -363,6 +393,7 @@ class FullStackHarness:
             PhaseResult(
                 phase="backend_ready",
                 command=("http-healthcheck", f"{backend_url}/api/v1/health/"),
+                started_at=started_at,
                 returncode=0,
                 duration_ms=round((perf_counter() - started) * 1000, 3),
                 stdout="ready",
@@ -388,6 +419,7 @@ class FullStackHarness:
                 "schema_version": "s11-harness-log-v1",
                 "run_id": environment["S11_RUN_ID"],
                 "scenario_id": plan.scenario_id,
+                "recorded_at": _utc_timestamp(),
                 "status": "FAILED" if failure else "COMPLETED",
                 "failure": str(failure) if failure else None,
                 "phases": [asdict(result) for result in results],
@@ -492,6 +524,51 @@ def _wait_for_backend(backend_url: str, *, timeout_seconds: float = 60.0) -> Non
 
 def _valid_run_id(value: str) -> bool:
     return _RUN_ID.fullmatch(value) is not None
+
+
+def _utc_timestamp() -> str:
+    return datetime.now(UTC).isoformat().replace("+00:00", "Z")
+
+
+def verify_frontend_tooling(repo_root: Path) -> None:
+    frontend_root = repo_root / "frontend"
+    package_lock = frontend_root / "package-lock.json"
+    playwright_cli = frontend_root / "node_modules" / ".bin" / "playwright"
+    if not package_lock.is_file():
+        raise HarnessError("El preflight frontend exige frontend/package-lock.json.")
+    if not playwright_cli.is_file():
+        raise HarnessError("El preflight frontend exige npm ci y la CLI local de Playwright.")
+    if shutil.which("node") is None or shutil.which("npm") is None:
+        raise HarnessError("El preflight frontend exige node y npm disponibles en PATH.")
+
+    checks = (
+        (("node", "--version"), "Node"),
+        (("npm", "--version"), "npm"),
+        (("npm", "exec", "playwright", "--", "--version"), "Playwright"),
+    )
+    outputs: dict[str, str] = {}
+    for command, label in checks:
+        try:
+            completed = subprocess.run(
+                command,
+                cwd=frontend_root,
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            raise HarnessError(
+                f"El preflight frontend no pudo verificar {label}: {type(exc).__name__}."
+            ) from exc
+        if completed.returncode != 0:
+            raise HarnessError(f"El preflight frontend rechazó {label}.")
+        outputs[label] = completed.stdout.strip()
+
+    match = re.fullmatch(r"v(\d+)\.(\d+)\.(\d+)", outputs["Node"])
+    if match is None or tuple(int(part) for part in match.groups()) < _MINIMUM_NODE_VERSION:
+        minimum = ".".join(str(part) for part in _MINIMUM_NODE_VERSION)
+        raise HarnessError(f"El preflight frontend exige Node >= {minimum}.")
 
 
 def verify_repository(repo_root: Path, expected_git_sha: str) -> None:

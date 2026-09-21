@@ -1674,9 +1674,10 @@ Gate formal de cierre: `S11A_METHODOLOGY_FROZEN`.
   final pasaron SHA-256/HMAC con la clave custodial actual; el manifest final tiene SHA-256
   `02bc34d0ed51c69780b958e91cfe59f8d26a0b06ddba56a835cd985196be4dc0`.
 - Anomalía de instrumentación: `harness-execution.json` quedó con `status=COMPLETED` y
-  `failure=null`, mientras el manifest final quedó `FAILED` y `invalidity_reason=null`. La causa
-  es que el `FileNotFoundError` del ejecutable ausente no se normalizó como `HarnessError`; la
-  validación de completitud posterior sí impidió cerrar el run como exitoso.
+  `failure=null`, mientras el manifest final quedó `FAILED`. La causa es que el
+  `FileNotFoundError` del ejecutable ausente no se normalizó como `HarnessError`; la validación de
+  completitud posterior sí impidió cerrar el run como exitoso. `invalidity_reason=null` es correcto
+  para `FAILED`: por contrato ese campo sólo admite contenido cuando el estado es `INVALID`.
 - La suite acotada de identidad, creación, ciclo 0, harness y evidencia obtuvo `260 passed` y dos
   fallos en casos que simulan caída del storage externo: el overlay S11 fuerza storage local y las
   respuestas fueron `201`, no el `503` esperado por esos tests. Se registra como discrepancia de
@@ -1684,6 +1685,42 @@ Gate formal de cierre: `S11A_METHODOLOGY_FROZEN`.
 - El reset oficial final dejó cero reportes, Redis DB 11 vacío y `/s11-objects` sólo con su
   marcador. Se eliminaron contenedores, red y volumen de `ciudadania-s11`; producción permaneció
   intacta. No se avanzó a S11-C3.
+
+### S11-C2 / EX-02 — remediación de preflight (21/09/2026)
+
+- Baseline: `main@14e1919e2135afef540004316e99da5548dfb533`. El run fallido
+  `s11-3b48870b-7979-542b-8a46-1c6dfce7bed8` permaneció inmutable: sus sidecars SHA-256 y HMAC
+  continúan verificables y su resultado sigue `S11C2_EX02_NOT_DEMONSTRATED`.
+- Como el host no admitió instalación privilegiada, Node `v22.23.2` y npm `10.9.8` se instalaron
+  en `/home/monty/.local/s11-node-v22.23.2` a partir de la imagen local ya disponible
+  `node:22-bookworm-slim`; los enlaces están en `/home/monty/.local/bin`. No se instalaron paquetes
+  npm globales ni se modificó `.env`.
+- `npm ci` reconstruyó `frontend/node_modules` desde el lockfile v3. npm informó tres
+  vulnerabilidades de dependencias (`2 high`, `1 critical`); no se ejecutó `npm audit fix` ni se
+  cambió el lockfile porque esa remediación queda fuera del preflight.
+- Playwright `1.62.1`, Chromium `151.0.7922.34`, headless shell y FFmpeg fueron detectados en la
+  caché local. La CLI respondió y un smoke técnico abrió/cerró Chromium sin backend ni tests.
+- El harness ahora valida Node `>=20.9.0`, npm, `package-lock.json` y la CLI local de Playwright
+  antes de levantar Compose. Un `OSError` posterior queda como fase `FAILED` con timestamp,
+  comando, excepción y código `127`; el log registra `failure` no nulo y la finalización usa
+  manifest `FAILED`. La regresión se demostró primero en rojo y luego en verde.
+- Los dos tests de storage externo fueron diagnosticados: el overlay S11 activaba el adaptador
+  local, por lo que el parche de `requests` no intervenía. Sin cambiar los tests, ambos pasaron al
+  ejecutarse con `S11_LOCAL_STORAGE_ENABLED=false`, que es el contexto externo que presuponen.
+- Verificación posterior: `128 passed` en `experiments_app`; `24 passed` en la suite del harness;
+  los dos casos externos pasaron; Ruff y formato pasaron; `manage.py check` no informó problemas y
+  `makemigrations --check --dry-run` no detectó cambios.
+- El entorno de infraestructura respondió health sobre el puerto dinámico `32772`, con DB
+  `ciudadania_s11_experiment`, Redis DB `11` vacío y storage `/s11-objects` limitado a su marcador.
+  No se creó run, reporte ni evidencia experimental; no se ejecutó Playwright funcional, EX-02,
+  EX-03 ni escenarios posteriores. Producción permaneció intacta.
+- El proyecto Compose creado para este preflight se eliminó con su red y volumen. La auditoría
+  global detectó tres volúmenes PostgreSQL preexistentes (`c2-ex02`, `c2-preflight` y
+  `custody-test`): se retiraron sus contenedores y redes, pero los volúmenes se preservaron porque
+  eliminarlos sin inspección/autorización específica sería destructivo. No están montados ni
+  impiden el preflight de Playwright.
+
+Gate de remediación: `S11C2_PREFLIGHT_REMEDIATED`.
 
 ### Pruebas realizadas
 

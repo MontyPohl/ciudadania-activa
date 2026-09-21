@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -10,6 +11,7 @@ from apps.experiments_app.harness import (
     _backend_url_from_compose_port,
     _wait_for_backend,
     build_plan,
+    verify_frontend_tooling,
     verify_repository,
 )
 from apps.experiments_app.management.commands.s11_prepare_run import (
@@ -109,6 +111,42 @@ def test_harness_always_runs_cleanup_and_surfaces_failure(tmp_path):
     assert any(
         "s11_record_harness_log" in command and RUN_ID in " ".join(command) for command in calls
     )
+
+
+def test_harness_records_missing_playwright_runtime_as_failed(tmp_path):
+    calls = []
+
+    def runner(command, *, cwd, env):
+        calls.append(command)
+        if "playwright" in command:
+            raise FileNotFoundError(2, "No such file or directory", command[0])
+        return SimpleNamespace(returncode=0, stdout=_successful_stdout(command), stderr="")
+
+    plan = build_plan(
+        scenario_id="EX-02",
+        execution_nonce="test-missing-runtime",
+        expected_git_sha="a" * 40,
+    )
+    with pytest.raises(HarnessError, match="FileNotFoundError"):
+        FullStackHarness(
+            tmp_path,
+            runner=runner,
+            backend_probe=lambda backend_url: None,
+        ).execute(plan, environment=_environment())
+
+    log_path = tmp_path / "var" / "s11-runs" / "control" / "harness" / f"{RUN_ID}-EX-02.json"
+    payload = json.loads(log_path.read_text(encoding="utf-8"))
+    failed_phase = next(phase for phase in payload["phases"] if phase["phase"] == "execute")
+
+    assert payload["run_id"] == RUN_ID
+    assert payload["status"] == "FAILED"
+    assert "FileNotFoundError" in payload["failure"]
+    assert failed_phase["command"][0] == "npm"
+    assert failed_phase["returncode"] == 127
+    assert "FileNotFoundError" in failed_phase["stderr"]
+    assert failed_phase["started_at"].endswith("Z")
+    assert any("s11_environment" in command and "reset" in command for command in calls)
+    assert any("s11_finalize_run" in command and "FAILED" in command for command in calls)
 
 
 def test_runtime_url_is_discovered_once_and_propagated_consistently(tmp_path):
@@ -307,3 +345,49 @@ def test_repository_gate_requires_expected_clean_commit(tmp_path, monkeypatch):
     )
     with pytest.raises(HarnessError, match="working tree"):
         verify_repository(tmp_path, "a" * 40)
+
+
+def test_frontend_preflight_verifies_node_npm_and_local_playwright(tmp_path, monkeypatch):
+    frontend = tmp_path / "frontend"
+    playwright_cli = frontend / "node_modules" / ".bin" / "playwright"
+    playwright_cli.parent.mkdir(parents=True)
+    playwright_cli.write_text("#!/bin/sh\n", encoding="utf-8")
+    (frontend / "package-lock.json").write_text("{}\n", encoding="utf-8")
+    monkeypatch.setattr("apps.experiments_app.harness.shutil.which", lambda command: command)
+
+    calls = []
+
+    def run(command, **kwargs):
+        calls.append(command)
+        stdout = {
+            "node": "v22.23.2\n",
+            "npm": "10.9.8\n",
+        }[command[0]]
+        if "playwright" in command:
+            stdout = "Version 1.62.1\n"
+        return SimpleNamespace(returncode=0, stdout=stdout, stderr="")
+
+    monkeypatch.setattr("apps.experiments_app.harness.subprocess.run", run)
+
+    verify_frontend_tooling(tmp_path)
+
+    assert calls == [
+        ("node", "--version"),
+        ("npm", "--version"),
+        ("npm", "exec", "playwright", "--", "--version"),
+    ]
+
+
+def test_frontend_preflight_rejects_missing_npm_before_start(tmp_path, monkeypatch):
+    frontend = tmp_path / "frontend"
+    playwright_cli = frontend / "node_modules" / ".bin" / "playwright"
+    playwright_cli.parent.mkdir(parents=True)
+    playwright_cli.write_text("#!/bin/sh\n", encoding="utf-8")
+    (frontend / "package-lock.json").write_text("{}\n", encoding="utf-8")
+    monkeypatch.setattr(
+        "apps.experiments_app.harness.shutil.which",
+        lambda command: command if command == "node" else None,
+    )
+
+    with pytest.raises(HarnessError, match="node y npm"):
+        verify_frontend_tooling(tmp_path)
