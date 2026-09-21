@@ -7,17 +7,20 @@
 
 > **Propósito.** Este documento es la fuente de conciliación entre el texto académico y el estado técnico verificable del proyecto. No es un changelog ni reemplaza la redacción final de la tesis: indica qué conservar, qué corregir, qué agregar y qué todavía no puede presentarse como resultado.
 >
-> **Corte de auditoría actualizado:** 13 de septiembre de 2026, después del release gate final de S10.<br>
+> **Corte de auditoría original:** 13 de septiembre de 2026, después del release gate final de S10; estado operativo actualizado después de la reconciliación del PR #39.<br>
 > **Regla de lectura:** una funcionalidad se distingue entre integrada en `main`, implementada en
-> la rama S10 y desplegada. S10 está implementado localmente, pero no fue integrado ni desplegado;
-> S11–S13 no comenzaron.
+> la rama S10 y desplegada. S10 está implementado y reconciliado con `main` en la rama del PR #39,
+> pero no está integrado en `main` ni activo en producción; S11–S13 no comenzaron.
 
 **Estado de S10:** ADR-0013 permanece `ACCEPTED` e inalterado. La rama
 `feat/s10-implementation` implementa ciclos monotónicos, migraciones y backfill determinista,
 flujo institucional, evidencia privada, cierre manual/automático, reversión compensatoria,
 auditoría administrativa y sus interfaces. Los blockers B01/B02 del primer gate fueron remediados
-y el release gate final quedó verde; producción no fue modificada y el despliegue no está
-autorizado. S10 no envía
+y el release gate final quedó verde. Durante un intento posterior se aplicaron únicamente las
+migraciones aditivas `reports_app.0003` y `rewards_app.0002`; no se ejecutaron el backfill 0004 ni
+las migraciones posteriores, no se modificaron datos de negocio y no se restauró el respaldo. La
+aplicación fue revertida a S9 mediante Heroku rollback y el despliegue final no está autorizado.
+S10 no envía
 notificaciones y no adelanta ranking/créditos visibles (S11), canje (S12) ni dashboards/ingesta
 (S13).
 
@@ -83,7 +86,7 @@ uso ciudadano real, impacto urbano ni validación de campo.
 | S9-B1 | ✅ **COMPLETADO E INTEGRADO** | PR #35 / merge `a89b9efe`: dominio transaccional de validación/rechazo y ledger. |
 | S9-B2 | ✅ **COMPLETADO E INTEGRADO** | PR #37 / merge `4ecf5023`: API, autorización linealizable, panel institucional y E2E. |
 | S9-B3 | ✅ **COMPLETADO E INTEGRADO** | PR #38 / merge `7e95856c`: trazabilidad de S9 y diferimiento explícito de créditos visibles, ranking, recompensas, dashboards, ingesta y notificaciones completas. |
-| Sprint 10 | ✅ **IMPLEMENTADO EN RAMA / RELEASE GATE APROBADO** | ADR-0013 `ACCEPTED`; B01/B02 remediados y suites completas verdes. No está integrado ni desplegado y requiere autorización explícita posterior. |
+| Sprint 10 | ✅ **IMPLEMENTADO Y RECONCILIADO EN RAMA / RELEASE GATE APROBADO** | ADR-0013 `ACCEPTED`; B01/B02 y la clasificación de `report.confirmed` remediados. No está integrado ni activo en producción: la aplicación está revertida a S9, con sólo `reports_app.0003` y `rewards_app.0002` aplicadas y sin backfill ni datos de negocio modificados. Requiere revisión y autorización explícita posterior. |
 
 Este cierre actualiza en conjunto `PROGRESO_SPRINTS.md`, `API.md` y `DICCIONARIO_DATOS.md` para
 que la frontera de Sprint 9 no se confunda con funcionalidades planificadas para S11–S13.

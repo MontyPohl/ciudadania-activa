@@ -2,7 +2,7 @@
 
 Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes de iniciar el siguiente.
 
-- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 **completado** (inicio el 22/08/2026, cierre el 23/08/2026: verificación de identidad con HMAC y almacenamiento privado, revisión administrativa manual con cotejo de la cédula, notificaciones asíncronas entregadas por la API HTTPS de Brevo y privacidad configurable del ranking, todo verificado en producción con una identidad real). Sprint 5 **completado** el 27/08/2026: S5-A, S5-B y S5-C están cerradas, integradas y validadas. Sprint 6 **completado** el 28/08/2026: S6-A y S6-B están cerrados. Sprint 7 **completado** el 29/08/2026: S7-A, S7-B y S7-C están integrados en `main`, y S7-D quedó probado en producción y cerrado con evidencia funcional y de base de datos en modo solo lectura. Sprint 8 continúa **en curso**. Sprint 9 quedó **completado** el 09/09/2026: S9-A, S9-B1, S9-B2 y el cierre documental S9-B3 están integrados en `main`; PR #38 fue mergeado mediante `7e95856c1b494d562ce1c267c06d5bebaec28cc8`. Sprint 10 está **implementado en la rama de trabajo y pendiente de autorización de despliegue**: ADR-0013 permanece `ACCEPTED`, el backfill determinista y las migraciones se validaron localmente, y producción no fue modificada.
+- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 **completado** (inicio el 22/08/2026, cierre el 23/08/2026: verificación de identidad con HMAC y almacenamiento privado, revisión administrativa manual con cotejo de la cédula, notificaciones asíncronas entregadas por la API HTTPS de Brevo y privacidad configurable del ranking, todo verificado en producción con una identidad real). Sprint 5 **completado** el 27/08/2026: S5-A, S5-B y S5-C están cerradas, integradas y validadas. Sprint 6 **completado** el 28/08/2026: S6-A y S6-B están cerrados. Sprint 7 **completado** el 29/08/2026: S7-A, S7-B y S7-C están integrados en `main`, y S7-D quedó probado en producción y cerrado con evidencia funcional y de base de datos en modo solo lectura. Sprint 8 continúa **en curso**. Sprint 9 quedó **completado** el 09/09/2026: S9-A, S9-B1, S9-B2 y el cierre documental S9-B3 están integrados en `main`; PR #38 fue mergeado mediante `7e95856c1b494d562ce1c267c06d5bebaec28cc8`. Sprint 10 está **implementado y reconciliado con `main` en la rama del PR #39, pendiente de revisión y de autorización de despliegue**: ADR-0013 permanece `ACCEPTED` y la aplicación productiva fue revertida al baseline S9. Durante el intento de despliegue quedaron aplicadas únicamente las migraciones aditivas `reports_app.0003` y `rewards_app.0002`; el backfill `reports_app.0004` y las migraciones posteriores no se ejecutaron. No se modificaron datos de negocio ni se restauró el respaldo.
 - **Plan de referencia:** [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md)
 - **Ventana de desarrollo:** 01/08/2026 → 15/11/2026 (16 sprints semanales, Anexo F revisado)
 - **Estados posibles:** `Pendiente` · `En curso` · `Completado` · `Completado con observaciones` · `Bloqueado`
@@ -22,7 +22,7 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 | 7 | 12/09 – 18/09 | Panel ciudadano y confirmaciones | Completado |
 | 8 | 19/09 – 25/09 | Clasificación asistida por IA | En curso |
 | 9 | 26/09 – 02/10 | Panel institucional y validación | Completado |
-| 10 | 03/10 – 09/10 | Estados, evidencias, auditoría y reversión | Implementado localmente — pendiente de autorización de despliegue |
+| 10 | 03/10 – 09/10 | Estados, evidencias, auditoría y reversión | Implementado y reconciliado — aplicación revertida a S9; despliegue final pendiente |
 | 11 | 10/10 – 16/10 | Créditos, ranking del mes en curso y privacidad | Pendiente |
 | 12 | 17/10 – 23/10 | Catálogo de recompensas y canje simulado | Pendiente |
 | 13 | 24/10 – 30/10 | Dashboards, integración e ingesta social | Pendiente |
@@ -38,7 +38,7 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 |---|---|---|---|
 | D-01 | Reversión de una validación cuyos créditos ya fueron canjeados | Sprint 10 · Sprint 12 | **Resuelta** — la reversión siempre se ejecuta; el saldo es la diferencia entre créditos válidos y créditos consumidos y puede resultar negativa, sin penalización adicional; el vale emitido permanece emitido; no se permite otro canje hasta que la diferencia alcance de nuevo el saldo requerido |
 | D-02 | ¿Puede el operador fijar un `credit_cost` distinto de 1.000? | Sprint 12 | **Resuelta** — no. El costo es fijo en 1.000 créditos en el MVP; `credit_cost` se conserva con `DEFAULT 1000` por extensibilidad futura, pero no es editable por el operador |
-| D-03 | ¿Dónde reside la instancia de PostgreSQL/PostGIS? | Sprint 1 · Sprint 15 | **Resuelta** — en **Supabase**, junto con Storage. El backend Django y los workers Celery se despliegan en Railway y se conectan mediante `DATABASE_URL`. Fundamento: coherencia con la arquitectura de la tesis, soporte de PostGIS, simplificación operativa, centralización de base y almacenamiento, y facilidad de inspección y documentación durante el TCC. La latencia Railway ↔ Supabase se mide en el Sprint 15 y no altera la arquitectura. Si el plan contratado no incluye respaldos automáticos, son obligatorios los respaldos lógicos periódicos. **Confirmado el 20/08/2026:** el plan Free no ofrece respaldos programados accesibles para este proyecto, por lo que la rutina manual de `pg_dump` queda en vigor y su procedimiento fue comprobado de extremo a extremo |
+| D-03 | ¿Dónde reside la instancia de PostgreSQL/PostGIS? | Sprint 1 · Sprint 15 | **Resuelta** — en **Supabase**, junto con Storage. El backend Django y los workers Celery se despliegan actualmente en Heroku y se conectan mediante `DATABASE_URL`; Railway fue el proveedor anterior. Fundamento: coherencia con la arquitectura de la tesis, soporte de PostGIS, simplificación operativa, centralización de base y almacenamiento, y facilidad de inspección y documentación durante el TCC. La latencia Heroku ↔ Supabase se mide en el Sprint 15 y no altera la arquitectura. Si el plan contratado no incluye respaldos automáticos, son obligatorios los respaldos lógicos periódicos. **Confirmado el 20/08/2026:** el plan Free no ofrece respaldos programados accesibles para este proyecto, por lo que la rutina manual de `pg_dump` queda en vigor y su procedimiento fue comprobado de extremo a extremo |
 | D-04 | ¿Qué alcance tiene la integración social del MVP? | Sprint 13 · Sprint 15 | **Resuelta el 20/08/2026** — **exclusivamente una simulación interna de publicaciones de X/Twitter**, cargada desde un dataset del propio proyecto y persistida en `x_mock_messages`. **Telegram queda fuera del alcance** (sin Bot API, sin webhook, sin *polling*, sin token) y **no habrá integración real con la API de X** (sin OAuth, sin *scraping*, sin credenciales sociales, sin Celery para la ingesta). Se conservan `XMockMessage`, `source='x_mock'` y la regla RF-45. La eliminación técnica de `TelegramIngestedMessage` se ejecutará al inicio del Sprint 13 con migración controlada y respaldo previo. Ver **CT-43** |
 
 Las decisiones base D-01–D-04 están resueltas. Antes de ampliar las notificaciones más allá del correo de identidad deberán decidirse destinatarios, contenido, privacidad, idempotencia, asociación con reportes, tratamiento de fallos del broker, momento de emisión y uso de `transaction.on_commit`. Detalle de la planificación base en la sección 33.2 de [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md).
@@ -56,9 +56,9 @@ Las decisiones base D-01–D-04 están resueltas. Antes de ampliar las notificac
 | C-07 | Valores económicos del ledger inmutables: `REPORT_CREATED` nace con 20/20 y `CONFIRMATION_CREATED` con 10/10, ambos `PENDIENTE`. Mientras estén pendientes no participan de ningún saldo. Al validar solo cambian estado, institución y marcas temporales | S2 · S6 · S7 · S9 |
 | C-08 | El saldo institucional se define como la **diferencia entre créditos válidos y créditos consumidos**, no como el importe canjeado. El criterio funcional de reversión distingue el caso que vuelve a cero del que queda negativo | S10 · S11 · S12 |
 | C-09 | `voided_at` incorporado junto a `credited_at` y `reversed_at` en la migración inicial de `reward_transactions` y en el diccionario de datos | S2 |
-| C-10 | PostgreSQL/PostGIS alojado en **Supabase** de forma consistente en arquitectura, despliegue, Sprint 1, riesgos y `ADR-0003`. Backend y workers en Railway, conectados por `DATABASE_URL` | S1 · S15 |
+| C-10 | PostgreSQL/PostGIS alojado en **Supabase** de forma consistente en arquitectura, despliegue, Sprint 1, riesgos y `ADR-0003`. Backend y workers actualmente en Heroku, conectados por `DATABASE_URL` | S1 · S15 |
 | C-11 | Política de **respaldos lógicos** (`pg_dump` semanal y antes de cada migración destructiva) obligatoria si el plan de Supabase no incluye respaldos automáticos; volcados fuera del repositorio. **Condición confirmada el 20/08/2026** (plan Free sin respaldos programados): la política queda activa y el procedimiento verificado | S1 en adelante |
-| C-12 | Medición explícita de la latencia Railway ↔ Supabase incorporada a las pruebas de carga, aislando tiempo de red del tiempo de aplicación | S15 |
+| C-12 | Medición explícita de la latencia Heroku ↔ Supabase incorporada a las pruebas de carga, aislando tiempo de red del tiempo de aplicación | S15 |
 
 ---
 
@@ -1463,7 +1463,7 @@ antes de cerrarlo.
 ## Sprint 10 — Estados, evidencias, auditoría y reversión
 
 **Fechas planificadas:** 03/10/2026 – 09/10/2026
-**Estado:** Implementado localmente conforme a ADR-0013 — release gate aprobado; despliegue no autorizado
+**Estado:** Implementado y reconciliado con `main` conforme a ADR-0013 — aplicación productiva revertida a S9; despliegue final no autorizado
 **Fecha real de cierre:** — (Sprint 10 no cerrado)
 
 ### Funcionalidades terminadas
@@ -1478,8 +1478,12 @@ antes de cerrarlo.
 - Autocierre periódico a las 72 horas por defecto, con tarea Celery idempotente y Beat único.
 - Lectura administrativa paginada de auditoría y UI de operador, ciudadano y administrador.
 
-La implementación permanece en la rama `feat/s10-implementation`; no fue desplegada ni aplicada a
-la base de datos de producción y no implica el cierre formal de Sprint 10.
+La implementación permanece en la rama `feat/s10-implementation` y representa el candidato del
+PR #39. La aplicación productiva fue revertida al baseline S9. En la base productiva permanecen
+aplicadas únicamente las migraciones aditivas `reports_app.0003_add_resolution_cycle_columns` y
+`rewards_app.0002_add_resolution_cycle_column`; el backfill `reports_app.0004` y todas las
+migraciones posteriores de S10 no se ejecutaron. No se modificaron datos de negocio ni se restauró
+el respaldo. Este estado parcial no implica el cierre formal de Sprint 10.
 
 ### Pruebas realizadas
 
@@ -1491,7 +1495,8 @@ El release gate final reprodujo 1.984 pruebas backend con 99% de cobertura, 360 
 Chromium sobre build de producción y las 8 carreras PostgreSQL; Ruff, Django check,
 `makemigrations --check`, ESLint, TypeScript, Prettier y build pasaron. Las 62 pruebas focalizadas
 incluyeron clasificación negativa, abort transaccional con cero escrituras y violaciones directas
-de constraints. No se modificó ninguna base de datos de producción.
+de constraints. Esos resultados corresponden al gate previo al intento de despliegue; la
+reconciliación con `main` se valida de nuevo sobre el candidato exacto del PR #39.
 
 ### Problemas encontrados
 
@@ -1503,7 +1508,16 @@ final:
    cualquier escritura;
 2. `S10-RG-B02 CLOSED`: PostgreSQL exige report/ciclo positivo para bonus, report/ciclo/original
    para reversals y rechaza `related_transaction` en otros eventos; las unicidades parciales se
-   comprobaron directamente en el esquema local.
+   comprobaron directamente en el esquema local;
+3. `S10-RG-B03 CLOSED`: el primer preflight productivo reveló que `report.confirmed` es una acción
+   histórica válida de ciclo 0. La corrección `7e31953f20943b2d2a79e9df41f74502a5267f78`
+   la incorpora a la allowlist sin admitir acciones de ciclos avanzados; las regresiones cubren
+   explícitamente `report.confirmed → CYCLE_0` y
+   `report.resolution_evidence_created → UNKNOWN`.
+
+El intento de despliegue se detuvo después de aplicar las dos columnas aditivas y antes del
+backfill. La aplicación fue revertida a S9 mediante Heroku rollback; las columnas aditivas vacías
+se conservaron, no hubo escrituras de negocio y no se restauró el respaldo.
 
 Además siguen siendo obligatorios respaldo verificable, auditoría sólo lectura sobre la base de
 destino y una ventana con todos los writers detenidos. El plan exacto y los puntos de rollback
@@ -1514,7 +1528,8 @@ posterior; el gate verde no la concede.
 
 La implementación y remediación abarcan `8b660bc`–`0fff30c`; B01/B02 quedaron materialmente
 corregidos mediante `754c123`, `64ff407`, `88480ca`, `20a55db`, `f47b4e1`, `1ec39cb`, `0469f55`
-y `0fff30c`, sobre el baseline S9 `730d69ede7033c3487b68f79b1828fe6f2f43180`.
+y `0fff30c`, sobre el baseline S9 `730d69ede7033c3487b68f79b1828fe6f2f43180`. La corrección
+posterior del clasificador es `7e31953f20943b2d2a79e9df41f74502a5267f78`.
 
 ### Observaciones y desvíos respecto del plan
 
@@ -1527,7 +1542,8 @@ También incorpora D-01 —la reversión siempre se ejecuta y el saldo, definido
 entre créditos válidos y consumidos, puede resultar negativo—, C-01 —anulación de pendientes que
 siguieran sin acreditar— y C-08 —redacción del saldo y criterio de reversión—. El autocierre a las
 72 horas transcurridas desde `resolved_at`, las APIs, la evidencia privada y los efectos de ledger
-de S10 están implementados en la rama, pero aún no desplegados. S10 no envía ni depende de
+de S10 están implementados en la rama, pero no están activos en producción: la aplicación continúa
+en S9 y sólo persiste el esquema aditivo parcial ya descrito. S10 no envía ni depende de
 notificaciones; la ampliación del sistema de notificaciones permanece fuera de alcance.
 
 ---
@@ -1597,7 +1613,7 @@ _Pendiente. Incorpora la decisión D-02 (costo fijo de 1.000 créditos, no edita
 > y actualizar entonces `DICCIONARIO_DATOS.md` de 18 a 17 entidades. Al ser una migración
 > **destructiva** (`DROP TABLE telegram_ingested_messages`), exige **respaldo productivo previo al
 > push a `main`** según ADR-0003, y verificación productiva y respaldo posterior tras el
-> auto-migrate de Railway.
+> procedimiento manual de migración de Heroku.
 >
 > **A día de hoy nada de eso se ha ejecutado:** `TelegramIngestedMessage` sigue en el modelo, la
 > tabla sigue en producción (sin filas) y el esquema conserva **18 entidades**.
@@ -1697,7 +1713,7 @@ Se completa a medida que las mediciones estén disponibles (Sprints 14 y 15).
 | Cobertura backend crítico | ≥ 80 % | — | Pendiente |
 | Concordancia IA vs etiquetas de oro | ≥ 85 % | — | Pendiente |
 | Latencia P50 endpoints críticos | ≤ 800 ms | — | Pendiente |
-| Latencia de red Railway ↔ Supabase | Medida y documentada | — | Pendiente |
+| Latencia de red Heroku ↔ Supabase | Medida y documentada | — | Pendiente |
 | Latencia P99 bajo carga | ≤ 2.000 ms | — | Pendiente |
 | Throughput de creación de reportes | ≥ 50 rep/min | — | Pendiente |
 | Flujos E2E críticos | 100 % | — | Pendiente |

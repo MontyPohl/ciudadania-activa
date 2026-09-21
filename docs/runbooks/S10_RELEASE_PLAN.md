@@ -1,14 +1,29 @@
 # S10 — Plan de despliegue y rollback
 
-Este runbook prepara el despliegue de S10, pero **no lo autoriza ni lo ejecuta**. Producción debe
-permanecer intacta hasta recibir una autorización explícita posterior al release gate.
+Este runbook prepara la continuación controlada del despliegue de S10, pero **no la autoriza ni la
+ejecuta**. No deben producirse nuevas modificaciones de producción hasta recibir una autorización
+explícita posterior al release gate.
+
+## Estado operativo previo a la próxima ventana
+
+- La aplicación productiva fue revertida al baseline S9 mediante Heroku rollback.
+- Permanecen aplicadas únicamente las migraciones aditivas
+  `reports_app.0003_add_resolution_cycle_columns` y
+  `rewards_app.0002_add_resolution_cycle_column`.
+- El backfill `reports_app.0004` y todas las migraciones S10 posteriores no se ejecutaron.
+- Las columnas `resolution_cycle` permanecen vacías; no se modificaron datos de negocio ni se
+  restauró el respaldo.
+- La próxima ventana debe repetir la auditoría de solo lectura con el candidato corregido que
+  admite `report.confirmed` en ciclo 0. Las dos migraciones ya aplicadas se verifican, no se
+  revierten ni se reaplican de forma destructiva.
 
 ## 1. Artefacto y condiciones de entrada
 
 - Baseline S9: `730d69ede7033c3487b68f79b1828fe6f2f43180`.
 - Implementación y remediación auditadas hasta
-  `0fff30c522cad6febddc14ac8154cf7c070745f9`; registrar el SHA exacto del artefacto después de
-  integrar los cambios documentales del release gate.
+  `0fff30c522cad6febddc14ac8154cf7c070745f9`, más la corrección obligatoria
+  `7e31953f20943b2d2a79e9df41f74502a5267f78`; registrar el SHA exacto del candidato reconciliado
+  del PR #39 antes de cualquier despliegue.
 - ADR-0013 debe conservar el checksum registrado por el gate.
 - CI backend, frontend y E2E debe estar verde sobre el artefacto exacto a desplegar.
 - Debe existir un respaldo lógico reciente, legible con `pg_restore --list`, y un destino/proceso
@@ -48,12 +63,16 @@ Todos los pasos requieren una ventana de mantenimiento. No se reactivan writers 
      --scheduled-writers-off
    ```
 
-5. Aplicar sólo las columnas aditivas y todavía anulables:
+5. Confirmar con `showmigrations` que las dos migraciones aditivas ya aplicadas siguen registradas:
 
    ```bash
-   python manage.py migrate reports_app 0003_add_resolution_cycle_columns --no-input
-   python manage.py migrate rewards_app 0002_add_resolution_cycle_column --no-input
+   python manage.py showmigrations reports_app rewards_app
    ```
+
+   Deben aparecer aplicadas `reports_app.0003_add_resolution_cycle_columns` y
+   `rewards_app.0002_add_resolution_cycle_column`, mientras `reports_app.0004` permanece sin
+   aplicar. Cualquier diferencia bloquea la continuación; no revertir ni reaplicar columnas como
+   respuesta automática.
 
 6. Ejecutar el backfill atómico:
 
