@@ -10,6 +10,12 @@
 `S11A-v1.0`, no autoriza por sí sola un run, no sustituye el gate operativo del harness y no
 constituye una ejecución de EX-02…EX-10.
 
+> **Referencia operativa posterior, no normativa (21/09/2026):** el incidente
+> `KEY_CONTINUITY_FAILURE`, la preservación de la evidencia histórica y la decisión humana de
+> iniciar una nueva época de custodia están registrados en
+> [`S11_HMAC_CUSTODY_CONTINUITY_INCIDENT.md`](../runbooks/S11_HMAC_CUSTODY_CONTINUITY_INCIDENT.md).
+> Esta referencia no cambia `S11A-v1.0` ni las reglas de esta política.
+
 ## 1. Propósito y alcance
 
 Esta política fija responsables, retención, ubicaciones y permisos para la evidencia S11.

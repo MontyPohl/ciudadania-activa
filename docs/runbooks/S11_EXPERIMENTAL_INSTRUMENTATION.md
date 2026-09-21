@@ -6,11 +6,15 @@ Esta infraestructura prepara ejecuciones futuras de `EX-02` a `EX-10` según
 `S11A-v1.0`. No contiene resultados académicos y no autoriza una ejecución. `EX-01`
 (encuesta) y `EX-11` (ranking/redemption) permanecen fuera del mecanismo.
 
-Las decisiones de custodia `S11A-P02` y `S11A-P03` quedaron formalizadas en
-[`S11A_POLITICA_CUSTODIA_Y_ACCESO.md`](../tesis/S11A_POLITICA_CUSTODIA_Y_ACCESO.md) y
-verificadas con el canario `s11-custody-20260921-p02p03-v5`. Esto cierra esos dos bloqueos, pero
-no autoriza automáticamente un run: `--custody-approved` sigue siendo una afirmación explícita del
-operador para cada ejecución futura y no fue utilizado durante la verificación de custodia.
+Las decisiones de custodia `S11A-P02` y `S11A-P03` están formalizadas en
+[`S11A_POLITICA_CUSTODIA_Y_ACCESO.md`](../tesis/S11A_POLITICA_CUSTODIA_Y_ACCESO.md). La
+verificación histórica `s11-custody-20260921-p02p03-v5` se conserva, pero sus artefactos quedaron
+`HISTORICAL_UNVERIFIABLE` por `KEY_CONTINUITY_FAILURE`. La decisión humana de iniciar una nueva
+época y repetir P02/P03 y C1 está documentada en
+[`S11_HMAC_CUSTODY_CONTINUITY_INCIDENT.md`](S11_HMAC_CUSTODY_CONTINUITY_INCIDENT.md).
+Hasta verificar ambas repeticiones, P02/P03 y C1 están `REPEAT_REQUIRED`, y EX-02/EX-03 siguen
+`BLOCKED_PENDING_CUSTODY_REBASELINE`. `--custody-approved` continúa siendo una afirmación
+explícita del operador por run y no se utilizó en la verificación histórica.
 
 Los flags S11 están apagados por defecto y el guard rechaza todo target que no cumpla
 simultáneamente:
