@@ -2,7 +2,7 @@
 
 Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes de iniciar el siguiente.
 
-- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 **completado** (inicio el 22/08/2026, cierre el 23/08/2026: verificación de identidad con HMAC y almacenamiento privado, revisión administrativa manual con cotejo de la cédula, notificaciones asíncronas entregadas por la API HTTPS de Brevo y privacidad configurable del ranking, todo verificado en producción con una identidad real). Sprint 5 **completado** el 27/08/2026: S5-A, S5-B y S5-C están cerradas, integradas y validadas. Sprint 6 **completado** el 28/08/2026: S6-A y S6-B están cerrados. Sprint 7 **completado** el 29/08/2026: S7-A, S7-B y S7-C están integrados en `main`, y S7-D quedó probado en producción y cerrado con evidencia funcional y de base de datos en modo solo lectura. Sprint 8 continúa **en curso**. Sprint 9 quedó **completado** el 09/09/2026: S9-A, S9-B1, S9-B2 y el cierre documental S9-B3 están integrados en `main`; PR #38 fue mergeado mediante `7e95856c1b494d562ce1c267c06d5bebaec28cc8`. Sprint 10 quedó **implementado, desplegado, verificado y reconciliado** el 21/09/2026: el candidato `171f8c8b8f448a4092e73aeb5f67406e6b81ef09` se desplegó en Heroku, PR #39 se integró en `main` mediante `7ae82b865d90c4cade02dd3378b44107f088b7dd`, y backend, frontend, migraciones, backfill, workers e invariantes productivas quedaron verificados. Sprint 11 está **en curso**: S11-A congeló la metodología y el rebaseline sobre `main@635d89956ca0632d620916dc0ab298af48079ec4`; S11-B–E no se iniciaron.
+- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 **completado** (inicio el 22/08/2026, cierre el 23/08/2026: verificación de identidad con HMAC y almacenamiento privado, revisión administrativa manual con cotejo de la cédula, notificaciones asíncronas entregadas por la API HTTPS de Brevo y privacidad configurable del ranking, todo verificado en producción con una identidad real). Sprint 5 **completado** el 27/08/2026: S5-A, S5-B y S5-C están cerradas, integradas y validadas. Sprint 6 **completado** el 28/08/2026: S6-A y S6-B están cerrados. Sprint 7 **completado** el 29/08/2026: S7-A, S7-B y S7-C están integrados en `main`, y S7-D quedó probado en producción y cerrado con evidencia funcional y de base de datos en modo solo lectura. Sprint 8 continúa **en curso**. Sprint 9 quedó **completado** el 09/09/2026: S9-A, S9-B1, S9-B2 y el cierre documental S9-B3 están integrados en `main`; PR #38 fue mergeado mediante `7e95856c1b494d562ce1c267c06d5bebaec28cc8`. Sprint 10 quedó **implementado, desplegado, verificado y reconciliado** el 21/09/2026: el candidato `171f8c8b8f448a4092e73aeb5f67406e6b81ef09` se desplegó en Heroku, PR #39 se integró en `main` mediante `7ae82b865d90c4cade02dd3378b44107f088b7dd`, y backend, frontend, migraciones, backfill, workers e invariantes productivas quedaron verificados. Sprint 11 está **en curso**: S11-A quedó oficialmente congelada en `main@35f850eb24df552805fe8694f50fcbb3588a4141`; S11-B dejó preparada la instrumentación aislada y reproducible, sin ejecutar experimentos ni generar resultados; S11-C–E no se iniciaron.
 - **Plan de referencia:** [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md)
 - **Ventana de desarrollo:** 01/08/2026 → 15/11/2026 (16 sprints semanales, Anexo F revisado)
 - **Estados posibles:** `Pendiente` · `En curso` · `Completado` · `Completado con observaciones` · `Bloqueado`
@@ -23,14 +23,14 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 | 8 | 19/09 – 25/09 | Clasificación asistida por IA | En curso |
 | 9 | 26/09 – 02/10 | Panel institucional y validación | Completado |
 | 10 | 03/10 – 09/10 | Estados, evidencias, auditoría y reversión | Completado — implementado, desplegado, verificado y reconciliado |
-| 11 | 10/10 – 16/10 | Metodología, instrumentación, experimentos, análisis y evidencia de tesis | En curso — S11-A congelada; S11-B–E pendientes |
+| 11 | 10/10 – 16/10 | Metodología, instrumentación, experimentos, análisis y evidencia de tesis | En curso — S11-A congelada; S11-B preparada; S11-C–E pendientes |
 | 12 | 17/10 – 23/10 | Catálogo de recompensas y canje simulado | Pendiente |
 | 13 | 24/10 – 30/10 | Dashboards, integración e ingesta social | Pendiente |
 | 14 | 31/10 – 06/11 | Pruebas unitarias, integración, seguridad y E2E | Pendiente |
 | 15 | 07/11 – 13/11 | Carga, dataset definitivo y documentación | Pendiente |
 | 16 | 14/11 – 15/11 | Cierre y preparación de la defensa | Pendiente |
 
-**Progreso:** 8 / 16 sprints completados (Sprints 1, 2 y 3 cerrados el 20/08/2026; Sprint 4 el 23/08/2026; Sprint 5 el 27/08/2026; Sprint 6 el 28/08/2026; Sprint 7 el 29/08/2026; Sprint 9 el 09/09/2026). La ejecución real arrastra el desvío de calendario registrado en CT-29. Sprint 8 continúa **en curso**: R2 permanece prerregistrado/no ejecutado y CA-4 no demostrado. Sprint 11 inició sólo su etapa documental S11-A; esto no inicia S11-B–E ni S12–S13.
+**Progreso:** 8 / 16 sprints completados (Sprints 1, 2 y 3 cerrados el 20/08/2026; Sprint 4 el 23/08/2026; Sprint 5 el 27/08/2026; Sprint 6 el 28/08/2026; Sprint 7 el 29/08/2026; Sprint 9 el 09/09/2026). La ejecución real arrastra el desvío de calendario registrado en CT-29. Sprint 8 continúa **en curso**: R2 permanece prerregistrado/no ejecutado y CA-4 no demostrado. Sprint 11 completó la congelación S11-A y la preparación técnica S11-B; no inició experimentos S11-C, análisis S11-D, cierre S11-E ni S12–S13.
 
 ### Decisiones que condicionan el avance
 
@@ -1581,7 +1581,7 @@ ausente. S11, S12 y S13 no fueron iniciados durante este cierre.
 ## Sprint 11 — Metodología, instrumentación, experimentos, análisis y evidencia
 
 **Fechas planificadas:** 10/10/2026 – 16/10/2026
-**Estado:** En curso — S11-A congelada; S11-B–E pendientes
+**Estado:** En curso — S11-A congelada; S11-B preparada; S11-C–E pendientes
 **Fecha real de cierre:** —
 
 > **Rebaseline S11-A (21/09/2026).** El título histórico “Créditos, ranking del mes en curso y
@@ -1601,8 +1601,9 @@ ausente. S11, S12 y S13 no fueron iniciados durante este cierre.
 - `docs/tesis/S11A_DATOS_EVIDENCIA_Y_REBASELINE.md`: datasets, aislamiento, privacidad,
   retención, cadena de evidencia y rebaseline.
 
-La versión `S11A-v1.0` queda congelada sobre
-`main@635d89956ca0632d620916dc0ab298af48079ec4`. No se modificó código ni se ejecutaron
+La versión `S11A-v1.0` fue redactada contra
+`main@635d89956ca0632d620916dc0ab298af48079ec4` y quedó oficialmente versionada en
+`main@35f850eb24df552805fe8694f50fcbb3588a4141`. S11-A no modificó código ni ejecutó
 experimentos.
 
 Gate formal de cierre: `S11A_METHODOLOGY_FROZEN`.
@@ -1612,7 +1613,11 @@ Gate formal de cierre: `S11A_METHODOLOGY_FROZEN`.
 - Gate inicial: rama `main`, HEAD exacto y working tree limpio.
 - Control documental: IDs, clasificaciones, estados, escenarios, umbrales, hashes R2 y referencias
   cruzadas verificados sobre los artefactos S11-A.
-- No aplica suite funcional: esta etapa sólo autoriza documentación metodológica.
+- S11-B: 57 tests específicos verifican manifests, datasets, aislamiento/reset, export read-only,
+  instrumentación HTTP/Celery, trazabilidad, harness y custodia/redacción.
+- Backend completo: 2043 tests; frontend: 360 tests. Ruff, ESLint, typecheck TypeScript, build
+  Next.js, `manage.py check` y `makemigrations --check --dry-run` pasan.
+- No se ejecutó Playwright S11, ningún escenario oficial ni ninguna medición HT.
 
 ### Problemas encontrados
 
@@ -1622,10 +1627,14 @@ Gate formal de cierre: `S11A_METHODOLOGY_FROZEN`.
   de S11-C.
 - R2 no fue ejecutada y su evidencia válida no existe.
 - La cobertura global previa no decide HT-5; falta instrumentación de cobertura acotada.
+- El harness exige aprobación explícita de custodia y un secreto HMAC efímero no versionado; S11-B
+  no interpreta su existencia como cierre de `S11A-P02/P03`.
 
 ### Commits relevantes
 
-_No se creó commit en S11-A. Baseline metodológico: `635d89956ca0632d620916dc0ab298af48079ec4`._
+- S11-A: `35f850eb24df552805fe8694f50fcbb3588a4141`
+  (`docs: freeze S11-A methodology baseline`).
+- S11-B: `feat: prepare S11 experimental instrumentation`.
 
 ### Observaciones y desvíos respecto del plan
 
@@ -1633,6 +1642,12 @@ Los estados de decisión se restringen a `PASS`, `FAIL` y `NOT_DEMONSTRATED`. De
 capacidad implementada, CI previa y despliegue no se registran como resultados experimentales.
 Los 16 reportes productivos observados al corte no son una muestra y quedan excluidos de toda
 medición S11.
+
+S11-B incorpora manifests inicial/final, datasets sintéticos versionados, overlay Docker aislado,
+reset idempotente, exportación ORM read-only, telemetría correlacionada HTTP/Celery, harness
+full-stack futuro para EX-02…EX-08 y custodia persistente con clasificación, redacción y SHA-256.
+EX-09 y EX-10 quedan preparados a nivel de insumos e instrumentación para S11-C. Esta preparación
+no contiene `PASS/FAIL` de hipótesis, resultados académicos ni cambios sobre producción.
 
 ---
 

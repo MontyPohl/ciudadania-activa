@@ -88,6 +88,10 @@ def upload(bucket: str, key: str, content: bytes, content_type: str) -> None:
     sobrescritura silenciosa. Las claves las genera el servidor con un UUID, de modo
     que una colisión indicaría un defecto y conviene que se note.
     """
+    experimental = _experimental_backend()
+    if experimental is not None:
+        experimental.upload(bucket, key, content, content_type)
+        return
     base, cabeceras = _configuracion()
     respuesta = _peticion(
         "POST",
@@ -112,6 +116,9 @@ def download_private(bucket: str, key: str) -> bytes:
     `StorageUnavailableError`. La diferencia importa: solo el segundo merece un
     reintento.
     """
+    experimental = _experimental_backend()
+    if experimental is not None:
+        return experimental.download(bucket, key)
     base, cabeceras = _configuracion()
     respuesta = _peticion(
         "GET",
@@ -134,6 +141,9 @@ def create_signed_url(bucket: str, key: str, expires_in: int) -> str:
     La URL contiene un token de acceso: no se persiste, no se cachea y no se registra
     en ningún log. Quien la reciba puede leer el objeto hasta que expire.
     """
+    experimental = _experimental_backend()
+    if experimental is not None:
+        return experimental.signed_url(bucket, key, expires_in)
     base, cabeceras = _configuracion()
     respuesta = _peticion(
         "POST",
@@ -162,6 +172,10 @@ def create_signed_url(bucket: str, key: str, expires_in: int) -> str:
 
 def delete(bucket: str, key: str) -> None:
     """Borra un objeto. Operación de compensación: el llamador decide cuándo aplicarla."""
+    experimental = _experimental_backend()
+    if experimental is not None:
+        experimental.delete(bucket, key)
+        return
     base, cabeceras = _configuracion()
     respuesta = _peticion(
         "DELETE",
@@ -195,6 +209,21 @@ def _configuracion() -> tuple[str, dict[str, str]]:
         "apikey": service_role,
     }
     return f"{url.rstrip('/')}/storage/v1", cabeceras
+
+
+def _experimental_backend():
+    """Backend local sólo bajo el doble gate aislado de S11.
+
+    La importación diferida evita acoplar el arranque normal a la infraestructura
+    experimental y conserva exactamente el comportamiento productivo por defecto.
+    """
+    if not getattr(settings, "S11_LOCAL_STORAGE_ENABLED", False):
+        return None
+    from apps.experiments_app import local_storage
+    from apps.experiments_app.runtime import require_isolation
+
+    require_isolation()
+    return local_storage
 
 
 def _ruta(bucket: str, key: str) -> str:

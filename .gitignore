@@ -33,6 +33,11 @@ frontend/test-results/
 *.log
 .turbo/
 
+# Artefactos y objetos persistentes S11 (custodia local, nunca Git)
+/var/s11-runs/
+/var/s11-objects/
+/backend/.s11-test-artifacts/
+
 # Editores / OS
 .vscode/
 .idea/

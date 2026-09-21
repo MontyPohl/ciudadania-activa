@@ -125,6 +125,7 @@ INSTALLED_APPS = [
     "apps.admin_app",
     "apps.ai_client_app",
     "apps.social_ingestion_app",
+    "apps.experiments_app",
 ]
 
 MIDDLEWARE = [
@@ -136,6 +137,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "apps.experiments_app.middleware.HttpInstrumentationMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -277,6 +279,19 @@ CELERY_BEAT_SCHEDULE = {
         "schedule": crontab(minute="*/15"),
     },
 }
+
+# --- S11-B: instrumentación experimental ------------------------------------
+# Todo queda apagado por defecto y exige, además, un entorno cuyo nombre, base,
+# Redis y storage pasan el guard de aislamiento. Estos flags no se activan en
+# producción ni se usan para datos existentes.
+S11_EXPERIMENTS_ENABLED = env.bool("S11_EXPERIMENTS_ENABLED", default=False)
+S11_ENVIRONMENT = env("S11_ENVIRONMENT", default="")
+S11_DATABASE_URL = env("S11_DATABASE_URL", default="")
+S11_ARTIFACT_ROOT = Path(env("S11_ARTIFACT_ROOT", default=str(REPO_ROOT / "var" / "s11-runs")))
+S11_OBJECT_ROOT = Path(env("S11_OBJECT_ROOT", default=str(REPO_ROOT / "var" / "s11-objects")))
+S11_ALLOW_SENSITIVE_PERSISTENCE = env.bool("S11_ALLOW_SENSITIVE_PERSISTENCE", default=False)
+S11_LOCAL_STORAGE_ENABLED = env.bool("S11_LOCAL_STORAGE_ENABLED", default=False)
+S11_FAKE_AI_ENABLED = env.bool("S11_FAKE_AI_ENABLED", default=False)
 
 # Fijado en el Sprint 1: PostgreSQL/PostGIS reside en Supabase y se conecta siempre
 # mediante DATABASE_URL. Ninguna rama de código distingue entornos; lo único que varía

@@ -1,0 +1,49 @@
+# Overlay exclusivo S11. Se usa siempre junto a docker-compose.yml y bajo un
+# project name aislado. No contiene credenciales ni endpoints remotos.
+services:
+  db:
+    environment:
+      POSTGRES_DB: ciudadania_s11_experiment
+    volumes:
+      - s11_postgres_data:/var/lib/postgresql/data
+    ports: !reset []
+
+  redis:
+    ports: !reset []
+
+  backend:
+    environment: &s11-environment
+      DATABASE_URL: postgis://ciudadania:ciudadania@db:5432/ciudadania_s11_experiment
+      S11_DATABASE_URL: postgis://ciudadania:ciudadania@db:5432/ciudadania_s11_experiment
+      REDIS_URL: redis://redis:6379/11
+      S11_EXPERIMENTS_ENABLED: "true"
+      S11_ENVIRONMENT: isolated-experiment
+      S11_ARTIFACT_ROOT: /s11-evidence
+      S11_OBJECT_ROOT: /s11-objects
+      S11_ALLOW_SENSITIVE_PERSISTENCE: "false"
+      S11_LOCAL_STORAGE_ENABLED: "true"
+      S11_FAKE_AI_ENABLED: "true"
+      DOCUMENT_HMAC_SECRET: ${S11_DOCUMENT_HMAC_SECRET:?Set an ephemeral S11 HMAC secret}
+      SUPABASE_STORAGE_BUCKET_PRIVATE: s11-verificaciones
+      SUPABASE_STORAGE_BUCKET_REPORTS: s11-reportes
+      SUPABASE_URL: ""
+      SUPABASE_SERVICE_ROLE_KEY: ""
+      GEMINI_API_KEY: ""
+      AI_CLASSIFICATION_ENABLED: "false"
+      BREVO_API_KEY: ""
+      BREVO_API_URL: https://disabled.invalid.test
+    volumes:
+      - ../backend:/app
+      - ../var/s11-runs:/s11-evidence
+      - ../var/s11-objects:/s11-objects
+
+  worker:
+    command: celery -A config worker --loglevel=info --concurrency=2
+    environment: *s11-environment
+    volumes:
+      - ../backend:/app
+      - ../var/s11-runs:/s11-evidence
+      - ../var/s11-objects:/s11-objects
+
+volumes:
+  s11_postgres_data:

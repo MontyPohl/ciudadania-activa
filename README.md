@@ -11,6 +11,9 @@ Documentación completa del proyecto en [docs/PLAN_DESARROLLO.md](docs/PLAN_DESA
 [docs/BACKLOG.md](docs/BACKLOG.md) y decisiones de arquitectura en [docs/adr/](docs/adr/).
 Las diferencias entre el prototipo real y lo declarado en la tesis se registran en
 [docs/CAMBIOS_TESIS_PENDIENTES.md](docs/CAMBIOS_TESIS_PENDIENTES.md).
+La infraestructura aislada para futuras ejecuciones experimentales S11 se documenta en
+[docs/runbooks/S11_EXPERIMENTAL_INSTRUMENTATION.md](docs/runbooks/S11_EXPERIMENTAL_INSTRUMENTATION.md);
+su presencia no autoriza experimentos ni contiene resultados de tesis.
 
 ## Stack
 
