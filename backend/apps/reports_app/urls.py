@@ -1,5 +1,9 @@
 from django.urls import path
 
+from apps.reports_app.evidence_views import (
+    CitizenReportEvidenceView,
+    ResolutionEvidenceDownloadView,
+)
 from apps.reports_app.views import (
     ConfirmReportView,
     ContextualReportDetailView,
@@ -10,6 +14,11 @@ from apps.reports_app.views import (
 )
 
 urlpatterns = [
+    path(
+        "evidence-access/<str:token>/",
+        ResolutionEvidenceDownloadView.as_view(),
+        name="resolution-evidence-download",
+    ),
     path("", ReportCreateView.as_view(), name="report-create"),
     path(
         "possible-duplicates/",
@@ -17,6 +26,11 @@ urlpatterns = [
         name="report-possible-duplicates",
     ),
     path("mine/", MyReportsView.as_view(), name="report-mine"),
+    path(
+        "<uuid:report_id>/evidence/",
+        CitizenReportEvidenceView.as_view(),
+        name="report-evidence",
+    ),
     path(
         "<uuid:report_id>/confirm/",
         ConfirmReportView.as_view(),

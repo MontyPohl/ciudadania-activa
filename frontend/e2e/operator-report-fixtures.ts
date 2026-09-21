@@ -15,36 +15,64 @@ const category = {
 export interface OperatorMetrics {
   validatePosts: number;
   rejectPosts: number;
+  lifecyclePatches: number;
+  evidencePosts: number;
   detailGets: number;
   contexts: string[];
   validateBodies: Array<Buffer | null>;
   rejectBodies: unknown[];
+  lifecycleBodies: unknown[];
+  evidenceBodies: string[];
+  evidenceKeys: Array<string | null>;
 }
 
 export async function openOperatorQueue(page: Page): Promise<OperatorMetrics> {
   let status = "CREADO";
+  let cycle = 0;
+  let validatedAt: string | null = null;
+  let resolvedAt: string | null = null;
+  let closedAt: string | null = null;
   let rejectionReason = "";
+  const evidence: Array<Record<string, unknown>> = [];
+  const history: Array<Record<string, unknown>> = [
+    {
+      previous_status: "",
+      new_status: "CREADO",
+      cycle: 0,
+      reason: "",
+      created_at: "2026-09-01T10:00:00Z",
+    },
+  ];
   const metrics: OperatorMetrics = {
     validatePosts: 0,
     rejectPosts: 0,
+    lifecyclePatches: 0,
+    evidencePosts: 0,
     detailGets: 0,
     contexts: [],
     validateBodies: [],
     rejectBodies: [],
+    lifecycleBodies: [],
+    evidenceBodies: [],
+    evidenceKeys: [],
   };
 
   const summary = () => ({
     id: OPERATOR_REPORT_ID,
     status,
+    cycle,
     priority: "ALTA",
     category,
-    institution: null,
+    institution: cycle > 0 ? ande : null,
     effective_read_institution: ande,
     created_at: "2026-09-01T10:00:00Z",
   });
   const detail = () => ({
     ...summary(),
     description: "Luminaria apagada en la esquina.",
+    validated_at: validatedAt,
+    resolved_at: resolvedAt,
+    closed_at: closedAt,
     latitude: -25.3,
     longitude: -57.6,
     photo_signed_url: null,
@@ -95,22 +123,97 @@ export async function openOperatorQueue(page: Page): Promise<OperatorMetrics> {
       });
       return;
     }
+    if (url.pathname.endsWith("/evidence/")) {
+      if (request.method() === "GET") {
+        await route.fulfill({ status: 200, json: evidence });
+        return;
+      }
+      metrics.evidencePosts += 1;
+      metrics.evidenceBodies.push(request.postData() ?? "");
+      metrics.evidenceKeys.push(request.headers()["idempotency-key"] ?? null);
+      const created = {
+        id: "66666666-6666-4666-8666-666666666666",
+        cycle,
+        description: "Luminaria reparada y encendida.",
+        created_at: "2026-09-01T12:00:00Z",
+        signed_url: "/synthetic-evidence.jpg?signature=temporary",
+        expires_in: 300,
+      };
+      evidence.push(created);
+      await route.fulfill({ status: 201, json: created });
+      return;
+    }
+    if (request.method() === "GET" && url.pathname.endsWith("/history/")) {
+      await route.fulfill({
+        status: 200,
+        json: {
+          count: history.length,
+          next: null,
+          previous: null,
+          results: [...history].reverse(),
+        },
+      });
+      return;
+    }
     if (request.method() === "GET") {
       metrics.detailGets += 1;
       await route.fulfill({ status: 200, json: detail() });
+      return;
+    }
+    if (request.method() === "PATCH" && url.pathname.endsWith("/status/")) {
+      const body = request.postDataJSON() as { status: string; expected_cycle: number };
+      metrics.lifecyclePatches += 1;
+      metrics.lifecycleBodies.push(body);
+      status = body.status;
+      history.push({
+        previous_status:
+          status === "EN_PROCESO" ? "ASIGNADO" : status === "RESUELTO" ? "EN_PROCESO" : "RESUELTO",
+        new_status: status,
+        cycle,
+        reason: "",
+        created_at:
+          status === "EN_PROCESO"
+            ? "2026-09-01T11:30:00Z"
+            : status === "RESUELTO"
+              ? "2026-09-01T13:00:00Z"
+              : "2026-09-01T14:00:00Z",
+      });
+      if (status === "RESUELTO") resolvedAt = "2026-09-01T13:00:00Z";
+      if (status === "CERRADO") closedAt = "2026-09-01T14:00:00Z";
+      await route.fulfill({
+        status: 200,
+        json: {
+          id: OPERATOR_REPORT_ID,
+          status,
+          cycle,
+          institution: ande,
+          validated_at: validatedAt,
+          resolved_at: resolvedAt,
+          closed_at: closedAt,
+        },
+      });
       return;
     }
     if (url.pathname.endsWith("/validate/")) {
       metrics.validatePosts += 1;
       metrics.validateBodies.push(request.postDataBuffer());
       status = "ASIGNADO";
+      cycle = 1;
+      validatedAt = "2026-09-01T11:00:00Z";
+      history.push({
+        previous_status: "CREADO",
+        new_status: "ASIGNADO",
+        cycle,
+        reason: "",
+        created_at: validatedAt,
+      });
       await route.fulfill({
         status: 200,
         json: {
           id: OPERATOR_REPORT_ID,
           status,
           institution: ande,
-          validated_at: "2026-09-01T11:00:00Z",
+          validated_at: validatedAt,
           validated_by: "55555555-5555-4555-8555-555555555555",
           rejection_reason: "",
         },
@@ -133,6 +236,17 @@ export async function openOperatorQueue(page: Page): Promise<OperatorMetrics> {
       },
     });
   });
+
+  await page.route("**/synthetic-evidence.jpg*", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "image/png",
+      body: Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+        "base64",
+      ),
+    }),
+  );
 
   await page.goto("/bandeja");
   return metrics;

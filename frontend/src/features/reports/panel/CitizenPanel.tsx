@@ -9,22 +9,31 @@ import {
   REPORT_STATUS_LABELS,
   REPORT_STATUS_ORDER,
 } from "@/features/reports/presentation";
+import { ResolutionEvidenceList } from "@/features/reports/evidence/ResolutionEvidenceList";
 import { ReportTimeline } from "@/features/reports/panel/ReportTimeline";
 import {
   CitizenPanelApiError,
   getCitizenSummary,
   getMyReports,
   getReportDetail,
+  getReportEvidence,
   getReportHistory,
 } from "@/lib/api/reports";
 import type {
   CitizenSummary,
   MyReportsPage,
   PrivateReportDetail,
-  ReportHistoryEntry,
+  ReportHistoryPage,
+  ResolutionEvidence,
 } from "@/types/api";
 
 const REPORTS_PER_PAGE = 20;
+const REWARD_STATUS_LABELS = {
+  PENDIENTE: "Pendiente",
+  ACREDITADO: "Acreditado",
+  ANULADO: "Anulado",
+  REVERTIDO: "Revertido",
+} as const;
 
 type InitialState =
   | { phase: "loading" }
@@ -38,7 +47,12 @@ type TrackingState =
       phase: "ready";
       reportId: string;
       detail: PrivateReportDetail;
-      history: ReportHistoryEntry[];
+      historyPage: number;
+      history: ReportHistoryPage;
+      evidence:
+        | { phase: "loading" }
+        | { phase: "ready"; items: ResolutionEvidence[] }
+        | { phase: "error"; message: string };
     };
 
 function errorMessage(error: unknown): string {
@@ -140,22 +154,47 @@ export function CitizenPanel() {
     }
   }
 
-  async function loadTracking(reportId: string) {
-    if (trackingInFlight.current === reportId) return;
+  async function loadTracking(reportId: string, historyPage = 1) {
+    const requestKey = `${reportId}:${historyPage}`;
+    if (trackingInFlight.current === requestKey) return;
     trackingController.current?.abort();
     const controller = new AbortController();
     const requestId = ++trackingRequestId.current;
     trackingController.current = controller;
-    trackingInFlight.current = reportId;
+    trackingInFlight.current = requestKey;
     setTracking({ phase: "loading", reportId });
 
     try {
       const [detail, history] = await Promise.all([
         getReportDetail(reportId, controller.signal),
-        getReportHistory(reportId, controller.signal),
+        getReportHistory(reportId, controller.signal, historyPage),
       ]);
       if (controller.signal.aborted || requestId !== trackingRequestId.current) return;
-      setTracking({ phase: "ready", reportId, detail, history });
+      setTracking({
+        phase: "ready",
+        reportId,
+        detail,
+        historyPage,
+        history,
+        evidence: { phase: "loading" },
+      });
+      void getReportEvidence(reportId, controller.signal)
+        .then((items) => {
+          if (controller.signal.aborted || requestId !== trackingRequestId.current) return;
+          setTracking((current) =>
+            current?.phase === "ready" && current.reportId === reportId
+              ? { ...current, evidence: { phase: "ready", items } }
+              : current,
+          );
+        })
+        .catch((error: unknown) => {
+          if (controller.signal.aborted || requestId !== trackingRequestId.current) return;
+          setTracking((current) =>
+            current?.phase === "ready" && current.reportId === reportId
+              ? { ...current, evidence: { phase: "error", message: errorMessage(error) } }
+              : current,
+          );
+        });
     } catch (error) {
       if (controller.signal.aborted || requestId !== trackingRequestId.current) return;
       controller.abort();
@@ -426,12 +465,78 @@ export function CitizenPanel() {
                 <p className="mt-1 text-sm">
                   Estado actual: {REPORT_STATUS_LABELS[tracking.detail.status]}
                 </p>
+                <p className="mt-1 text-sm">Ciclo actual: {tracking.detail.cycle}</p>
                 <p className="mt-1 text-sm">
                   Confirmaciones ciudadanas: {tracking.detail.confirmation_count}
                 </p>
+                {tracking.detail.resolution_bonus ? (
+                  <div className="mt-4 rounded-lg bg-brand-green/10 p-3 text-sm">
+                    <p className="font-semibold text-brand-green">Bono de resolución</p>
+                    <p className="mt-1">
+                      +{tracking.detail.resolution_bonus.impact_points} puntos y +
+                      {tracking.detail.resolution_bonus.credits} créditos ·{" "}
+                      {REWARD_STATUS_LABELS[tracking.detail.resolution_bonus.status]} · Ciclo{" "}
+                      {tracking.detail.resolution_bonus.cycle}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="mt-4 text-sm text-brand-black/65">
+                    Este ciclo todavía no tiene bono de resolución.
+                  </p>
+                )}
               </div>
               <h3 className="mb-4 mt-7 text-lg font-bold text-brand-purple">Línea de tiempo</h3>
-              <ReportTimeline entries={tracking.history} />
+              <ReportTimeline entries={tracking.history.results} />
+              {(tracking.history.previous || tracking.history.next) && (
+                <nav
+                  aria-label="Páginas del historial del reporte"
+                  className="mt-5 flex flex-wrap items-center justify-between gap-3"
+                >
+                  <button
+                    type="button"
+                    disabled={tracking.history.previous === null}
+                    onClick={() =>
+                      void loadTracking(tracking.reportId, Math.max(1, tracking.historyPage - 1))
+                    }
+                    className="min-h-11 rounded-lg border border-brand-purple px-4 py-2 font-semibold text-brand-purple disabled:opacity-45"
+                  >
+                    Más recientes
+                  </button>
+                  <span className="text-sm">Página {tracking.historyPage}</span>
+                  <button
+                    type="button"
+                    disabled={tracking.history.next === null}
+                    onClick={() => void loadTracking(tracking.reportId, tracking.historyPage + 1)}
+                    className="min-h-11 rounded-lg border border-brand-purple px-4 py-2 font-semibold text-brand-purple disabled:opacity-45"
+                  >
+                    Anteriores
+                  </button>
+                </nav>
+              )}
+              <h3 className="mb-4 mt-7 text-lg font-bold text-brand-purple">
+                Evidencia de resolución
+              </h3>
+              {tracking.evidence.phase === "loading" && (
+                <p role="status">Cargando evidencia de resolución…</p>
+              )}
+              {tracking.evidence.phase === "error" && (
+                <div role="alert" className="rounded-xl bg-white p-4">
+                  <p>{tracking.evidence.message}</p>
+                  <button
+                    type="button"
+                    onClick={() => void loadTracking(tracking.reportId, tracking.historyPage)}
+                    className="mt-3 min-h-11 rounded-lg border border-brand-purple px-4 py-2 font-semibold text-brand-purple"
+                  >
+                    Reintentar evidencia
+                  </button>
+                </div>
+              )}
+              {tracking.evidence.phase === "ready" && (
+                <ResolutionEvidenceList
+                  evidence={tracking.evidence.items}
+                  currentCycle={tracking.detail.cycle}
+                />
+              )}
             </div>
           )}
         </section>

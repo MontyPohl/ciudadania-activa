@@ -2,7 +2,7 @@
 
 Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes de iniciar el siguiente.
 
-- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 **completado** (inicio el 22/08/2026, cierre el 23/08/2026: verificación de identidad con HMAC y almacenamiento privado, revisión administrativa manual con cotejo de la cédula, notificaciones asíncronas entregadas por la API HTTPS de Brevo y privacidad configurable del ranking, todo verificado en producción con una identidad real). Sprint 5 **completado** el 27/08/2026: S5-A, S5-B y S5-C están cerradas, integradas y validadas. Sprint 6 **completado** el 28/08/2026: S6-A y S6-B están cerrados. Sprint 7 **completado** el 29/08/2026: S7-A, S7-B y S7-C están integrados en `main`, y S7-D quedó probado en producción y cerrado con evidencia funcional y de base de datos en modo solo lectura. Sprint 8 continúa **en curso**. Sprint 9 tiene S9-A, S9-B1 y S9-B2 integrados; el cierre documental S9-B3 tiene implementación completa en el PR #38, todavía `OPEN / NO MERGED` y pendiente de integración.
+- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 **completado** (inicio el 22/08/2026, cierre el 23/08/2026: verificación de identidad con HMAC y almacenamiento privado, revisión administrativa manual con cotejo de la cédula, notificaciones asíncronas entregadas por la API HTTPS de Brevo y privacidad configurable del ranking, todo verificado en producción con una identidad real). Sprint 5 **completado** el 27/08/2026: S5-A, S5-B y S5-C están cerradas, integradas y validadas. Sprint 6 **completado** el 28/08/2026: S6-A y S6-B están cerrados. Sprint 7 **completado** el 29/08/2026: S7-A, S7-B y S7-C están integrados en `main`, y S7-D quedó probado en producción y cerrado con evidencia funcional y de base de datos en modo solo lectura. Sprint 8 continúa **en curso**. Sprint 9 quedó **completado** el 09/09/2026: S9-A, S9-B1, S9-B2 y el cierre documental S9-B3 están integrados en `main`; PR #38 fue mergeado mediante `7e95856c1b494d562ce1c267c06d5bebaec28cc8`. Sprint 10 está **implementado y reconciliado con `main` en la rama del PR #39, pendiente de revisión y de autorización de despliegue**: ADR-0013 permanece `ACCEPTED` y la aplicación productiva fue revertida al baseline S9. Durante el intento de despliegue quedaron aplicadas únicamente las migraciones aditivas `reports_app.0003` y `rewards_app.0002`; el backfill `reports_app.0004` y las migraciones posteriores no se ejecutaron. No se modificaron datos de negocio ni se restauró el respaldo.
 - **Plan de referencia:** [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md)
 - **Ventana de desarrollo:** 01/08/2026 → 15/11/2026 (16 sprints semanales, Anexo F revisado)
 - **Estados posibles:** `Pendiente` · `En curso` · `Completado` · `Completado con observaciones` · `Bloqueado`
@@ -21,8 +21,8 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 | 6 | 05/09 – 11/09 | Creación de reportes y duplicados | Completado |
 | 7 | 12/09 – 18/09 | Panel ciudadano y confirmaciones | Completado |
 | 8 | 19/09 – 25/09 | Clasificación asistida por IA | En curso |
-| 9 | 26/09 – 02/10 | Panel institucional y validación | En curso — cierre S9-B3 pendiente de merge |
-| 10 | 03/10 – 09/10 | Estados, evidencias, auditoría y reversión | Pendiente |
+| 9 | 26/09 – 02/10 | Panel institucional y validación | Completado |
+| 10 | 03/10 – 09/10 | Estados, evidencias, auditoría y reversión | Implementado y reconciliado — aplicación revertida a S9; despliegue final pendiente |
 | 11 | 10/10 – 16/10 | Créditos, ranking del mes en curso y privacidad | Pendiente |
 | 12 | 17/10 – 23/10 | Catálogo de recompensas y canje simulado | Pendiente |
 | 13 | 24/10 – 30/10 | Dashboards, integración e ingesta social | Pendiente |
@@ -30,7 +30,7 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 | 15 | 07/11 – 13/11 | Carga, dataset definitivo y documentación | Pendiente |
 | 16 | 14/11 – 15/11 | Cierre y preparación de la defensa | Pendiente |
 
-**Progreso:** 7 / 16 sprints completados (Sprints 1, 2 y 3 cerrados el 20/08/2026; Sprint 4 el 23/08/2026; Sprint 5 el 27/08/2026; Sprint 6 el 28/08/2026; Sprint 7 el 29/08/2026). La ejecución real arrastra el desvío de calendario registrado en CT-29. Sprint 8 continúa **en curso**: R2 permanece prerregistrado/no ejecutado y CA-4 no demostrado. Sprint 9 tiene su implementación completa, pero su cierre documental S9-B3 todavía debe integrarse mediante el PR #38; esto no altera S8 ni inicia S11–S13.
+**Progreso:** 8 / 16 sprints completados (Sprints 1, 2 y 3 cerrados el 20/08/2026; Sprint 4 el 23/08/2026; Sprint 5 el 27/08/2026; Sprint 6 el 28/08/2026; Sprint 7 el 29/08/2026; Sprint 9 el 09/09/2026). La ejecución real arrastra el desvío de calendario registrado en CT-29. Sprint 8 continúa **en curso**: R2 permanece prerregistrado/no ejecutado y CA-4 no demostrado. El cierre de Sprint 9 no inicia S11–S13.
 
 ### Decisiones que condicionan el avance
 
@@ -38,7 +38,7 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 |---|---|---|---|
 | D-01 | Reversión de una validación cuyos créditos ya fueron canjeados | Sprint 10 · Sprint 12 | **Resuelta** — la reversión siempre se ejecuta; el saldo es la diferencia entre créditos válidos y créditos consumidos y puede resultar negativa, sin penalización adicional; el vale emitido permanece emitido; no se permite otro canje hasta que la diferencia alcance de nuevo el saldo requerido |
 | D-02 | ¿Puede el operador fijar un `credit_cost` distinto de 1.000? | Sprint 12 | **Resuelta** — no. El costo es fijo en 1.000 créditos en el MVP; `credit_cost` se conserva con `DEFAULT 1000` por extensibilidad futura, pero no es editable por el operador |
-| D-03 | ¿Dónde reside la instancia de PostgreSQL/PostGIS? | Sprint 1 · Sprint 15 | **Resuelta** — en **Supabase**, junto con Storage. El backend Django y los workers Celery se despliegan en Railway y se conectan mediante `DATABASE_URL`. Fundamento: coherencia con la arquitectura de la tesis, soporte de PostGIS, simplificación operativa, centralización de base y almacenamiento, y facilidad de inspección y documentación durante el TCC. La latencia Railway ↔ Supabase se mide en el Sprint 15 y no altera la arquitectura. Si el plan contratado no incluye respaldos automáticos, son obligatorios los respaldos lógicos periódicos. **Confirmado el 20/08/2026:** el plan Free no ofrece respaldos programados accesibles para este proyecto, por lo que la rutina manual de `pg_dump` queda en vigor y su procedimiento fue comprobado de extremo a extremo |
+| D-03 | ¿Dónde reside la instancia de PostgreSQL/PostGIS? | Sprint 1 · Sprint 15 | **Resuelta** — en **Supabase**, junto con Storage. El backend Django y los workers Celery se despliegan actualmente en Heroku y se conectan mediante `DATABASE_URL`; Railway fue el proveedor anterior. Fundamento: coherencia con la arquitectura de la tesis, soporte de PostGIS, simplificación operativa, centralización de base y almacenamiento, y facilidad de inspección y documentación durante el TCC. La latencia Heroku ↔ Supabase se mide en el Sprint 15 y no altera la arquitectura. Si el plan contratado no incluye respaldos automáticos, son obligatorios los respaldos lógicos periódicos. **Confirmado el 20/08/2026:** el plan Free no ofrece respaldos programados accesibles para este proyecto, por lo que la rutina manual de `pg_dump` queda en vigor y su procedimiento fue comprobado de extremo a extremo |
 | D-04 | ¿Qué alcance tiene la integración social del MVP? | Sprint 13 · Sprint 15 | **Resuelta el 20/08/2026** — **exclusivamente una simulación interna de publicaciones de X/Twitter**, cargada desde un dataset del propio proyecto y persistida en `x_mock_messages`. **Telegram queda fuera del alcance** (sin Bot API, sin webhook, sin *polling*, sin token) y **no habrá integración real con la API de X** (sin OAuth, sin *scraping*, sin credenciales sociales, sin Celery para la ingesta). Se conservan `XMockMessage`, `source='x_mock'` y la regla RF-45. La eliminación técnica de `TelegramIngestedMessage` se ejecutará al inicio del Sprint 13 con migración controlada y respaldo previo. Ver **CT-43** |
 
 Las decisiones base D-01–D-04 están resueltas. Antes de ampliar las notificaciones más allá del correo de identidad deberán decidirse destinatarios, contenido, privacidad, idempotencia, asociación con reportes, tratamiento de fallos del broker, momento de emisión y uso de `transaction.on_commit`. Detalle de la planificación base en la sección 33.2 de [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md).
@@ -56,9 +56,9 @@ Las decisiones base D-01–D-04 están resueltas. Antes de ampliar las notificac
 | C-07 | Valores económicos del ledger inmutables: `REPORT_CREATED` nace con 20/20 y `CONFIRMATION_CREATED` con 10/10, ambos `PENDIENTE`. Mientras estén pendientes no participan de ningún saldo. Al validar solo cambian estado, institución y marcas temporales | S2 · S6 · S7 · S9 |
 | C-08 | El saldo institucional se define como la **diferencia entre créditos válidos y créditos consumidos**, no como el importe canjeado. El criterio funcional de reversión distingue el caso que vuelve a cero del que queda negativo | S10 · S11 · S12 |
 | C-09 | `voided_at` incorporado junto a `credited_at` y `reversed_at` en la migración inicial de `reward_transactions` y en el diccionario de datos | S2 |
-| C-10 | PostgreSQL/PostGIS alojado en **Supabase** de forma consistente en arquitectura, despliegue, Sprint 1, riesgos y `ADR-0003`. Backend y workers en Railway, conectados por `DATABASE_URL` | S1 · S15 |
+| C-10 | PostgreSQL/PostGIS alojado en **Supabase** de forma consistente en arquitectura, despliegue, Sprint 1, riesgos y `ADR-0003`. Backend y workers actualmente en Heroku, conectados por `DATABASE_URL` | S1 · S15 |
 | C-11 | Política de **respaldos lógicos** (`pg_dump` semanal y antes de cada migración destructiva) obligatoria si el plan de Supabase no incluye respaldos automáticos; volcados fuera del repositorio. **Condición confirmada el 20/08/2026** (plan Free sin respaldos programados): la política queda activa y el procedimiento verificado | S1 en adelante |
-| C-12 | Medición explícita de la latencia Railway ↔ Supabase incorporada a las pruebas de carga, aislando tiempo de red del tiempo de aplicación | S15 |
+| C-12 | Medición explícita de la latencia Heroku ↔ Supabase incorporada a las pruebas de carga, aislando tiempo de red del tiempo de aplicación | S15 |
 
 ---
 
@@ -1381,8 +1381,8 @@ antes de cerrarlo.
 ## Sprint 9 — Panel institucional y validación
 
 **Fechas planificadas:** 26/09/2026 – 02/10/2026
-**Estado:** Implementación completa — S9-A, S9-B1 y S9-B2 integrados; S9-B3 en PR #38, pendiente de merge
-**Fecha real de cierre:** Pendiente de integración del PR #38
+**Estado:** Completado — S9-A, S9-B1, S9-B2 y S9-B3 integrados
+**Fecha real de cierre:** 09/09/2026
 
 ### Funcionalidades terminadas
 
@@ -1397,7 +1397,7 @@ antes de cerrarlo.
   linealizable frente a revocación, bandeja limitada server-side a estados operables y paginación
   frontend aislada por institución. Incluye pruebas backend, frontend y dos recorridos E2E
   sintéticos.
-- **S9-B3 (implementado, pendiente de integración):** el PR #38 concilia el estado integrado de
+- **S9-B3 (integrado mediante PR #38):** concilia el estado integrado de
   S9-A, S9-B1 y S9-B2, la trazabilidad entre contrato, API, ledger y pruebas, y delimita
   explícitamente las capacidades posteriores. No añade endpoints, modelos, migraciones ni
   comportamiento funcional.
@@ -1440,11 +1440,12 @@ antes de cerrarlo.
   de trazabilidad histórica, sin cambios funcionales; y
   `c99e769b6a72833301d7dbd142fa8a5bd47f5ada` resuelve D-07 en `docs/DICCIONARIO_DATOS.md`,
   documentando `justification`, `model_name` y la migración `0002` como implementados. La cadena
-  histórica previa al `HEAD` actual es
-  `main@4ecf5023 → da2eb298 → 2088587 → 41babc6 → 4472e45 → f87ae07 → c99e769b`. El `HEAD`
-  remoto debe verificarse en GitHub y su SHA no se autoconsigna. El PR #38 permanece
-  `OPEN / NO MERGED`, y ninguno de sus commits intermedios representa por sí solo el estado
-  completo de la rama.
+  histórica de la rama fue
+  `main@4ecf5023 → da2eb298 → 2088587 → 41babc6 → 4472e45 → f87ae07 → c99e769b → a089d3b`.
+  El PR #38 fue mergeado en `main` mediante
+  `7e95856c1b494d562ce1c267c06d5bebaec28cc8`; ninguno de sus commits intermedios representa por
+  sí solo el estado completo de la rama. Después del merge, `main` avanzó mediante los commits
+  administrativos autorizados `f0e8ce1` y `730d69e`, ajenos al alcance de S9.
 
 ### Observaciones y desvíos respecto del plan
 
@@ -1462,23 +1463,88 @@ antes de cerrarlo.
 ## Sprint 10 — Estados, evidencias, auditoría y reversión
 
 **Fechas planificadas:** 03/10/2026 – 09/10/2026
-**Estado:** Pendiente
-**Fecha real de cierre:** —
+**Estado:** Implementado y reconciliado con `main` conforme a ADR-0013 — aplicación productiva revertida a S9; despliegue final no autorizado
+**Fecha real de cierre:** — (Sprint 10 no cerrado)
 
 ### Funcionalidades terminadas
-_Pendiente._
+
+- Ciclos de resolución monotónicos, migraciones aditivas, backfill determinista y restricciones de
+  integridad.
+- Flujo institucional `ASIGNADO → EN_PROCESO → RESUELTO → CERRADO`, con ciclo esperado, locks,
+  historial y auditoría.
+- Evidencia privada JPEG/PNG normalizada, limitada por ciclo, con URLs efímeras e idempotencia.
+- Bonus de resolución, reversión administrativa compensatoria y revalidación sin reactivar valor
+  económico histórico.
+- Autocierre periódico a las 72 horas por defecto, con tarea Celery idempotente y Beat único.
+- Lectura administrativa paginada de auditoría y UI de operador, ciudadano y administrador.
+
+La implementación permanece en la rama `feat/s10-implementation` y representa el candidato del
+PR #39. La aplicación productiva fue revertida al baseline S9. En la base productiva permanecen
+aplicadas únicamente las migraciones aditivas `reports_app.0003_add_resolution_cycle_columns` y
+`rewards_app.0002_add_resolution_cycle_column`; el backfill `reports_app.0004` y todas las
+migraciones posteriores de S10 no se ejecutaron. No se modificaron datos de negocio ni se restauró
+el respaldo. Este estado parcial no implica el cierre formal de Sprint 10.
 
 ### Pruebas realizadas
-_Pendiente._
+
+La rama incluye pruebas unitarias, de API, esquema/migraciones, concurrencia e idempotencia para
+S10, además de las suites completas backend, frontend y Playwright. El backfill se reprodujo con
+el universo aprobado de 16 reportes: los 16 quedan en ciclo 0 (2 registros históricos reales y 14
+snapshots sintéticos), sin desconocidos ni inconsistencias.
+El release gate final reprodujo 1.984 pruebas backend con 99% de cobertura, 360 Vitest, 52 Playwright
+Chromium sobre build de producción y las 8 carreras PostgreSQL; Ruff, Django check,
+`makemigrations --check`, ESLint, TypeScript, Prettier y build pasaron. Las 62 pruebas focalizadas
+incluyeron clasificación negativa, abort transaccional con cero escrituras y violaciones directas
+de constraints. Esos resultados corresponden al gate previo al intento de despliegue; la
+reconciliación con `main` se valida de nuevo sobre el candidato exacto del PR #39.
 
 ### Problemas encontrados
-_Pendiente._
+
+El primer release gate encontró dos blockers técnicos, ambos remediados y verificados en el gate
+final:
+
+1. `S10-RG-B01 CLOSED`: migración y preflight usan un clasificador compartido, explícito y
+   fail-closed; no existe `COALESCE`/fallback de ownership y las contradicciones abortan antes de
+   cualquier escritura;
+2. `S10-RG-B02 CLOSED`: PostgreSQL exige report/ciclo positivo para bonus, report/ciclo/original
+   para reversals y rechaza `related_transaction` en otros eventos; las unicidades parciales se
+   comprobaron directamente en el esquema local;
+3. `S10-RG-B03 CLOSED`: el primer preflight productivo reveló que `report.confirmed` es una acción
+   histórica válida de ciclo 0. La corrección `7e31953f20943b2d2a79e9df41f74502a5267f78`
+   la incorpora a la allowlist sin admitir acciones de ciclos avanzados; las regresiones cubren
+   explícitamente `report.confirmed → CYCLE_0` y
+   `report.resolution_evidence_created → UNKNOWN`.
+
+El intento de despliegue se detuvo después de aplicar las dos columnas aditivas y antes del
+backfill. La aplicación fue revertida a S9 mediante Heroku rollback; las columnas aditivas vacías
+se conservaron, no hubo escrituras de negocio y no se restauró el respaldo.
+
+Además siguen siendo obligatorios respaldo verificable, auditoría sólo lectura sobre la base de
+destino y una ventana con todos los writers detenidos. El plan exacto y los puntos de rollback
+están en `docs/runbooks/S10_RELEASE_PLAN.md`. El despliegue requiere una autorización explícita
+posterior; el gate verde no la concede.
 
 ### Commits relevantes
-_Pendiente._
+
+La implementación y remediación abarcan `8b660bc`–`0fff30c`; B01/B02 quedaron materialmente
+corregidos mediante `754c123`, `64ff407`, `88480ca`, `20a55db`, `f47b4e1`, `1ec39cb`, `0469f55`
+y `0fff30c`, sobre el baseline S9 `730d69ede7033c3487b68f79b1828fe6f2f43180`. La corrección
+posterior del clasificador es `7e31953f20943b2d2a79e9df41f74502a5267f78`.
 
 ### Observaciones y desvíos respecto del plan
-_Pendiente. Incorpora la decisión D-01 (reversión siempre ejecutable; el saldo es la diferencia entre créditos válidos y consumidos y puede resultar negativa) y las correcciones C-01 (anulación de pendientes que siguieran sin acreditar) y C-08 (redacción del saldo y del criterio de reversión)._
+
+ADR-0013 define que una reversión administrativa desde `ASIGNADO`, `EN_PROCESO`, `RESUELTO` o
+`CERRADO` devuelve el reporte a `CLASIFICADO`. La implementación conserva evidencia e historial,
+limpia las proyecciones vigentes y no incrementa `resolution_cycle`; una validación posterior inicia
+un ciclo nuevo y la evidencia de resolución pertenece a su ciclo.
+
+También incorpora D-01 —la reversión siempre se ejecuta y el saldo, definido como la diferencia
+entre créditos válidos y consumidos, puede resultar negativo—, C-01 —anulación de pendientes que
+siguieran sin acreditar— y C-08 —redacción del saldo y criterio de reversión—. El autocierre a las
+72 horas transcurridas desde `resolved_at`, las APIs, la evidencia privada y los efectos de ledger
+de S10 están implementados en la rama, pero no están activos en producción: la aplicación continúa
+en S9 y sólo persiste el esquema aditivo parcial ya descrito. S10 no envía ni depende de
+notificaciones; la ampliación del sistema de notificaciones permanece fuera de alcance.
 
 ---
 
@@ -1547,7 +1613,7 @@ _Pendiente. Incorpora la decisión D-02 (costo fijo de 1.000 créditos, no edita
 > y actualizar entonces `DICCIONARIO_DATOS.md` de 18 a 17 entidades. Al ser una migración
 > **destructiva** (`DROP TABLE telegram_ingested_messages`), exige **respaldo productivo previo al
 > push a `main`** según ADR-0003, y verificación productiva y respaldo posterior tras el
-> auto-migrate de Railway.
+> procedimiento manual de migración de Heroku.
 >
 > **A día de hoy nada de eso se ha ejecutado:** `TelegramIngestedMessage` sigue en el modelo, la
 > tabla sigue en producción (sin filas) y el esquema conserva **18 entidades**.
@@ -1647,7 +1713,7 @@ Se completa a medida que las mediciones estén disponibles (Sprints 14 y 15).
 | Cobertura backend crítico | ≥ 80 % | — | Pendiente |
 | Concordancia IA vs etiquetas de oro | ≥ 85 % | — | Pendiente |
 | Latencia P50 endpoints críticos | ≤ 800 ms | — | Pendiente |
-| Latencia de red Railway ↔ Supabase | Medida y documentada | — | Pendiente |
+| Latencia de red Heroku ↔ Supabase | Medida y documentada | — | Pendiente |
 | Latencia P99 bajo carga | ≤ 2.000 ms | — | Pendiente |
 | Throughput de creación de reportes | ≥ 50 rep/min | — | Pendiente |
 | Flujos E2E críticos | 100 % | — | Pendiente |
@@ -1668,8 +1734,8 @@ Se completa a medida que las mediciones estén disponibles (Sprints 14 y 15).
 | ADR-0007 | Almacenamiento de fotografías | S6 | Aceptada — escrita e integrada el 28/08/2026; fija bucket privado, validación/normalización, hash original y compensación acotada |
 | ADR-0008 | Integración Gemini desacoplada mediante adapter de IA | S8 | Aceptada — escrita en S8-A el 29/08/2026; fija la frontera del proveedor, el fake con la misma interfaz y la prohibición del proveedor real en CI |
 | ADR-0009 | Clasificación IA asíncrona mediante Celery | S8 | Aceptada — escrita en S8-A el 29/08/2026; distingue los cinco modos de fallo y fija idempotencia, reintentos acotados y la semántica de `CLASIFICADO` |
-| ADR-0010 | Créditos por institución y conversión 1:1 | S9 | Pendiente |
+| ADR-0010 | Créditos por institución y conversión 1:1 | S9 | Aceptada — integrada mediante PR #35 |
 | ADR-0011 | Privacidad configurable del ranking | S4 | Aceptada — escrita el 22/08/2026 y ampliada con la recuperación de la preferencia (`GET` + `PATCH`); la resolución del nombre visible es del S11 |
 | ADR-0012 | Detección de duplicados por proximidad | S6 | Aceptada — escrita e integrada el 28/08/2026; warning advisory privacy-safe, radio PostGIS y ausencia explícita de IA |
-| ADR-0013 | Política de reversión, anulación y saldo negativo | S10 | Pendiente |
+| ADR-0013 | Política de reversión, revalidación y ciclos de resolución | S10 | `ACCEPTED` — implementada localmente; despliegue no autorizado |
 | ADR-0014 | Modelo de usuario personalizado desde la primera migración | S1 | Aceptada |

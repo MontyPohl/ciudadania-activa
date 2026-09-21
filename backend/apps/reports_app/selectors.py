@@ -15,6 +15,7 @@ from django.db.models import (
     OuterRef,
     Prefetch,
     Q,
+    Subquery,
     Value,
     When,
 )
@@ -24,8 +25,10 @@ from django.utils import timezone
 from apps.admin_app.models import AuditLog
 from apps.ai_client_app.models import AiClassification
 from apps.core.enums import ReportPriority, ReportStatus
-from apps.reports_app.enums import OPERABLE_REPORT_STATUSES, MediaType
+from apps.reports_app.enums import OPERATOR_QUEUE_REPORT_STATUSES, MediaType
 from apps.reports_app.models import Report, ReportConfirmation, ReportMedia
+from apps.rewards_app.enums import RewardEventType
+from apps.rewards_app.models import RewardTransaction
 
 ACTIVE_REPORT_STATUSES = (
     ReportStatus.CREADO,
@@ -57,12 +60,25 @@ def contextual_report_queryset(*, citizen):
         report_id=OuterRef("pk"),
         citizen=citizen,
     )
+    current_resolution_bonus = RewardTransaction.objects.filter(
+        report_id=OuterRef("pk"),
+        event_type=RewardEventType.RESOLUTION_BONUS,
+        resolution_cycle=OuterRef("resolution_cycle"),
+    ).order_by("-created_at", "-id")
     return (
         Report.objects.filter(status__in=VISIBLE_REPORT_STATUSES)
         .select_related("category", "institution")
         .annotate(
             confirmation_count=Count("confirmations"),
             confirmed_by_me=Exists(confirmed_by_citizen),
+            resolution_bonus_impact_points=Subquery(
+                current_resolution_bonus.values("impact_delta")[:1]
+            ),
+            resolution_bonus_credits=Subquery(current_resolution_bonus.values("credit_delta")[:1]),
+            resolution_bonus_status=Subquery(current_resolution_bonus.values("status")[:1]),
+            resolution_bonus_cycle=Subquery(
+                current_resolution_bonus.values("resolution_cycle")[:1]
+            ),
         )
     )
 
@@ -86,7 +102,7 @@ def operator_reports_for_institution(*, institution):
 def operator_report_list(*, institution, params):
     """Bandeja institucional filtrada y con orden total entre páginas."""
     queryset = operator_reports_for_institution(institution=institution).filter(
-        status__in=OPERABLE_REPORT_STATUSES
+        status__in=OPERATOR_QUEUE_REPORT_STATUSES
     )
 
     if status := params.get("status"):

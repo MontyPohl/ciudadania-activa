@@ -47,6 +47,13 @@ CONFIRMATION_CONFLICT_MESSAGES = {
 }
 
 
+class _PrivateNoStoreMixin:
+    def finalize_response(self, request, response, *args, **kwargs):
+        response = super().finalize_response(request, response, *args, **kwargs)
+        response["Cache-Control"] = "private, no-store"
+        return response
+
+
 class ReportCreateView(APIView):
     permission_classes = [IsVerifiedCitizen]
     throttle_classes = [ScopedRateThrottle]
@@ -172,7 +179,7 @@ class ConfirmReportView(APIView):
         )
 
 
-class ContextualReportDetailView(RetrieveAPIView):
+class ContextualReportDetailView(_PrivateNoStoreMixin, RetrieveAPIView):
     permission_classes = [IsVerifiedCitizen]
     serializer_class = ContextualReportDetailSerializer
     lookup_url_kwarg = "report_id"
@@ -181,13 +188,18 @@ class ContextualReportDetailView(RetrieveAPIView):
         return contextual_report_queryset(citizen=self.request.user)
 
 
-class ReportHistoryView(APIView):
+class ReportHistoryView(_PrivateNoStoreMixin, ListAPIView):
     permission_classes = [IsVerifiedCitizen]
+    serializer_class = ReportStatusHistorySerializer
 
-    def get(self, request, report_id):
-        report = get_object_or_404(Report, pk=report_id, citizen=request.user)
-        history = ReportStatusHistory.objects.filter(report=report).order_by("created_at", "id")
-        return Response(ReportStatusHistorySerializer(history, many=True).data)
+    def get_queryset(self):
+        report = get_object_or_404(Report, pk=self.kwargs["report_id"], citizen=self.request.user)
+        return ReportStatusHistory.objects.filter(report=report).order_by("-created_at", "-id")
+
+    def list(self, request, *args, **kwargs):
+        query = MineQuerySerializer(data=request.query_params)
+        query.is_valid(raise_exception=True)
+        return super().list(request, *args, **kwargs)
 
 
 class CitizenSummaryView(APIView):

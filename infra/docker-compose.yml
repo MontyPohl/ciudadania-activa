@@ -77,5 +77,24 @@ services:
       redis:
         condition: service_healthy
 
+  beat:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile.dev
+    command: celery -A config beat --loglevel=info
+    env_file:
+      - ../.env
+    environment:
+      DATABASE_URL: postgis://ciudadania:ciudadania@db:5432/ciudadania_activa
+      REDIS_URL: redis://redis:6379/0
+      DJANGO_SETTINGS_MODULE: config.settings.dev
+    volumes:
+      - ../backend:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
 volumes:
   postgres_data:

@@ -1,3 +1,5 @@
+import uuid
+
 import pytest
 from django.contrib.gis.geos import Point
 from django.db.models import ProtectedError
@@ -46,7 +48,14 @@ def test_borrar_al_validador_conserva_el_reporte(report, other_citizen):
 def test_borrar_el_reporte_arrastra_su_material_asociado(report, other_citizen):
     ReportMedia.objects.create(report=report, file_url="u", file_hash="a" * 64)
     ReportStatusHistory.objects.create(report=report, new_status="CLASIFICADO")
-    ResolutionEvidence.objects.create(report=report, description="d", evidence_url="u")
+    ResolutionEvidence.objects.create(
+        report=report,
+        description="d",
+        evidence_url="u",
+        resolution_cycle=1,
+        idempotency_key=uuid.uuid4(),
+        content_hash="a" * 64,
+    )
     ReportConfirmation.objects.create(report=report, citizen=other_citizen)
 
     report.delete()

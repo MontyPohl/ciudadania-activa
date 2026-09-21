@@ -1,4 +1,4 @@
-"""Contrato del ledger: creación implementada en S6 y demás eventos aún declarativos."""
+"""Contrato del ledger de creación, validación, resolución y reversión."""
 
 import inspect
 
@@ -15,22 +15,12 @@ FUNCIONES = [
     ("revert_validation", ["report", "actor", "reason"]),
 ]
 
-FUNCIONES_PENDIENTES = FUNCIONES[4:]
-
 
 @pytest.mark.parametrize(("nombre", "parametros"), FUNCIONES)
 def test_las_firmas_del_contrato_estan_declaradas(nombre, parametros):
     funcion = getattr(ledger, nombre)
 
     assert list(inspect.signature(funcion).parameters) == parametros
-
-
-@pytest.mark.parametrize(("nombre", "parametros"), FUNCIONES_PENDIENTES)
-def test_ninguna_funcion_del_ledger_esta_implementada(nombre, parametros):
-    funcion = getattr(ledger, nombre)
-
-    with pytest.raises(NotImplementedError):
-        funcion(*[None] * len(parametros))
 
 
 @pytest.mark.django_db
@@ -99,7 +89,17 @@ def test_on_confirmation_created_acredita_si_el_reporte_ya_fue_validado(
 
     report.validated_at = timezone.now()
     report.institution = institution
-    report.save(update_fields=["validated_at", "institution", "updated_at"])
+    report.status = "ASIGNADO"
+    report.resolution_cycle = 1
+    report.save(
+        update_fields=[
+            "validated_at",
+            "institution",
+            "status",
+            "resolution_cycle",
+            "updated_at",
+        ]
+    )
     confirmation = ReportConfirmation.objects.create(
         report=report,
         citizen=other_citizen,
@@ -110,6 +110,174 @@ def test_on_confirmation_created_acredita_si_el_reporte_ya_fue_validado(
     assert transaction.status == "ACREDITADO"
     assert transaction.institution == institution
     assert transaction.credited_at == confirmation.created_at
+    assert transaction.resolution_cycle == 1
+
+
+@pytest.mark.django_db
+def test_resolution_bonus_es_50_50_y_pertenece_al_ciclo(report, operator_user, institution):
+    from django.utils import timezone
+
+    report.validated_at = timezone.now()
+    report.institution = institution
+    report.status = "ASIGNADO"
+    report.resolution_cycle = 1
+    report.save(
+        update_fields=[
+            "validated_at",
+            "institution",
+            "status",
+            "resolution_cycle",
+            "updated_at",
+        ]
+    )
+    report.status = "EN_PROCESO"
+    report.save(update_fields=["status", "updated_at"])
+
+    result = ledger.on_report_resolved(report, operator_user)
+
+    bonus = result.resolution_bonus
+    assert (bonus.impact_delta, bonus.credit_delta) == (50, 50)
+    assert bonus.status == "ACREDITADO"
+    assert bonus.resolution_cycle == 1
+
+
+@pytest.mark.django_db
+def test_reversal_conserva_deltas_y_crea_contrapartidas(
+    report,
+    operator_user,
+    institution,
+):
+    from django.utils import timezone
+
+    from apps.rewards_app.enums import RewardEventType, RewardTxStatus
+    from apps.rewards_app.models import RewardTransaction
+
+    now = timezone.now()
+    report.validated_at = now
+    report.institution = institution
+    report.status = "ASIGNADO"
+    report.resolution_cycle = 1
+    report.save(
+        update_fields=[
+            "validated_at",
+            "institution",
+            "status",
+            "resolution_cycle",
+            "updated_at",
+        ]
+    )
+    originals = [
+        RewardTransaction.objects.create(
+            user=report.citizen,
+            report=report,
+            institution=institution,
+            event_type=event_type,
+            impact_delta=delta,
+            credit_delta=delta,
+            status=RewardTxStatus.ACREDITADO,
+            credited_at=now,
+            resolution_cycle=1,
+        )
+        for event_type, delta in (
+            (RewardEventType.REPORT_CREATED, 20),
+            (RewardEventType.VALIDATION_BONUS, 30),
+            (RewardEventType.RESOLUTION_BONUS, 50),
+        )
+    ]
+
+    result = ledger.revert_validation(report, operator_user, "Motivo administrativo suficiente")
+
+    for original in originals:
+        original.refresh_from_db()
+        assert original.status == RewardTxStatus.REVERTIDO
+        assert original.credited_at == now
+        assert original.impact_delta > 0 and original.credit_delta > 0
+    assert [tx.related_transaction_id for tx in result.reversal_transactions] == [
+        original.pk for original in originals
+    ]
+    assert [tx.impact_delta for tx in result.reversal_transactions] == [-20, -30, -50]
+    assert all(tx.status == RewardTxStatus.REVERTIDO for tx in result.reversal_transactions)
+
+
+@pytest.mark.django_db
+def test_reversal_anula_pendientes_null_y_aisla_otros_ciclos(
+    report,
+    other_citizen,
+    operator_user,
+    institution,
+):
+    from django.utils import timezone
+
+    from apps.reports_app.models import ReportConfirmation
+    from apps.rewards_app.enums import RewardEventType, RewardTxStatus
+    from apps.rewards_app.models import RewardTransaction
+
+    now = timezone.now()
+    report.validated_at = now
+    report.institution = institution
+    report.status = "ASIGNADO"
+    report.resolution_cycle = 1
+    report.save(
+        update_fields=[
+            "validated_at",
+            "institution",
+            "status",
+            "resolution_cycle",
+            "updated_at",
+        ]
+    )
+    confirmation = ReportConfirmation.objects.create(report=report, citizen=other_citizen)
+    pending = RewardTransaction.objects.create(
+        user=other_citizen,
+        confirmation=confirmation,
+        event_type=RewardEventType.CONFIRMATION_CREATED,
+        impact_delta=10,
+        credit_delta=10,
+        status=RewardTxStatus.PENDIENTE,
+        resolution_cycle=None,
+    )
+    prior_cycle = RewardTransaction.objects.create(
+        user=report.citizen,
+        report=report,
+        institution=institution,
+        event_type=RewardEventType.VALIDATION_BONUS,
+        impact_delta=30,
+        credit_delta=30,
+        status=RewardTxStatus.REVERTIDO,
+        credited_at=now,
+        reversed_at=now,
+        resolution_cycle=2,
+    )
+    redemption = RewardTransaction.objects.create(
+        user=report.citizen,
+        institution=institution,
+        event_type=RewardEventType.REDEMPTION,
+        impact_delta=0,
+        credit_delta=-1000,
+        status=RewardTxStatus.ACREDITADO,
+        credited_at=now,
+    )
+
+    result = ledger.revert_validation(report, operator_user, "Motivo administrativo suficiente")
+
+    pending.refresh_from_db()
+    prior_cycle.refresh_from_db()
+    redemption.refresh_from_db()
+    assert result.voided_transactions == (pending,)
+    assert pending.status == RewardTxStatus.ANULADO
+    assert pending.resolution_cycle is None
+    assert prior_cycle.status == RewardTxStatus.REVERTIDO
+    assert redemption.status == RewardTxStatus.ACREDITADO
+
+
+@pytest.mark.django_db
+def test_resolution_bonus_rechaza_reporte_revertido(report, operator_user, institution):
+    report.institution = institution
+    report.status = "CLASIFICADO"
+    assert report.resolution_cycle == 0
+
+    with pytest.raises(ledger.LedgerInvariantError, match="EN_PROCESO"):
+        ledger.on_report_resolved(report, operator_user)
 
 
 @pytest.mark.django_db

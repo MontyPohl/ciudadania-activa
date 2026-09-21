@@ -69,6 +69,7 @@ def validate_report(*, report_id, operator, institution) -> ValidationResult:
         )
 
         operation_at = timezone.now()
+        next_cycle = report.resolution_cycle + 1
         ledger_result = ledger.on_report_validated(
             report,
             institution,
@@ -81,12 +82,16 @@ def validate_report(*, report_id, operator, institution) -> ValidationResult:
         report.validated_at = operation_at
         report.validated_by = operator
         report.institution = institution
+        report.resolution_cycle = next_cycle
+        report.resolved_at = None
         report.save(
             update_fields=[
                 "status",
                 "validated_at",
                 "validated_by",
                 "institution",
+                "resolution_cycle",
+                "resolved_at",
                 "updated_at",
             ]
         )
@@ -95,6 +100,7 @@ def validate_report(*, report_id, operator, institution) -> ValidationResult:
             previous_status=previous_status,
             new_status=ReportStatus.ASIGNADO,
             changed_by=operator,
+            resolution_cycle=next_cycle,
         )
         audit.log(
             operator,
@@ -102,6 +108,7 @@ def validate_report(*, report_id, operator, institution) -> ValidationResult:
             {
                 "report_id": str(report.pk),
                 "institution_id": str(institution.pk),
+                "cycle": next_cycle,
                 "credited_transaction_ids": [
                     str(reward.pk) for reward in ledger_result.credited_transactions
                 ],

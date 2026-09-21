@@ -21,7 +21,7 @@ Las diferencias entre el prototipo real y lo declarado en la tesis se registran 
 | Base de datos | PostgreSQL 17 + PostGIS, alojada en **Supabase** |
 | Almacenamiento | Supabase Storage |
 | Caché / broker | Redis 7 |
-| Asincronía | Celery (worker desplegado; Beat previsto para las tareas periódicas del Sprint 10) |
+| Asincronía | Celery (worker desplegado; Beat definido para S10 y mantenido en 0 dynos hasta su activación autorizada) |
 | Hosting | Vercel (frontend) · Heroku (backend + workers) · Supabase (DB + storage) |
 | Calidad | Ruff (Python) · ESLint + Prettier (TypeScript) · GitHub Actions |
 
@@ -67,7 +67,8 @@ docker compose -f infra/docker-compose.yml up db redis
 Esto expone PostGIS en `localhost:5432` y Redis en `localhost:6379`, según lo declarado en `.env`.
 
 > Alternativa: `docker compose -f infra/docker-compose.yml up` levanta además los contenedores
-> `backend` y `worker`, útil para reproducir el stack completo sin instalar Python localmente.
+> `backend`, `worker` y `beat`, útil para reproducir el stack completo sin instalar Python
+> localmente. `beat` programa cada 15 minutos el autocierre de reportes resueltos.
 
 El contenedor `db` usa `postgis/postgis:17-3.5`, alineado con el major de PostgreSQL que entrega
 Supabase. **Cambiar el major de PostgreSQL invalida el volumen `infra_postgres_data`**: hay que
@@ -76,7 +77,8 @@ volume rm infra_postgres_data`). En local esto no destruye información: los dat
 `migrate` y las cargas de prueba del sprint correspondiente.
 
 > **Aislamiento deliberado:** `infra/docker-compose.yml` fija `DATABASE_URL` al contenedor local en
-> el bloque `environment` de `backend` y `worker`, que tiene precedencia sobre `env_file`. Por eso
+> el bloque `environment` de `backend`, `worker` y `beat`, que tiene precedencia sobre `env_file`.
+> Por eso
 > `docker compose up` **nunca** escribe en Supabase, aunque el `.env` contenga una URL remota. Es
 > intencional y no debe "corregirse" (ADR-0003).
 
@@ -218,16 +220,17 @@ Ningún valor real vive en el repositorio: `.env.example` declara **solo los nom
 `.env` está en `.gitignore`. Lo importante es que **no todos los servicios necesitan todo**,
 y repartir credenciales de más es un riesgo gratuito.
 
-| Variable | Backend web (Heroku) | Worker de Celery | Frontend (Vercel) |
-|---|:--:|:--:|:--:|
-| `DOCUMENT_HMAC_SECRET` | **Sí** | No | No |
-| `SUPABASE_URL` | **Sí** | No | No |
-| `SUPABASE_SERVICE_ROLE_KEY` | **Sí** | No | No |
-| `SUPABASE_STORAGE_BUCKET_PRIVATE` | **Sí** | No | No |
-| `BREVO_API_KEY` · `BREVO_API_URL` · `DEFAULT_FROM_EMAIL` | No | **Sí** | No |
-| `DATABASE_URL` · `REDIS_URL` · `DJANGO_SECRET_KEY` | **Sí** | **Sí** | No |
-| `PUBLIC_MAP_CACHE_TTL_SECONDS` | **Sí** | No | No |
-| `NEXT_PUBLIC_API_URL` · `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | No | No | **Sí** (públicas) |
+| Variable | Backend web (Heroku) | Worker Celery (Heroku) | Celery Beat (Heroku) | Frontend (Vercel) |
+|---|:--:|:--:|:--:|:--:|
+| `DOCUMENT_HMAC_SECRET` | **Sí** | No | No | No |
+| `SUPABASE_URL` | **Sí** | No | No | No |
+| `SUPABASE_SERVICE_ROLE_KEY` | **Sí** | No | No | No |
+| `SUPABASE_STORAGE_BUCKET_PRIVATE` | **Sí** | No | No | No |
+| `BREVO_API_KEY` · `BREVO_API_URL` · `DEFAULT_FROM_EMAIL` | No | **Sí** | No | No |
+| `DATABASE_URL` · `REDIS_URL` · `DJANGO_SECRET_KEY` | **Sí** | **Sí** | **Sí** | No |
+| `REPORT_AUTO_CLOSE_HOURS` | No | **Opcional** | **Opcional** | No |
+| `PUBLIC_MAP_CACHE_TTL_SECONDS` | **Sí** | No | No | No |
+| `NEXT_PUBLIC_API_URL` · `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | No | No | No | **Sí** (públicas) |
 
 El backend web es el único que crea verificaciones y firma imágenes, así que es el único que
 necesita la clave del HMAC y la credencial de Storage. El worker es el único que envía correo,
@@ -239,6 +242,14 @@ backend web y worker comparten ajustes, y obligar a que estén presentes forzar�
 credencial con privilegios totales sobre el almacenamiento a un servicio que no la usa. El
 comportamiento es fallo cerrado **local**: el endpoint que las necesita responde `503` genérico
 y el resto del sistema sigue funcionando.
+
+El scheduler se despliega como un proceso único separado del worker, con el comando
+`celery -A config.celery:app beat --loglevel=info`. Beat agenda `reports.auto_close`, pero es el
+worker quien ejecuta la tarea y consulta `REPORT_AUTO_CLOSE_HOURS`; si se sobrescribe el valor por
+defecto, debe configurarse de forma consistente al menos en todos los workers que consuman esa
+cola. La variable es opcional, debe ser un entero positivo y vale `72` por defecto; un valor
+inválido impide el arranque del proceso que lo reciba. Ejecutar más de una instancia de Beat
+duplicaría entregas innecesarias, aunque el servicio conserva idempotencia bajo lock del reporte.
 
 ### `DOCUMENT_HMAC_SECRET`
 
@@ -349,7 +360,7 @@ paneles y no se automatiza desde este repositorio.
 
 | Servicio | Proveedor | URL pública | Notas |
 |---|---|---|---|
-| Frontend | Vercel | `https://ciudadania-activa.vercel.app` | `Root Directory: frontend`; solo la variable pública `NEXT_PUBLIC_API_URL`. **Ningún secreto de backend se carga en Vercel** |
+| Frontend | Vercel | `https://ciudadania-activa.vercel.app` | `Root Directory: frontend`; sólo necesita las variables públicas `NEXT_PUBLIC_*`. El proyecto conserva 28 variables de backend heredadas que no llegan al navegador, pero amplían el radio de exposición y deben retirarse en una operación de seguridad separada |
 | Backend | Heroku | `https://ciudadania-activa-api-5b4f8e81977b.herokuapp.com` | App `ciudadania-activa-api`, stack `container`; proceso `web`: `gunicorn config.wsgi:application --bind 0.0.0.0:$PORT`. **Sin fase `release`: ningún deploy migra la base** |
 | Worker de Celery | Heroku | — | Proceso `worker` de la misma app: `celery -A config.celery:app worker --loglevel=info --concurrency=2` |
 | Celery Beat | Heroku | — | Proceso `beat` definido y escalado a **0 dynos**; lo activa el Sprint 10 con exactamente 1 instancia |

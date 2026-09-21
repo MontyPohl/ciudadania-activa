@@ -1,7 +1,9 @@
 import type {
+  ActorType,
   ISODateTime,
   RankingVisibility,
   RejectionReason,
+  RewardTxStatus,
   ReportPriority,
   ReportStatus,
   UserRole,
@@ -46,6 +48,7 @@ export interface OperatorCategory {
 export interface OperatorReport {
   id: UUID;
   status: ReportStatus;
+  cycle: number;
   priority: ReportPriority;
   category: OperatorCategory;
   institution: SessionInstitution | null;
@@ -67,6 +70,9 @@ export interface OperatorAiClassification {
 
 export interface OperatorReportDetail extends OperatorReport {
   description: string;
+  validated_at: ISODateTime | null;
+  resolved_at: ISODateTime | null;
+  closed_at: ISODateTime | null;
   latitude: number;
   longitude: number;
   photo_signed_url: string | null;
@@ -81,6 +87,34 @@ export interface OperatorReportActionResult {
   validated_at: ISODateTime | null;
   validated_by: UUID | null;
   rejection_reason: RejectionReason | "";
+}
+
+export interface ReportLifecycleResult {
+  id: UUID;
+  status: ReportStatus;
+  cycle: number;
+  institution: SessionInstitution;
+  validated_at: ISODateTime | null;
+  resolved_at: ISODateTime | null;
+  closed_at: ISODateTime | null;
+}
+
+export interface ResolutionEvidence {
+  id: UUID;
+  cycle: number;
+  description: string;
+  created_at: ISODateTime;
+  signed_url: string;
+  expires_in: number;
+}
+
+export interface AdminAuditLog {
+  id: UUID;
+  actor_user_id: UUID | null;
+  actor_type: ActorType;
+  action: string;
+  payload: Record<string, unknown>;
+  created_at: ISODateTime;
 }
 
 /** Respuesta del BFF en `POST /api/auth/google`. El refresh nunca viaja al cliente. */
@@ -192,21 +226,36 @@ export interface ConfirmReportResponse {
   };
 }
 
-/** Lista blanca contextual: no incluye autor, archivos, auditoría ni reward. */
+export interface ResolutionBonus {
+  impact_points: number;
+  credits: number;
+  status: RewardTxStatus;
+  cycle: number;
+}
+
+/** Lista blanca contextual: no incluye autor, archivos ni auditoría. */
 export interface PrivateReportDetail extends MyReport {
+  cycle: number;
+  validated_at: ISODateTime | null;
+  resolved_at: ISODateTime | null;
+  closed_at: ISODateTime | null;
   latitude: number;
   longitude: number;
   confirmation_count: number;
   confirmed_by_me: boolean;
   confirmation_eligibility: ConfirmationEligibility;
+  resolution_bonus: ResolutionBonus | null;
 }
 
 export interface ReportHistoryEntry {
   previous_status: ReportStatus | "";
   new_status: ReportStatus;
+  cycle: number;
   reason: string;
   created_at: ISODateTime;
 }
+
+export type ReportHistoryPage = PaginatedResponse<ReportHistoryEntry>;
 
 /* -------------------------------------------------------------------------- */
 /* Verificación de identidad — lado ciudadano (Sprint 4)                      */

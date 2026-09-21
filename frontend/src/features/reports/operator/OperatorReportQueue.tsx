@@ -89,7 +89,7 @@ export function OperatorReportQueue() {
       )}
       {view.phase === "ready" && view.page.count > 0 && (
         <div className="flex flex-col gap-4">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto rounded-2xl bg-white px-4 text-brand-black shadow-sm ring-1 ring-brand-black/10">
             <table className="w-full min-w-[42rem] border-collapse text-left text-sm">
               <thead>
                 <tr className="border-b border-brand-black/10">
@@ -109,13 +109,18 @@ export function OperatorReportQueue() {
                         {formatReportDate(report.created_at)}
                       </span>
                     </td>
-                    <td className="py-3 pr-4">{REPORT_STATUS_LABELS[report.status]}</td>
+                    <td className="py-3 pr-4">
+                      <span className="block">{REPORT_STATUS_LABELS[report.status]}</span>
+                      {report.cycle > 0 && (
+                        <span className="text-xs text-brand-black/60">Ciclo {report.cycle}</span>
+                      )}
+                    </td>
                     <td className="py-3 pr-4">{REPORT_PRIORITY_LABELS[report.priority]}</td>
                     <td className="py-3 pr-4">{report.effective_read_institution.name}</td>
                     <td className="py-3">
                       <Link
                         href={`/bandeja/${report.id}?institution_id=${encodeURIComponent(institutionId)}`}
-                        className="font-medium text-brand-purple underline"
+                        className="inline-flex min-h-11 items-center font-medium text-brand-purple underline"
                       >
                         Abrir detalle
                       </Link>
@@ -133,7 +138,7 @@ export function OperatorReportQueue() {
                 setView({ phase: "loading" });
                 setPageNumber((value) => Math.max(1, value - 1));
               }}
-              className="font-medium text-brand-purple underline disabled:text-brand-black/40"
+              className="min-h-11 rounded-lg px-2 font-medium text-brand-purple underline disabled:text-brand-black/40"
             >
               Página anterior
             </button>
@@ -145,7 +150,7 @@ export function OperatorReportQueue() {
                 setView({ phase: "loading" });
                 setPageNumber((value) => value + 1);
               }}
-              className="font-medium text-brand-purple underline disabled:text-brand-black/40"
+              className="min-h-11 rounded-lg px-2 font-medium text-brand-purple underline disabled:text-brand-black/40"
             >
               Página siguiente
             </button>

@@ -47,6 +47,10 @@ function detail(overrides: Partial<PrivateReportDetail> = {}): PrivateReportDeta
     institution: null,
     description: "Bache sintético",
     status: "CREADO",
+    cycle: 0,
+    validated_at: null,
+    resolved_at: null,
+    closed_at: null,
     priority: "MEDIA",
     latitude: -25.3,
     longitude: -57.6,
@@ -54,6 +58,7 @@ function detail(overrides: Partial<PrivateReportDetail> = {}): PrivateReportDeta
     confirmation_count: 0,
     confirmed_by_me: false,
     confirmation_eligibility: { can_confirm: true, code: null },
+    resolution_bonus: null,
     ...overrides,
   };
 }

@@ -75,6 +75,8 @@ class Report(BaseModel):
         related_name="validated_reports",
     )
     resolved_at = models.DateTimeField(null=True, blank=True)
+    closed_at = models.DateTimeField(null=True, blank=True)
+    resolution_cycle = models.PositiveIntegerField(default=0)
     # Motivo tipificado del rechazo (RF-14). Vacío mientras el reporte no esté
     # rechazado; `report_status_history.reason` conserva la nota libre del operador.
     rejection_reason = models.CharField(
@@ -93,6 +95,13 @@ class Report(BaseModel):
             models.Index(fields=["status"], name="report_status_idx"),
             models.Index(fields=["priority"], name="report_priority_idx"),
             models.Index(fields=["created_at"], name="report_created_at_idx"),
+            models.Index(fields=["status", "resolved_at"], name="report_auto_close_idx"),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(resolution_cycle__gte=0),
+                name="report_resolution_cycle_nonnegative",
+            ),
         ]
 
     def __str__(self) -> str:
@@ -169,11 +178,18 @@ class ReportStatusHistory(BaseModel):
         related_name="status_changes",
     )
     reason = models.TextField(blank=True)
+    resolution_cycle = models.PositiveIntegerField(default=0)
 
     class Meta:
         db_table = "report_status_history"
         ordering = ["created_at"]
         verbose_name_plural = "report status history"
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(resolution_cycle__gte=0),
+                name="report_history_cycle_nonnegative",
+            ),
+        ]
 
     def __str__(self) -> str:
         return f"{self.previous_status or '-'} -> {self.new_status}"
@@ -196,10 +212,23 @@ class ResolutionEvidence(BaseModel):
         blank=True,
         related_name="uploaded_evidences",
     )
+    resolution_cycle = models.PositiveIntegerField()
+    idempotency_key = models.UUIDField()
+    content_hash = models.CharField(max_length=64)
 
     class Meta:
         db_table = "resolution_evidences"
         verbose_name_plural = "resolution evidences"
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(resolution_cycle__gte=1),
+                name="resolution_evidence_cycle_positive",
+            ),
+            models.UniqueConstraint(
+                fields=["report", "resolution_cycle", "idempotency_key"],
+                name="resolution_evidence_idempotency_unique",
+            ),
+        ]
 
     def __str__(self) -> str:
         return f"Evidencia de {self.report_id}"

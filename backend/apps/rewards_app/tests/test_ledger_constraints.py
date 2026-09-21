@@ -74,16 +74,29 @@ def test_revertido_original_conserva_su_credited_at(citizen, institution):
     assert tx.voided_at is None
 
 
-def test_revertido_reversal_negativa_nace_sin_credited_at(citizen, institution):
+def test_revertido_reversal_negativa_nace_sin_credited_at(citizen, institution, report):
     """Caso B: la fila REVERSAL nace REVERTIDO sin haber estado acreditada."""
+    ahora = timezone.now()
+    original = _tx(
+        citizen,
+        report=report,
+        status=RewardTxStatus.REVERTIDO,
+        institution=institution,
+        credited_at=ahora,
+        reversed_at=ahora,
+        resolution_cycle=1,
+    )
     tx = _tx(
         citizen,
+        report=report,
         event_type=RewardEventType.REVERSAL,
         impact_delta=-20,
         credit_delta=-20,
         status=RewardTxStatus.REVERTIDO,
         institution=institution,
-        reversed_at=timezone.now(),
+        reversed_at=ahora,
+        resolution_cycle=1,
+        related_transaction=original,
     )
 
     assert tx.credited_at is None
@@ -143,6 +156,7 @@ def test_el_mismo_reporte_admite_otros_tipos_de_evento(citizen, report, institut
         status=RewardTxStatus.ACREDITADO,
         institution=institution,
         credited_at=ahora,
+        resolution_cycle=1,
     )
     _tx(
         citizen,
@@ -153,15 +167,16 @@ def test_el_mismo_reporte_admite_otros_tipos_de_evento(citizen, report, institut
         status=RewardTxStatus.ACREDITADO,
         institution=institution,
         credited_at=ahora,
+        resolution_cycle=1,
     )
 
     assert RewardTransaction.objects.filter(report=report).count() == 3
 
 
 def test_dos_validation_bonus_son_posibles_tras_una_reversion(citizen, report, institution):
-    """No se restringe VALIDATION_BONUS: revalidar tras revertir es legítimo."""
+    """Cada ciclo admite su propio VALIDATION_BONUS."""
     ahora = timezone.now()
-    for _ in range(2):
+    for cycle in (1, 2):
         _tx(
             citizen,
             report=report,
@@ -171,9 +186,145 @@ def test_dos_validation_bonus_son_posibles_tras_una_reversion(citizen, report, i
             status=RewardTxStatus.ACREDITADO,
             institution=institution,
             credited_at=ahora,
+            resolution_cycle=cycle,
         )
 
     assert RewardTransaction.objects.filter(event_type="VALIDATION_BONUS").count() == 2
+
+
+@pytest.mark.parametrize(
+    "event_type",
+    [RewardEventType.VALIDATION_BONUS, RewardEventType.RESOLUTION_BONUS],
+)
+def test_bonus_es_unico_por_reporte_y_ciclo(citizen, report, institution, event_type):
+    ahora = timezone.now()
+    delta = 30 if event_type == RewardEventType.VALIDATION_BONUS else 50
+    values = {
+        "report": report,
+        "event_type": event_type,
+        "impact_delta": delta,
+        "credit_delta": delta,
+        "status": RewardTxStatus.ACREDITADO,
+        "institution": institution,
+        "credited_at": ahora,
+        "resolution_cycle": 1,
+    }
+    _tx(citizen, **values)
+
+    with pytest.raises(IntegrityError), transaction.atomic():
+        _tx(citizen, **values)
+
+
+@pytest.mark.parametrize(
+    "event_type",
+    [RewardEventType.VALIDATION_BONUS, RewardEventType.RESOLUTION_BONUS],
+)
+def test_bonus_exige_report_y_ciclo_positivo(citizen, report, institution, event_type):
+    ahora = timezone.now()
+    delta = 30 if event_type == RewardEventType.VALIDATION_BONUS else 50
+    common = {
+        "event_type": event_type,
+        "impact_delta": delta,
+        "credit_delta": delta,
+        "status": RewardTxStatus.ACREDITADO,
+        "institution": institution,
+        "credited_at": ahora,
+    }
+    invalid_cases = (
+        {"report": None, "resolution_cycle": 1},
+        {"report": report, "resolution_cycle": None},
+        {"report": report, "resolution_cycle": 0},
+    )
+
+    for invalid in invalid_cases:
+        with pytest.raises(IntegrityError), transaction.atomic():
+            _tx(citizen, **common, **invalid)
+
+
+def test_reversal_exige_report_ciclo_positivo_y_original(citizen, report, institution):
+    ahora = timezone.now()
+    original = _tx(
+        citizen,
+        report=report,
+        status=RewardTxStatus.REVERTIDO,
+        institution=institution,
+        credited_at=ahora,
+        reversed_at=ahora,
+        resolution_cycle=1,
+    )
+    common = {
+        "event_type": RewardEventType.REVERSAL,
+        "impact_delta": -20,
+        "credit_delta": -20,
+        "status": RewardTxStatus.REVERTIDO,
+        "institution": institution,
+        "reversed_at": ahora,
+    }
+    invalid_cases = (
+        {"report": None, "resolution_cycle": 1, "related_transaction": original},
+        {"report": report, "resolution_cycle": None, "related_transaction": original},
+        {"report": report, "resolution_cycle": 0, "related_transaction": original},
+        {"report": report, "resolution_cycle": 1, "related_transaction": None},
+    )
+
+    for invalid in invalid_cases:
+        with pytest.raises(IntegrityError), transaction.atomic():
+            _tx(citizen, **common, **invalid)
+
+
+def test_evento_no_reversal_no_admite_related_transaction(citizen, report, institution):
+    ahora = timezone.now()
+    original = _tx(
+        citizen,
+        report=report,
+        status=RewardTxStatus.REVERTIDO,
+        institution=institution,
+        credited_at=ahora,
+        reversed_at=ahora,
+        resolution_cycle=1,
+    )
+
+    with pytest.raises(IntegrityError), transaction.atomic():
+        _tx(
+            citizen,
+            event_type=RewardEventType.VALIDATION_BONUS,
+            report=report,
+            impact_delta=30,
+            credit_delta=30,
+            status=RewardTxStatus.ACREDITADO,
+            institution=institution,
+            credited_at=ahora,
+            resolution_cycle=2,
+            related_transaction=original,
+        )
+
+
+def test_reversal_es_unica_por_transaccion_original(citizen, report, institution):
+    ahora = timezone.now()
+    original = _tx(
+        citizen,
+        report=report,
+        status=RewardTxStatus.REVERTIDO,
+        institution=institution,
+        credited_at=ahora,
+        reversed_at=ahora,
+        resolution_cycle=1,
+    )
+    values = {
+        "report": report,
+        "event_type": RewardEventType.REVERSAL,
+        "impact_delta": -20,
+        "credit_delta": -20,
+        "status": RewardTxStatus.REVERTIDO,
+        "institution": institution,
+        "reversed_at": ahora,
+        "resolution_cycle": 1,
+        "related_transaction": original,
+    }
+    _tx(citizen, **values)
+
+    with pytest.raises(IntegrityError), transaction.atomic():
+        _tx(citizen, **values)
 
 
 def test_un_solo_confirmation_created_por_confirmacion(report, other_citizen):

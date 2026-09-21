@@ -369,9 +369,9 @@ SUPABASE_SERVICE_ROLE_KEY    GOOGLE_OAUTH_CLIENT_SECRET   EMAIL_HOST_PASSWORD
 TELEGRAM_BOT_TOKEN           GEMINI_API_KEY               REDIS_URL
 ```
 
-Esto **contradice lo que afirma el README** sobre el despliegue en Vercel («solo la variable
-pública `NEXT_PUBLIC_API_URL`; ningún secreto de backend se carga en Vercel»). La afirmación
-describe la intención, no el estado real.
+El README ya registra esta deuda y distingue la configuración mínima requerida del estado real
+del proyecto de Vercel. Las 28 variables sobrantes siguen presentes hasta que exista una operación
+de seguridad separada para retirarlas y rotar las credenciales afectadas.
 
 **Alcance preciso, sin alarmismo:** Next.js solo incrusta en el bundle del navegador las
 variables con prefijo `NEXT_PUBLIC_`, así que estas 28 **no** se están sirviendo a los usuarios
@@ -387,6 +387,6 @@ es destructivo y excede este gate:
 2. eliminar las 28 del proyecto de Vercel, dejando solo las dos `NEXT_PUBLIC_*`;
 3. **rotar** las que quedaron expuestas —especialmente `DOCUMENT_HMAC_SECRET`, que no puede
    rotarse sin recalcular `citizen_profiles.document_hmac`, así que necesita su propio plan—;
-4. corregir la afirmación del README una vez que sea cierta.
+4. actualizar el README después de la remediación para registrar que la deuda quedó cerrada.
 
 El paso 3 es el que tiene coste real y conviene planificarlo aparte.

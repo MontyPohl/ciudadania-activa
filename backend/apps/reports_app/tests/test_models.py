@@ -1,3 +1,5 @@
+import uuid
+
 import pytest
 from django.contrib.gis.geos import Point
 from django.db import IntegrityError, transaction
@@ -23,6 +25,7 @@ def test_reporte_nuevo_nace_creado_con_prioridad_media_y_origen_plataforma(repor
     assert report.validated_at is None
     assert report.validated_by is None
     assert report.resolved_at is None
+    assert report.closed_at is None
     assert report.rejection_reason == ""
 
 
@@ -168,7 +171,12 @@ def test_historial_de_estados(report, citizen):
 
 def test_evidencia_de_resolucion(report):
     evidencia = ResolutionEvidence.objects.create(
-        report=report, description="Bache reparado.", evidence_url="https://example.test/e.jpg"
+        report=report,
+        description="Bache reparado.",
+        evidence_url="https://example.test/e.jpg",
+        resolution_cycle=1,
+        idempotency_key=uuid.uuid4(),
+        content_hash="a" * 64,
     )
 
     assert str(evidencia) == f"Evidencia de {report.pk}"

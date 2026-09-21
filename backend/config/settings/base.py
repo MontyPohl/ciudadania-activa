@@ -3,6 +3,8 @@ from decimal import Decimal
 from pathlib import Path
 
 import environ
+from celery.schedules import crontab
+from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 REPO_ROOT = BASE_DIR.parent
@@ -258,6 +260,9 @@ CACHES = {
 PUBLIC_MAP_CACHE_TTL_SECONDS = env.int("PUBLIC_MAP_CACHE_TTL_SECONDS", default=60)
 PUBLIC_MAP_MAX_BBOX_SPAN_DEGREES = Decimal("0.5")
 REPORT_DUPLICATE_RADIUS_METERS = env.int("REPORT_DUPLICATE_RADIUS_METERS", default=100)
+REPORT_AUTO_CLOSE_HOURS = env.int("REPORT_AUTO_CLOSE_HOURS", default=72)
+if REPORT_AUTO_CLOSE_HOURS <= 0:
+    raise ImproperlyConfigured("REPORT_AUTO_CLOSE_HOURS debe ser un entero positivo.")
 
 CELERY_BROKER_URL = REDIS_URL
 CELERY_RESULT_BACKEND = REDIS_URL
@@ -266,6 +271,12 @@ CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+CELERY_BEAT_SCHEDULE = {
+    "reports-auto-close-every-15-minutes": {
+        "task": "reports.auto_close",
+        "schedule": crontab(minute="*/15"),
+    },
+}
 
 # Fijado en el Sprint 1: PostgreSQL/PostGIS reside en Supabase y se conecta siempre
 # mediante DATABASE_URL. Ninguna rama de código distingue entornos; lo único que varía

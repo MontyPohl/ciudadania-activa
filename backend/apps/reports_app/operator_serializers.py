@@ -3,10 +3,11 @@
 from rest_framework import serializers
 
 from apps.admin_app.models import Category
-from apps.core.enums import RejectionReason, ReportPriority
+from apps.core.enums import RejectionReason, ReportPriority, ReportStatus
 from apps.core.services import storage
-from apps.reports_app.enums import OPERABLE_REPORT_STATUSES
+from apps.reports_app.enums import OPERATOR_QUEUE_REPORT_STATUSES
 from apps.reports_app.serializers import StrictInputMixin
+from apps.reports_app.services import evidence_access
 
 OPERATOR_REPORT_PHOTO_SIGNED_URL_TTL_SECONDS = 300
 
@@ -19,6 +20,10 @@ class OperatorReportActionQuerySerializer(StrictInputMixin, serializers.Serializ
     institution_id = serializers.UUIDField()
 
 
+class OperatorReportHistoryQuerySerializer(OperatorReportActionQuerySerializer):
+    page = serializers.IntegerField(min_value=1, required=False)
+
+
 class OperatorValidateInputSerializer(StrictInputMixin, serializers.Serializer):
     """La validación no acepta datos: actor, reporte e institución son contexto."""
 
@@ -27,8 +32,43 @@ class OperatorRejectInputSerializer(StrictInputMixin, serializers.Serializer):
     reason = serializers.ChoiceField(choices=RejectionReason.values)
 
 
+class ResolutionEvidenceInputSerializer(StrictInputMixin, serializers.Serializer):
+    file = serializers.FileField(allow_empty_file=False)
+    description = serializers.CharField(trim_whitespace=False, allow_blank=True)
+    cycle = serializers.IntegerField(min_value=1)
+
+
+class EmptyStrictQuerySerializer(StrictInputMixin, serializers.Serializer):
+    pass
+
+
+class OperatorStatusInputSerializer(StrictInputMixin, serializers.Serializer):
+    status = serializers.ChoiceField(
+        choices=[ReportStatus.EN_PROCESO, ReportStatus.RESUELTO, ReportStatus.CERRADO]
+    )
+    expected_cycle = serializers.IntegerField(min_value=1)
+
+
+class ResolutionEvidenceOutputSerializer(serializers.Serializer):
+    id = serializers.UUIDField(read_only=True)
+    cycle = serializers.IntegerField(source="resolution_cycle", read_only=True)
+    description = serializers.CharField(read_only=True)
+    created_at = serializers.DateTimeField(read_only=True)
+    signed_url = serializers.SerializerMethodField()
+    expires_in = serializers.SerializerMethodField()
+
+    def get_signed_url(self, evidence):
+        return evidence_access.create_access_url(
+            evidence,
+            request=self.context.get("request"),
+        )
+
+    def get_expires_in(self, evidence):
+        return evidence_access.EVIDENCE_ACCESS_TTL_SECONDS
+
+
 class OperatorReportListQuerySerializer(OperatorReportContextQuerySerializer):
-    status = serializers.ChoiceField(choices=OPERABLE_REPORT_STATUSES, required=False)
+    status = serializers.ChoiceField(choices=OPERATOR_QUEUE_REPORT_STATUSES, required=False)
     priority = serializers.ChoiceField(choices=ReportPriority.values, required=False)
     category = serializers.SlugRelatedField(
         slug_field="slug",
@@ -62,6 +102,16 @@ class OperatorInstitutionSerializer(serializers.Serializer):
     slug = serializers.SlugField(read_only=True)
 
 
+class OperatorLifecycleResponseSerializer(serializers.Serializer):
+    id = serializers.UUIDField(read_only=True)
+    status = serializers.CharField(read_only=True)
+    cycle = serializers.IntegerField(source="resolution_cycle", read_only=True)
+    institution = OperatorInstitutionSerializer(read_only=True)
+    validated_at = serializers.DateTimeField(read_only=True)
+    resolved_at = serializers.DateTimeField(read_only=True, allow_null=True)
+    closed_at = serializers.DateTimeField(read_only=True, allow_null=True)
+
+
 class OperatorReportActionResponseSerializer(serializers.Serializer):
     id = serializers.UUIDField(read_only=True)
     status = serializers.CharField(read_only=True)
@@ -74,6 +124,7 @@ class OperatorReportActionResponseSerializer(serializers.Serializer):
 class OperatorReportListSerializer(serializers.Serializer):
     id = serializers.UUIDField(read_only=True)
     status = serializers.CharField(read_only=True)
+    cycle = serializers.IntegerField(source="resolution_cycle", read_only=True)
     priority = serializers.CharField(read_only=True)
     category = OperatorCategorySerializer(read_only=True)
     institution = OperatorInstitutionSerializer(read_only=True, allow_null=True)
@@ -104,6 +155,9 @@ class OperatorAiClassificationSerializer(serializers.Serializer):
 
 class OperatorReportDetailSerializer(OperatorReportListSerializer):
     description = serializers.CharField(read_only=True)
+    validated_at = serializers.DateTimeField(read_only=True, allow_null=True)
+    resolved_at = serializers.DateTimeField(read_only=True, allow_null=True)
+    closed_at = serializers.DateTimeField(read_only=True, allow_null=True)
     latitude = serializers.SerializerMethodField()
     longitude = serializers.SerializerMethodField()
     photo_signed_url = serializers.SerializerMethodField()

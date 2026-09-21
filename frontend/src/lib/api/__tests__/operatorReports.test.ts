@@ -1,8 +1,12 @@
 import { registerAccessTokenProvider } from "@/lib/api/client";
 import {
+  createOperatorEvidence,
+  getOperatorEvidence,
   getOperatorReport,
+  getOperatorReportHistory,
   getOperatorReports,
   rejectOperatorReport,
+  transitionOperatorReport,
   validateOperatorReport,
 } from "@/lib/api/operatorReports";
 
@@ -19,6 +23,7 @@ function summary() {
   return {
     id: REPORT_ID,
     status: "CREADO",
+    cycle: 0,
     priority: "MEDIA",
     category,
     institution: null,
@@ -31,6 +36,9 @@ function detail() {
   return {
     ...summary(),
     description: "Bache profundo",
+    validated_at: null,
+    resolved_at: null,
+    closed_at: null,
     latitude: -25.3,
     longitude: -57.6,
     photo_signed_url: null,
@@ -91,6 +99,30 @@ describe("API institucional S9-B2", () => {
     );
   });
 
+  it("consulta historial institucional paginado con contexto y orden recibido", async () => {
+    const page = {
+      count: 1,
+      next: null,
+      previous: null,
+      results: [
+        {
+          previous_status: "CREADO",
+          new_status: "ASIGNADO",
+          cycle: 1,
+          reason: "",
+          created_at: "2026-09-01T11:00:00Z",
+        },
+      ],
+    };
+    vi.mocked(fetch).mockResolvedValue(response(page));
+
+    await expect(getOperatorReportHistory(REPORT_ID, INSTITUTION_ID, 2)).resolves.toEqual(page);
+    const url = String(vi.mocked(fetch).mock.calls[0][0]);
+    expect(url).toContain(`/reports/${REPORT_ID}/history/`);
+    expect(url).toContain(`institution_id=${INSTITUTION_ID}`);
+    expect(url).toContain("page=2");
+  });
+
   it("preserva contexto institucional y página en la navegación de la bandeja", async () => {
     vi.mocked(fetch).mockResolvedValue(
       response({ count: 21, next: null, previous: "page=1", results: [summary()] }),
@@ -134,6 +166,60 @@ describe("API institucional S9-B2", () => {
       status: 409,
     });
     expect(fetch).toHaveBeenCalledOnce();
+  });
+
+  it("envía ciclo explícito en una transición y valida la proyección recibida", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      response({
+        id: REPORT_ID,
+        status: "EN_PROCESO",
+        cycle: 1,
+        institution,
+        validated_at: "2026-09-01T11:00:00Z",
+        resolved_at: null,
+        closed_at: null,
+      }),
+    );
+
+    await expect(
+      transitionOperatorReport(REPORT_ID, INSTITUTION_ID, "EN_PROCESO", 1),
+    ).resolves.toMatchObject({ status: "EN_PROCESO", cycle: 1 });
+    const [rawUrl, init] = vi.mocked(fetch).mock.calls[0];
+    expect(String(rawUrl)).toContain(`/reports/${REPORT_ID}/status/`);
+    expect(init?.method).toBe("PATCH");
+    expect(JSON.parse(String(init?.body))).toEqual({ status: "EN_PROCESO", expected_cycle: 1 });
+  });
+
+  it("lista y crea evidencia sin fijar Content-Type del multipart", async () => {
+    const item = {
+      id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      cycle: 1,
+      description: "Trabajo terminado.",
+      created_at: "2026-09-01T12:00:00Z",
+      signed_url: "/api/v1/reports/evidence-access/token/",
+      expires_in: 300,
+    };
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(response([item]))
+      .mockResolvedValueOnce(response(item));
+
+    await expect(getOperatorEvidence(REPORT_ID, INSTITUTION_ID)).resolves.toEqual([item]);
+    await expect(
+      createOperatorEvidence(REPORT_ID, INSTITUTION_ID, {
+        file: new File(["imagen"], "evidencia.png", { type: "image/png" }),
+        description: item.description,
+        cycle: 1,
+        idempotencyKey: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      }),
+    ).resolves.toEqual(item);
+
+    const [, init] = vi.mocked(fetch).mock.calls[1];
+    expect(init?.method).toBe("POST");
+    expect((init?.headers as Record<string, string>)["Idempotency-Key"]).toBe(
+      "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+    );
+    expect((init?.headers as Record<string, string>)["Content-Type"]).toBeUndefined();
+    expect(init?.body).toBeInstanceOf(FormData);
   });
 
   it("rechaza una sugerencia IA con boolean histórico coaccionado", async () => {
