@@ -137,11 +137,17 @@ npx playwright install --list
 ```
 
 El harness repite automáticamente las comprobaciones de Node, npm, lockfile y CLI local antes de
-levantar Compose. Si falta cualquiera, aborta sin crear un run. Si un ejecutable desaparece después
-de crear el manifest, la fase queda registrada con timestamp, comando, excepción y código `127`;
-`harness-execution.json` y el manifest final quedan ambos `FAILED`. El campo
-`invalidity_reason` continúa reservado exclusivamente para manifests `INVALID`; un manifest
-`FAILED` lo conserva en `null` por contrato.
+levantar Compose. Si falta cualquiera, el **preflight host** aborta sin crear un `run_id`, manifest
+ni evidencia experimental. Si el preflight ya pasó y un ejecutable desaparece durante una fase del
+escenario anterior a la persistencia del log —incluido el arranque de Playwright—, la fase queda
+registrada con timestamp, comando, excepción y código `127`; `harness-execution.json` v2 y el
+manifest final quedan ambos `FAILED`. El campo `invalidity_reason` continúa reservado
+exclusivamente para manifests `INVALID`; un manifest `FAILED` lo conserva en `null` por contrato.
+
+`harness-execution.json` v2 añade `recorded_at` y `started_at` por fase. Los artefactos históricos
+v1 permanecen válidos e inmutables; no se reinterpretan ni reescriben. Fallos en el registro,
+custodia, finalización o apagado posteriores al log son fallos de cierre y no están cubiertos por la
+garantía anterior; deben reportarse sin convertirlos en resultados funcionales.
 
 Los tests que simulan fallos del storage externo deben ejecutarse fuera del adaptador local S11,
 por ejemplo con `S11_LOCAL_STORAGE_ENABLED=false`. Con el overlay S11 activo, el adaptador local

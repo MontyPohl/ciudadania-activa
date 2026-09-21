@@ -1700,10 +1700,16 @@ Gate formal de cierre: `S11A_METHODOLOGY_FROZEN`.
   cambió el lockfile porque esa remediación queda fuera del preflight.
 - Playwright `1.62.1`, Chromium `151.0.7922.34`, headless shell y FFmpeg fueron detectados en la
   caché local. La CLI respondió y un smoke técnico abrió/cerró Chromium sin backend ni tests.
-- El harness ahora valida Node `>=20.9.0`, npm, `package-lock.json` y la CLI local de Playwright
-  antes de levantar Compose. Un `OSError` posterior queda como fase `FAILED` con timestamp,
-  comando, excepción y código `127`; el log registra `failure` no nulo y la finalización usa
-  manifest `FAILED`. La regresión se demostró primero en rojo y luego en verde.
+- El harness ahora valida primero Node `>=20.9.0` y npm, y después `package-lock.json` y la CLI
+  local de Playwright, antes de levantar Compose. Un rechazo de este preflight host no crea run ni
+  evidencia experimental. Si un `OSError` ocurre después del preflight, durante una fase del
+  escenario anterior a persistir el log, queda como fase `FAILED` con timestamp, comando,
+  excepción y código `127`; `harness-execution.json` v2 registra `failure` no nulo y la
+  finalización usa manifest `FAILED`. La regresión se demostró primero en rojo y luego en verde.
+- El contrato v2 añade `recorded_at` y `started_at` por fase sin alterar los logs históricos v1.
+  La garantía de coherencia anterior se limita al fallo pre-Playwright observado y a fases previas
+  a persistir el log; fallos posteriores de record/custodia/finalize/shutdown deben tratarse como
+  anomalías de cierre y no como resultados funcionales.
 - Los dos tests de storage externo fueron diagnosticados: el overlay S11 activaba el adaptador
   local, por lo que el parche de `requests` no intervenía. Sin cambiar los tests, ambos pasaron al
   ejecutarse con `S11_LOCAL_STORAGE_ENABLED=false`, que es el contexto externo que presuponen.

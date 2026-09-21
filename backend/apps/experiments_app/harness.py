@@ -192,6 +192,7 @@ class FullStackHarness:
         runtime_environment = {**environment, "S11_SCENARIO_ID": plan.scenario_id}
         results: list[PhaseResult] = []
         failure: HarnessError | None = None
+        unexpected_failure: Exception | None = None
         try:
             self._phases(results, "start", plan.start, runtime_environment)
             self._discover_backend(results, plan, runtime_environment)
@@ -209,6 +210,7 @@ class FullStackHarness:
         except HarnessError as exc:
             failure = exc
         except Exception as exc:
+            unexpected_failure = exc
             failure = HarnessError(
                 f"Excepción de infraestructura no controlada: {type(exc).__name__}: {exc}"
             )
@@ -254,6 +256,8 @@ class FullStackHarness:
             except HarnessError as exc:
                 failure = failure or exc
 
+        if unexpected_failure is not None:
+            raise unexpected_failure.with_traceback(unexpected_failure.__traceback__)
         if failure is not None:
             raise HarnessError(f"Harness falló y lo registró sin ocultarlo: {failure}") from failure
         run_id = runtime_environment.get("S11_RUN_ID", "")
@@ -416,7 +420,7 @@ class FullStackHarness:
         target.parent.mkdir(parents=True, exist_ok=True)
         payload = redact(
             {
-                "schema_version": "s11-harness-log-v1",
+                "schema_version": "s11-harness-log-v2",
                 "run_id": environment["S11_RUN_ID"],
                 "scenario_id": plan.scenario_id,
                 "recorded_at": _utc_timestamp(),
@@ -532,19 +536,12 @@ def _utc_timestamp() -> str:
 
 def verify_frontend_tooling(repo_root: Path) -> None:
     frontend_root = repo_root / "frontend"
-    package_lock = frontend_root / "package-lock.json"
-    playwright_cli = frontend_root / "node_modules" / ".bin" / "playwright"
-    if not package_lock.is_file():
-        raise HarnessError("El preflight frontend exige frontend/package-lock.json.")
-    if not playwright_cli.is_file():
-        raise HarnessError("El preflight frontend exige npm ci y la CLI local de Playwright.")
     if shutil.which("node") is None or shutil.which("npm") is None:
         raise HarnessError("El preflight frontend exige node y npm disponibles en PATH.")
 
     checks = (
         (("node", "--version"), "Node"),
         (("npm", "--version"), "npm"),
-        (("npm", "exec", "playwright", "--", "--version"), "Playwright"),
     )
     outputs: dict[str, str] = {}
     for command, label in checks:
@@ -569,6 +566,32 @@ def verify_frontend_tooling(repo_root: Path) -> None:
     if match is None or tuple(int(part) for part in match.groups()) < _MINIMUM_NODE_VERSION:
         minimum = ".".join(str(part) for part in _MINIMUM_NODE_VERSION)
         raise HarnessError(f"El preflight frontend exige Node >= {minimum}.")
+    if re.fullmatch(r"\d+\.\d+\.\d+", outputs["npm"]) is None:
+        raise HarnessError("El preflight frontend no pudo identificar la versión de npm.")
+
+    package_lock = frontend_root / "package-lock.json"
+    playwright_cli = frontend_root / "node_modules" / ".bin" / "playwright"
+    if not package_lock.is_file():
+        raise HarnessError("El preflight frontend exige frontend/package-lock.json.")
+    if not playwright_cli.is_file():
+        raise HarnessError("El preflight frontend exige npm ci y la CLI local de Playwright.")
+
+    command = ("npm", "exec", "playwright", "--", "--version")
+    try:
+        completed = subprocess.run(
+            command,
+            cwd=frontend_root,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise HarnessError(
+            f"El preflight frontend no pudo verificar Playwright: {type(exc).__name__}."
+        ) from exc
+    if completed.returncode != 0:
+        raise HarnessError("El preflight frontend rechazó Playwright.")
 
 
 def verify_repository(repo_root: Path, expected_git_sha: str) -> None:

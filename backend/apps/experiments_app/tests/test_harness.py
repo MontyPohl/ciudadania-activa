@@ -139,6 +139,8 @@ def test_harness_records_missing_playwright_runtime_as_failed(tmp_path):
     failed_phase = next(phase for phase in payload["phases"] if phase["phase"] == "execute")
 
     assert payload["run_id"] == RUN_ID
+    assert payload["schema_version"] == "s11-harness-log-v2"
+    assert payload["recorded_at"].endswith("Z")
     assert payload["status"] == "FAILED"
     assert "FileNotFoundError" in payload["failure"]
     assert failed_phase["command"][0] == "npm"
@@ -379,11 +381,6 @@ def test_frontend_preflight_verifies_node_npm_and_local_playwright(tmp_path, mon
 
 
 def test_frontend_preflight_rejects_missing_npm_before_start(tmp_path, monkeypatch):
-    frontend = tmp_path / "frontend"
-    playwright_cli = frontend / "node_modules" / ".bin" / "playwright"
-    playwright_cli.parent.mkdir(parents=True)
-    playwright_cli.write_text("#!/bin/sh\n", encoding="utf-8")
-    (frontend / "package-lock.json").write_text("{}\n", encoding="utf-8")
     monkeypatch.setattr(
         "apps.experiments_app.harness.shutil.which",
         lambda command: command if command == "node" else None,
@@ -391,3 +388,21 @@ def test_frontend_preflight_rejects_missing_npm_before_start(tmp_path, monkeypat
 
     with pytest.raises(HarnessError, match="node y npm"):
         verify_frontend_tooling(tmp_path)
+
+
+def test_real_harness_preflight_blocks_before_creating_run(tmp_path, monkeypatch):
+    plan = build_plan(
+        scenario_id="EX-02",
+        execution_nonce="test-host-preflight",
+        expected_git_sha="a" * 40,
+    )
+    monkeypatch.setattr("apps.experiments_app.harness.verify_repository", lambda *args: None)
+    monkeypatch.setattr(
+        "apps.experiments_app.harness.verify_frontend_tooling",
+        lambda *args: (_ for _ in ()).throw(HarnessError("npm ausente")),
+    )
+
+    with pytest.raises(HarnessError, match="npm ausente"):
+        FullStackHarness(tmp_path).execute(plan, environment=_environment())
+
+    assert not (tmp_path / "var" / "s11-runs").exists()
