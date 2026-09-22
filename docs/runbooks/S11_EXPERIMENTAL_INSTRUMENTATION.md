@@ -19,6 +19,16 @@ actual. Esto completa el rebaseline de custodia, pero no ejecuta ni autoriza EX-
 escenario requiere su propio pre-gate. `--custody-approved` continúa siendo una afirmación
 explícita del operador por run y no se utilizó en las verificaciones P02/P03 o C1.
 
+`EX-02` acumula tres intentos, todos `NOT_DEMONSTRATED`: `s11-3b48870b-7979-542b-8a46-1c6dfce7bed8`
+(`npm` ausente), `s11-d407a461-ca75-5809-97bd-bcfea7593f3e` (directorio de resultados root-owned)
+y `s11-41eaa7d0-67c8-53b1-aa9a-38068859dd1f` (el harness omitía el separador `--` de npm y
+ejecutó la suite ordinaria `e2e/`). Los defectos de harness y preflight se corrigieron en el
+commit `9e2d55d`. La desviación `A4` —la pérdida irreversible de artefactos no custodiados
+durante el control negativo de esa corrección— está registrada en
+[`S11_A4_EVIDENCE_LOSS_INCIDENT.md`](S11_A4_EVIDENCE_LOSS_INCIDENT.md), junto con la deuda
+operativa pendiente (`frontend/.next/` parcialmente root-owned y la comprobación de nivel proceso
+que CI no ejerce). El gate de remediación S11-C2 queda `BLOCKED_PENDING_RECONCILIATION`.
+
 Los flags S11 están apagados por defecto y el guard rechaza todo target que no cumpla
 simultáneamente:
 
@@ -113,7 +123,10 @@ y falla cerrado si falta el marcador.
 ## Manifest y harness full-stack
 
 El harness real admite `EX-02`…`EX-08`. Levanta frontend, backend, PostgreSQL/PostGIS,
-Redis y un worker Celery con concurrencia 2; Playwright no intercepta la API. El flujo es:
+Redis y un worker Celery con concurrencia 2; Playwright no intercepta la API. Esa capacidad no
+está demostrada de extremo a extremo: hasta el commit `9e2d55d` el harness nunca llegó a
+seleccionar la configuración S11 —el defecto A2 lo hacía arrancar con la ordinaria— y ningún
+escenario S11 se ha ejecutado todavía. El flujo es:
 
 ```text
 start → discover backend port → health check → setup → manifest inicial

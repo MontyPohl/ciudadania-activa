@@ -2,7 +2,7 @@
 
 Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes de iniciar el siguiente.
 
-- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 **completado** (inicio el 22/08/2026, cierre el 23/08/2026: verificación de identidad con HMAC y almacenamiento privado, revisión administrativa manual con cotejo de la cédula, notificaciones asíncronas entregadas por la API HTTPS de Brevo y privacidad configurable del ranking, todo verificado en producción con una identidad real). Sprint 5 **completado** el 27/08/2026: S5-A, S5-B y S5-C están cerradas, integradas y validadas. Sprint 6 **completado** el 28/08/2026: S6-A y S6-B están cerrados. Sprint 7 **completado** el 29/08/2026: S7-A, S7-B y S7-C están integrados en `main`, y S7-D quedó probado en producción y cerrado con evidencia funcional y de base de datos en modo solo lectura. Sprint 8 continúa **en curso**. Sprint 9 quedó **completado** el 09/09/2026: S9-A, S9-B1, S9-B2 y el cierre documental S9-B3 están integrados en `main`; PR #38 fue mergeado mediante `7e95856c1b494d562ce1c267c06d5bebaec28cc8`. Sprint 10 quedó **implementado, desplegado, verificado y reconciliado** el 21/09/2026: el candidato `171f8c8b8f448a4092e73aeb5f67406e6b81ef09` se desplegó en Heroku, PR #39 se integró en `main` mediante `7ae82b865d90c4cade02dd3378b44107f088b7dd`, y backend, frontend, migraciones, backfill, workers e invariantes productivas quedaron verificados. Sprint 11 está **en curso**: S11-A quedó oficialmente congelada en `main@35f850eb24df552805fe8694f50fcbb3588a4141`; S11-B dejó preparada la instrumentación aislada y reproducible, sin ejecutar experimentos ni generar resultados; S11-C–E no se iniciaron.
+- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 **completado** (inicio el 22/08/2026, cierre el 23/08/2026: verificación de identidad con HMAC y almacenamiento privado, revisión administrativa manual con cotejo de la cédula, notificaciones asíncronas entregadas por la API HTTPS de Brevo y privacidad configurable del ranking, todo verificado en producción con una identidad real). Sprint 5 **completado** el 27/08/2026: S5-A, S5-B y S5-C están cerradas, integradas y validadas. Sprint 6 **completado** el 28/08/2026: S6-A y S6-B están cerrados. Sprint 7 **completado** el 29/08/2026: S7-A, S7-B y S7-C están integrados en `main`, y S7-D quedó probado en producción y cerrado con evidencia funcional y de base de datos en modo solo lectura. Sprint 8 continúa **en curso**. Sprint 9 quedó **completado** el 09/09/2026: S9-A, S9-B1, S9-B2 y el cierre documental S9-B3 están integrados en `main`; PR #38 fue mergeado mediante `7e95856c1b494d562ce1c267c06d5bebaec28cc8`. Sprint 10 quedó **implementado, desplegado, verificado y reconciliado** el 21/09/2026: el candidato `171f8c8b8f448a4092e73aeb5f67406e6b81ef09` se desplegó en Heroku, PR #39 se integró en `main` mediante `7ae82b865d90c4cade02dd3378b44107f088b7dd`, y backend, frontend, migraciones, backfill, workers e invariantes productivas quedaron verificados. Sprint 11 está **en curso**: S11-A quedó oficialmente congelada en `main@35f850eb24df552805fe8694f50fcbb3588a4141`; S11-B dejó preparada la instrumentación aislada y reproducible, sin generar resultados; S11-C registra tres intentos de `EX-02` (21 y 22/09/2026), todos `NOT_DEMONSTRATED` por causas de infraestructura y de harness, sin ningún experimento demostrado; S11-D y S11-E no se iniciaron.
 - **Plan de referencia:** [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md)
 - **Ventana de desarrollo:** 01/08/2026 → 15/11/2026 (16 sprints semanales, Anexo F revisado)
 - **Estados posibles:** `Pendiente` · `En curso` · `Completado` · `Completado con observaciones` · `Bloqueado`
@@ -23,14 +23,14 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 | 8 | 19/09 – 25/09 | Clasificación asistida por IA | En curso |
 | 9 | 26/09 – 02/10 | Panel institucional y validación | Completado |
 | 10 | 03/10 – 09/10 | Estados, evidencias, auditoría y reversión | Completado — implementado, desplegado, verificado y reconciliado |
-| 11 | 10/10 – 16/10 | Metodología, instrumentación, experimentos, análisis y evidencia de tesis | En curso — S11-A congelada; S11-B preparada; S11-C–E pendientes |
+| 11 | 10/10 – 16/10 | Metodología, instrumentación, experimentos, análisis y evidencia de tesis | En curso — S11-A congelada; S11-B preparada; S11-C con tres intentos de `EX-02` todos `NOT_DEMONSTRATED`; S11-D y S11-E pendientes |
 | 12 | 17/10 – 23/10 | Catálogo de recompensas y canje simulado | Pendiente |
 | 13 | 24/10 – 30/10 | Dashboards, integración e ingesta social | Pendiente |
 | 14 | 31/10 – 06/11 | Pruebas unitarias, integración, seguridad y E2E | Pendiente |
 | 15 | 07/11 – 13/11 | Carga, dataset definitivo y documentación | Pendiente |
 | 16 | 14/11 – 15/11 | Cierre y preparación de la defensa | Pendiente |
 
-**Progreso:** 8 / 16 sprints completados (Sprints 1, 2 y 3 cerrados el 20/08/2026; Sprint 4 el 23/08/2026; Sprint 5 el 27/08/2026; Sprint 6 el 28/08/2026; Sprint 7 el 29/08/2026; Sprint 9 el 09/09/2026). La ejecución real arrastra el desvío de calendario registrado en CT-29. Sprint 8 continúa **en curso**: R2 permanece prerregistrado/no ejecutado y CA-4 no demostrado. Sprint 11 completó la congelación S11-A y la preparación técnica S11-B; no inició experimentos S11-C, análisis S11-D, cierre S11-E ni S12–S13.
+**Progreso:** 8 / 16 sprints completados (Sprints 1, 2 y 3 cerrados el 20/08/2026; Sprint 4 el 23/08/2026; Sprint 5 el 27/08/2026; Sprint 6 el 28/08/2026; Sprint 7 el 29/08/2026; Sprint 9 el 09/09/2026). La ejecución real arrastra el desvío de calendario registrado en CT-29. Sprint 8 continúa **en curso**: R2 permanece prerregistrado/no ejecutado y CA-4 no demostrado. Sprint 11 completó la congelación S11-A y la preparación técnica S11-B; S11-C registra tres intentos de `EX-02`, todos `NOT_DEMONSTRATED` por causas de infraestructura/harness, sin ningún experimento demostrado, y no inició análisis S11-D, cierre S11-E ni S12–S13.
 
 ### Decisiones que condicionan el avance
 
@@ -1581,7 +1581,9 @@ ausente. S11, S12 y S13 no fueron iniciados durante este cierre.
 ## Sprint 11 — Metodología, instrumentación, experimentos, análisis y evidencia
 
 **Fechas planificadas:** 10/10/2026 – 16/10/2026
-**Estado:** En curso — S11-A y S11-B en `PASS`; rebaseline custodial pendiente; S11-C bloqueada
+**Estado:** En curso — S11-A y S11-B en `PASS`; rebaseline custodial completado (P02/P03 y C1
+repetidos en `PASS` bajo la nueva época); S11-C intentada tres veces y bloqueada, con `EX-02`
+`NOT_DEMONSTRATED` y el gate de remediación en `BLOCKED_PENDING_RECONCILIATION`
 **Fecha real de cierre:** —
 
 > **Rebaseline S11-A (21/09/2026).** El título histórico “Créditos, ranking del mes en curso y
@@ -1700,7 +1702,8 @@ Gate formal de cierre: `S11A_METHODOLOGY_FROZEN`.
   cambió el lockfile porque esa remediación queda fuera del preflight.
 - Playwright `1.62.1`, Chromium `151.0.7922.34`, headless shell y FFmpeg fueron detectados en la
   caché local. La CLI respondió y un smoke técnico abrió/cerró Chromium sin backend ni tests.
-- El harness ahora valida primero Node `>=20.9.0` y npm, y después `package-lock.json` y la CLI
+- En esta remediación el harness pasó a validar primero Node `>=20.9.0` y npm, y después
+  `package-lock.json` y la CLI
   local de Playwright, antes de levantar Compose. Un rechazo de este preflight host no crea run ni
   evidencia experimental. Si un `OSError` ocurre después del preflight y de crear el run y su
   manifest inicial, durante una fase anterior a persistir el log, queda como fase `FAILED` con
@@ -1728,6 +1731,67 @@ Gate formal de cierre: `S11A_METHODOLOGY_FROZEN`.
   impiden el preflight de Playwright.
 
 Gate de remediación: `S11C2_PREFLIGHT_REMEDIATED`.
+
+### S11-C2 / EX-02 — dos intentos adicionales, defectos A1/A2/A3 y desviación A4 (22/09/2026)
+
+- Baseline: `main@2c0c70a8685a29cbee4356b19bd0ebf182d0d173`, árbol limpio. Se ejecutó el harness
+  oficial dos veces más, siempre con `--scenario EX-02` y un nonce nuevo. **EX-02 sigue sin
+  demostrarse**: en ningún momento se creó actor sintético, identidad, reporte, confirmación,
+  validación ni fila de auditoría en la base experimental, que terminó con cero reportes, cero
+  usuarios y cero registros de auditoría.
+- Run `s11-d407a461-ca75-5809-97bd-bcfea7593f3e` (`started_at` 2026-09-22T05:24:55Z, backend
+  dinámico `http://127.0.0.1:32773`). La fase `execute` falló en 1,5 s con
+  `EACCES … unlink 'frontend/test-results/.last-run.json'`. Causa —**defecto A1**—: ese
+  directorio era propiedad de root, heredado de una ejecución previa en contenedor, y Playwright
+  corría como UID 1003. Manifest final `FAILED`, `invalidity_reason=null`.
+- Run `s11-41eaa7d0-67c8-53b1-aa9a-38068859dd1f` (`started_at` 2026-09-22T05:28:33Z, backend
+  dinámico `http://127.0.0.1:32774`). Tras reubicar el directorio root-owned —preservado sin
+  modificación en `frontend/preexisting-root-owned-test-results.log/`—, Playwright sí arrancó,
+  pero durante 2,6 minutos ejecutó **52 pruebas de `frontend/e2e/`**, la suite ordinaria del
+  frontend (50 pasaron, 2 fallaron), en lugar de la única prueba `@EX-02` de
+  `frontend/e2e-s11/`. Manifest final `FAILED`, `invalidity_reason=null`.
+- Causa —**defecto A2**—: el harness construía
+  `npm exec playwright test --config=… --grep=…` **sin el separador `--`**. npm interpreta como
+  flags propios todo lo que sigue al nombre del paquete, de modo que consumía `--config` y
+  `--grep`, y Playwright arrancaba con su configuración por defecto
+  (`frontend/playwright.config.ts`, `testDir ./e2e`). Comprobación directa: `npm exec playwright
+  --version` responde `10.9.8` —la versión de npm— mientras `npm exec playwright -- --version`
+  responde `Version 1.62.1`.
+- **Defecto A3**: el preflight host verificaba Node, npm, lockfile y CLI, pero no que el
+  directorio de resultados de Playwright fuera escribible (A1) ni que el comando seleccionara
+  realmente la configuración S11 (A2). Por eso ambos defectos pasaron un preflight en verde.
+- Corrección en el commit `9e2d55d`: se interpone el separador, la invocación queda fijada en
+  `expected_execute_command` y se valida con un contrato de coincidencia **exacta** —Playwright
+  conserva el último `--config`, así que un argumento extra podría anular la configuración S11—
+  aplicado en `build_plan` y de nuevo como precheck en `FullStackHarness.execute`, que aborta
+  antes de acuñar un `run_id`. El preflight pasa además a exigir
+  `frontend/playwright.s11.config.ts`, a rechazar una respuesta de `--version` con forma de npm y
+  a comprobar que el directorio de resultados sea creable, escribible y sin entradas de otro UID.
+- Verificación sin ejecutar escenarios: el comando corregido más `--list` selecciona **1 prueba**
+  (`s11-fullstack.spec.ts:80 @EX-02`); el defectuoso ejecutaba 52. Un revert simulado del
+  separador hace fallar **5 pruebas** de regresión. Suite backend completa `2141 passed,
+  1 skipped`; Ruff, formato, `manage.py check`, `makemigrations --check`, ESLint y
+  `tsc --noEmit` en verde.
+- **Desviación A4**: al ejecutar el control negativo con el comando defectuoso, npm absorbió
+  también `--list`, Playwright ejecutó la suite y borró su `outputDir` al arrancar, eliminando
+  1,4 MB de artefactos **no custodiados** del incidente A2 (`trace.zip`, `video.webm`,
+  `test-failed-1.png`, `error-context.md`). La pérdida es **irreversible** y contradice la regla
+  explícita de no borrar evidencia. No fueron recuperados ni reconstruidos. El registro
+  autoritativo sobrevive en el `harness-execution.json` custodiado del run `s11-41eaa7d0`, que
+  conserva el listado de las 52 pruebas, los 2 fallos y los nombres de los cuatro artefactos, con
+  SHA-256 y HMAC verificables. Detalle completo en
+  [`S11_A4_EVIDENCE_LOSS_INCIDENT.md`](runbooks/S11_A4_EVIDENCE_LOSS_INCIDENT.md).
+- Los tres paquetes de evidencia (`s11-3b48870b`, `s11-d407a461`, `s11-41eaa7d0`) permanecen
+  inmutables y verifican `SHA256SUMS` con la clave custodial vigente. Producción, Supabase,
+  Redis productivo, Heroku y Vercel no se tocaron; `.env` no se modificó; contenedores, red y
+  volumen de `ciudadania-s11` se eliminaron.
+- Deuda operativa registrada, no corregida: `frontend/.next/` conserva salidas root-owned que
+  bloquean `npm run typecheck` en `next typegen`, aunque no afectan al `next dev` que usa el
+  flujo S11; y CI no ejerce la comprobación de nivel proceso del separador npm. Ambas requieren
+  cambios fuera del alcance de A2/A3.
+
+Estados: `A2/A3 implementation = PASS`; `A4 procedural compliance = FAIL`;
+`S11-C2 remediation gate = BLOCKED_PENDING_RECONCILIATION`; `EX-02 = NOT_DEMONSTRATED`.
 
 ### Pruebas realizadas
 
@@ -1760,7 +1824,10 @@ Gate de remediación: `S11C2_PREFLIGHT_REMEDIATED`.
 - Backend completo: 2095 tests, 95 % de cobertura. Ruff, `manage.py check`,
   `makemigrations --check --dry-run` y el compose combinado pasan. El frontend no cambió; se
   conserva su baseline previo de 360 tests, ESLint, typecheck y build.
-- No se ejecutó Playwright S11, ningún escenario oficial ni ninguna medición HT.
+- No se ejecutó ningún escenario oficial ni ninguna medición HT. Playwright llegó a ejecutarse una
+  vez, en el run `s11-41eaa7d0-67c8-53b1-aa9a-38068859dd1f` del 22/09/2026, pero por el defecto A2
+  corrió la suite ordinaria `frontend/e2e/` y no la suite S11; `EX-02` sigue
+  `NOT_DEMONSTRATED`.
 
 ### Problemas encontrados
 
@@ -1770,8 +1837,14 @@ Gate de remediación: `S11C2_PREFLIGHT_REMEDIATED`.
   repetición independiente `s11-custody-20260921-p02p03-v6` cerró nuevamente P02/P03 en `PASS`.
 - La evidencia C1 histórica también permanece `HISTORICAL_UNVERIFIABLE`, pero la repetición
   independiente `s11-c1-20260921-isolation-repro-reset-v2` cerró C1 en `PASS` bajo la nueva época.
-- El intento previo S11-C2/EX-02 no inició el experimento y queda
-  `S11C2_EX02_NOT_DEMONSTRATED` por infraestructura/custodia, no como fallo funcional.
+- Los tres intentos S11-C2/EX-02 (`s11-3b48870b`, `s11-d407a461`, `s11-41eaa7d0`) quedan
+  `S11C2_EX02_NOT_DEMONSTRATED` por infraestructura/harness, no como fallo funcional: ninguno
+  llegó a ejercer una condición funcional del escenario. Sus causas fueron, respectivamente,
+  `npm` ausente, el directorio de resultados root-owned (A1) y el separador npm faltante (A2).
+- La desviación A4 eliminó de forma irreversible 1,4 MB de artefactos no custodiados del
+  incidente A2. No fueron recuperados; el registro autoritativo permanece en la evidencia
+  custodiada. `A4 procedural compliance = FAIL` y el gate de remediación S11-C2 queda
+  `BLOCKED_PENDING_RECONCILIATION`.
 - R2 no fue ejecutada y su evidencia válida no existe.
 - La cobertura global previa no decide HT-5; falta instrumentación de cobertura acotada.
 - El harness sigue exigiendo confirmación explícita por run. La clave HMAC custodial estable debe
@@ -1803,9 +1876,11 @@ Emmanuel Pohl Amarilla; `SENSITIVE` permanece deshabilitado y `SECRET` nunca se 
 Primary, backup y restore se ubican respectivamente en `var/s11-runs`, `var/s11-backup` y
 `var/s11-restore`. La evidencia histórica permanece `HISTORICAL_UNVERIFIABLE`, pero la repetición
 independiente bajo la nueva época dejó `S11A-P02=PASS`, `S11A-P03=PASS` y C1 `PASS`. EX-02 y EX-03
-no quedaron autorizados por el cierre C1. El intento posterior de EX-02 no alcanzó Playwright y
-quedó `S11C2_EX02_NOT_DEMONSTRATED`; EX-03 no se ejecutó. Cualquier nuevo intento requiere su
-propio pre-gate.
+no quedaron autorizados por el cierre C1. Los tres intentos posteriores de EX-02 quedaron
+`S11C2_EX02_NOT_DEMONSTRATED`: los dos primeros no alcanzaron Playwright y el tercero lo alcanzó
+pero ejecutó la suite ordinaria del frontend por el defecto A2, corregido en `9e2d55d`. EX-03 no
+se ejecutó. La desviación A4 dejó el gate de remediación en
+`BLOCKED_PENDING_RECONCILIATION`. Cualquier nuevo intento requiere su propio pre-gate.
 
 ---
 

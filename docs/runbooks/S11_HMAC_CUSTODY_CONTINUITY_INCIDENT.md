@@ -192,3 +192,27 @@ funcional; producción permaneció intacta.
 **Resultado C1:** `PASS`
 
 **Gate operativo:** `S11C1_REPEATED_PASS`
+
+---
+
+## Adenda — estado posterior de EX-02 (22/09/2026)
+
+Este documento describe el estado del **21/09/2026** y sus afirmaciones se conservan como
+registro de esa fecha. Para evitar una lectura desactualizada: donde dice que `EX-02` está
+`NOT_EXECUTED` y que «no se creó un run C2», eso dejó de ser cierto después.
+
+A la fecha de esta adenda existen **tres** runs de `EX-02`, los tres con `run_id` acuñado,
+manifest inicial y final `FAILED`, y evidencia custodiada que verifica SHA-256 y HMAC con la
+clave vigente:
+
+| Run | git SHA | Causa del fallo |
+|---|---|---|
+| `s11-3b48870b-7979-542b-8a46-1c6dfce7bed8` | `e76061b8` | `npm` ausente; la fase `execute` no se inició |
+| `s11-d407a461-ca75-5809-97bd-bcfea7593f3e` | `2c0c70a8` | directorio de resultados root-owned (`EACCES`) |
+| `s11-41eaa7d0-67c8-53b1-aa9a-38068859dd1f` | `2c0c70a8` | separador `--` ausente; se ejecutó la suite ordinaria `e2e/` |
+
+`EX-02` sigue `NOT_DEMONSTRATED`: ninguno de los tres ejerció una condición funcional del
+escenario. `EX-03` no se ejecutó. Los defectos de harness y preflight se corrigieron en el commit
+`9e2d55d`; la desviación `A4` y la deuda operativa pendiente constan en
+[`S11_A4_EVIDENCE_LOSS_INCIDENT.md`](S11_A4_EVIDENCE_LOSS_INCIDENT.md). Nada de esto altera el
+rebaseline de custodia descrito arriba ni sus gates.
