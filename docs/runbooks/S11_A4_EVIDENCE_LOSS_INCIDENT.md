@@ -15,8 +15,11 @@ anterior.
 
 ## 1. Contexto
 
-Durante S11-C2 se intentó ejecutar `EX-02` tres veces. Ninguna demostró el escenario. Los tres
-paquetes de evidencia permanecen custodiados e íntegros:
+Hasta el momento de este incidente, S11-C2 había intentado ejecutar `EX-02` tres veces, y ninguna
+demostró el escenario. Los tres paquetes de evidencia permanecen custodiados e íntegros. Más tarde
+ese mismo día hubo otros dos intentos fallidos —`A5` y `A6`— y un sexto que sí demostró EX-02; el
+historial completo está en [`PROGRESO_SPRINTS.md`](../PROGRESO_SPRINTS.md) y la clasificación
+vigente, en §6:
 
 | Run | git SHA | `started_at` (UTC) | Estado | Causa |
 |---|---|---|---|---|
@@ -128,6 +131,8 @@ explícita de conservación. Eso se registra como tal y no se compensa con los p
 
 ## 6. Clasificación y decisión de tratamiento
 
+Clasificación **en el momento del incidente** (22/09/2026, antes de las correcciones A5 y A6):
+
 ```text
 A2/A3 implementation status     = PASS
 A4 procedural compliance        = FAIL
@@ -135,12 +140,23 @@ S11-C2 remediation gate         = BLOCKED_PENDING_RECONCILIATION
 EX-02                           = NOT_DEMONSTRATED
 ```
 
+> **Actualización (22/09/2026, posterior).** `A4 procedural compliance = FAIL` se conserva de forma
+> permanente: es una constancia procedimental y no caduca. Los otros dos estados fueron superados
+> ese mismo día. Tras corregir `A5` (`83a27f1`) y `A6` (`721462a`), el run
+> `s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af` cerró `COMPLETED` y dejó **`EX-02 = PASS`**, auditado
+> como `S11C2_EX02_PASS_CONFIRMED`. El gate de remediación salió de
+> `BLOCKED_PENDING_RECONCILIATION` al completarse la reconciliación documental posterior a esa
+> verificación. Nada de esto altera la clasificación de `A4` ni los artefactos perdidos, que
+> siguen sin recuperarse.
+
 Decisiones:
 
 1. `A4` se declara `PROCEDURAL DEVIATION`, **no** `RECOVERED`.
 2. La pérdida se declara irreversible y no se intenta reconstrucción.
-3. La evidencia custodiada de los tres runs se conserva sin modificación; sus resultados
-   `S11C2_EX02_NOT_DEMONSTRATED` no se reinterpretan ni se convierten en `FAIL` funcional.
+3. La evidencia custodiada de los runs previos se conserva sin modificación; sus resultados
+   `S11C2_EX02_NOT_DEMONSTRATED` no se reinterpretan ni se convierten en `FAIL` funcional, ni
+   quedan absorbidos por el `PASS` posterior, que pertenece exclusivamente al run
+   `s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af`.
 4. `A4` no es un fallo funcional de `EX-02` y no altera su estado.
 5. El commit `9e2d55d` no se modifica retrospectivamente.
 6. Cualquier control negativo futuro sobre un comando defectuoso debe ejecutarse **fuera** del

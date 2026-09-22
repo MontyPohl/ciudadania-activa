@@ -19,15 +19,26 @@ actual. Esto completa el rebaseline de custodia, pero no ejecuta ni autoriza EX-
 escenario requiere su propio pre-gate. `--custody-approved` continúa siendo una afirmación
 explícita del operador por run y no se utilizó en las verificaciones P02/P03 o C1.
 
-`EX-02` acumula tres intentos, todos `NOT_DEMONSTRATED`: `s11-3b48870b-7979-542b-8a46-1c6dfce7bed8`
-(`npm` ausente), `s11-d407a461-ca75-5809-97bd-bcfea7593f3e` (directorio de resultados root-owned)
-y `s11-41eaa7d0-67c8-53b1-aa9a-38068859dd1f` (el harness omitía el separador `--` de npm y
-ejecutó la suite ordinaria `e2e/`). Los defectos de harness y preflight se corrigieron en el
-commit `9e2d55d`. La desviación `A4` —la pérdida irreversible de artefactos no custodiados
-durante el control negativo de esa corrección— está registrada en
+`EX-02` está **demostrado**: el run `s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af` (`main@721462a`)
+cerró `COMPLETED` con las catorce fases del harness en `rc=0`, y la auditoría independiente de su
+evidencia custodiada lo confirmó como `S11C2_EX02_PASS_CONFIRMED`. EX-03 y los escenarios
+posteriores **no** se han ejecutado: sus garantías siguen sin demostrar y cada uno exige su propio
+pre-gate.
+
+Lo precedieron cinco intentos que quedan como evidencia histórica `NOT_DEMONSTRATED`, conservados
+sin reinterpretar: `s11-3b48870b-7979-542b-8a46-1c6dfce7bed8` (`npm` ausente),
+`s11-d407a461-ca75-5809-97bd-bcfea7593f3e` (directorio de resultados root-owned, `A1`),
+`s11-41eaa7d0-67c8-53b1-aa9a-38068859dd1f` (el harness omitía el separador `--` de npm y ejecutó
+la suite ordinaria `e2e/`, `A2`), `s11-95954a43-507b-5093-824d-8f0c83c1a1a7` (la guarda de
+configuración de identidad exigía credenciales Supabase que el overlay aislado deja vacías a
+propósito, `A5`) y `s11-6efb78d7-ca14-523f-b7e5-7c5d6ee14fad` (la constante PNG escrita a mano en
+el spec era un archivo corrupto que `Image.verify()` rechazaba, `A6`). Los defectos de harness y
+preflight se corrigieron en `9e2d55d`, el de configuración por adaptador en `83a27f1` y el del
+fixture en `721462a`. La desviación `A4` —la pérdida irreversible de artefactos no custodiados
+durante el control negativo de la primera corrección— está registrada en
 [`S11_A4_EVIDENCE_LOSS_INCIDENT.md`](S11_A4_EVIDENCE_LOSS_INCIDENT.md), junto con la deuda
 operativa pendiente (`frontend/.next/` parcialmente root-owned y la comprobación de nivel proceso
-que CI no ejerce). El gate de remediación S11-C2 queda `BLOCKED_PENDING_RECONCILIATION`.
+que CI no ejerce).
 
 Los flags S11 están apagados por defecto y el guard rechaza todo target que no cumpla
 simultáneamente:
@@ -123,10 +134,11 @@ y falla cerrado si falta el marcador.
 ## Manifest y harness full-stack
 
 El harness real admite `EX-02`…`EX-08`. Levanta frontend, backend, PostgreSQL/PostGIS,
-Redis y un worker Celery con concurrencia 2; Playwright no intercepta la API. Esa capacidad no
-está demostrada de extremo a extremo: hasta el commit `9e2d55d` el harness nunca llegó a
-seleccionar la configuración S11 —el defecto A2 lo hacía arrancar con la ordinaria— y ningún
-escenario S11 se ha ejecutado todavía. El flujo es:
+Redis y un worker Celery con concurrencia 2; Playwright no intercepta la API. Esa capacidad está
+demostrada de extremo a extremo **sólo para `EX-02`**, mediante el run
+`s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af`. Hasta el commit `9e2d55d` el harness nunca llegaba a
+seleccionar la configuración S11 —el defecto A2 lo hacía arrancar con la ordinaria—. `EX-03`…
+`EX-08` siguen admitidos por el harness pero **no ejecutados**. El flujo es:
 
 ```text
 start → discover backend port → health check → setup → manifest inicial

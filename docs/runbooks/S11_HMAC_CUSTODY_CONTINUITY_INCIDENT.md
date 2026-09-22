@@ -211,8 +211,13 @@ clave vigente:
 | `s11-d407a461-ca75-5809-97bd-bcfea7593f3e` | `2c0c70a8` | directorio de resultados root-owned (`EACCES`) |
 | `s11-41eaa7d0-67c8-53b1-aa9a-38068859dd1f` | `2c0c70a8` | separador `--` ausente; se ejecutó la suite ordinaria `e2e/` |
 
-`EX-02` sigue `NOT_DEMONSTRATED`: ninguno de los tres ejerció una condición funcional del
-escenario. `EX-03` no se ejecutó. Los defectos de harness y preflight se corrigieron en el commit
+Ninguno de esos tres ejerció una condición funcional del escenario, y los tres conservan su
+resultado `NOT_DEMONSTRATED`. Los defectos de harness y preflight se corrigieron en el commit
 `9e2d55d`; la desviación `A4` y la deuda operativa pendiente constan en
-[`S11_A4_EVIDENCE_LOSS_INCIDENT.md`](S11_A4_EVIDENCE_LOSS_INCIDENT.md). Nada de esto altera el
-rebaseline de custodia descrito arriba ni sus gates.
+[`S11_A4_EVIDENCE_LOSS_INCIDENT.md`](S11_A4_EVIDENCE_LOSS_INCIDENT.md).
+
+Más tarde ese mismo día hubo dos intentos fallidos adicionales —`s11-95954a43-…` por el defecto
+`A5` y `s11-6efb78d7-…` por el `A6`, corregidos en `83a27f1` y `721462a`— y un sexto run,
+`s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af`, que cerró `COMPLETED`. **El estado vigente de `EX-02`
+es `PASS`**, auditado como `S11C2_EX02_PASS_CONFIRMED`. `EX-03` y los escenarios posteriores no se
+ejecutaron. Nada de esto altera el rebaseline de custodia descrito arriba ni sus gates.

@@ -2,7 +2,7 @@
 
 Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes de iniciar el siguiente.
 
-- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 **completado** (inicio el 22/08/2026, cierre el 23/08/2026: verificación de identidad con HMAC y almacenamiento privado, revisión administrativa manual con cotejo de la cédula, notificaciones asíncronas entregadas por la API HTTPS de Brevo y privacidad configurable del ranking, todo verificado en producción con una identidad real). Sprint 5 **completado** el 27/08/2026: S5-A, S5-B y S5-C están cerradas, integradas y validadas. Sprint 6 **completado** el 28/08/2026: S6-A y S6-B están cerrados. Sprint 7 **completado** el 29/08/2026: S7-A, S7-B y S7-C están integrados en `main`, y S7-D quedó probado en producción y cerrado con evidencia funcional y de base de datos en modo solo lectura. Sprint 8 continúa **en curso**. Sprint 9 quedó **completado** el 09/09/2026: S9-A, S9-B1, S9-B2 y el cierre documental S9-B3 están integrados en `main`; PR #38 fue mergeado mediante `7e95856c1b494d562ce1c267c06d5bebaec28cc8`. Sprint 10 quedó **implementado, desplegado, verificado y reconciliado** el 21/09/2026: el candidato `171f8c8b8f448a4092e73aeb5f67406e6b81ef09` se desplegó en Heroku, PR #39 se integró en `main` mediante `7ae82b865d90c4cade02dd3378b44107f088b7dd`, y backend, frontend, migraciones, backfill, workers e invariantes productivas quedaron verificados. Sprint 11 está **en curso**: S11-A quedó oficialmente congelada en `main@35f850eb24df552805fe8694f50fcbb3588a4141`; S11-B dejó preparada la instrumentación aislada y reproducible, sin generar resultados; S11-C registra tres intentos de `EX-02` (21 y 22/09/2026), todos `NOT_DEMONSTRATED` por causas de infraestructura y de harness, sin ningún experimento demostrado; S11-D y S11-E no se iniciaron.
+- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 **completado** (inicio el 22/08/2026, cierre el 23/08/2026: verificación de identidad con HMAC y almacenamiento privado, revisión administrativa manual con cotejo de la cédula, notificaciones asíncronas entregadas por la API HTTPS de Brevo y privacidad configurable del ranking, todo verificado en producción con una identidad real). Sprint 5 **completado** el 27/08/2026: S5-A, S5-B y S5-C están cerradas, integradas y validadas. Sprint 6 **completado** el 28/08/2026: S6-A y S6-B están cerrados. Sprint 7 **completado** el 29/08/2026: S7-A, S7-B y S7-C están integrados en `main`, y S7-D quedó probado en producción y cerrado con evidencia funcional y de base de datos en modo solo lectura. Sprint 8 continúa **en curso**. Sprint 9 quedó **completado** el 09/09/2026: S9-A, S9-B1, S9-B2 y el cierre documental S9-B3 están integrados en `main`; PR #38 fue mergeado mediante `7e95856c1b494d562ce1c267c06d5bebaec28cc8`. Sprint 10 quedó **implementado, desplegado, verificado y reconciliado** el 21/09/2026: el candidato `171f8c8b8f448a4092e73aeb5f67406e6b81ef09` se desplegó en Heroku, PR #39 se integró en `main` mediante `7ae82b865d90c4cade02dd3378b44107f088b7dd`, y backend, frontend, migraciones, backfill, workers e invariantes productivas quedaron verificados. Sprint 11 está **en curso**: S11-A quedó oficialmente congelada en `main@35f850eb24df552805fe8694f50fcbb3588a4141`; S11-B dejó preparada la instrumentación aislada y reproducible, sin generar resultados; S11-C registra seis runs de `EX-02` (21 y 22/09/2026): cinco `NOT_DEMONSTRATED` por causas de infraestructura y de harness, y el sexto, `s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af`, **demostrado en `PASS`**; EX-03 y posteriores no se ejecutaron y S11-D y S11-E no se iniciaron.
 - **Plan de referencia:** [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md)
 - **Ventana de desarrollo:** 01/08/2026 → 15/11/2026 (16 sprints semanales, Anexo F revisado)
 - **Estados posibles:** `Pendiente` · `En curso` · `Completado` · `Completado con observaciones` · `Bloqueado`
@@ -23,14 +23,14 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 | 8 | 19/09 – 25/09 | Clasificación asistida por IA | En curso |
 | 9 | 26/09 – 02/10 | Panel institucional y validación | Completado |
 | 10 | 03/10 – 09/10 | Estados, evidencias, auditoría y reversión | Completado — implementado, desplegado, verificado y reconciliado |
-| 11 | 10/10 – 16/10 | Metodología, instrumentación, experimentos, análisis y evidencia de tesis | En curso — S11-A congelada; S11-B preparada; S11-C con tres intentos de `EX-02` todos `NOT_DEMONSTRATED`; S11-D y S11-E pendientes |
+| 11 | 10/10 – 16/10 | Metodología, instrumentación, experimentos, análisis y evidencia de tesis | En curso — S11-A congelada; S11-B preparada; S11-C con `EX-02` en `PASS` tras cinco intentos `NOT_DEMONSTRATED`; EX-03 y posteriores sin ejecutar; S11-D y S11-E pendientes |
 | 12 | 17/10 – 23/10 | Catálogo de recompensas y canje simulado | Pendiente |
 | 13 | 24/10 – 30/10 | Dashboards, integración e ingesta social | Pendiente |
 | 14 | 31/10 – 06/11 | Pruebas unitarias, integración, seguridad y E2E | Pendiente |
 | 15 | 07/11 – 13/11 | Carga, dataset definitivo y documentación | Pendiente |
 | 16 | 14/11 – 15/11 | Cierre y preparación de la defensa | Pendiente |
 
-**Progreso:** 8 / 16 sprints completados (Sprints 1, 2 y 3 cerrados el 20/08/2026; Sprint 4 el 23/08/2026; Sprint 5 el 27/08/2026; Sprint 6 el 28/08/2026; Sprint 7 el 29/08/2026; Sprint 9 el 09/09/2026). La ejecución real arrastra el desvío de calendario registrado en CT-29. Sprint 8 continúa **en curso**: R2 permanece prerregistrado/no ejecutado y CA-4 no demostrado. Sprint 11 completó la congelación S11-A y la preparación técnica S11-B; S11-C registra tres intentos de `EX-02`, todos `NOT_DEMONSTRATED` por causas de infraestructura/harness, sin ningún experimento demostrado, y no inició análisis S11-D, cierre S11-E ni S12–S13.
+**Progreso:** 8 / 16 sprints completados (Sprints 1, 2 y 3 cerrados el 20/08/2026; Sprint 4 el 23/08/2026; Sprint 5 el 27/08/2026; Sprint 6 el 28/08/2026; Sprint 7 el 29/08/2026; Sprint 9 el 09/09/2026). La ejecución real arrastra el desvío de calendario registrado en CT-29. Sprint 8 continúa **en curso**: R2 permanece prerregistrado/no ejecutado y CA-4 no demostrado. Sprint 11 completó la congelación S11-A y la preparación técnica S11-B; S11-C cerró `EX-02` en `PASS` con el run `s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af`, tras cinco intentos previos `NOT_DEMONSTRATED`, y no inició EX-03 ni escenarios posteriores, análisis S11-D, cierre S11-E ni S12–S13.
 
 ### Decisiones que condicionan el avance
 
@@ -1582,8 +1582,9 @@ ausente. S11, S12 y S13 no fueron iniciados durante este cierre.
 
 **Fechas planificadas:** 10/10/2026 – 16/10/2026
 **Estado:** En curso — S11-A y S11-B en `PASS`; rebaseline custodial completado (P02/P03 y C1
-repetidos en `PASS` bajo la nueva época); S11-C intentada tres veces y bloqueada, con `EX-02`
-`NOT_DEMONSTRATED` y el gate de remediación en `BLOCKED_PENDING_RECONCILIATION`
+repetidos en `PASS` bajo la nueva época); S11-C con `EX-02` en `PASS` —run
+`s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af`, auditado como `S11C2_EX02_PASS_CONFIRMED`— tras cinco
+intentos previos `NOT_DEMONSTRATED`; EX-03 y escenarios posteriores sin ejecutar
 **Fecha real de cierre:** —
 
 > **Rebaseline S11-A (21/09/2026).** El título histórico “Créditos, ranking del mes en curso y
@@ -1790,8 +1791,75 @@ Gate de remediación: `S11C2_PREFLIGHT_REMEDIATED`.
   flujo S11; y CI no ejerce la comprobación de nivel proceso del separador npm. Ambas requieren
   cambios fuera del alcance de A2/A3.
 
-Estados: `A2/A3 implementation = PASS`; `A4 procedural compliance = FAIL`;
-`S11-C2 remediation gate = BLOCKED_PENDING_RECONCILIATION`; `EX-02 = NOT_DEMONSTRATED`.
+Estados al cierre de esa jornada: `A2/A3 implementation = PASS`;
+`A4 procedural compliance = FAIL`; `S11-C2 remediation gate = BLOCKED_PENDING_RECONCILIATION`;
+`EX-02 = NOT_DEMONSTRATED`. Los dos primeros se conservan; los dos últimos fueron superados por
+los intentos posteriores del mismo día, registrados a continuación.
+
+### S11-C2 / EX-02 — bloqueos A5 y A6, y ejecución demostrada (22/09/2026)
+
+- Baseline: `main@438888fa4fdb28590e585b420ad2b3dc853e2cfd`. Tras la reconciliación documental se
+  ejecutó EX-02 tres veces más, siempre con el harness oficial, `--scenario EX-02` y un nonce
+  nuevo. Las dos primeras siguieron `NOT_DEMONSTRATED`; la tercera **demostró el escenario**.
+- Run `s11-95954a43-507b-5093-824d-8f0c83c1a1a7` (`main@438888f`, backend `127.0.0.1:32775`).
+  Primera vez que el harness seleccionó y ejecutó la suite S11: `Running 1 test using 1 worker`
+  desde `e2e-s11/`, confirmando la corrección A2/A3. La prueba falló en
+  `POST /api/v1/identity/submit/` con **503**. Causa —**defecto A5**—:
+  `_asegurar_configuracion()` exigía `SUPABASE_URL` y la service-role aunque el overlay aislado
+  las deja vacías a propósito y `S11_LOCAL_STORAGE_ENABLED=true` sustituye el adaptador por el
+  local, que no las usa. Manifest final `FAILED`; `S11C2_EX02_NOT_DEMONSTRATED`.
+- Corrección A5 en el commit `83a27f1e887f73484a4776dc56d4a21e0b60de91`: `storage` expone
+  `ensure_configured()`, que valida lo que necesita el adaptador realmente activo; la guarda de
+  identidad conserva `DOCUMENT_HMAC_SECRET` y delega el resto. El modo Supabase sigue exigiendo
+  su configuración completa y no existe respaldo entre adaptadores en ninguna dirección.
+- Run `s11-6efb78d7-ca14-523f-b7e5-7c5d6ee14fad` (`main@83a27f1`, backend `127.0.0.1:32776`).
+  El 503 desapareció y el fallo avanzó a **400** en el mismo endpoint. Causa —**defecto A6**—: la
+  constante `PNG` escrita a mano en `frontend/e2e-s11/s11-fullstack.spec.ts` era un archivo
+  corrupto en tres dimensiones —longitud de `IDAT` declarada 20 frente a las 22 del encuadre, CRC
+  que no coincide con ninguna longitud candidata y flujo zlib que falla su adler32—. `Image.open`
+  la acepta de forma perezosa, pero `Image.verify()` la rechaza, de modo que el backend respondía
+  correctamente 400. Manifest final `FAILED`; `S11C2_EX02_NOT_DEMONSTRATED`.
+- Corrección A6 en el commit `721462ad5a2a79d7c84d109e29b3525914830cd3`: se elimina la constante
+  manual y `syntheticPng()` toma los bytes de `fixture.report_inputs[0].image.base64`, es decir
+  del dataset congelado, cuyas 20 imágenes se reproducen byte a byte desde la seed. S11 deja de
+  tener una segunda fuente binaria escrita a mano. El dataset, su seed y su SHA-256 no cambiaron.
+- **Run `s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af` (`main@721462a`, backend
+  `127.0.0.1:32777`): manifest final `COMPLETED`, las catorce fases del harness en `rc=0`.**
+  `execute` ejecutó exactamente una prueba de `e2e-s11/` y ninguna de la suite ordinaria `e2e/`.
+  `collect` —no `collect_failure`—, `validate`, `record`, `custody`, `finalize` y `shutdown`
+  cerraron sin fallo.
+- Garantías demostradas por ese run: identidad sintética (7 actores del fixture oficial); HMAC
+  generado (3 perfiles con `document_hmac` presente y de longitud 64); consistencia, por la
+  aprobación administrativa que recomputa la huella y la compara en tiempo constante; unicidad,
+  por el **409** del envío duplicado sobre `UNIQUE (document_hmac)`; ausencia de documento
+  nacional textual, por inventario DDL donde la única columna documental de todo el esquema es
+  `citizen_profiles.document_hmac varchar(64)`; reporte `1ce1c4d5-a14a-45f4-817e-2d9b410ab544`
+  creado; estado inicial `CREADO` y clasificación `CLASIFICADO`, ambos en ciclo 0, según
+  `status_history`; `resolution_cycle = 0`; auditoría con `identity.submitted`,
+  `identity.approved`, `report.created` y `ai.report.classified`; correlación `run_id` en los 6
+  eventos HTTP y los 6 de Celery; custodia, SHA-256, aislamiento y cleanup.
+- Frontera respetada: `validated_at`, `validated_by_id`, `resolved_at` y `closed_at` nulos;
+  `confirmations` y `resolution_evidence` vacías; recompensas limitadas a `REPORT_CREATED`. El
+  `institution_id` del reporte coincide con `suggested_institution_id` de la clasificación, de
+  modo que es prellenado de la IA y **no** asignación institucional por validación. Validación,
+  asignación por validación, confirmación, resolución, evidencia de resolución y ciclos
+  posteriores **no** fueron demostrados por EX-02 y corresponden a EX-03 y siguientes, que no se
+  ejecutaron.
+- Auditoría independiente de la evidencia custodiada: `sha256sum --check SHA256SUMS` limpio sobre
+  los diez archivos, los seis `sha256` de `artifacts.jsonl` recomputados y coincidentes, y los
+  seis tipos de artefacto presentes, incluido `celery-events`. Gate de auditoría:
+  `S11C2_EX02_PASS_CONFIRMED`.
+- Matiz de trazabilidad registrado en la auditoría: la salida de `s11_validate_run` no queda
+  dentro del paquete custodiado, porque el log del harness se persiste antes de las fases
+  `record/custody/finalize`. Su resultado sigue siendo deducible del paquete, porque
+  `run-manifest.final.json` sólo alcanza `status: COMPLETED` cuando esa fase no falló.
+- Precisión sobre el fixture: `syntheticPng()` tiene tres usos en el spec —selfie de identidad,
+  selfie duplicada y el archivo de `uploadEvidence()`—. El tercero corresponde a evidencia de
+  resolución de EX-04/06/08 y **no fue ejercido por EX-02**. La foto del reporte sigue tomando
+  sus bytes con `Buffer.from(input.image.base64, "base64")` en `createReport()`, código que A6 no
+  modificó.
+
+Gate de EX-02: `S11C2_EX02_PASS`, confirmado por auditoría como `S11C2_EX02_PASS_CONFIRMED`.
 
 ### Pruebas realizadas
 
@@ -1837,14 +1905,20 @@ Estados: `A2/A3 implementation = PASS`; `A4 procedural compliance = FAIL`;
   repetición independiente `s11-custody-20260921-p02p03-v6` cerró nuevamente P02/P03 en `PASS`.
 - La evidencia C1 histórica también permanece `HISTORICAL_UNVERIFIABLE`, pero la repetición
   independiente `s11-c1-20260921-isolation-repro-reset-v2` cerró C1 en `PASS` bajo la nueva época.
-- Los tres intentos S11-C2/EX-02 (`s11-3b48870b`, `s11-d407a461`, `s11-41eaa7d0`) quedan
-  `S11C2_EX02_NOT_DEMONSTRATED` por infraestructura/harness, no como fallo funcional: ninguno
-  llegó a ejercer una condición funcional del escenario. Sus causas fueron, respectivamente,
-  `npm` ausente, el directorio de resultados root-owned (A1) y el separador npm faltante (A2).
+- Los cinco intentos previos de S11-C2/EX-02 quedan `S11C2_EX02_NOT_DEMONSTRATED` por
+  infraestructura/harness, no como fallo funcional: ninguno llegó a ejercer una condición
+  funcional del escenario, y se conservan como evidencia histórica sin reinterpretar. Sus causas
+  fueron, en orden: `s11-3b48870b` por `npm` ausente; `s11-d407a461` por el directorio de
+  resultados root-owned (A1); `s11-41eaa7d0` por el separador npm faltante, que ejecutó la suite
+  ordinaria (A2); `s11-95954a43` por la guarda de configuración acoplada a Supabase (A5); y
+  `s11-6efb78d7` por el PNG corrupto del fixture (A6).
+- El sexto run, `s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af`, cerró `COMPLETED` y demostró EX-02.
+  `EX-02 = PASS`, auditado como `S11C2_EX02_PASS_CONFIRMED`.
 - La desviación A4 eliminó de forma irreversible 1,4 MB de artefactos no custodiados del
   incidente A2. No fueron recuperados; el registro autoritativo permanece en la evidencia
-  custodiada. `A4 procedural compliance = FAIL` y el gate de remediación S11-C2 queda
-  `BLOCKED_PENDING_RECONCILIATION`.
+  custodiada. `A4 procedural compliance = FAIL` se conserva como constancia procedimental; el
+  gate de remediación S11-C2 salió de `BLOCKED_PENDING_RECONCILIATION` al completarse esta
+  reconciliación documental posterior a la verificación del `PASS`.
 - R2 no fue ejecutada y su evidencia válida no existe.
 - La cobertura global previa no decide HT-5; falta instrumentación de cobertura acotada.
 - El harness sigue exigiendo confirmación explícita por run. La clave HMAC custodial estable debe
@@ -1876,11 +1950,12 @@ Emmanuel Pohl Amarilla; `SENSITIVE` permanece deshabilitado y `SECRET` nunca se 
 Primary, backup y restore se ubican respectivamente en `var/s11-runs`, `var/s11-backup` y
 `var/s11-restore`. La evidencia histórica permanece `HISTORICAL_UNVERIFIABLE`, pero la repetición
 independiente bajo la nueva época dejó `S11A-P02=PASS`, `S11A-P03=PASS` y C1 `PASS`. EX-02 y EX-03
-no quedaron autorizados por el cierre C1. Los tres intentos posteriores de EX-02 quedaron
-`S11C2_EX02_NOT_DEMONSTRATED`: los dos primeros no alcanzaron Playwright y el tercero lo alcanzó
-pero ejecutó la suite ordinaria del frontend por el defecto A2, corregido en `9e2d55d`. EX-03 no
-se ejecutó. La desviación A4 dejó el gate de remediación en
-`BLOCKED_PENDING_RECONCILIATION`. Cualquier nuevo intento requiere su propio pre-gate.
+no quedaron autorizados por el cierre C1. EX-02 acumuló cinco intentos
+`S11C2_EX02_NOT_DEMONSTRATED` —dos que no alcanzaron Playwright, uno que ejecutó la suite
+ordinaria por el defecto A2, uno bloqueado por A5 y otro por A6— y quedó finalmente demostrado en
+el sexto, `s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af`, con `EX-02 = PASS` auditado como
+`S11C2_EX02_PASS_CONFIRMED`. EX-03 y los escenarios posteriores no se ejecutaron y cada uno
+requiere su propio pre-gate; las garantías que les corresponden siguen sin demostrar.
 
 ---
 
