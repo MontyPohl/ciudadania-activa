@@ -202,6 +202,24 @@ def test_sin_configuracion_responde_503_sin_tocar_storage_ni_base(
     assert not CitizenProfile.objects.filter(user=citizen).exists()
 
 
+def test_el_envio_funciona_con_storage_local_y_supabase_en_blanco(
+    como, citizen, envio, s11_local_storage, document_hmac_secret
+):
+    """Remediación A5: el overlay S11 deja Supabase en blanco y usa el adaptador local.
+
+    Deliberadamente **no** usa `entorno`: la subida debe recorrer el adaptador real,
+    que es lo que EX-02 ejercita. Antes de A5 esto respondía 503 porque la guarda de
+    configuración exigía `SUPABASE_URL` y la service-role aunque nunca se usaran.
+    """
+    respuesta = como(citizen).post(SUBMIT_URL, envio(), format="multipart")
+
+    assert respuesta.status_code == 201
+    perfil = CitizenProfile.objects.get(user=citizen)
+    assert len(perfil.document_hmac) == 64
+    assert CEDULA not in perfil.document_hmac
+    assert CEDULA_NORMALIZADA not in perfil.document_hmac
+
+
 def test_el_503_no_nombra_ninguna_variable(como, citizen, envio, entorno, settings):
     settings.SUPABASE_SERVICE_ROLE_KEY = ""
 

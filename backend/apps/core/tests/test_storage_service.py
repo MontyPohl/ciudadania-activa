@@ -9,11 +9,13 @@ error ni en los logs.
 """
 
 import logging
+from pathlib import Path
 
 import pytest
 import requests
 
 from apps.core.services import storage
+from apps.experiments_app.isolation import IsolationError
 
 USUARIO = "2f1c9b7e-4a3d-4c2b-9f11-8d6a0c5e7b42"
 OBJETO = "9b7c1d2e-3f40-4a5b-8c6d-7e8f90a1b2c3"
@@ -412,3 +414,70 @@ def test_el_404_sigue_siendo_indisponibilidad_para_las_demas_operaciones(storage
 
     with pytest.raises(storage.StorageUnavailableError):
         storage.delete("reportes", "reports/a/b.jpg")
+
+
+# --------------------------------------------------------------------------- #
+# Configuración exigida por el adaptador realmente activo (remediación A5)
+# --------------------------------------------------------------------------- #
+
+
+def test_ensure_configured_exige_supabase_cuando_es_el_adaptador_activo(
+    settings, storage_config, espia
+):
+    """Modo productivo: la configuración Supabase sigue siendo obligatoria."""
+    llamadas = espia()
+    settings.SUPABASE_URL = ""
+
+    with pytest.raises(storage.StorageConfigurationError):
+        storage.ensure_configured()
+
+    assert llamadas == []
+
+
+def test_ensure_configured_no_exige_supabase_con_el_backend_experimental(s11_local_storage):
+    """A5: el overlay aislado deja Supabase en blanco y el adaptador local no lo usa."""
+    assert s11_local_storage.SUPABASE_URL == ""
+    assert s11_local_storage.SUPABASE_SERVICE_ROLE_KEY == ""
+
+    storage.ensure_configured()
+
+
+def test_el_backend_experimental_no_llega_al_cliente_supabase(s11_local_storage, espia):
+    """Aislamiento: LOCAL/S11 escribe en disco y jamás emite una petición HTTP."""
+    llamadas = espia()
+
+    storage.upload("s11-verificaciones", CLAVE, b"contenido-sintetico", "image/png")
+
+    assert llamadas == [], "el adaptador local no puede salir a Supabase"
+    destino = Path(s11_local_storage.S11_OBJECT_ROOT) / "s11-verificaciones" / CLAVE
+    assert destino.read_bytes() == b"contenido-sintetico"
+    assert storage.download_private("s11-verificaciones", CLAVE) == b"contenido-sintetico"
+    assert llamadas == []
+
+
+def test_sin_aislamiento_verificado_el_backend_local_no_degrada_a_supabase(
+    settings, storage_config, espia
+):
+    """No existe respaldo local → Supabase: un aislamiento inválido falla cerrado."""
+    llamadas = espia()
+    settings.S11_LOCAL_STORAGE_ENABLED = True
+    settings.S11_EXPERIMENTS_ENABLED = False
+
+    with pytest.raises(IsolationError):
+        storage.ensure_configured()
+    with pytest.raises(IsolationError):
+        storage.upload("verificaciones", CLAVE, b"x", "image/png")
+
+    assert llamadas == []
+
+
+def test_el_modo_supabase_no_degrada_al_backend_local(settings, storage_config, espia):
+    """No existe respaldo Supabase → local: sin service-role no se escribe nada."""
+    llamadas = espia()
+    settings.SUPABASE_SERVICE_ROLE_KEY = ""
+
+    with pytest.raises(storage.StorageConfigurationError):
+        storage.upload("verificaciones", CLAVE, b"x", "image/png")
+
+    assert llamadas == []
+    assert storage._experimental_backend() is None

@@ -14,7 +14,9 @@ comportamiento de los demás clientes HTTP del proyecto.
 """
 
 import io
+import shutil
 import threading
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -153,6 +155,32 @@ def storage_config(settings):
     settings.SUPABASE_STORAGE_BUCKET_PRIVATE = "verificaciones"
     settings.SUPABASE_STORAGE_BUCKET_REPORTS = "reportes"
     return settings
+
+
+@pytest.fixture
+def s11_local_storage(settings, request):
+    """Overlay experimental S11: adaptador local aislado y Supabase en blanco.
+
+    Reproduce `infra/docker-compose.s11.yml`, que deja `SUPABASE_URL` y la
+    service-role vacías **a propósito**, para que ningún run experimental pueda
+    alcanzar almacenamiento productivo. La raíz de objetos vive bajo
+    `backend/.s11-test-artifacts/`, que está en `.gitignore`.
+    """
+    settings.S11_LOCAL_STORAGE_ENABLED = True
+    settings.S11_EXPERIMENTS_ENABLED = True
+    settings.S11_ENVIRONMENT = "isolated-experiment"
+    settings.S11_DATABASE_URL = "postgis://ciudadania@db:5432/ciudadania_s11_experiment"
+    settings.REDIS_URL = "redis://redis:6379/11"
+    # `local_storage.upload` crea en exclusiva: una raíz heredada de otra corrida
+    # haría fallar la subida con «el objeto sintético ya existe».
+    root = Path.cwd() / ".s11-test-artifacts" / request.node.name
+    shutil.rmtree(root, ignore_errors=True)
+    settings.S11_OBJECT_ROOT = root
+    settings.SUPABASE_URL = ""
+    settings.SUPABASE_SERVICE_ROLE_KEY = ""
+    settings.SUPABASE_STORAGE_BUCKET_PRIVATE = "s11-verificaciones"
+    yield settings
+    shutil.rmtree(root, ignore_errors=True)
 
 
 @pytest.fixture

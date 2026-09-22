@@ -211,6 +211,26 @@ def _configuracion() -> tuple[str, dict[str, str]]:
     return f"{url.rstrip('/')}/storage/v1", cabeceras
 
 
+def ensure_configured() -> None:
+    """Valida la configuración del adaptador que **realmente** atenderá la subida.
+
+    Cada backend declara aquí lo que necesita, en lugar de que sus llamadores
+    dupliquen la lista. El backend experimental no habla con Supabase, así que
+    exigirle `SUPABASE_URL` o la service-role sería reclamar una credencial
+    productiva que esa ruta nunca usa —y que el overlay aislado deja vacía a
+    propósito—. El backend Supabase las sigue exigiendo, sin excepción.
+
+    La selección conserva su doble gate y no admite respaldo en ninguna
+    dirección: sin `S11_LOCAL_STORAGE_ENABLED` **y** aislamiento verificado no
+    hay backend local, y un aislamiento inválido levanta `IsolationError` en
+    vez de degradar a Supabase; a la inversa, sin configuración Supabase se
+    levanta `StorageConfigurationError` en vez de degradar al backend local.
+    """
+    if _experimental_backend() is not None:
+        return
+    _configuracion()
+
+
 def _experimental_backend():
     """Backend local sólo bajo el doble gate aislado de S11.
 
