@@ -1,10 +1,14 @@
 import base64
+import io
 import json
 from pathlib import Path
 
 import pytest
+from django.core.files.uploadedfile import SimpleUploadedFile
+from PIL import Image
 
 from apps.ai_client_app.contracts import ClassificationRequest
+from apps.auth_app.services.identity import InvalidSelfieError, validate_selfie
 from apps.experiments_app.datasets import (
     AI_DATASET_ID,
     FUNCTIONAL_DATASET_ID,
@@ -13,6 +17,7 @@ from apps.experiments_app.datasets import (
     generate_dataset,
 )
 from apps.experiments_app.synthetic_ai import S11SyntheticAiAdapter
+from apps.reports_app.services.photos import InvalidReportPhotoError, prepare_report_photo
 
 
 @pytest.mark.parametrize("dataset_id", [FUNCTIONAL_DATASET_ID, LOAD_DATASET_ID])
@@ -91,3 +96,59 @@ def test_s11_fake_preserves_dataset_catalog_mapping_without_network():
     assert result["category_slug"] == "agua-potable-perdidas"
     assert result["institution_slug"] == "essap"
     assert result["priority"] == "MEDIA"
+
+
+# --------------------------------------------------------------------------- #
+# Regresión A6: las imágenes que consumen los fixtures S11 deben ser válidas
+# --------------------------------------------------------------------------- #
+
+
+def test_las_imagenes_del_dataset_funcional_pasan_la_validacion_real_del_backend():
+    """Los fixtures S11 toman sus bytes de aquí: deben superar los validadores reales.
+
+    Se reutilizan los validadores del proyecto en vez de reimplementar la
+    comprobación: `prepare_report_photo` —que es también el que aplica
+    `create_resolution_evidence` a la evidencia de resolución— y `validate_selfie`,
+    ambos apoyados en `Image.verify()`.
+    """
+    dataset = generate_dataset(FUNCTIONAL_DATASET_ID).payload
+    assert dataset["reports"]
+
+    for report in dataset["reports"]:
+        imagen = report["image"]
+        crudo = base64.b64decode(imagen["base64"])
+        nombre = imagen["filename"]
+
+        preparada = prepare_report_photo(
+            SimpleUploadedFile(nombre, crudo, content_type=imagen["mime_type"])
+        )
+        assert preparada.format == "PNG"
+
+        # El mismo insumo alimenta la selfie sintética de EX-02.
+        assert (
+            validate_selfie(SimpleUploadedFile(nombre, crudo, content_type="image/png")).format
+            == "PNG"
+        )
+
+        # Decodificable de verdad, no sólo abrible: `Image.open` es perezoso.
+        with Image.open(io.BytesIO(crudo)) as abierta:
+            abierta.load()
+
+
+def test_una_firma_png_intacta_no_basta_para_aceptar_la_imagen():
+    """A6: el PNG del spec conservaba la firma y tenía el IDAT corrupto.
+
+    `startswith(b"\\x89PNG")` lo habría dado por bueno; los validadores reales no.
+    """
+    dataset = generate_dataset(FUNCTIONAL_DATASET_ID).payload
+    crudo = bytearray(base64.b64decode(dataset["reports"][0]["image"]["base64"]))
+    inicio_payload = crudo.find(b"IDAT") + 4
+    crudo[inicio_payload + 5] ^= 0xFF
+    corrupto = bytes(crudo)
+
+    assert corrupto.startswith(b"\x89PNG"), "la firma debe seguir intacta para que la prueba valga"
+
+    with pytest.raises(InvalidReportPhotoError):
+        prepare_report_photo(SimpleUploadedFile("corrupta.png", corrupto, content_type="image/png"))
+    with pytest.raises(InvalidSelfieError):
+        validate_selfie(SimpleUploadedFile("corrupta.png", corrupto, content_type="image/png"))

@@ -15,10 +15,22 @@ import {
 const BACKEND_URL = process.env.S11_BACKEND_URL ?? "";
 const RUN_ID = process.env.S11_RUN_ID ?? "";
 const SCENARIO = process.env.S11_SCENARIO_ID ?? "";
-const PNG = Buffer.from(
-  "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFElEQVR42mNkYGD4z8DAwMDAxAADAgAK/gEDd7YzVQAAAABJRU5ErkJggg==",
-  "base64",
-);
+/**
+ * Imagen sintética válida tomada del dataset congelado `s11-functional-v1`.
+ *
+ * Aquí no se escribe ningún binario a mano. La constante manual anterior era un
+ * PNG con el IDAT corrupto —longitud, CRC y flujo zlib inválidos, defecto A6— que
+ * el backend rechazaba con 400 al verificarlo con `Image.verify()`, y ninguna
+ * prueba la cubría. El dataset es la única fuente binaria de S11: sus imágenes se
+ * regeneran de forma determinista desde la seed y su validez está cubierta por
+ * `test_datasets.py`.
+ */
+function syntheticPng(): Buffer {
+  const input = fixture.report_inputs[0];
+  expect(input, "El dataset debe aportar una imagen sintética para el escenario").toBeDefined();
+  expect(input.image.mime_type, "S11 fija imágenes PNG mínimas").toBe("image/png");
+  return Buffer.from(input.image.base64, "base64");
+}
 
 type Actor = { id: string; access: string; refresh: string };
 type ReportInput = {
@@ -90,7 +102,7 @@ test("@EX-02 identidad, unicidad y creación reales", async ({ page, context }) 
   const submit = await traced("identity-submit", candidate, "post", "/api/v1/identity/submit/", {
     multipart: {
       document_number: fixture.identity_document,
-      selfie: { name: "selfie-sintetica.png", mimeType: "image/png", buffer: PNG },
+      selfie: { name: "selfie-sintetica.png", mimeType: "image/png", buffer: syntheticPng() },
     },
   });
   expect(submit.status()).toBe(201);
@@ -118,7 +130,7 @@ test("@EX-02 identidad, unicidad y creación reales", async ({ page, context }) 
     {
       multipart: {
         document_number: fixture.identity_document,
-        selfie: { name: "selfie-duplicada.png", mimeType: "image/png", buffer: PNG },
+        selfie: { name: "selfie-duplicada.png", mimeType: "image/png", buffer: syntheticPng() },
       },
     },
   );
@@ -416,7 +428,7 @@ async function uploadEvidence(reportId: string, cycle: number, key: string): Pro
       multipart: {
         cycle: String(cycle),
         description: `SYNTHETIC evidencia técnica ${SCENARIO} ciclo ${cycle}`,
-        file: { name: `evidence-${cycle}.png`, mimeType: "image/png", buffer: PNG },
+        file: { name: `evidence-${cycle}.png`, mimeType: "image/png", buffer: syntheticPng() },
       },
     },
   );
