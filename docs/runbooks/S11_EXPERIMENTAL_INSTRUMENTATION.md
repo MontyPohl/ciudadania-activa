@@ -21,9 +21,11 @@ explícita del operador por run y no se utilizó en las verificaciones P02/P03 o
 
 `EX-02` está **demostrado**: el run `s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af` (`main@721462a`)
 cerró `COMPLETED` con las catorce fases del harness en `rc=0`, y la auditoría independiente de su
-evidencia custodiada lo confirmó como `S11C2_EX02_PASS_CONFIRMED`. EX-03 y los escenarios
-posteriores **no** se han ejecutado: sus garantías siguen sin demostrar y cada uno exige su propio
-pre-gate.
+evidencia custodiada lo confirmó como `S11C2_EX02_PASS_CONFIRMED`. `EX-03` también está
+**demostrado**: el run `s11-6dc3ea66-08c9-51ef-9fe3-70e7dcc67959` (`main@3696d01`) cerró
+`COMPLETED` con las catorce fases en `rc=0`, trazabilidad y custodia en `PASS`, y gate
+`S11C2_EX03_PASS_CONFIRMED`. EX-04, EX-06 y EX-08 **no** se han ejecutado: sus garantías siguen
+sin demostrar y cada uno exige su propio pre-gate.
 
 Lo precedieron cinco intentos que quedan como evidencia histórica `NOT_DEMONSTRATED`, conservados
 sin reinterpretar: `s11-3b48870b-7979-542b-8a46-1c6dfce7bed8` (`npm` ausente),
@@ -135,10 +137,10 @@ y falla cerrado si falta el marcador.
 
 El harness real admite `EX-02`…`EX-08`. Levanta frontend, backend, PostgreSQL/PostGIS,
 Redis y un worker Celery con concurrencia 2; Playwright no intercepta la API. Esa capacidad está
-demostrada de extremo a extremo **sólo para `EX-02`**, mediante el run
-`s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af`. Hasta el commit `9e2d55d` el harness nunca llegaba a
-seleccionar la configuración S11 —el defecto A2 lo hacía arrancar con la ordinaria—. `EX-03`…
-`EX-08` siguen admitidos por el harness pero **no ejecutados**. El flujo es:
+demostrada de extremo a extremo para `EX-02` —run `s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af`—
+y para `EX-03` —run `s11-6dc3ea66-08c9-51ef-9fe3-70e7dcc67959`—. Hasta el commit `9e2d55d` el
+harness nunca llegaba a seleccionar la configuración S11 —el defecto A2 lo hacía arrancar con la
+ordinaria—. `EX-04`…`EX-08` siguen admitidos por el harness pero **no ejecutados**. El flujo es:
 
 ```text
 start → discover backend port → health check → setup → manifest inicial

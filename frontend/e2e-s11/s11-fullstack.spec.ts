@@ -230,13 +230,61 @@ test("@EX-03 confirmación y validación reales", async ({ page, context }) => {
 
 test("@EX-04 evidencia y resolución reales", async ({ page, context }) => {
   test.skip(SCENARIO !== "EX-04", "Otro escenario fue seleccionado por el harness.");
+  const author = fixture.actors.author;
+  const idempotencyKey = "00000000-0000-4000-8000-000000000004";
+
   await frontendSmoke(page, context, fixture.actors.operator_a.refresh, "/bandeja");
   const reportId = await createAndValidate("EX-04 evidencia y resolución");
-  await transition(reportId, "EN_PROCESO", 1, "start-processing");
+
+  // 1. El operador toma el reporte validado: ASIGNADO → EN_PROCESO en el ciclo 1.
+  expect((await transition(reportId, "EN_PROCESO", 1, "start-processing")).ok()).toBeTruthy();
+
+  // 2. Resolver sin evidencia del ciclo vigente: rechazo controlado.
   const withoutEvidence = await transition(reportId, "RESUELTO", 1, "resolve-without-evidence");
   expect(withoutEvidence.status()).toBe(409);
-  await uploadEvidence(reportId, 1, "00000000-0000-4000-8000-000000000004");
+  expect((await withoutEvidence.json()).code).toBe("RESOLUTION_EVIDENCE_REQUIRED");
+
+  // 3. Alta de la evidencia privada del ciclo 1.
+  const created = await uploadEvidence(reportId, 1, idempotencyKey);
+  expect(created.status()).toBe(201);
+  const evidencia = await created.json();
+  expect(evidencia.cycle).toBe(1);
+
+  // 4. Misma clave y contenido idéntico: reutilización idempotente. El 200 y la
+  //    identidad de `id`/`created_at` acreditan que se devolvió la evidencia
+  //    original en lugar de crear una segunda.
+  const replay = await postEvidence(reportId, 1, idempotencyKey, "evidence-idempotent-replay");
+  expect(replay.status()).toBe(200);
+  const reutilizada = await replay.json();
+  expect(reutilizada.id).toBe(evidencia.id);
+  expect(reutilizada.created_at).toBe(evidencia.created_at);
+  expect(reutilizada.description).toBe(evidencia.description);
+
+  // 5. Misma clave con contenido distinto: rechazo controlado.
+  const conflicto = await postEvidence(
+    reportId,
+    1,
+    idempotencyKey,
+    "evidence-key-reused",
+    `SYNTHETIC evidencia técnica ${SCENARIO} ciclo 1 con contenido distinto`,
+  );
+  expect(conflicto.status()).toBe(409);
+  expect((await conflicto.json()).code).toBe("IDEMPOTENCY_KEY_REUSED");
+
+  // 6. Con la evidencia del ciclo vigente, la resolución procede.
   expect((await transition(reportId, "RESUELTO", 1, "resolve")).ok()).toBeTruthy();
+
+  // Estado final de la ficha: RESUELTO, `resolved_at` presente y ciclo aún 1.
+  const final = await operatorReportDetail(reportId, "detail-after-resolve");
+  expect(final.status).toBe("RESUELTO");
+  expect(final.cycle).toBe(1);
+  expect(final.resolved_at).not.toBeNull();
+
+  // Ledger: el autor recibe el bono de resolución acreditado.
+  expect((await citizenSummary(author, "author-summary-resolved")).points).toMatchObject({
+    pending: 0,
+    accredited: 100, // REPORT_CREATED 20 + VALIDATION_BONUS 30 + RESOLUTION_BONUS 50
+  });
 });
 
 test("@EX-05 autocierre mediante Celery real", async ({ page, context }) => {
@@ -514,9 +562,27 @@ async function transition(
   );
 }
 
-async function uploadEvidence(reportId: string, cycle: number, key: string): Promise<void> {
-  const response = await traced(
-    `evidence-cycle-${cycle}`,
+/**
+ * POST de evidencia sin afirmar el estado: el llamador decide qué contrato
+ * comprueba (alta, reutilización idempotente o conflicto de clave).
+ *
+ * `description` se expone como parámetro porque el backend deriva la identidad
+ * del contenido de `sha256(contenido normalizado + descripción + ciclo)`
+ * (`services/resolution_evidence.py`). Variarla con la misma `Idempotency-Key`
+ * es la forma de producir el conflicto `IDEMPOTENCY_KEY_REUSED` sin escribir
+ * ningún binario a mano —el dataset congelado aporta una sola imagen por
+ * escenario— y es exactamente lo que hace la prueba unitaria de referencia
+ * `test_reused_key_with_different_content_conflicts`.
+ */
+async function postEvidence(
+  reportId: string,
+  cycle: number,
+  key: string,
+  step: string,
+  description = `SYNTHETIC evidencia técnica ${SCENARIO} ciclo ${cycle}`,
+): Promise<APIResponse> {
+  return traced(
+    step,
     fixture.actors.operator_a,
     "post",
     `/api/v1/operator/reports/${reportId}/evidence/?institution_id=${fixture.institution_a}`,
@@ -524,12 +590,19 @@ async function uploadEvidence(reportId: string, cycle: number, key: string): Pro
       headers: { "Idempotency-Key": key },
       multipart: {
         cycle: String(cycle),
-        description: `SYNTHETIC evidencia técnica ${SCENARIO} ciclo ${cycle}`,
+        description,
         file: { name: `evidence-${cycle}.png`, mimeType: "image/png", buffer: syntheticPng() },
       },
     },
   );
+}
+
+async function uploadEvidence(reportId: string, cycle: number, key: string): Promise<APIResponse> {
+  const response = await postEvidence(reportId, cycle, key, `evidence-cycle-${cycle}`);
   expect([200, 201]).toContain(response.status());
+  // Se devuelve para que EX-04 distinga el 201 del alta del 200 idempotente.
+  // Los demás escenarios ignoran el retorno.
+  return response;
 }
 
 async function createResolved(description: string): Promise<string> {
