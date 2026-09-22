@@ -140,17 +140,92 @@ test("@EX-02 identidad, unicidad y creación reales", async ({ page, context }) 
 
 test("@EX-03 confirmación y validación reales", async ({ page, context }) => {
   test.skip(SCENARIO !== "EX-03", "Otro escenario fue seleccionado por el harness.");
-  await frontendSmoke(page, context, fixture.actors.author.refresh, "/reportes/nuevo");
-  const reportId = await createReport(fixture.actors.author, "EX-03 confirmar y validar");
-  const confirmation = await traced(
-    "confirm",
-    fixture.actors.confirmer,
+  const author = fixture.actors.author;
+  const confirmer = fixture.actors.confirmer;
+  const operator = fixture.actors.operator_a;
+  const confirmUrl = (id: string) => `/api/v1/reports/${id}/confirm/`;
+
+  await frontendSmoke(page, context, author.refresh, "/reportes/nuevo");
+  const reportId = await createReport(author, "EX-03 confirmar y validar");
+
+  // Estado inicial de la ficha: ciclo 0, sin validación y con el autor en +20 pendiente.
+  const inicial = await operatorReportDetail(reportId, "detail-before-confirm");
+  expect(inicial.cycle).toBe(0);
+  expect(inicial.validated_at).toBeNull();
+  expect(inicial.confirmation_count).toBe(0);
+  expect((await citizenSummary(author, "author-summary-initial")).points).toMatchObject({
+    pending: 20,
+    accredited: 0,
+  });
+
+  // 1. Confirmación válida de un ciudadano ajeno.
+  const confirmation = await traced("confirm", confirmer, "post", confirmUrl(reportId), {
+    data: {},
+  });
+  expect(confirmation.status()).toBe(201);
+  const confirmationBody = await confirmation.json();
+  expect(confirmationBody.confirmation_count).toBe(1);
+  expect(confirmationBody.reward).toMatchObject({ impact_points: 10, status: "PENDIENTE" });
+
+  // 2. Confirmación repetida del mismo ciudadano: rechazo controlado.
+  const duplicada = await traced("confirm-duplicate", confirmer, "post", confirmUrl(reportId), {
+    data: {},
+  });
+  expect(duplicada.status()).toBe(409);
+  expect((await duplicada.json()).code).toBe("ALREADY_CONFIRMED");
+
+  // 3. Auto-confirmación del autor: rechazo controlado.
+  const propia = await traced("confirm-self", author, "post", confirmUrl(reportId), { data: {} });
+  expect(propia.status()).toBe(409);
+  expect((await propia.json()).code).toBe("SELF_CONFIRMATION_NOT_ALLOWED");
+
+  // Confirmar no mueve el ciclo, y ninguno de los dos rechazos persistió nada.
+  const preValidacion = await operatorReportDetail(reportId, "detail-before-validate");
+  expect(preValidacion.cycle).toBe(0);
+  expect(preValidacion.confirmation_count).toBe(1);
+  expect(preValidacion.validated_at).toBeNull();
+
+  // 4. Validación del operador A: ciclo 0 → 1 y acreditación del agregado.
+  const validation = await validateReport(reportId);
+  expect(validation.status()).toBe(200);
+  const validado = await validation.json();
+  expect(validado.status).toBe("ASIGNADO");
+  expect(validado.validated_at).not.toBeNull();
+  expect(validado.validated_by).toBe(operator.id);
+  expect(validado.institution.id).toBe(fixture.institution_a);
+
+  const posValidacion = await operatorReportDetail(reportId, "detail-after-validate");
+  expect(posValidacion.cycle).toBe(1);
+  expect(posValidacion.confirmation_count).toBe(1);
+
+  // Ledger: los pendientes pasan a acreditados y el autor recibe el bonus de validación.
+  expect((await citizenSummary(author, "author-summary-validated")).points).toMatchObject({
+    pending: 0,
+    accredited: 50, // REPORT_CREATED 20 + VALIDATION_BONUS 30
+  });
+  const resumenConfirmador = await citizenSummary(confirmer, "confirmer-summary-validated");
+  expect(resumenConfirmador.confirmations_performed).toBe(1);
+  expect(resumenConfirmador.points).toMatchObject({ pending: 0, accredited: 10 });
+
+  // 5. Validación repetida: rechazo controlado, sin segunda transición ni segundo bonus.
+  const revalidacion = await traced(
+    "validate-duplicate",
+    operator,
     "post",
-    `/api/v1/reports/${reportId}/confirm/`,
+    `/api/v1/operator/reports/${reportId}/validate/?institution_id=${fixture.institution_a}`,
     { data: {} },
   );
-  expect(confirmation.status()).toBe(201);
-  await validateReport(reportId);
+  expect(revalidacion.status()).toBe(409);
+  expect((await revalidacion.json()).code).toBe("ALREADY_VALIDATED");
+
+  const final = await operatorReportDetail(reportId, "detail-after-duplicate-validate");
+  expect(final.status).toBe("ASIGNADO");
+  expect(final.cycle).toBe(1);
+  expect(final.validated_at).toBe(validado.validated_at);
+  expect((await citizenSummary(author, "author-summary-final")).points).toMatchObject({
+    pending: 0,
+    accredited: 50,
+  });
 });
 
 test("@EX-04 evidencia y resolución reales", async ({ page, context }) => {
@@ -385,7 +460,7 @@ async function createReport(actor: Actor, description: string): Promise<string> 
   return body.id as string;
 }
 
-async function validateReport(reportId: string): Promise<void> {
+async function validateReport(reportId: string): Promise<APIResponse> {
   const response = await traced(
     "validate",
     fixture.actors.operator_a,
@@ -394,6 +469,28 @@ async function validateReport(reportId: string): Promise<void> {
     { data: {} },
   );
   expect(response.ok()).toBeTruthy();
+  // Se devuelve para que EX-03 pueda comprobar el cuerpo —estado, institución,
+  // `validated_at` y `validated_by`—. Los demás escenarios ignoran el retorno.
+  return response;
+}
+
+/** Detalle del reporte visto por el operador: estado, ciclo y confirmaciones persistidas. */
+async function operatorReportDetail(reportId: string, step: string) {
+  const response = await traced(
+    step,
+    fixture.actors.operator_a,
+    "get",
+    `/api/v1/operator/reports/${reportId}/?institution_id=${fixture.institution_a}`,
+  );
+  expect(response.ok()).toBeTruthy();
+  return response.json();
+}
+
+/** Resumen del ciudadano: puntos pendientes/acreditados y confirmaciones realizadas. */
+async function citizenSummary(actor: Actor, step: string) {
+  const response = await traced(step, actor, "get", "/api/v1/citizen/summary/");
+  expect(response.ok()).toBeTruthy();
+  return response.json();
 }
 
 async function createAndValidate(description: string): Promise<string> {
