@@ -1,4 +1,9 @@
 import json
+import os
+import re
+import shutil
+import subprocess
+from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -10,8 +15,11 @@ from apps.experiments_app.harness import (
     HarnessError,
     _backend_url_from_compose_port,
     _wait_for_backend,
+    assert_execute_command_contract,
     build_plan,
+    expected_execute_command,
     verify_frontend_tooling,
+    verify_playwright_output_dir,
     verify_repository,
 )
 from apps.experiments_app.management.commands.s11_prepare_run import (
@@ -355,6 +363,7 @@ def test_frontend_preflight_verifies_node_npm_and_local_playwright(tmp_path, mon
     playwright_cli.parent.mkdir(parents=True)
     playwright_cli.write_text("#!/bin/sh\n", encoding="utf-8")
     (frontend / "package-lock.json").write_text("{}\n", encoding="utf-8")
+    (frontend / "playwright.s11.config.ts").write_text("export default {};\n", encoding="utf-8")
     monkeypatch.setattr("apps.experiments_app.harness.shutil.which", lambda command: command)
 
     calls = []
@@ -406,3 +415,429 @@ def test_real_harness_preflight_blocks_before_creating_run(tmp_path, monkeypatch
         FullStackHarness(tmp_path).execute(plan, environment=_environment())
 
     assert not (tmp_path / "var" / "s11-runs").exists()
+
+
+# --------------------------------------------------------------------------- #
+# Regresión A2: el separador npm y la llegada real de los argumentos a Playwright
+# --------------------------------------------------------------------------- #
+
+REPO_ROOT = Path(__file__).resolve().parents[4]
+FRONTEND_ROOT = REPO_ROOT / "frontend"
+PLAYWRIGHT_VERSION = re.compile(r"^Version\s+\d+\.\d+\.\d+")
+
+
+def _forwarded_arguments(command):
+    """Lo que realmente recibe Playwright: todo lo posterior al separador npm."""
+    return tuple(command[command.index("--") + 1 :])
+
+
+def test_execute_command_delivers_scenario_arguments_to_playwright_not_npm():
+    """A2: `npm exec playwright test …` deja que npm consuma `--config`/`--grep`."""
+    for number in range(2, 9):
+        scenario = f"EX-{number:02d}"
+        plan = build_plan(
+            scenario_id=scenario,
+            execution_nonce="test-npm-separator",
+            expected_git_sha="a" * 40,
+        )
+
+        # Estructura semántica, no una cadena accidental.
+        assert plan.execute[:3] == ("npm", "exec", "playwright")
+        assert "--" in plan.execute, "falta el separador npm"
+        separator_index = plan.execute.index("--")
+        assert separator_index == 3, "el separador debe seguir inmediatamente al paquete"
+
+        # Todo lo que npm podría interceptar queda antes del separador, y ahí
+        # sólo hay tokens posicionales: nada destinado a Playwright.
+        forwarded = _forwarded_arguments(plan.execute)
+        assert forwarded[0] == "test"
+        assert "--config=playwright.s11.config.ts" in forwarded
+        assert f"--grep=@{scenario}" in forwarded
+
+
+def test_execute_command_contract_rejects_the_historical_a2_defect():
+    defective = (
+        "npm",
+        "exec",
+        "playwright",
+        "test",
+        "--config=playwright.s11.config.ts",
+        "--grep=@EX-02",
+    )
+    with pytest.raises(HarnessError, match="npm exec playwright -- test"):
+        assert_execute_command_contract(defective, "EX-02")
+
+
+def test_execute_command_contract_rejects_default_config_and_missing_grep():
+    with pytest.raises(HarnessError, match="playwright.s11.config.ts"):
+        assert_execute_command_contract(
+            ("npm", "exec", "playwright", "--", "test", "--grep=@EX-02"), "EX-02"
+        )
+    with pytest.raises(HarnessError, match="grep=@EX-02"):
+        assert_execute_command_contract(
+            ("npm", "exec", "playwright", "--", "test", "--config=playwright.s11.config.ts"),
+            "EX-02",
+        )
+
+
+def test_execute_command_contract_rejects_flags_before_the_separator():
+    """Un flag del lado de npm sería interceptado por npm, nunca por Playwright."""
+    with pytest.raises(HarnessError, match="npm exec playwright -- test"):
+        assert_execute_command_contract(
+            (
+                "npm",
+                "exec",
+                "--config=playwright.s11.config.ts",
+                "playwright",
+                "--",
+                "test",
+                "--grep=@EX-02",
+            ),
+            "EX-02",
+        )
+
+
+def test_harness_precheck_aborts_a_plan_that_would_run_another_suite(tmp_path):
+    """Un plan defectuoso se detiene antes de crear run, manifest o evidencia."""
+    plan = build_plan(
+        scenario_id="EX-02",
+        execution_nonce="test-precheck-contract",
+        expected_git_sha="a" * 40,
+    )
+    defective = replace(
+        plan,
+        execute=(
+            "npm",
+            "exec",
+            "playwright",
+            "test",
+            "--config=playwright.s11.config.ts",
+            "--grep=@EX-02",
+        ),
+    )
+    calls = []
+
+    def runner(command, *, cwd, env):
+        calls.append(command)
+        return SimpleNamespace(returncode=0, stdout=_successful_stdout(command), stderr="")
+
+    with pytest.raises(HarnessError, match="npm exec playwright -- test"):
+        FullStackHarness(
+            tmp_path,
+            runner=runner,
+            backend_probe=lambda backend_url: None,
+        ).execute(defective, environment=_environment())
+
+    assert calls == [], "el precheck no debe ejecutar ninguna fase"
+    assert not (tmp_path / "var" / "s11-runs").exists()
+
+
+@pytest.mark.skipif(
+    shutil.which("npm") is None
+    or not (FRONTEND_ROOT / "node_modules" / ".bin" / "playwright").is_file(),
+    reason="Requiere npm y la CLI local de Playwright (npm ci).",
+)
+def test_npm_only_forwards_arguments_placed_after_the_separator():
+    """Verificación a nivel de proceso; no ejecuta el suite ni toca el backend."""
+
+    def npm_exec(*arguments):
+        return subprocess.run(
+            ("npm", "exec", "playwright", *arguments),
+            cwd=FRONTEND_ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        ).stdout.strip()
+
+    with_separator = npm_exec("--", "--version")
+    without_separator = npm_exec("--version")
+
+    assert PLAYWRIGHT_VERSION.match(
+        with_separator
+    ), f"con separador debe responder Playwright, respondió {with_separator!r}"
+    # Sin esto la aserción negativa pasaría de forma vacua si npm no imprimiera nada.
+    assert without_separator, "npm no respondió nada; la aserción negativa sería vacua"
+    assert not PLAYWRIGHT_VERSION.match(without_separator), (
+        "sin separador npm intercepta el argumento y responde su propia versión; "
+        f"respondió {without_separator!r}"
+    )
+
+
+# --------------------------------------------------------------------------- #
+# Regresión A3: escritura del output directory de Playwright
+# --------------------------------------------------------------------------- #
+
+
+def test_output_directory_preflight_creates_a_missing_directory(tmp_path):
+    (tmp_path / "frontend").mkdir()
+
+    output_dir = verify_playwright_output_dir(tmp_path)
+
+    assert output_dir == tmp_path / "frontend" / "test-results"
+    assert output_dir.is_dir()
+    assert list(output_dir.iterdir()) == [], "la sonda de escritura debe retirarse"
+
+
+def test_output_directory_preflight_accepts_a_writable_directory_with_last_run(tmp_path):
+    output_dir = tmp_path / "frontend" / "test-results"
+    output_dir.mkdir(parents=True)
+    (output_dir / ".last-run.json").write_text("{}\n", encoding="utf-8")
+
+    assert verify_playwright_output_dir(tmp_path) == output_dir
+
+
+def test_output_directory_preflight_blocks_a_foreign_owner(tmp_path, monkeypatch):
+    """A1: un directorio heredado de otro UID bloquea con motivo explícito."""
+    (tmp_path / "frontend" / "test-results").mkdir(parents=True)
+    # `harness.os` es el módulo `os` real: hay que fijar el UID antes de doblarlo.
+    running_uid = os.getuid()
+    monkeypatch.setattr("apps.experiments_app.harness.os.getuid", lambda: running_uid + 1)
+
+    with pytest.raises(HarnessError, match="pertenece al UID"):
+        verify_playwright_output_dir(tmp_path)
+
+
+def test_output_directory_preflight_blocks_a_foreign_owned_last_run(tmp_path):
+    """Reproduce A1: el `.last-run.json` heredado de root bloqueaba `playwright test`."""
+    if os.geteuid() != 0:
+        pytest.skip("Reasignar el dueño de un artefacto requiere privilegios.")
+    output_dir = tmp_path / "frontend" / "test-results"
+    output_dir.mkdir(parents=True)
+    last_run = output_dir / ".last-run.json"
+    last_run.write_text("{}\n", encoding="utf-8")
+    os.chown(last_run, os.geteuid() + 4242, -1)
+
+    with pytest.raises(HarnessError, match=r"entradas de otro UID.*\.last-run\.json"):
+        verify_playwright_output_dir(tmp_path)
+
+
+def test_output_directory_preflight_rejects_a_non_directory(tmp_path):
+    (tmp_path / "frontend").mkdir()
+    (tmp_path / "frontend" / "test-results").write_text("no soy un directorio\n", encoding="utf-8")
+
+    with pytest.raises(HarnessError, match="no es un directorio"):
+        verify_playwright_output_dir(tmp_path)
+
+
+def test_frontend_preflight_requires_the_s11_playwright_config(tmp_path, monkeypatch):
+    frontend = tmp_path / "frontend"
+    playwright_cli = frontend / "node_modules" / ".bin" / "playwright"
+    playwright_cli.parent.mkdir(parents=True)
+    playwright_cli.write_text("#!/bin/sh\n", encoding="utf-8")
+    (frontend / "package-lock.json").write_text("{}\n", encoding="utf-8")
+    monkeypatch.setattr("apps.experiments_app.harness.shutil.which", lambda command: command)
+    monkeypatch.setattr(
+        "apps.experiments_app.harness.subprocess.run",
+        lambda command, **kwargs: SimpleNamespace(
+            returncode=0,
+            stdout={"node": "v22.23.2\n", "npm": "10.9.8\n"}.get(command[0], "Version 1.62.1\n"),
+            stderr="",
+        ),
+    )
+
+    with pytest.raises(HarnessError, match="playwright.s11.config.ts"):
+        verify_frontend_tooling(tmp_path)
+
+
+def test_frontend_preflight_detects_npm_intercepting_the_version_argument(tmp_path, monkeypatch):
+    """Si npm respondiera su propia versión, los argumentos no llegan a Playwright."""
+    frontend = tmp_path / "frontend"
+    playwright_cli = frontend / "node_modules" / ".bin" / "playwright"
+    playwright_cli.parent.mkdir(parents=True)
+    playwright_cli.write_text("#!/bin/sh\n", encoding="utf-8")
+    (frontend / "package-lock.json").write_text("{}\n", encoding="utf-8")
+    (frontend / "playwright.s11.config.ts").write_text("export default {};\n", encoding="utf-8")
+    monkeypatch.setattr("apps.experiments_app.harness.shutil.which", lambda command: command)
+    monkeypatch.setattr(
+        "apps.experiments_app.harness.subprocess.run",
+        lambda command, **kwargs: SimpleNamespace(
+            returncode=0,
+            # npm devuelve «10.9.8» en lugar de «Version 1.62.1».
+            stdout={"node": "v22.23.2\n"}.get(command[0], "10.9.8\n"),
+            stderr="",
+        ),
+    )
+
+    with pytest.raises(HarnessError, match="npm podría"):
+        verify_frontend_tooling(tmp_path)
+
+
+# --------------------------------------------------------------------------- #
+# El contrato es exacto: un argumento extra puede anular config o filtro
+# --------------------------------------------------------------------------- #
+
+
+def test_execute_command_contract_rejects_a_second_config_that_would_win():
+    """Playwright conserva el último `--config`: la pertenencia no basta."""
+    with pytest.raises(HarnessError, match="no coincide exactamente"):
+        assert_execute_command_contract(
+            (
+                *expected_execute_command("EX-02"),
+                "--config=playwright.config.ts",
+            ),
+            "EX-02",
+        )
+
+
+@pytest.mark.parametrize(
+    "extra",
+    ["--grep-invert=@EX-02", "--grep=@EX", "e2e", "--project=chromium"],
+)
+def test_execute_command_contract_rejects_any_additional_argument(extra):
+    with pytest.raises(HarnessError, match="no coincide exactamente"):
+        assert_execute_command_contract((*expected_execute_command("EX-02"), extra), "EX-02")
+
+
+def test_expected_execute_command_is_pinned_independently_of_the_harness():
+    """`build_plan` valida contra esta misma función: el literal se fija aquí.
+
+    Sin esta prueba, quitar el separador de `expected_execute_command` dejaría
+    el auto-chequeo de `build_plan` tautológico y la regresión A2 pasaría verde.
+    """
+    assert expected_execute_command("EX-02") == (
+        "npm",
+        "exec",
+        "playwright",
+        "--",
+        "test",
+        "--config=playwright.s11.config.ts",
+        "--grep=@EX-02",
+    )
+
+
+def test_build_plan_uses_exactly_the_contracted_command():
+    for number in range(2, 9):
+        scenario = f"EX-{number:02d}"
+        plan = build_plan(
+            scenario_id=scenario,
+            execution_nonce="test-exact-command",
+            expected_git_sha="a" * 40,
+        )
+        assert plan.execute == expected_execute_command(scenario)
+
+
+def test_execute_phase_runs_from_the_frontend_directory(tmp_path):
+    """El `--config` es relativo: sólo resuelve con cwd=frontend."""
+    seen = {}
+
+    def runner(command, *, cwd, env):
+        if "playwright" in command:
+            seen["cwd"] = cwd
+        return SimpleNamespace(returncode=0, stdout=_successful_stdout(command), stderr="")
+
+    plan = build_plan(
+        scenario_id="EX-02",
+        execution_nonce="test-execute-cwd",
+        expected_git_sha="a" * 40,
+    )
+    FullStackHarness(
+        tmp_path,
+        runner=runner,
+        backend_probe=lambda backend_url: None,
+    ).execute(plan, environment=_environment())
+
+    assert seen["cwd"] == tmp_path.resolve() / "frontend"
+
+
+# --------------------------------------------------------------------------- #
+# Los literales del harness deben corresponder a artefactos reales
+# --------------------------------------------------------------------------- #
+
+
+def _frontend_source_root():
+    """El repo montado, o `/s11-source` cuando la suite corre en el contenedor."""
+    if (REPO_ROOT / "frontend").is_dir():
+        return REPO_ROOT / "frontend"
+    return Path("/s11-source/frontend")
+
+
+def test_contracted_config_names_the_real_s11_configuration():
+    config = _frontend_source_root() / "playwright.s11.config.ts"
+    assert config.is_file(), "el harness apunta a una configuración inexistente"
+    source = config.read_text(encoding="utf-8")
+
+    # La suite S11 debe seguir siendo la experimental, no la ordinaria.
+    assert 'testDir: "./e2e-s11"' in source
+    # `_S11_PLAYWRIGHT_OUTPUT_DIR` supone el valor por defecto de Playwright:
+    # si la configuración declarase `outputDir`, el preflight validaría otra ruta.
+    assert "outputDir" not in source
+    # Las trazas siguen apagadas por política S11 (pueden contener JWT/cookies).
+    for disabled in ('trace: "off"', 'screenshot: "off"', 'video: "off"'):
+        assert disabled in source
+
+
+def test_contracted_grep_matches_the_real_scenario_tags():
+    spec = _frontend_source_root() / "e2e-s11" / "s11-fullstack.spec.ts"
+    assert spec.is_file()
+    source = spec.read_text(encoding="utf-8")
+
+    for number in range(2, 9):
+        scenario = f"EX-{number:02d}"
+        grep = expected_execute_command(scenario)[-1]
+        tag = grep.removeprefix("--grep=")
+        assert f'test("{tag} ' in source, f"ningún test lleva la etiqueta {tag}"
+
+
+# --------------------------------------------------------------------------- #
+# El preflight debe seguir cableado al chequeo de output directory
+# --------------------------------------------------------------------------- #
+
+
+def _stub_frontend(tmp_path, monkeypatch):
+    frontend = tmp_path / "frontend"
+    playwright_cli = frontend / "node_modules" / ".bin" / "playwright"
+    playwright_cli.parent.mkdir(parents=True)
+    playwright_cli.write_text("#!/bin/sh\n", encoding="utf-8")
+    (frontend / "package-lock.json").write_text("{}\n", encoding="utf-8")
+    (frontend / "playwright.s11.config.ts").write_text("export default {};\n", encoding="utf-8")
+    monkeypatch.setattr("apps.experiments_app.harness.shutil.which", lambda command: command)
+
+    def run(command, **kwargs):
+        if "playwright" in command:
+            stdout = "Version 1.62.1\n"
+        else:
+            stdout = {"node": "v22.23.2\n", "npm": "10.9.8\n"}[command[0]]
+        return SimpleNamespace(returncode=0, stdout=stdout, stderr="")
+
+    monkeypatch.setattr("apps.experiments_app.harness.subprocess.run", run)
+    return frontend
+
+
+def test_frontend_preflight_is_wired_to_the_output_directory_check(tmp_path, monkeypatch):
+    """Si se desconectara `verify_playwright_output_dir`, esto dejaría de fallar."""
+    frontend = _stub_frontend(tmp_path, monkeypatch)
+    (frontend / "test-results").write_text("no soy un directorio\n", encoding="utf-8")
+
+    with pytest.raises(HarnessError, match="no es un directorio"):
+        verify_frontend_tooling(tmp_path)
+
+
+def test_frontend_preflight_creates_the_output_directory_when_absent(tmp_path, monkeypatch):
+    frontend = _stub_frontend(tmp_path, monkeypatch)
+
+    verify_frontend_tooling(tmp_path)
+
+    assert (frontend / "test-results").is_dir()
+
+
+def test_output_directory_preflight_blocks_a_foreign_owned_nested_entry(tmp_path):
+    """Playwright borra el árbol completo: una entrada anidada ajena aborta el run."""
+    if os.geteuid() != 0:
+        pytest.skip("Reasignar el dueño de una entrada anidada requiere privilegios.")
+    nested = tmp_path / "frontend" / "test-results" / ".playwright-artifacts-0"
+    nested.mkdir(parents=True)
+    (nested / "trace.zip").write_text("x\n", encoding="utf-8")
+    os.chown(nested, os.geteuid() + 4242, -1)
+
+    with pytest.raises(HarnessError, match="entradas de otro UID"):
+        verify_playwright_output_dir(tmp_path)
+
+
+def test_output_directory_preflight_rejects_a_dangling_symlink(tmp_path):
+    frontend = tmp_path / "frontend"
+    frontend.mkdir()
+    (frontend / "test-results").symlink_to(tmp_path / "inexistente")
+
+    with pytest.raises(HarnessError, match="enlace simbólico roto"):
+        verify_playwright_output_dir(tmp_path)

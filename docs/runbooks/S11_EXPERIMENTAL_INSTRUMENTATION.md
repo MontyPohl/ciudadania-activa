@@ -137,8 +137,25 @@ npx playwright install --list
 ```
 
 El harness repite automáticamente las comprobaciones de Node, npm, lockfile y CLI local antes de
-levantar Compose. Si falta cualquiera, el **preflight host** aborta sin crear un `run_id`, manifest
-ni evidencia experimental. Si el preflight ya pasó, el run y su manifest inicial ya existen, y un
+levantar Compose, y añade tres verificaciones más: que exista `frontend/playwright.s11.config.ts`;
+que `npm exec playwright -- --version` responda la versión de Playwright («Version X.Y.Z») y no la
+de npm —una respuesta con formato de npm delata que npm está interceptando los argumentos
+posteriores al paquete—; y que el directorio de resultados de Playwright
+(`frontend/test-results/`, el valor por defecto porque la configuración S11 no declara `outputDir`)
+exista o pueda crearse, sea escribible y no contenga entradas de otro UID. El preflight crea ese
+directorio si falta y escribe y retira en él una sonda efímera; la ruta está en `.gitignore`, de
+modo que el árbol sigue limpio. Playwright borra ese directorio entero al empezar, así que un
+artefacto heredado de otro dueño —por ejemplo un `.last-run.json` de un contenedor que corrió como
+root— aborta el run: el preflight lo rechaza con el motivo explícito y **no** corrige dueños ni
+permisos por su cuenta, porque eso excede al proceso experimental. Si falta cualquiera, el
+**preflight host** aborta sin crear un `run_id`, manifest ni evidencia experimental.
+
+El comando del escenario se construye como `npm exec playwright -- test
+--config=playwright.s11.config.ts --grep=@EX-NN`. El separador `--` es obligatorio: sin él npm
+consume `--config` y `--grep` como flags propios y Playwright arranca con la configuración por
+defecto, es decir la suite ordinaria `e2e/` en lugar del escenario S11. El harness compara el
+comando contra esa forma exacta —ningún argumento adicional, porque Playwright conserva el último
+`--config`— y aborta en el precheck si no coincide. Si el preflight ya pasó, el run y su manifest inicial ya existen, y un
 ejecutable desaparece durante una fase anterior a la persistencia del log —incluido el arranque de
 Playwright—, la fase queda registrada con timestamp, comando, excepción y código `127`;
 `harness-execution.json` v2 y el manifest final quedan ambos `FAILED`. El campo
