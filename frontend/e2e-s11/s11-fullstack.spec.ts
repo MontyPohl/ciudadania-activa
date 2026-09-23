@@ -543,12 +543,17 @@ test("@EX-07 rechazo prevalidación real", async ({ page, context }) => {
   );
   expect(confirm.status()).toBe(201);
   expect((await confirm.json()).confirmation_count).toBe(1);
-  expect(await operatorReportDetail(reportId, "detail-before-reject")).toMatchObject({
+  const clasificado = await operatorReportDetail(reportId, "detail-before-reject");
+  expect(clasificado).toMatchObject({
     status: "CLASIFICADO",
     cycle: 0,
     validated_at: null,
     confirmation_count: 1,
   });
+  // La IA sintética S11 conserva la categoría y le asigna su institución de catálogo; la
+  // autoaplicación deja el reporte ya enrutado a la institución A del escenario.
+  expect(clasificado.institution.id).toBe(fixture.institution_a);
+  const institucion = clasificado.institution;
   expect((await citizenSummary(author, "author-summary-pending")).points).toMatchObject({
     pending: 20, // REPORT_CREATED
     accredited: 0,
@@ -559,7 +564,8 @@ test("@EX-07 rechazo prevalidación real", async ({ page, context }) => {
   });
   const antes = await reportSnapshot(reportId, "snapshot-before-reject");
 
-  // 1. Rechazo por el operador competente. El rechazo no asigna institución.
+  // 1. Rechazo por el operador competente. El rechazo no asigna, borra ni cambia la
+  //    institución que dejó la clasificación IA.
   const rejection = await traced("reject", operator, "post", actionUrl("reject"), {
     data: { reason },
   });
@@ -567,13 +573,14 @@ test("@EX-07 rechazo prevalidación real", async ({ page, context }) => {
   expect(await rejection.json()).toEqual({
     id: reportId,
     status: "RECHAZADO",
-    institution: null,
+    institution: institucion,
     validated_at: null,
     validated_by: null,
     rejection_reason: reason,
   });
   const rechazado = await operatorReportDetail(reportId, "detail-rejected");
   expect(rechazado).toMatchObject({ status: "RECHAZADO", cycle: 0, validated_at: null });
+  expect(rechazado.institution).toEqual(institucion);
 
   // Una transición CLASIFICADO → RECHAZADO con el motivo tipificado, sin cambiar el ciclo.
   const historial = await reportHistory(reportId, "history-rejected");
@@ -602,14 +609,25 @@ test("@EX-07 rechazo prevalidación real", async ({ page, context }) => {
   expect(saldoAutor).toMatchObject({ pending: 0, accredited: 0 });
   expect(saldoConfirmador).toMatchObject({ pending: 0, accredited: 0 });
 
-  // 2. Repetición del rechazo: rechazo controlado, sin mutación.
+  // 2. Repetición del rechazo: rechazo controlado, sin mutación. Además de la proyección, se
+  //    comprueba que la institución y el motivo del rechazo siguen intactos.
   const trasRechazo = await reportSnapshot(reportId, "snapshot-rejected");
+  const expectRejectionKept = async (step: string) => {
+    expect((await operatorReportDetail(reportId, `${step}-detail`)).institution).toEqual(
+      institucion,
+    );
+    expect((await reportHistory(reportId, `${step}-history`)).results[0]).toMatchObject({
+      new_status: "RECHAZADO",
+      reason,
+    });
+  };
   const repeated = await traced("reject-repeat", operator, "post", actionUrl("reject"), {
     data: { reason },
   });
   expect(repeated.status()).toBe(409);
   expect((await repeated.json()).code).toBe("ALREADY_REJECTED");
   expect(await reportSnapshot(reportId, "unchanged-reject-repeat")).toEqual(trasRechazo);
+  await expectRejectionKept("kept-after-reject-repeat");
 
   // 3. Validación posterior: sólo CREADO y CLASIFICADO son validables.
   const validation = await traced(
@@ -624,6 +642,7 @@ test("@EX-07 rechazo prevalidación real", async ({ page, context }) => {
   expect(validation.status()).toBe(409);
   expect((await validation.json()).code).toBe("REPORT_STATE_NOT_ALLOWED");
   expect(await reportSnapshot(reportId, "unchanged-validate-after-reject")).toEqual(trasRechazo);
+  await expectRejectionKept("kept-after-validate");
 
   // Ningún intento controlado movió incentivos.
   expect((await citizenSummary(author, "author-summary-final")).points).toEqual(saldoAutor);
