@@ -337,7 +337,7 @@ test("@EX-05 autocierre mediante Celery real", async ({ page, context }) => {
   const cierres = await auditEvents(reportId, "report.closed", "audit-closed");
   expect(cierres.count).toBe(1);
   expect(cierres.results[0]).toMatchObject({
-    actor_type: "SYSTEM",
+    actor_type: "system",
     actor_user_id: null,
     payload: {
       closure_mode: "automatic",
