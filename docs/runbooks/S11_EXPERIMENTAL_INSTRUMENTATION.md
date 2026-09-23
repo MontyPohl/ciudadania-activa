@@ -32,9 +32,12 @@ está **demostrado**: el run `s11-989218f3-4808-5c6f-ac23-6e8870fec153` (`main@4
 `S11C2_EX06_PASS`. `EX-08` también está **demostrado**: el run
 `s11-b567289c-9fe2-5349-a384-e9284bdde863` (`main@d8ed6eb`) cerró `COMPLETED` con las catorce
 fases en `rc=0`, trazabilidad y custodia en `PASS`, y gate `S11C2_EX08_PASS`. El alcance formal
-de S11-C2 es EX-02…EX-08 (decisión del 22/09/2026 en `docs/PROGRESO_SPRINTS.md`): EX-05 y EX-07
-siguen pendientes y el gate permanece abierto. EX-09 y EX-10 quedan fuera de C2 y siguen siendo
-requisitos de S11-C.
+de S11-C2 es EX-02…EX-08 (decisión del 22/09/2026 en `docs/PROGRESO_SPRINTS.md`). `EX-05` también
+está **demostrado**: el run `s11-0e2feac0-6583-513c-a6aa-33430394d14a` (`main@9073fb7`) cerró
+`COMPLETED` con las catorce fases en `rc=0`, trazabilidad y custodia en `PASS`, y gate
+`S11C2_EX05_PASS`; lo precedió el intento `NOT_DEMONSTRATED`
+`s11-1961b2d4-2c48-5cc0-ac84-8847dda2de39`, conservado como diagnóstico. EX-07 sigue pendiente y
+el gate permanece abierto. EX-09 y EX-10 quedan fuera de C2 y siguen siendo requisitos de S11-C.
 
 Lo precedieron cinco intentos que quedan como evidencia histórica `NOT_DEMONSTRATED`, conservados
 sin reinterpretar: `s11-3b48870b-7979-542b-8a46-1c6dfce7bed8` (`npm` ausente),
@@ -149,10 +152,11 @@ Redis y un worker Celery con concurrencia 2; Playwright no intercepta la API. Es
 demostrada de extremo a extremo para `EX-02` —run `s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af`—,
 para `EX-03` —run `s11-6dc3ea66-08c9-51ef-9fe3-70e7dcc67959`—, para `EX-04` —run
 `s11-03adb9bc-c9e4-5f8f-b64c-c4360d0c2085`—, para `EX-06` —run
-`s11-989218f3-4808-5c6f-ac23-6e8870fec153`— y para `EX-08` —run
-`s11-b567289c-9fe2-5349-a384-e9284bdde863`—. Hasta el commit `9e2d55d` el
+`s11-989218f3-4808-5c6f-ac23-6e8870fec153`—, para `EX-08` —run
+`s11-b567289c-9fe2-5349-a384-e9284bdde863`— y para `EX-05` —run
+`s11-0e2feac0-6583-513c-a6aa-33430394d14a`—. Hasta el commit `9e2d55d` el
 harness nunca llegaba a seleccionar la configuración S11 —el defecto A2 lo hacía arrancar con la
-ordinaria—. `EX-05` y `EX-07` siguen admitidos por el harness pero **no ejecutados**;
+ordinaria—. `EX-07` sigue admitido por el harness pero **no ejecutado**;
 la fase de `shutdown` detiene backend y worker, y no define teardown para DB, Redis, red ni
 volumen. El flujo es:
 
