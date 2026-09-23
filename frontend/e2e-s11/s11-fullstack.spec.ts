@@ -15,6 +15,8 @@ import {
 const BACKEND_URL = process.env.S11_BACKEND_URL ?? "";
 const RUN_ID = process.env.S11_RUN_ID ?? "";
 const SCENARIO = process.env.S11_SCENARIO_ID ?? "";
+/** UUID que ningún run crea: referencia del 404 de un reporte inexistente. */
+const MISSING_REPORT_ID = "00000000-0000-4000-8000-0000000000ff";
 /**
  * Imagen sintética válida tomada del dataset congelado `s11-functional-v1`.
  *
@@ -501,36 +503,343 @@ test("@EX-07 rechazo prevalidación real", async ({ page, context }) => {
 
 test("@EX-08 trazabilidad y autorización entre tenants reales", async ({ page, context }) => {
   test.skip(SCENARIO !== "EX-08", "Otro escenario fue seleccionado por el harness.");
-  await frontendSmoke(page, context, fixture.actors.operator_a.refresh, "/bandeja");
-  const reportId = await createReport(fixture.actors.author, "EX-08 trazabilidad integral");
-  const forbidden = await traced(
-    "cross-tenant",
-    fixture.actors.operator_b,
-    "post",
-    `/api/v1/operator/reports/${reportId}/validate/?institution_id=${fixture.institution_b}`,
-    { data: {} },
+  const author = fixture.actors.identity_candidate;
+  const confirmer = fixture.actors.confirmer;
+  const operator = fixture.actors.operator_a;
+  const operatorB = fixture.actors.operator_b;
+  const admin = fixture.actors.admin;
+  const inA = fixture.institution_a;
+  const inB = fixture.institution_b;
+  const operatorUrl = (id: string, action: string, institution: string) =>
+    `/api/v1/operator/reports/${id}/${action}?institution_id=${institution}`;
+
+  await frontendSmoke(page, context, operator.refresh, "/bandeja");
+
+  // 1. Identidad, con el patrón de EX-02: el candidato verificado será el autor del reporte.
+  const submit = await traced("identity-submit", author, "post", "/api/v1/identity/submit/", {
+    multipart: {
+      document_number: fixture.identity_document,
+      selfie: { name: "selfie-sintetica.png", mimeType: "image/png", buffer: syntheticPng() },
+    },
+  });
+  expect(submit.status()).toBe(201);
+  const queue = await traced("identity-queue", admin, "get", "/api/v1/admin/identity/");
+  expect(queue.status()).toBe(200);
+  const profile = (await queue.json()).results.find(
+    (item: { user: { id: string } }) => item.user.id === author.id,
   );
-  expect([403, 404]).toContain(forbidden.status());
-  await traced(
+  expect(profile).toBeDefined();
+  const approval = await traced(
+    "identity-approve",
+    admin,
+    "patch",
+    `/api/v1/admin/identity/${profile.id}/review/`,
+    { data: { decision: "APROBADO", document_number: fixture.identity_document } },
+  );
+  expect(approval.status()).toBe(200);
+  expect((await approval.json()).verification_status).toBe("APROBADO");
+
+  // 2. Creación y clasificación fake: `createReport` exige 201 y sondea hasta CLASIFICADO.
+  const reportId = await createReport(author, "EX-08 trazabilidad integral");
+  expect(await operatorReportDetail(reportId, "detail-created")).toMatchObject({
+    id: reportId,
+    status: "CLASIFICADO",
+    cycle: 0,
+    validated_at: null,
+  });
+  expect((await citizenSummary(author, "author-summary-created")).points).toMatchObject({
+    pending: 20,
+    accredited: 0,
+  });
+
+  // 3. Confirmación de un ciudadano ajeno.
+  const confirmation = await traced(
     "confirm",
-    fixture.actors.confirmer,
+    confirmer,
     "post",
     `/api/v1/reports/${reportId}/confirm/`,
-    { data: {} },
+    {
+      data: {},
+    },
   );
-  await validateReport(reportId);
-  await transition(reportId, "EN_PROCESO", 1, "start-processing");
-  await uploadEvidence(reportId, 1, "00000000-0000-4000-8000-000000000008");
-  await transition(reportId, "RESUELTO", 1, "resolve");
-  await transition(reportId, "CERRADO", 1, "manual-close");
-  const reversal = await traced(
-    "reversal",
-    fixture.actors.admin,
+  expect(confirmation.status()).toBe(201);
+  expect((await confirmation.json()).confirmation_count).toBe(1);
+  expect(await operatorReportDetail(reportId, "detail-confirmed")).toMatchObject({
+    status: "CLASIFICADO",
+    cycle: 0,
+    confirmation_count: 1,
+  });
+  expect((await citizenSummary(confirmer, "confirmer-summary-pending")).points).toMatchObject({
+    pending: 10,
+    accredited: 0,
+  });
+
+  // 4. Validación por el operador A: abre el ciclo 1 y acredita los pendientes.
+  const validation = await validateReport(reportId);
+  expect(validation.status()).toBe(200);
+  const validado = await validation.json();
+  expect(validado).toMatchObject({ status: "ASIGNADO", validated_by: operator.id });
+  expect(validado.institution.id).toBe(inA);
+  expect((await operatorReportDetail(reportId, "detail-validated")).cycle).toBe(1);
+  expect((await citizenSummary(author, "author-summary-validated")).points).toMatchObject({
+    pending: 0,
+    accredited: 50, // REPORT_CREATED 20 + VALIDATION_BONUS 30
+  });
+  expect((await citizenSummary(confirmer, "confirmer-summary-validated")).points).toMatchObject({
+    pending: 0,
+    accredited: 10, // CONFIRMATION_CREATED 10
+  });
+
+  // Cada rechazo se contrasta con esta proyección: estado, ciclo, timestamps, historial y
+  // número total de eventos de auditoría del reporte deben quedar idénticos.
+  let baseline = await reportSnapshot(reportId, "snapshot-validated");
+  const expectUnchanged = async (step: string) =>
+    expect(await reportSnapshot(reportId, step)).toEqual(baseline);
+
+  // Operador B sobre un reporte de A, en su propio contexto: indistinguible de inexistente.
+  const crossValidate = await traced(
+    "b-validate",
+    operatorB,
+    "post",
+    operatorUrl(reportId, "validate/", inB),
+    {
+      data: {},
+    },
+  );
+  expect(crossValidate.status()).toBe(404);
+  expect((await crossValidate.json()).code).toBe("REPORT_NOT_FOUND");
+  await expectUnchanged("unchanged-b-validate");
+  const crossTransition = await traced(
+    "b-transition",
+    operatorB,
+    "patch",
+    operatorUrl(reportId, "status/", inB),
+    {
+      data: { status: "EN_PROCESO", expected_cycle: 1 },
+    },
+  );
+  expect(crossTransition.status()).toBe(404);
+  expect((await crossTransition.json()).code).toBe("REPORT_NOT_FOUND");
+  await expectUnchanged("unchanged-b-transition");
+
+  // Operador B forzando el contexto de A: no es miembro de esa institución.
+  const foreignContext = await traced(
+    "b-context-a",
+    operatorB,
+    "post",
+    operatorUrl(reportId, "validate/", inA),
+    {
+      data: {},
+    },
+  );
+  expect(foreignContext.status()).toBe(403);
+  expect((await foreignContext.json()).code).toBe("INSTITUTION_OPERATOR_REQUIRED");
+  await expectUnchanged("unchanged-b-context-a");
+
+  // Anónimo sobre mutaciones. `validate` y `confirm` no traducen el 401 a un código propio
+  // (test_anonimo_recibe_401, test_endpoints_privados_anonimo_401); la vista de estado sí.
+  expect(
+    (
+      await anonymous("anon-validate", "post", operatorUrl(reportId, "validate/", inA), {
+        data: {},
+      })
+    ).status(),
+  ).toBe(401);
+  await expectUnchanged("unchanged-anon-validate");
+  expect(
+    (
+      await anonymous("anon-confirm", "post", `/api/v1/reports/${reportId}/confirm/`, { data: {} })
+    ).status(),
+  ).toBe(401);
+  await expectUnchanged("unchanged-anon-confirm");
+  const anonTransition = await anonymous(
+    "anon-transition",
+    "patch",
+    operatorUrl(reportId, "status/", inA),
+    {
+      data: { status: "EN_PROCESO", expected_cycle: 1 },
+    },
+  );
+  expect(anonTransition.status()).toBe(401);
+  expect((await anonTransition.json()).code).toBe("AUTHENTICATION_REQUIRED");
+  await expectUnchanged("unchanged-anon-transition");
+
+  // Ciclo obsoleto: `expected_cycle` exige >= 1, así que sólo es expresable una vez validado.
+  // El ciclo vigente es 1 y el backend comprueba el ciclo antes que el estado.
+  const stale = await transition(reportId, "EN_PROCESO", 2, "stale-cycle");
+  expect(stale.status()).toBe(409);
+  expect((await stale.json()).code).toBe("STALE_REPORT_CYCLE");
+  await expectUnchanged("unchanged-stale-cycle");
+
+  // Auditoría administrativa: el admin la consulta; un operador, no.
+  const auditByOperator = await traced(
+    "audit-by-operator",
+    operator,
+    "get",
+    `/api/v1/admin/audit-logs/?report_id=${reportId}`,
+  );
+  expect(auditByOperator.status()).toBe(403);
+  expect((await auditByOperator.json()).code).toBe("ADMIN_REQUIRED");
+  await expectUnchanged("unchanged-audit-by-operator");
+
+  // 5. Proceso.
+  const processing = await transition(reportId, "EN_PROCESO", 1, "start-processing");
+  expect(processing.status()).toBe(200);
+  expect(await processing.json()).toMatchObject({
+    status: "EN_PROCESO",
+    cycle: 1,
+    resolved_at: null,
+  });
+
+  // 6. Evidencia del ciclo 1. La respuesta expone `id` y `cycle`; `idempotency_key` y
+  //    `content_hash` sólo existen en el export custodiado, y `evidence_url` nunca se expone.
+  const created = await uploadEvidence(reportId, 1, "00000000-0000-4000-8000-000000000008");
+  expect(created.status()).toBe(201);
+  const evidencia = await created.json();
+  expect(evidencia.cycle).toBe(1);
+  expect(evidencia.id).toEqual(expect.any(String));
+  expect(evidencia).not.toHaveProperty("evidence_url");
+
+  // 7. Resolución.
+  const resolution = await transition(reportId, "RESUELTO", 1, "resolve");
+  expect(resolution.status()).toBe(200);
+  expect(await resolution.json()).toMatchObject({ status: "RESUELTO", cycle: 1, closed_at: null });
+  expect((await operatorReportDetail(reportId, "detail-resolved")).resolved_at).not.toBeNull();
+  expect((await citizenSummary(author, "author-summary-resolved")).points).toMatchObject({
+    pending: 0,
+    accredited: 100, // 20 + 30 + RESOLUTION_BONUS 50
+  });
+  expect((await citizenSummary(confirmer, "confirmer-summary-resolved")).points).toMatchObject({
+    pending: 0,
+    accredited: 10,
+  });
+
+  // El tenant B no observa el reporte ni su evidencia privada ahora que existe. El detalle no
+  // lleva `code`: su contrato es un 404 idéntico al de un reporte inexistente
+  // (test_fuera_de_scope_e_inexistente_son_el_mismo_404).
+  baseline = await reportSnapshot(reportId, "snapshot-resolved");
+  const crossDetail = await traced("b-detail", operatorB, "get", operatorUrl(reportId, "", inB));
+  const missingDetail = await traced(
+    "b-detail-missing",
+    operatorB,
+    "get",
+    operatorUrl(MISSING_REPORT_ID, "", inB),
+  );
+  expect(crossDetail.status()).toBe(404);
+  expect(missingDetail.status()).toBe(404);
+  expect(await crossDetail.json()).toEqual(await missingDetail.json());
+  await expectUnchanged("unchanged-b-detail");
+  for (const read of ["history/", "evidence/"]) {
+    const crossRead = await traced(
+      `b-${read.slice(0, -1)}`,
+      operatorB,
+      "get",
+      operatorUrl(reportId, read, inB),
+    );
+    expect(crossRead.status()).toBe(404);
+    expect((await crossRead.json()).code).toBe("REPORT_NOT_FOUND");
+    await expectUnchanged(`unchanged-b-${read.slice(0, -1)}`);
+  }
+  // El anónimo tampoco lee evidencia ni auditoría.
+  for (const [step, path] of [
+    ["anon-evidence", operatorUrl(reportId, "evidence/", inA)],
+    ["anon-audit", `/api/v1/admin/audit-logs/?report_id=${reportId}`],
+  ]) {
+    const denied = await anonymous(step, "get", path);
+    expect(denied.status()).toBe(401);
+    expect((await denied.json()).code).toBe("AUTHENTICATION_REQUIRED");
+    await expectUnchanged(`unchanged-${step}`);
+  }
+
+  // 8. Cierre manual. El modo `manual` queda en el payload de `report.closed`; la respuesta no
+  //    lo expone.
+  const closing = await transition(reportId, "CERRADO", 1, "manual-close");
+  expect(closing.status()).toBe(200);
+  const cerrado = await closing.json();
+  expect(cerrado).toMatchObject({ status: "CERRADO", cycle: 1 });
+  expect(cerrado.closed_at).not.toBeNull();
+
+  // Sólo el admin revierte: el operador A y el anónimo son rechazados sin mutación.
+  baseline = await reportSnapshot(reportId, "snapshot-closed");
+  const reason = "Reversión sintética controlada para EX-08.";
+  const operatorReversal = await traced(
+    "reversal-by-operator",
+    operator,
     "post",
     `/api/v1/admin/reports/${reportId}/revert-validation/`,
-    { data: { cycle: 1, reason: "Reversión sintética controlada para EX-08." } },
+    {
+      data: { cycle: 1, reason },
+    },
   );
-  expect(reversal.ok()).toBeTruthy();
+  expect(operatorReversal.status()).toBe(403);
+  expect((await operatorReversal.json()).code).toBe("ADMIN_REQUIRED");
+  await expectUnchanged("unchanged-reversal-by-operator");
+  const anonReversal = await anonymous(
+    "anon-reversal",
+    "post",
+    `/api/v1/admin/reports/${reportId}/revert-validation/`,
+    {
+      data: { cycle: 1, reason },
+    },
+  );
+  expect(anonReversal.status()).toBe(401);
+  expect((await anonReversal.json()).code).toBe("AUTHENTICATION_REQUIRED");
+  await expectUnchanged("unchanged-anon-reversal");
+
+  // 9. Reversión desde CERRADO: vuelve a CLASIFICADO, conserva el ciclo y limpia los timestamps.
+  const reversal = await revertValidation(reportId, 1, reason, "reversal");
+  expect(reversal.status()).toBe(200);
+  expect(await reversal.json()).toMatchObject({
+    id: reportId,
+    status: "CLASIFICADO",
+    cycle: 1,
+    validated_at: null,
+    resolved_at: null,
+    closed_at: null,
+  });
+  // Las cuatro acreditaciones del ciclo 1 pasan a REVERTIDO con su REVERSAL opuesta; el detalle
+  // por fila se reconcilia desde el export custodiado.
+  expect((await citizenSummary(author, "author-summary-reverted")).points).toMatchObject({
+    pending: 0,
+    accredited: 0,
+  });
+  expect((await citizenSummary(confirmer, "confirmer-summary-reverted")).points).toMatchObject({
+    pending: 0,
+    accredited: 0,
+  });
+
+  // Historial: siete transiciones con ciclo monotónico y ninguna aportada por los rechazos.
+  const historial = await reportHistory(reportId, "history-final");
+  expect(historial.count).toBe(7);
+  const cadena = [...historial.results].reverse();
+  expect(cadena.map((h: { new_status: string }) => h.new_status)).toEqual([
+    "CREADO",
+    "CLASIFICADO",
+    "ASIGNADO",
+    "EN_PROCESO",
+    "RESUELTO",
+    "CERRADO",
+    "CLASIFICADO",
+  ]);
+  expect(cadena.map((h: { cycle: number }) => h.cycle)).toEqual([0, 0, 1, 1, 1, 1, 1]);
+
+  // Auditoría: una entrada por mutación autorizada y ninguna por los rechazos.
+  for (const action of [
+    "report.created",
+    "ai.report.classified",
+    "report.confirmed",
+    "report.validated",
+    "report.processing_started",
+    "report.resolution_evidence_created",
+    "report.resolved",
+    "report.closed",
+    "report.validation_reverted",
+  ]) {
+    expect(await auditCount(reportId, action, `audit-final-${action.replace(/[._]/g, "-")}`)).toBe(
+      1,
+    );
+  }
+  expect(await auditCount(reportId, null, "audit-final-total")).toBe(9);
 });
 
 function fixtureActors(scenario: string): Fixture {
@@ -590,13 +899,16 @@ async function frontendSmoke(
   await expect(page.locator("main")).toBeVisible();
 }
 
-function headers(step: string, actor: Actor): Record<string, string> {
+function correlationHeaders(step: string): Record<string, string> {
   return {
-    Authorization: `Bearer ${actor.access}`,
     "X-S11-Run-ID": RUN_ID,
     "X-S11-Scenario-ID": SCENARIO,
     "X-S11-Request-ID": `${SCENARIO.toLowerCase()}-${step}`,
   };
+}
+
+function headers(step: string, actor: Actor): Record<string, string> {
+  return { Authorization: `Bearer ${actor.access}`, ...correlationHeaders(step) };
 }
 
 async function traced(
@@ -609,6 +921,22 @@ async function traced(
   const requestOptions = {
     ...options,
     headers: { ...headers(step, actor), ...(options.headers as object) },
+  };
+  if (method === "get") return api.get(path, requestOptions);
+  if (method === "post") return api.post(path, requestOptions);
+  return api.patch(path, requestOptions);
+}
+
+/** Petición anónima: sin `Authorization`, pero correlacionada con el run como las demás. */
+async function anonymous(
+  step: string,
+  method: "get" | "post" | "patch",
+  path: string,
+  options: Record<string, unknown> = {},
+): Promise<APIResponse> {
+  const requestOptions = {
+    ...options,
+    headers: { ...correlationHeaders(step), ...(options.headers as object) },
   };
   if (method === "get") return api.get(path, requestOptions);
   if (method === "post") return api.post(path, requestOptions);
@@ -702,13 +1030,17 @@ async function revertValidation(
   );
 }
 
-/** Número de eventos de auditoría de una acción para el reporte (`count` de la paginación). */
-async function auditCount(reportId: string, action: string, step: string): Promise<number> {
+/**
+ * Número de eventos de auditoría del reporte (`count` de la paginación), de una acción concreta
+ * o de todas si `action` es `null`.
+ */
+async function auditCount(reportId: string, action: string | null, step: string): Promise<number> {
+  const filter = action === null ? "" : `&action=${action}`;
   const response = await traced(
     step,
     fixture.actors.admin,
     "get",
-    `/api/v1/admin/audit-logs/?report_id=${reportId}&action=${action}`,
+    `/api/v1/admin/audit-logs/?report_id=${reportId}${filter}`,
   );
   expect(response.ok()).toBeTruthy();
   return (await response.json()).count as number;
@@ -736,6 +1068,23 @@ async function adminEvidence(reportId: string, step: string) {
   );
   expect(response.ok()).toBeTruthy();
   return response.json();
+}
+
+/**
+ * Proyección observable del reporte para demostrar que un rechazo no mutó nada: estado, ciclo,
+ * timestamps, número de transiciones y número total de eventos de auditoría.
+ */
+async function reportSnapshot(reportId: string, step: string) {
+  const detail = await operatorReportDetail(reportId, `${step}-detail`);
+  return {
+    status: detail.status,
+    cycle: detail.cycle,
+    validated_at: detail.validated_at,
+    resolved_at: detail.resolved_at,
+    closed_at: detail.closed_at,
+    history: (await reportHistory(reportId, `${step}-history`)).count,
+    audit: await auditCount(reportId, null, `${step}-audit`),
+  };
 }
 
 async function createAndValidate(description: string): Promise<string> {
