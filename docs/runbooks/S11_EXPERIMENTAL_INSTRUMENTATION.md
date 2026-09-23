@@ -29,8 +29,10 @@ evidencia custodiada lo confirmó como `S11C2_EX02_PASS_CONFIRMED`. `EX-03` tamb
 fases en `rc=0`, trazabilidad y custodia en `PASS`, y gate `S11C2_EX04_PASS`. `EX-06` también
 está **demostrado**: el run `s11-989218f3-4808-5c6f-ac23-6e8870fec153` (`main@43013fa`) cerró
 `COMPLETED` con las catorce fases en `rc=0`, trazabilidad y custodia en `PASS`, y gate
-`S11C2_EX06_PASS`. EX-08 **no** se ha ejecutado: sus garantías siguen sin demostrar y exige su
-propio pre-gate.
+`S11C2_EX06_PASS`. `EX-08` también está **demostrado**: el run
+`s11-b567289c-9fe2-5349-a384-e9284bdde863` (`main@d8ed6eb`) cerró `COMPLETED` con las catorce
+fases en `rc=0`, trazabilidad y custodia en `PASS`, y gate `S11C2_EX08_PASS`. Los cinco
+escenarios de S11-C2 tienen así resultado `PASS`; el gate global sigue abierto.
 
 Lo precedieron cinco intentos que quedan como evidencia histórica `NOT_DEMONSTRATED`, conservados
 sin reinterpretar: `s11-3b48870b-7979-542b-8a46-1c6dfce7bed8` (`npm` ausente),
@@ -144,10 +146,11 @@ El harness real admite `EX-02`…`EX-08`. Levanta frontend, backend, PostgreSQL/
 Redis y un worker Celery con concurrencia 2; Playwright no intercepta la API. Esa capacidad está
 demostrada de extremo a extremo para `EX-02` —run `s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af`—,
 para `EX-03` —run `s11-6dc3ea66-08c9-51ef-9fe3-70e7dcc67959`—, para `EX-04` —run
-`s11-03adb9bc-c9e4-5f8f-b64c-c4360d0c2085`— y para `EX-06` —run
-`s11-989218f3-4808-5c6f-ac23-6e8870fec153`—. Hasta el commit `9e2d55d` el
+`s11-03adb9bc-c9e4-5f8f-b64c-c4360d0c2085`—, para `EX-06` —run
+`s11-989218f3-4808-5c6f-ac23-6e8870fec153`— y para `EX-08` —run
+`s11-b567289c-9fe2-5349-a384-e9284bdde863`—. Hasta el commit `9e2d55d` el
 harness nunca llegaba a seleccionar la configuración S11 —el defecto A2 lo hacía arrancar con la
-ordinaria—. `EX-05`, `EX-07` y `EX-08` siguen admitidos por el harness pero **no ejecutados**;
+ordinaria—. `EX-05` y `EX-07` siguen admitidos por el harness pero **no ejecutados**;
 la fase de `shutdown` detiene backend y worker, y no define teardown para DB, Redis, red ni
 volumen. El flujo es:
 

@@ -225,7 +225,9 @@ es `PASS`**, auditado como `S11C2_EX02_PASS_CONFIRMED`. Después se ejecutó `EX
 el run `s11-03adb9bc-c9e4-5f8f-b64c-c4360d0c2085`, que también cerró `COMPLETED`: **el estado
 vigente de `EX-04` es `PASS`**, con gate `S11C2_EX04_PASS`. Después se ejecutó `EX-06` con el
 run `s11-989218f3-4808-5c6f-ac23-6e8870fec153`, que también cerró `COMPLETED`: **el estado
-vigente de `EX-06` es `PASS`**, con gate `S11C2_EX06_PASS`. EX-08 no se ejecutó.
+vigente de `EX-06` es `PASS`**, con gate `S11C2_EX06_PASS`. Por último se ejecutó `EX-08` con el
+run `s11-b567289c-9fe2-5349-a384-e9284bdde863`, que también cerró `COMPLETED`: **el estado
+vigente de `EX-08` es `PASS`**, con gate `S11C2_EX08_PASS`. S11-C2 sigue abierto.
 Nada de esto altera el rebaseline de custodia descrito arriba ni sus gates, y la tabla «Estado
 actual» de §5 se conserva como instantánea del 21/09/2026: sus filas `EX-02` y `EX-03` en
 `NOT_EXECUTED` describen esa fecha y no se reescriben.
