@@ -315,21 +315,166 @@ test("@EX-05 autocierre mediante Celery real", async ({ page, context }) => {
 
 test("@EX-06 reversión, revalidación y evidencia por ciclo reales", async ({ page, context }) => {
   test.skip(SCENARIO !== "EX-06", "Otro escenario fue seleccionado por el harness.");
+  const author = fixture.actors.author;
+  const operator = fixture.actors.operator_a;
+  const reason = "Reversión sintética controlada para EX-06.";
+  const reverted = "report.validation_reverted";
+
   await frontendSmoke(page, context, fixture.actors.admin.refresh, "/auditoria");
   const reportId = await createResolved("EX-06 ciclo uno");
-  const reversal = await traced(
-    "reversal",
-    fixture.actors.admin,
-    "post",
-    `/api/v1/admin/reports/${reportId}/revert-validation/`,
-    { data: { cycle: 1, reason: "Reversión sintética controlada para EX-06." } },
+
+  // Precondición de la ficha: RESUELTO en ciclo 1, con evidencia y ledger acreditado.
+  const inicial = await operatorReportDetail(reportId, "detail-before-reversal");
+  expect(inicial.status).toBe("RESUELTO");
+  expect(inicial.cycle).toBe(1);
+  expect(inicial.resolved_at).not.toBeNull();
+  const evidenciaCiclo1 = await adminEvidence(reportId, "evidence-before-reversal");
+  expect(evidenciaCiclo1.map((e: { cycle: number }) => e.cycle)).toEqual([1]);
+  expect((await citizenSummary(author, "author-summary-cycle-one")).points).toMatchObject({
+    pending: 0,
+    accredited: 100, // ciclo 1: REPORT_CREATED 20 + VALIDATION_BONUS 30 + RESOLUTION_BONUS 50
+  });
+  const historialInicial = await reportHistory(reportId, "history-before-reversal");
+
+  // 1. Reversión administrativa: CLASIFICADO, ciclo conservado y timestamps limpiados.
+  const reversal = await revertValidation(reportId, 1, reason, "reversal");
+  expect(reversal.status()).toBe(200);
+  const revertido = await reversal.json();
+  expect(revertido).toMatchObject({
+    id: reportId,
+    status: "CLASIFICADO",
+    cycle: 1,
+    validated_at: null,
+    resolved_at: null,
+    closed_at: null,
+  });
+  expect(revertido.institution.id).toBe(fixture.institution_a);
+  // Las tres acreditaciones del ciclo 1 pasan a REVERTIDO y cada una recibe su REVERSAL
+  // opuesta, también REVERTIDO. El resumen suma sólo ACREDITADO, así que el balance vuelve
+  // a cero. El estado por fila y el par `related_transaction` no los expone ningún
+  // endpoint: se reconcilian desde el export custodiado.
+  expect((await citizenSummary(author, "author-summary-reverted")).points).toMatchObject({
+    pending: 0,
+    accredited: 0,
+  });
+  expect(await auditCount(reportId, reverted, "audit-reverted")).toBe(1);
+  const historialRevertido = await reportHistory(reportId, "history-after-reversal");
+  expect(historialRevertido.count).toBe(historialInicial.count + 1);
+  expect(historialRevertido.results[0]).toMatchObject({
+    previous_status: "RESUELTO",
+    new_status: "CLASIFICADO",
+    cycle: 1,
+  });
+
+  // 2. Repetición idempotente. El contrato no expone `changed`: lo representa un 200 con
+  //    cuerpo idéntico y sin historia, auditoría ni ledger nuevos
+  //    (test_admin_reversal_contract_and_idempotent_replay). Reversión, auditoría e
+  //    historia se escriben en la misma transacción, así que sus conteos intactos acreditan
+  //    que no hubo una segunda compensación.
+  const replay = await revertValidation(reportId, 1, reason, "reversal-replay");
+  expect(replay.status()).toBe(200);
+  expect(await replay.json()).toEqual(revertido);
+  expect(await auditCount(reportId, reverted, "audit-after-replay")).toBe(1);
+  expect((await reportHistory(reportId, "history-after-replay")).count).toBe(
+    historialRevertido.count,
   );
-  expect(reversal.ok()).toBeTruthy();
-  await validateReport(reportId);
-  await transition(reportId, "EN_PROCESO", 2, "restart-processing");
-  expect((await transition(reportId, "RESUELTO", 2, "stale-evidence")).status()).toBe(409);
-  await uploadEvidence(reportId, 2, "00000000-0000-4000-8000-000000000006");
-  expect((await transition(reportId, "RESUELTO", 2, "resolve-cycle-two")).ok()).toBeTruthy();
+  expect((await citizenSummary(author, "author-summary-after-replay")).points).toMatchObject({
+    pending: 0,
+    accredited: 0,
+  });
+
+  // 3. Ciclo obsoleto: rechazo controlado. El backend define «stale» como
+  //    `expected_cycle != resolution_cycle`. El ciclo vigente sigue siendo 1 y el 0 lo
+  //    rechaza la validación de entrada con 400 (test_reversal_body_is_strict), así que el
+  //    único valor stale expresible en este punto es 2, el mismo que usa
+  //    test_stale_cycle_and_invalid_state_are_stable_conflicts.
+  const stale = await revertValidation(reportId, 2, reason, "reversal-stale-cycle");
+  expect(stale.status()).toBe(409);
+  expect((await stale.json()).code).toBe("STALE_REPORT_CYCLE");
+  const trasStale = await operatorReportDetail(reportId, "detail-after-stale");
+  expect(trasStale.status).toBe("CLASIFICADO");
+  expect(trasStale.cycle).toBe(1);
+  expect(trasStale.validated_at).toBeNull();
+  expect(await auditCount(reportId, reverted, "audit-after-stale")).toBe(1);
+  expect((await reportHistory(reportId, "history-after-stale")).count).toBe(
+    historialRevertido.count,
+  );
+  expect(await adminEvidence(reportId, "evidence-after-stale")).toHaveLength(1);
+
+  // 4. Revalidación por el operador A: abre el ciclo 2.
+  const revalidation = await validateReport(reportId);
+  expect(revalidation.status()).toBe(200);
+  const revalidado = await revalidation.json();
+  expect(revalidado.status).toBe("ASIGNADO");
+  expect(revalidado.validated_at).not.toBeNull();
+  expect(revalidado.validated_by).toBe(operator.id);
+  const ciclo2 = await operatorReportDetail(reportId, "detail-after-revalidation");
+  expect(ciclo2.cycle).toBe(2);
+  expect(ciclo2.resolved_at).toBeNull();
+  // Sólo el VALIDATION_BONUS del ciclo 2. La validación acredita únicamente participaciones
+  // PENDIENTE y el REPORT_CREATED quedó REVERTIDO; en ciclo ≥2 el ledger además rechaza de
+  // forma explícita reactivar un REPORT_CREATED histórico.
+  expect((await citizenSummary(author, "author-summary-revalidated")).points).toMatchObject({
+    pending: 0,
+    accredited: 30, // ciclo 2: VALIDATION_BONUS 30
+  });
+
+  // 5. El operador toma el ciclo 2.
+  const processing = await transition(reportId, "EN_PROCESO", 2, "restart-processing");
+  expect(processing.status()).toBe(200);
+  expect(await processing.json()).toMatchObject({
+    status: "EN_PROCESO",
+    cycle: 2,
+    resolved_at: null,
+  });
+
+  // 6. Resolver con sólo la evidencia del ciclo 1: rechazo controlado. La evidencia 1 sigue
+  //    existiendo, pero no habilita el ciclo 2.
+  const staleEvidence = await transition(reportId, "RESUELTO", 2, "stale-evidence");
+  expect(staleEvidence.status()).toBe(409);
+  expect((await staleEvidence.json()).code).toBe("RESOLUTION_EVIDENCE_REQUIRED");
+  expect(
+    (await adminEvidence(reportId, "evidence-before-cycle-two")).map(
+      (e: { cycle: number }) => e.cycle,
+    ),
+  ).toEqual([1]);
+
+  // 7. Evidencia del ciclo 2 y resolución. La clave es deliberadamente la misma que
+  //    `createResolved` usó en el ciclo 1: la identidad efectiva es
+  //    (report, resolution_cycle, idempotency_key), así que en otro ciclo es un alta nueva.
+  const created = await uploadEvidence(reportId, 2, "00000000-0000-4000-8000-000000000006");
+  expect(created.status()).toBe(201);
+  const evidenciaCiclo2 = await created.json();
+  expect(evidenciaCiclo2.cycle).toBe(2);
+  expect(evidenciaCiclo2.id).not.toBe(evidenciaCiclo1[0].id);
+  const resolution = await transition(reportId, "RESUELTO", 2, "resolve-cycle-two");
+  expect(resolution.status()).toBe(200);
+  expect(await resolution.json()).toMatchObject({ status: "RESUELTO", cycle: 2 });
+
+  // Estado final: RESUELTO en ciclo 2, con la evidencia del ciclo 1 conservada como histórica.
+  const final = await operatorReportDetail(reportId, "detail-final");
+  expect(final.status).toBe("RESUELTO");
+  expect(final.cycle).toBe(2);
+  expect(final.resolved_at).not.toBeNull();
+  expect(final.closed_at).toBeNull();
+  const evidencias = await adminEvidence(reportId, "evidence-final");
+  expect(evidencias.map((e: { cycle: number }) => e.cycle).sort()).toEqual([1, 2]);
+
+  // Ledger final: del ciclo 1 queda todo REVERTIDO y compensado (0); el ciclo 2 aporta
+  // VALIDATION_BONUS 30 + RESOLUTION_BONUS 50. El REPORT_CREATED 20 no se reactiva.
+  expect((await citizenSummary(author, "author-summary-final")).points).toMatchObject({
+    pending: 0,
+    accredited: 80,
+  });
+
+  // Auditoría: una sola reversión, y validación/proceso/evidencia/resolución una vez por ciclo.
+  expect(await auditCount(reportId, reverted, "audit-final-reverted")).toBe(1);
+  expect(await auditCount(reportId, "report.validated", "audit-final-validated")).toBe(2);
+  expect(await auditCount(reportId, "report.processing_started", "audit-final-processing")).toBe(2);
+  expect(
+    await auditCount(reportId, "report.resolution_evidence_created", "audit-final-evidence"),
+  ).toBe(2);
+  expect(await auditCount(reportId, "report.resolved", "audit-final-resolved")).toBe(2);
 });
 
 test("@EX-07 rechazo prevalidación real", async ({ page, context }) => {
@@ -541,6 +686,58 @@ async function citizenSummary(actor: Actor, step: string) {
   return response.json();
 }
 
+/** Reversión administrativa cruda: el llamador decide qué contrato comprueba. */
+async function revertValidation(
+  reportId: string,
+  cycle: number,
+  reason: string,
+  step: string,
+): Promise<APIResponse> {
+  return traced(
+    step,
+    fixture.actors.admin,
+    "post",
+    `/api/v1/admin/reports/${reportId}/revert-validation/`,
+    { data: { cycle, reason } },
+  );
+}
+
+/** Número de eventos de auditoría de una acción para el reporte (`count` de la paginación). */
+async function auditCount(reportId: string, action: string, step: string): Promise<number> {
+  const response = await traced(
+    step,
+    fixture.actors.admin,
+    "get",
+    `/api/v1/admin/audit-logs/?report_id=${reportId}&action=${action}`,
+  );
+  expect(response.ok()).toBeTruthy();
+  return (await response.json()).count as number;
+}
+
+/** Historial de estados visto por el operador, del más reciente al más antiguo. */
+async function reportHistory(reportId: string, step: string) {
+  const response = await traced(
+    step,
+    fixture.actors.operator_a,
+    "get",
+    `/api/v1/operator/reports/${reportId}/history/?institution_id=${fixture.institution_a}`,
+  );
+  expect(response.ok()).toBeTruthy();
+  return response.json();
+}
+
+/** Evidencias de resolución del reporte en todos sus ciclos, vistas por el administrador. */
+async function adminEvidence(reportId: string, step: string) {
+  const response = await traced(
+    step,
+    fixture.actors.admin,
+    "get",
+    `/api/v1/admin/reports/${reportId}/evidence/`,
+  );
+  expect(response.ok()).toBeTruthy();
+  return response.json();
+}
+
 async function createAndValidate(description: string): Promise<string> {
   const reportId = await createReport(fixture.actors.author, description);
   await validateReport(reportId);
@@ -600,7 +797,7 @@ async function postEvidence(
 async function uploadEvidence(reportId: string, cycle: number, key: string): Promise<APIResponse> {
   const response = await postEvidence(reportId, cycle, key, `evidence-cycle-${cycle}`);
   expect([200, 201]).toContain(response.status());
-  // Se devuelve para que EX-04 distinga el 201 del alta del 200 idempotente.
+  // Se devuelve para que EX-04 y EX-06 distingan el 201 del alta del 200 idempotente.
   // Los demás escenarios ignoran el retorno.
   return response;
 }
