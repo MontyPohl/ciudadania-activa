@@ -15,6 +15,8 @@ import {
 const BACKEND_URL = process.env.S11_BACKEND_URL ?? "";
 const RUN_ID = process.env.S11_RUN_ID ?? "";
 const SCENARIO = process.env.S11_SCENARIO_ID ?? "";
+/** Cutoff documentado por la ficha EX-05 y por `REPORT_AUTO_CLOSE_HOURS`. */
+const AUTO_CLOSE_HOURS = 72;
 /** UUID que ningún run crea: referencia del 404 de un reporte inexistente. */
 const MISSING_REPORT_ID = "00000000-0000-4000-8000-0000000000ff";
 /**
@@ -291,28 +293,68 @@ test("@EX-04 evidencia y resolución reales", async ({ page, context }) => {
 
 test("@EX-05 autocierre mediante Celery real", async ({ page, context }) => {
   test.skip(SCENARIO !== "EX-05", "Otro escenario fue seleccionado por el harness.");
+  const author = fixture.actors.author;
+
   await frontendSmoke(page, context, fixture.actors.operator_a.refresh, "/bandeja");
   const reportId = await createResolved("EX-05 autocierre");
-  manage("s11_prepare_autoclose", reportId);
-  manage(
-    "s11_run_auto_close",
-    "--timeout",
-    "30",
-    "--run-id",
-    RUN_ID,
-    "--scenario",
-    SCENARIO,
-    "--request-id",
-    "ex-05-auto-close",
+
+  // Precondición de la ficha: RESUELTO en ciclo 1, sin cierre y con el ledger ya acreditado.
+  const resuelto = await operatorReportDetail(reportId, "detail-resolved");
+  expect(resuelto).toMatchObject({ status: "RESUELTO", cycle: 1, closed_at: null });
+  expect(resuelto.resolved_at).not.toBeNull();
+  const saldo = (await citizenSummary(author, "author-summary-resolved")).points;
+  expect(saldo).toMatchObject({ pending: 0, accredited: 100 }); // 20 + 30 + 50, ciclo 1
+
+  // 1. Antes del cutoff: la tarea real no cierra nada ni deja rastro.
+  const antes = await reportSnapshot(reportId, "snapshot-before-cutoff");
+  expect(runAutoClose("auto-close-before-cutoff")).toBe(0);
+  expect(await reportSnapshot(reportId, "unchanged-before-cutoff")).toEqual(antes);
+
+  // 2. Reloj controlado: `s11_prepare_autoclose` fija `resolved_at` en el límite de elegibilidad
+  //    (ahora - REPORT_AUTO_CLOSE_HOURS). No escribe historial ni auditoría.
+  expect(manage("s11_prepare_autoclose", reportId)).toContain("EX05_CLOCK_PRECONDITION_READY");
+  const enCutoff = await operatorReportDetail(reportId, "detail-at-cutoff");
+  expect(enCutoff).toMatchObject({ status: "RESUELTO", cycle: 1, closed_at: null });
+
+  // 3. En el cutoff: la tarea cierra exactamente este reporte, sin cambiar el ciclo.
+  expect(runAutoClose("auto-close")).toBe(1);
+  const cerrado = await operatorReportDetail(reportId, "closed-detail");
+  expect(cerrado).toMatchObject({ status: "CERRADO", cycle: 1 });
+  expect(cerrado.resolved_at).toBe(enCutoff.resolved_at);
+  expect(cerrado.closed_at).not.toBeNull();
+  expect(Date.parse(cerrado.closed_at) - Date.parse(cerrado.resolved_at)).toBeGreaterThanOrEqual(
+    AUTO_CLOSE_HOURS * 3_600_000,
   );
-  const detail = await traced(
-    "closed-detail",
-    fixture.actors.operator_a,
-    "get",
-    `/api/v1/operator/reports/${reportId}/?institution_id=${fixture.institution_a}`,
-  );
-  expect(detail.ok()).toBeTruthy();
-  expect((await detail.json()).status).toBe("CERRADO");
+
+  // Una transición RESUELTO → CERRADO y un único `report.closed` de SYSTEM en modo automático.
+  const historial = await reportHistory(reportId, "history-closed");
+  expect(historial.count).toBe(antes.history + 1);
+  expect(historial.results[0]).toMatchObject({
+    previous_status: "RESUELTO",
+    new_status: "CERRADO",
+    cycle: 1,
+  });
+  const cierres = await auditEvents(reportId, "report.closed", "audit-closed");
+  expect(cierres.count).toBe(1);
+  expect(cierres.results[0]).toMatchObject({
+    actor_type: "SYSTEM",
+    actor_user_id: null,
+    payload: {
+      closure_mode: "automatic",
+      cycle: 1,
+      previous_status: "RESUELTO",
+      new_status: "CERRADO",
+    },
+  });
+  expect(await auditCount(reportId, null, "audit-total-closed")).toBe(antes.audit + 1);
+  // El autocierre no mueve incentivos.
+  expect((await citizenSummary(author, "author-summary-closed")).points).toEqual(saldo);
+
+  // 4. Reejecución: idempotente, sin segunda transición, auditoría ni movimiento de ledger.
+  const trasCierre = await reportSnapshot(reportId, "snapshot-closed");
+  expect(runAutoClose("auto-close-repeat")).toBe(0);
+  expect(await reportSnapshot(reportId, "unchanged-repeat")).toEqual(trasCierre);
+  expect((await citizenSummary(author, "author-summary-repeat")).points).toEqual(saldo);
 });
 
 test("@EX-06 reversión, revalidación y evidencia por ciclo reales", async ({ page, context }) => {
@@ -875,6 +917,27 @@ function manage(...args: string[]): string {
   );
 }
 
+/**
+ * Ejecuta la tarea real de autocierre en Celery, correlacionada con el run, y devuelve cuántos
+ * reportes cerró. El entorno aislado sólo contiene el reporte del escenario.
+ */
+function runAutoClose(step: string): number {
+  const output = manage(
+    "s11_run_auto_close",
+    "--timeout",
+    "30",
+    "--run-id",
+    RUN_ID,
+    "--scenario",
+    SCENARIO,
+    "--request-id",
+    `${SCENARIO.toLowerCase()}-${step}`,
+  );
+  const match = /EX05_AUTO_CLOSE_FINISHED closed=(\d+)/.exec(output);
+  expect(match, "s11_run_auto_close debe informar cuántos reportes cerró").not.toBeNull();
+  return Number(match?.[1]);
+}
+
 async function setSession(context: BrowserContext, refresh: string): Promise<void> {
   await context.addCookies([
     {
@@ -1065,6 +1128,18 @@ async function adminEvidence(reportId: string, step: string) {
     fixture.actors.admin,
     "get",
     `/api/v1/admin/reports/${reportId}/evidence/`,
+  );
+  expect(response.ok()).toBeTruthy();
+  return response.json();
+}
+
+/** Eventos de auditoría de una acción para el reporte, con actor y payload. */
+async function auditEvents(reportId: string, action: string, step: string) {
+  const response = await traced(
+    step,
+    fixture.actors.admin,
+    "get",
+    `/api/v1/admin/audit-logs/?report_id=${reportId}&action=${action}`,
   );
   expect(response.ok()).toBeTruthy();
   return response.json();
