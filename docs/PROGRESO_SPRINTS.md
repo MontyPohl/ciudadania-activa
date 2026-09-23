@@ -2462,6 +2462,30 @@ Gate de EX-07: `S11C2_EX07_PASS`. Con él, los siete escenarios del alcance form
 resultado experimental `PASS`; el cierre del gate S11-C2 no se declara aquí y requiere su propia
 revisión de cierre.
 
+### S11-C2 / EX-03 — regularización documental de la reconciliación (23/09/2026)
+
+- **Antecedente.** La revisión formal de cierre de S11-C2 comprobó que la reconciliación
+  documental de EX-03 no estaba registrada en un commit documental, como exige el criterio de
+  salida de C2 («reconciliación contra su ficha S11-A registrada en un commit documental»). La
+  sección «S11-C2 / EX-03 — confirmación y validación, ciclo 0→1» y las actualizaciones de estado
+  de los dos runbooks entraron en el commit `79a6f285508d180b3ac3699f93601d81fae9ec86`
+  («test(s11): prepare EX-04 idempotency validation»). Ese commit también modifica
+  `frontend/e2e-s11/s11-fullstack.spec.ts` con la preparación de EX-04, así que es un commit mixto
+  y no un commit documental puro. Se hizo así porque el harness exige el árbol limpio y la
+  reconciliación de EX-03 seguía sin commitear cuando se congeló la preparación de EX-04.
+- **Regularización.** El presente registro, en un commit sólo documental, deja constancia de la
+  reconciliación de EX-03 a efectos del gate S11-C2. No reescribe la historia: `79a6f28` se
+  conserva intacto, y el contenido de la reconciliación sigue siendo el que ese commit introdujo en
+  la sección de EX-03, sin cambios.
+- **EX-03 reconciliado: `PASS`.** Run oficial `s11-6dc3ea66-08c9-51ef-9fe3-70e7dcc67959`, ejecutado
+  sobre el commit de preparación `3696d0174673201313e68e204f974784b97ea74a` con el árbol limpio, y
+  gate `S11C2_EX03_PASS_CONFIRMED`. La evidencia funcional, los valores del run y el paquete
+  custodiado permanecen exactamente como estaban.
+- La regularización no afecta a EX-04: su preparación, su run
+  `s11-03adb9bc-c9e4-5f8f-b64c-c4360d0c2085`, su reconciliación `a2a0bfb` y su clasificación `PASS` no cambian. Tampoco cambia ningún otro
+  escenario ni los runs históricos `NOT_DEMONSTRATED`.
+- S11-C2 sigue abierto hasta una nueva revisión formal de cierre.
+
 ### Pruebas realizadas
 
 - Gate inicial: rama `main`, HEAD exacto y working tree limpio.

@@ -24,7 +24,9 @@ cerró `COMPLETED` con las catorce fases del harness en `rc=0`, y la auditoría 
 evidencia custodiada lo confirmó como `S11C2_EX02_PASS_CONFIRMED`. `EX-03` también está
 **demostrado**: el run `s11-6dc3ea66-08c9-51ef-9fe3-70e7dcc67959` (`main@3696d01`) cerró
 `COMPLETED` con las catorce fases en `rc=0`, trazabilidad y custodia en `PASS`, y gate
-`S11C2_EX03_PASS_CONFIRMED`. `EX-04` también está **demostrado**: el run
+`S11C2_EX03_PASS_CONFIRMED`; su reconciliación, registrada originalmente en el commit mixto
+`79a6f28`, se regularizó el 23/09/2026 con un commit sólo documental (véase
+`docs/PROGRESO_SPRINTS.md`). `EX-04` también está **demostrado**: el run
 `s11-03adb9bc-c9e4-5f8f-b64c-c4360d0c2085` (`main@79a6f28`) cerró `COMPLETED` con las catorce
 fases en `rc=0`, trazabilidad y custodia en `PASS`, y gate `S11C2_EX04_PASS`. `EX-06` también
 está **demostrado**: el run `s11-989218f3-4808-5c6f-ac23-6e8870fec153` (`main@43013fa`) cerró
