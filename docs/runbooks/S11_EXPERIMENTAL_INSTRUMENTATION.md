@@ -31,8 +31,10 @@ está **demostrado**: el run `s11-989218f3-4808-5c6f-ac23-6e8870fec153` (`main@4
 `COMPLETED` con las catorce fases en `rc=0`, trazabilidad y custodia en `PASS`, y gate
 `S11C2_EX06_PASS`. `EX-08` también está **demostrado**: el run
 `s11-b567289c-9fe2-5349-a384-e9284bdde863` (`main@d8ed6eb`) cerró `COMPLETED` con las catorce
-fases en `rc=0`, trazabilidad y custodia en `PASS`, y gate `S11C2_EX08_PASS`. Los cinco
-escenarios de S11-C2 tienen así resultado `PASS`; el gate global sigue abierto.
+fases en `rc=0`, trazabilidad y custodia en `PASS`, y gate `S11C2_EX08_PASS`. El alcance formal
+de S11-C2 es EX-02…EX-08 (decisión del 22/09/2026 en `docs/PROGRESO_SPRINTS.md`): EX-05 y EX-07
+siguen pendientes y el gate permanece abierto. EX-09 y EX-10 quedan fuera de C2 y siguen siendo
+requisitos de S11-C.
 
 Lo precedieron cinco intentos que quedan como evidencia histórica `NOT_DEMONSTRATED`, conservados
 sin reinterpretar: `s11-3b48870b-7979-542b-8a46-1c6dfce7bed8` (`npm` ausente),
