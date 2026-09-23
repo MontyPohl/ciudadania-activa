@@ -523,24 +523,113 @@ test("@EX-06 reversión, revalidación y evidencia por ciclo reales", async ({ p
 
 test("@EX-07 rechazo prevalidación real", async ({ page, context }) => {
   test.skip(SCENARIO !== "EX-07", "Otro escenario fue seleccionado por el harness.");
-  await frontendSmoke(page, context, fixture.actors.operator_a.refresh, "/bandeja");
-  const reportId = await createReport(fixture.actors.author, "EX-07 rechazo");
+  const author = fixture.actors.author;
+  const confirmer = fixture.actors.confirmer;
+  const operator = fixture.actors.operator_a;
+  const reason = "informacion_insuficiente"; // valor de RejectionReason.INFORMACION_INSUFICIENTE
+  const actionUrl = (action: string) =>
+    `/api/v1/operator/reports/${reportId}/${action}/?institution_id=${fixture.institution_a}`;
+
+  await frontendSmoke(page, context, operator.refresh, "/bandeja");
+  const reportId = await createReport(author, "EX-07 rechazo");
+
+  // Precondición: CLASIFICADO en ciclo 0, sin validar, con creación y confirmación pendientes.
   const confirm = await traced(
     "confirm-before-reject",
-    fixture.actors.confirmer,
+    confirmer,
     "post",
     `/api/v1/reports/${reportId}/confirm/`,
     { data: {} },
   );
   expect(confirm.status()).toBe(201);
-  const rejection = await traced(
-    "reject",
-    fixture.actors.operator_a,
+  expect((await confirm.json()).confirmation_count).toBe(1);
+  expect(await operatorReportDetail(reportId, "detail-before-reject")).toMatchObject({
+    status: "CLASIFICADO",
+    cycle: 0,
+    validated_at: null,
+    confirmation_count: 1,
+  });
+  expect((await citizenSummary(author, "author-summary-pending")).points).toMatchObject({
+    pending: 20, // REPORT_CREATED
+    accredited: 0,
+  });
+  expect((await citizenSummary(confirmer, "confirmer-summary-pending")).points).toMatchObject({
+    pending: 10, // CONFIRMATION_CREATED
+    accredited: 0,
+  });
+  const antes = await reportSnapshot(reportId, "snapshot-before-reject");
+
+  // 1. Rechazo por el operador competente. El rechazo no asigna institución.
+  const rejection = await traced("reject", operator, "post", actionUrl("reject"), {
+    data: { reason },
+  });
+  expect(rejection.status()).toBe(200);
+  expect(await rejection.json()).toEqual({
+    id: reportId,
+    status: "RECHAZADO",
+    institution: null,
+    validated_at: null,
+    validated_by: null,
+    rejection_reason: reason,
+  });
+  const rechazado = await operatorReportDetail(reportId, "detail-rejected");
+  expect(rechazado).toMatchObject({ status: "RECHAZADO", cycle: 0, validated_at: null });
+
+  // Una transición CLASIFICADO → RECHAZADO con el motivo tipificado, sin cambiar el ciclo.
+  const historial = await reportHistory(reportId, "history-rejected");
+  expect(historial.count).toBe(antes.history + 1);
+  expect(historial.results[0]).toMatchObject({
+    previous_status: "CLASIFICADO",
+    new_status: "RECHAZADO",
+    cycle: 0,
+    reason,
+  });
+
+  // Un único `report.rejected`, humano y del operador A, que anula las dos participaciones.
+  const rechazos = await auditEvents(reportId, "report.rejected", "audit-rejected");
+  expect(rechazos.count).toBe(1);
+  expect(rechazos.results[0]).toMatchObject({
+    actor_type: "human", // valor de ActorType.HUMAN
+    actor_user_id: operator.id,
+    payload: { reason },
+  });
+  expect(rechazos.results[0].payload.voided_transaction_ids).toHaveLength(2);
+  expect(await auditCount(reportId, null, "audit-total-rejected")).toBe(antes.audit + 1);
+
+  // Ledger: +20 y +10 pasan a ANULADO; nada se acredita ni se compensa.
+  const saldoAutor = (await citizenSummary(author, "author-summary-rejected")).points;
+  const saldoConfirmador = (await citizenSummary(confirmer, "confirmer-summary-rejected")).points;
+  expect(saldoAutor).toMatchObject({ pending: 0, accredited: 0 });
+  expect(saldoConfirmador).toMatchObject({ pending: 0, accredited: 0 });
+
+  // 2. Repetición del rechazo: rechazo controlado, sin mutación.
+  const trasRechazo = await reportSnapshot(reportId, "snapshot-rejected");
+  const repeated = await traced("reject-repeat", operator, "post", actionUrl("reject"), {
+    data: { reason },
+  });
+  expect(repeated.status()).toBe(409);
+  expect((await repeated.json()).code).toBe("ALREADY_REJECTED");
+  expect(await reportSnapshot(reportId, "unchanged-reject-repeat")).toEqual(trasRechazo);
+
+  // 3. Validación posterior: sólo CREADO y CLASIFICADO son validables.
+  const validation = await traced(
+    "validate-after-reject",
+    operator,
     "post",
-    `/api/v1/operator/reports/${reportId}/reject/?institution_id=${fixture.institution_a}`,
-    { data: { reason: "informacion_insuficiente" } },
+    actionUrl("validate"),
+    {
+      data: {},
+    },
   );
-  expect(rejection.ok()).toBeTruthy();
+  expect(validation.status()).toBe(409);
+  expect((await validation.json()).code).toBe("REPORT_STATE_NOT_ALLOWED");
+  expect(await reportSnapshot(reportId, "unchanged-validate-after-reject")).toEqual(trasRechazo);
+
+  // Ningún intento controlado movió incentivos.
+  expect((await citizenSummary(author, "author-summary-final")).points).toEqual(saldoAutor);
+  expect((await citizenSummary(confirmer, "confirmer-summary-final")).points).toEqual(
+    saldoConfirmador,
+  );
 });
 
 test("@EX-08 trazabilidad y autorización entre tenants reales", async ({ page, context }) => {
