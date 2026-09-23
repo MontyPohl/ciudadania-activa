@@ -2,7 +2,7 @@
 
 Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes de iniciar el siguiente.
 
-- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 **completado** (inicio el 22/08/2026, cierre el 23/08/2026: verificación de identidad con HMAC y almacenamiento privado, revisión administrativa manual con cotejo de la cédula, notificaciones asíncronas entregadas por la API HTTPS de Brevo y privacidad configurable del ranking, todo verificado en producción con una identidad real). Sprint 5 **completado** el 27/08/2026: S5-A, S5-B y S5-C están cerradas, integradas y validadas. Sprint 6 **completado** el 28/08/2026: S6-A y S6-B están cerrados. Sprint 7 **completado** el 29/08/2026: S7-A, S7-B y S7-C están integrados en `main`, y S7-D quedó probado en producción y cerrado con evidencia funcional y de base de datos en modo solo lectura. Sprint 8 continúa **en curso**. Sprint 9 quedó **completado** el 09/09/2026: S9-A, S9-B1, S9-B2 y el cierre documental S9-B3 están integrados en `main`; PR #38 fue mergeado mediante `7e95856c1b494d562ce1c267c06d5bebaec28cc8`. Sprint 10 quedó **implementado, desplegado, verificado y reconciliado** el 21/09/2026: el candidato `171f8c8b8f448a4092e73aeb5f67406e6b81ef09` se desplegó en Heroku, PR #39 se integró en `main` mediante `7ae82b865d90c4cade02dd3378b44107f088b7dd`, y backend, frontend, migraciones, backfill, workers e invariantes productivas quedaron verificados. Sprint 11 está **en curso**: S11-A quedó oficialmente congelada en `main@35f850eb24df552805fe8694f50fcbb3588a4141`; S11-B dejó preparada la instrumentación aislada y reproducible, sin generar resultados; S11-C registra seis runs de `EX-02` (21 y 22/09/2026): cinco `NOT_DEMONSTRATED` por causas de infraestructura y de harness, y el sexto, `s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af`, **demostrado en `PASS`**; `EX-03` quedó **demostrado en `PASS`** con el run `s11-6dc3ea66-08c9-51ef-9fe3-70e7dcc67959`; EX-04, EX-06 y EX-08 no se ejecutaron y S11-D y S11-E no se iniciaron.
+- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 **completado** (inicio el 22/08/2026, cierre el 23/08/2026: verificación de identidad con HMAC y almacenamiento privado, revisión administrativa manual con cotejo de la cédula, notificaciones asíncronas entregadas por la API HTTPS de Brevo y privacidad configurable del ranking, todo verificado en producción con una identidad real). Sprint 5 **completado** el 27/08/2026: S5-A, S5-B y S5-C están cerradas, integradas y validadas. Sprint 6 **completado** el 28/08/2026: S6-A y S6-B están cerrados. Sprint 7 **completado** el 29/08/2026: S7-A, S7-B y S7-C están integrados en `main`, y S7-D quedó probado en producción y cerrado con evidencia funcional y de base de datos en modo solo lectura. Sprint 8 continúa **en curso**. Sprint 9 quedó **completado** el 09/09/2026: S9-A, S9-B1, S9-B2 y el cierre documental S9-B3 están integrados en `main`; PR #38 fue mergeado mediante `7e95856c1b494d562ce1c267c06d5bebaec28cc8`. Sprint 10 quedó **implementado, desplegado, verificado y reconciliado** el 21/09/2026: el candidato `171f8c8b8f448a4092e73aeb5f67406e6b81ef09` se desplegó en Heroku, PR #39 se integró en `main` mediante `7ae82b865d90c4cade02dd3378b44107f088b7dd`, y backend, frontend, migraciones, backfill, workers e invariantes productivas quedaron verificados. Sprint 11 está **en curso**: S11-A quedó oficialmente congelada en `main@35f850eb24df552805fe8694f50fcbb3588a4141`; S11-B dejó preparada la instrumentación aislada y reproducible, sin generar resultados; S11-C registra seis runs de `EX-02` (21 y 22/09/2026): cinco `NOT_DEMONSTRATED` por causas de infraestructura y de harness, y el sexto, `s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af`, **demostrado en `PASS`**; `EX-03` quedó **demostrado en `PASS`** con el run `s11-6dc3ea66-08c9-51ef-9fe3-70e7dcc67959` y `EX-04` con el run `s11-03adb9bc-c9e4-5f8f-b64c-c4360d0c2085`; EX-06 y EX-08 no se ejecutaron y S11-D y S11-E no se iniciaron.
 - **Plan de referencia:** [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md)
 - **Ventana de desarrollo:** 01/08/2026 → 15/11/2026 (16 sprints semanales, Anexo F revisado)
 - **Estados posibles:** `Pendiente` · `En curso` · `Completado` · `Completado con observaciones` · `Bloqueado`
@@ -23,14 +23,14 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 | 8 | 19/09 – 25/09 | Clasificación asistida por IA | En curso |
 | 9 | 26/09 – 02/10 | Panel institucional y validación | Completado |
 | 10 | 03/10 – 09/10 | Estados, evidencias, auditoría y reversión | Completado — implementado, desplegado, verificado y reconciliado |
-| 11 | 10/10 – 16/10 | Metodología, instrumentación, experimentos, análisis y evidencia de tesis | En curso — S11-A congelada; S11-B preparada; S11-C con `EX-02` y `EX-03` en `PASS`; EX-04, EX-06 y EX-08 sin ejecutar; S11-D y S11-E pendientes |
+| 11 | 10/10 – 16/10 | Metodología, instrumentación, experimentos, análisis y evidencia de tesis | En curso — S11-A congelada; S11-B preparada; S11-C con `EX-02`, `EX-03` y `EX-04` en `PASS`; EX-06 y EX-08 sin ejecutar; S11-D y S11-E pendientes |
 | 12 | 17/10 – 23/10 | Catálogo de recompensas y canje simulado | Pendiente |
 | 13 | 24/10 – 30/10 | Dashboards, integración e ingesta social | Pendiente |
 | 14 | 31/10 – 06/11 | Pruebas unitarias, integración, seguridad y E2E | Pendiente |
 | 15 | 07/11 – 13/11 | Carga, dataset definitivo y documentación | Pendiente |
 | 16 | 14/11 – 15/11 | Cierre y preparación de la defensa | Pendiente |
 
-**Progreso:** 8 / 16 sprints completados (Sprints 1, 2 y 3 cerrados el 20/08/2026; Sprint 4 el 23/08/2026; Sprint 5 el 27/08/2026; Sprint 6 el 28/08/2026; Sprint 7 el 29/08/2026; Sprint 9 el 09/09/2026). La ejecución real arrastra el desvío de calendario registrado en CT-29. Sprint 8 continúa **en curso**: R2 permanece prerregistrado/no ejecutado y CA-4 no demostrado. Sprint 11 completó la congelación S11-A y la preparación técnica S11-B; S11-C cerró `EX-02` en `PASS` con el run `s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af` —tras cinco intentos previos `NOT_DEMONSTRATED`— y `EX-03` en `PASS` con el run `s11-6dc3ea66-08c9-51ef-9fe3-70e7dcc67959`, y no inició EX-04 ni escenarios posteriores, análisis S11-D, cierre S11-E ni S12–S13.
+**Progreso:** 8 / 16 sprints completados (Sprints 1, 2 y 3 cerrados el 20/08/2026; Sprint 4 el 23/08/2026; Sprint 5 el 27/08/2026; Sprint 6 el 28/08/2026; Sprint 7 el 29/08/2026; Sprint 9 el 09/09/2026). La ejecución real arrastra el desvío de calendario registrado en CT-29. Sprint 8 continúa **en curso**: R2 permanece prerregistrado/no ejecutado y CA-4 no demostrado. Sprint 11 completó la congelación S11-A y la preparación técnica S11-B; S11-C cerró `EX-02` en `PASS` con el run `s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af` —tras cinco intentos previos `NOT_DEMONSTRATED`—, `EX-03` en `PASS` con el run `s11-6dc3ea66-08c9-51ef-9fe3-70e7dcc67959` y `EX-04` en `PASS` con el run `s11-03adb9bc-c9e4-5f8f-b64c-c4360d0c2085`, y no inició EX-06, EX-08, análisis S11-D, cierre S11-E ni S12–S13.
 
 ### Decisiones que condicionan el avance
 
@@ -1584,9 +1584,9 @@ ausente. S11, S12 y S13 no fueron iniciados durante este cierre.
 **Estado:** En curso — S11-A y S11-B en `PASS`; rebaseline custodial completado (P02/P03 y C1
 repetidos en `PASS` bajo la nueva época); S11-C con `EX-02` en `PASS` —run
 `s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af`, auditado como `S11C2_EX02_PASS_CONFIRMED`— tras cinco
-intentos previos `NOT_DEMONSTRATED`— y `EX-03` en `PASS` —run
-`s11-6dc3ea66-08c9-51ef-9fe3-70e7dcc67959`, `S11C2_EX03_PASS_CONFIRMED`—; EX-04 y escenarios
-posteriores sin ejecutar
+intentos previos `NOT_DEMONSTRATED`—, `EX-03` en `PASS` —run
+`s11-6dc3ea66-08c9-51ef-9fe3-70e7dcc67959`, `S11C2_EX03_PASS_CONFIRMED`— y `EX-04` en `PASS`
+—run `s11-03adb9bc-c9e4-5f8f-b64c-c4360d0c2085`, `S11C2_EX04_PASS`—; EX-06 y EX-08 sin ejecutar
 **Fecha real de cierre:** —
 
 > **Rebaseline S11-A (21/09/2026).** El título histórico “Créditos, ranking del mes en curso y
@@ -1902,13 +1902,111 @@ Gate de EX-02: `S11C2_EX02_PASS`, confirmado por auditoría como `S11C2_EX02_PAS
   verifica los once archivos.
 - Frontera respetada: `resolution_evidence` vacía y `resolved_at`/`closed_at` nulos. Evidencia de
   resolución, autocierre, reversión y revalidación **no** fueron demostrados por EX-03 y
-  corresponden a EX-04 y siguientes, que no se ejecutaron.
+  corresponden a EX-04 y siguientes, que en el momento de este run aún no se habían ejecutado.
+  `EX-04` se ejecutó después, ese mismo día, y consta en la sección siguiente.
 - Cleanup: base experimental reseteada según contrato —cero reportes, confirmaciones,
   recompensas, usuarios y auditoría, con catálogos en 10/3—, Redis DB 11 vacío, storage limitado
   a su marcador, y contenedores, red y volumen de `ciudadania-s11` eliminados. Producción,
   dataset, metodología S11-A y evidencia histórica permanecieron intactos.
 
 Gate de EX-03: `S11C2_EX03_PASS_CONFIRMED`.
+
+### S11-C2 / EX-04 — ejecución y validación, ciclo 1 (22/09/2026)
+
+- Antes de ejecutar se completó el spec `@EX-04`, que cubría los pasos 1, 2, 3 y 6 de la ficha
+  S11-A pero omitía los dos de idempotencia: repetir la clave con el mismo contenido y reutilizarla
+  con contenido distinto. El paso de conflicto varía la **descripción** y no los bytes de la
+  imagen, porque el backend deriva la identidad del contenido de
+  `sha256(contenido normalizado + descripción + ciclo)` y el fixture del escenario expone una
+  sola imagen —`s11_fixture_actors` filtra por institución primaria las tres que el dataset
+  trae para EX-04—; escribir un segundo binario a mano es exactamente el defecto A6. Es la
+  misma estrategia de la prueba unitaria de referencia
+  `test_reused_key_with_different_content_conflicts`. Commit del spec:
+  `79a6f285508d180b3ac3699f93601d81fae9ec86`, único cambio de código sobre
+  `frontend/e2e-s11/s11-fullstack.spec.ts`; no se tocó backend, dataset, fixtures ni metodología.
+- **Identidad del run.** HEAD `79a6f285508d180b3ac3699f93601d81fae9ec86`, working tree limpio,
+  dataset `s11-functional-v1`, seed `20260921`. El manifest registra `git_clean: true`.
+- **Ejecución.** El entrypoint experimental fue el harness S11,
+  `python3 backend/scripts/s11_harness.py --scenario EX-04 --nonce ex-04-operator-approved-001
+  --expected-git-sha <HEAD> --custody-approved`. El comando
+  `npm exec playwright -- test --config=playwright.s11.config.ts --grep=@EX-04` **no** es el
+  entrypoint: es el comando interno que el harness exige y construye en
+  `expected_execute_command()`, y que la fase `execute` registra literal. Resultado: `1 passed`
+  en 14,5 s, exit code `0`, catorce fases en `rc=0`, backend dinámico `http://127.0.0.1:32779`.
+- **Run `s11-03adb9bc-c9e4-5f8f-b64c-c4360d0c2085`**: manifest final `COMPLETED` e
+  `invalidity_reason` nulo. `execute` seleccionó y ejecutó **una** prueba de `e2e-s11/`, ninguna
+  de la suite ordinaria `e2e/`.
+- Secuencia demostrada, reconciliada sobre los eventos HTTP custodiados y no sobre las aserciones
+  de Playwright:
+
+  | Paso | Resultado |
+  | ---- | --------- |
+  | `ASIGNADO → EN_PROCESO` | `PASS` (200) |
+  | resolver sin evidencia | `409 RESOLUTION_EVIDENCE_REQUIRED` |
+  | primera evidencia del ciclo 1 | `201` |
+  | replay con misma clave y mismo contenido | `200` |
+  | misma clave con contenido lógico distinto | `409 IDEMPOTENCY_KEY_REUSED` |
+  | resolución | `RESUELTO` (200) |
+
+- **Idempotencia sin duplicación.** El replay devolvió la evidencia original en lugar de crear una
+  segunda: el servicio retorna `created=False` antes de subir el objeto y antes de escribir
+  auditoría. La evidencia persistida es **una sola fila** —`id`
+  `22f9ae96-5654-410c-abb0-36b097cdb9c1`, `idempotency_key`
+  `00000000-0000-4000-8000-000000000004`, `content_hash`
+  `5989a88c1e735c30700ab08b65dd703eb57604ac9d78233092d17142649d7708`, `resolution_cycle` 1— y la
+  auditoría registra `report.resolution_evidence_created` **exactamente una vez** pese a los tres
+  POST. El conflicto de clave no persistió nada.
+- **Estado final.** `RESUELTO`, `resolved_at` presente —`2026-09-22T23:24:51.013304+00:00`—,
+  `resolution_cycle` 1 y `closed_at` nulo: el autocierre pertenece a EX-05 y no fue demostrado
+  aquí.
+- **Ledger del ciclo 1**, los tres en `ACREDITADO` y atribuidos a la institución validadora:
+
+  ```text
+  REPORT_CREATED       20 / 20
+  VALIDATION_BONUS     30 / 30
+  RESOLUTION_BONUS     50 / 50
+  --------------------------------
+  ACREDITADO          100
+  PENDIENTE             0
+  ```
+
+- **Trazabilidad.** El checker oficial cerró en `PASS` con `missing: []`. Observó la auditoría
+  `report.created`, `ai.report.classified`, `report.validated`, `report.processing_started`,
+  `report.resolution_evidence_created` y `report.resolved`; las recompensas `REPORT_CREATED`,
+  `VALIDATION_BONUS` y `RESOLUTION_BONUS`; y el estado `RESUELTO`. Los 12 eventos HTTP y los 3 de
+  Celery quedaron correlacionados con el `run_id`, sin `celery.failed`. El validador no se
+  modificó.
+- **Custodia.** `s11_validate_run` en `PASS` y `finalize` con `verification: PASS`. El paquete
+  conserva los seis artefactos indexados —`run-manifest-initial`, `source-export`,
+  `harness-execution`, `http-events`, `celery-events` y `run-manifest-final`— más `SHA256SUMS`,
+  `metadata/artifacts.jsonl` con su `.hmac` y el sello `.s11-finalized`; `sha256sum --check`
+  verifica los diez archivos listados. `manifest_sha256` del manifest final:
+  `6cb9cccc5b69af0e02625ad4d87396649e5a5ef0a51a3869bb74f8e188dc9322`; SHA-256 del
+  `source-export`: `bddbd345a7e41f1c99d84e4fd094cbb3e384f7b36fa2afcb4d73be68edede80c`.
+- **Cleanup de datos.** Base experimental reseteada según contrato: reports 0,
+  resolution_evidences 0, report_confirmations 0, report_media 0, reward_transactions 0,
+  audit_logs 0 y users 0, con catálogos restaurados a 3 instituciones y 10 categorías. Redis DB 11
+  con `dbsize = 0`. El storage quedó reducido a su marcador `.s11-isolated-object-root`: el objeto
+  privado de evidencia fue eliminado. El export conserva `content_hash` e `idempotency_key` y
+  omite `evidence_url`, que es la metadata redacted que el protocolo exige preservar.
+- **Cleanup de infraestructura.** Estado tras el run:
+
+  ```text
+  backend: Exited (0)
+  worker:  Exited (0)
+  db:      Up (healthy)
+  redis:   Up (healthy)
+  ```
+
+  El harness no define teardown adicional para DB/Redis —su única fase de `shutdown` es
+  `stop backend worker`—. Por tanto permanecen levantados después de EX-04. No se ejecutó
+  `docker compose down -v` ni ninguna operación destructiva, y el volumen
+  `ciudadania-s11_s11_postgres_data` permanece intacto. Es una condición del diseño actual del
+  harness, no un incumplimiento del experimento; a diferencia de EX-03, cuyo teardown se hizo de
+  forma explícita, aquí quedó diferido a una decisión posterior.
+- Producción, dataset, metodología S11-A y evidencia histórica permanecieron intactos.
+
+Gate de EX-04: `S11C2_EX04_PASS`.
 
 ### Pruebas realizadas
 
@@ -2004,9 +2102,10 @@ no quedaron autorizados por el cierre C1. EX-02 acumuló cinco intentos
 ordinaria por el defecto A2, uno bloqueado por A5 y otro por A6— y quedó finalmente demostrado en
 el sexto, `s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af`, con `EX-02 = PASS` auditado como
 `S11C2_EX02_PASS_CONFIRMED`. `EX-03` quedó demostrado a continuación con el run
-`s11-6dc3ea66-08c9-51ef-9fe3-70e7dcc67959` y gate `S11C2_EX03_PASS_CONFIRMED`. EX-04, EX-06 y
-EX-08 no se ejecutaron y cada uno requiere su propio pre-gate; las garantías que les corresponden
-siguen sin demostrar.
+`s11-6dc3ea66-08c9-51ef-9fe3-70e7dcc67959` y gate `S11C2_EX03_PASS_CONFIRMED`, y `EX-04` con el
+run `s11-03adb9bc-c9e4-5f8f-b64c-c4360d0c2085` y gate `S11C2_EX04_PASS`. EX-06 y EX-08 no se
+ejecutaron y cada uno requiere su propio pre-gate; las garantías que les corresponden siguen sin
+demostrar.
 
 ---
 
