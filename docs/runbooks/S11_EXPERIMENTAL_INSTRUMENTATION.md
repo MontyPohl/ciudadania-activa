@@ -258,8 +258,10 @@ silenciosamente en éxito. El harness no calcula ni declara HT-1…HT-6.
 EX-09 queda preparado mediante el registro del dataset R2 y el exportador; EX-10 mediante
 `s11-load-v1`, instrumentación HTTP/Celery y el overlay aislado. Ambos están
 `NOT_READY` para ejecución oficial: sus ejecutores y sus mediciones corresponden a S11-C,
-no a S11-B. Este estado no invalida la preparación de infraestructura de B6 y evita
-confundirla con una ejecución experimental.
+no a S11-B. La decisión del 23/09/2026 en `docs/PROGRESO_SPRINTS.md` los asigna a la sub-etapa
+S11-C3 y fija el contexto de ejecución de EX-09, la custodia de su corrida de dos lotes y los
+registros de cuota y de ciclo de vida del secreto. Este estado no invalida la preparación de
+infraestructura de B6 y evita confundirla con una ejecución experimental.
 
 ## Exportación read-only y trazabilidad
 

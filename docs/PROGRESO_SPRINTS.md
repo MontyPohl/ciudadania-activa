@@ -2530,6 +2530,129 @@ S11-C2: CLOSED
 S11-C:  OPEN
 ```
 
+### Decisión metodológica: sub-etapa S11-C3 para EX-09 y EX-10 (23/09/2026)
+
+- **Autoridad:** Monty Emmanuel Pohl Amarilla, autor y custodio.
+- **Estado de la decisión:** redactada a partir de la preparación de EX-09, revisada y aprobada
+  por el autor y custodio; entra en vigor con el commit que la incorpora.
+- **Antecedente.** El contrato de S11-C2 dejó EX-09 y EX-10 fuera de C2 y remitió a «una decisión
+  separada» la sub-etapa que los ejecute. La preparación de EX-09 quedó `BLOCKED BY SPECIFICATION`
+  por cuatro vacíos: la sub-etapa (D1), el contexto de ejecución con proveedor real (D2), la
+  custodia de una corrida de dos ventanas RPD (D3) y la evidencia de cuota y del ciclo de vida del
+  secreto (D4). S11-B ya había declarado ambos escenarios `NOT_READY`, con ejecutores a cargo de
+  S11-C.
+- **Fuentes.** Ficha EX-09 y EX-10 y filas de matriz de `S11A_ESCENARIOS_Y_PROTOCOLO.md`; HT1-01…04,
+  HT2-01…03 y «Validez R2» de `S11A_DICCIONARIO_INDICADORES.md`; §1, §11, S11A-D04, S11A-D05 y
+  S11A-D10 de `S11A_DATOS_EVIDENCIA_Y_REBASELINE.md`; `S11A_POLITICA_CUSTODIA_Y_ACCESO.md` §1;
+  prerregistro S8-E2-R2; contrato de S11-C2. Esta decisión no modifica ninguna de ellas.
+
+**D1 — Sub-etapa.**
+
+1. EX-09 y EX-10 se ejecutan en una nueva sub-etapa, **S11-C3**, independiente de S11-C2. Ninguno
+   de los dos usa el harness full-stack de C2.
+2. **Salida de S11-C3:** cada escenario tiene un run oficial **válido** con custodia verificada y
+   reconciliación registrada en un commit documental. Un run válido puede concluir `PASS` o
+   `FAIL` según su criterio; un `NOT_DEMONSTRATED` no satisface la salida.
+3. Cerrar S11-C3 no cierra S11-C: S11-C requiere además su propia revisión de cierre. EX-01 sigue
+   condicionado a S11A-P01.
+
+**D2 — Contexto de ejecución de EX-09.**
+
+1. **Entorno.** Un proceso efímero en un contenedor construido desde el commit de preparación de
+   EX-09, fuera del overlay aislado de C2, que fuerza la IA sintética. No accede a datos ni
+   servicios productivos ni a Supabase, y sólo necesita salida de red hacia el proveedor.
+2. **Credencial.** Una clave temporal distinta **por lote**, creada por el operador en la consola
+   del proveedor inmediatamente antes del lote, inyectada únicamente como variable de entorno del
+   proceso ejecutor y revocada al terminar ese lote. Nunca se escribe en Git, `.env`, fixtures,
+   manifests, logs ni evidencia. Sólo puede registrarse su huella no reversible: los 16 primeros
+   caracteres hexadecimales de su SHA-256, calculados en memoria, para correlacionar su alta y
+   su revocación.
+3. **Identificación.** El run fija y verifica, antes de cualquier llamada: commit y árbol limpio,
+   SHA-256 del dataset, SHA-256 del prompt, modelo, timeout, pacing, definición de lotes y el
+   protocolo `R2` congelado en `recovery.py`. Son los mismos guardas de integridad que ya
+   implementa `execution.py`.
+4. **Entorno frente a evidencia.** Pertenecen al entorno la imagen, el contenedor, la red y la
+   credencial. Pertenecen a la evidencia los manifests, las respuestas, el stderr redactado, el
+   informe combinado, los hashes, los registros de cuota y del ciclo de vida del secreto, y el
+   sello.
+5. **Operador.** Monty Emmanuel Pohl Amarilla es el único ejecutor autorizado.
+
+**D3 — Custodia de la corrida de dos lotes.**
+
+1. **Identidad.** Un único `run_id`, asignado al iniciar el lote 1 con el mismo esquema UUIDv5 del
+   harness. Los lotes se identifican como `lot-01` (casos 1–14) y `lot-02` (casos 15–28) dentro de
+   ese run. No son dos experimentos independientes.
+2. **Custodia continua.** La evidencia vive en `var/s11-runs/runs/<run_id>/` bajo
+   `S11-CUSTODY-v1.0`. El manifest inicial se registra al empezar el lote 1. Cada artefacto se
+   indexa con su SHA-256 al escribirse y el HMAC del índice se renueva con cada alta, con la
+   clave custodial estable vigente. Cada lote cierra con un manifest de lote que enumera los
+   hashes de sus artefactos.
+3. **Sin sello entre lotes.** Entre los dos lotes el run queda abierto: sin manifest final, sin
+   `SHA256SUMS` y sin `.s11-finalized`.
+4. **Continuidad.** Antes del lote 2 se verifica que siguen idénticos el commit, la configuración,
+   el prompt, el dataset y su SHA-256, los parámetros del protocolo, el modelo, el timeout, el
+   pacing y los criterios de scoring —que quedan fijados por el commit—. Cualquier diferencia deja
+   el run en `NOT_DEMONSTRATED`. El lote 1 nunca se corrige ni se sustituye.
+5. **Ventana RPD.** EX-09 sigue siendo una única corrida. El lote 2 se ejecuta en la **primera
+   ventana de cuota diaria (RPD) del proveedor disponible posterior al lote 1** y, en todo caso,
+   dentro de un **máximo operativo de 7 días naturales desde el inicio del lote 1**. La evidencia
+   primaria es la comprobación de cuota ≥14 previa al lote 2, junto con los timestamps UTC de
+   inicio y fin del lote 1 e inicio del lote 2.
+6. **Naturaleza del límite de 7 días.** Es una condición operativa específica de S11-C3, introducida
+   por esta decisión para acotar la duración de la identidad experimental y preservar la
+   continuidad demostrable de la corrida. No es una propiedad del protocolo `R2` ni una exigencia
+   del prerregistro S8-E2-R2 ni de las fuentes S11-A.
+7. **Interrupción.** Si el lote 2 no puede iniciarse bajo esas condiciones, o falla cualquiera de
+   sus precondiciones, el run se finaliza con su motivo de invalidez, se sella y se conserva, y su
+   resultado es `NOT_DEMONSTRATED`; nunca `FAIL`. Un nuevo intento exige un `run_id` nuevo y
+   ejecutar los 28 casos completos desde el lote 1. El lote 1 de un run no se reutiliza ni se
+   combina con un lote 2 posterior.
+8. **Finalización.** Sólo después de, en este orden: lote 1 válido, persistido y con su hash
+   verificado; segunda ventana confirmada; lote 2 válido, persistido y con su hash verificado;
+   continuidad verificada; una única combinación de los 28 casos correlacionados; CA-4 calculado;
+   secreto retirado y acceso revocado; manifest final; `SHA256SUMS`; HMAC; sello; y validación
+   final `PASS` de la custodia.
+
+**D4 — Evidencia de cuota y ciclo de vida del secreto.** Registros JSON dentro del run, indexados
+y autenticados por la custodia, cada uno con evento, lote, `run_id`, timestamp UTC, operador y
+resultado:
+
+- `quota_check` antes de cada lote: cuota restante observada en la consola del proveedor y
+  resultado `OK` si es ≥14. Es una precondición: sin ella el lote no empieza.
+- `credential_provisioned`: alta de la clave del lote, con su huella.
+- `credential_removed`: fin del proceso ejecutor y retirada de la variable de entorno.
+- `access_revoked`: revocación de la clave en la consola del proveedor, con su huella.
+
+Nunca se registran la clave, tokens ni contenido sensible del proveedor. Las comprobaciones de
+cuota y la revocación son atestaciones del operador, autenticadas por la custodia.
+
+**Modelo de validez de EX-09.**
+
+- `NOT_DEMONSTRATED`: error de preflight, timeout, caso ausente, respuesta no correlacionable,
+  divergencia de hash, configuración, prompt o dataset, cambio entre lotes, artefacto perdido,
+  fallo de custodia o de finalización, ventana RPD incumplida, límite operativo de 7 días
+  excedido o continuidad no demostrable.
+- `FAIL`: corrida válida y completa, 28 respuestas válidas, CA-4 < 85 %.
+- `PASS`: corrida válida y completa, 28 respuestas válidas, CA-4 ≥ 85 % (al menos 24/28).
+- El primer lote nunca se puntúa por separado.
+
+**Relación con EX-10.**
+
+- **Comparte con EX-09:** la sub-etapa S11-C3, la custodia `S11-CUSTODY-v1.0` con `run_id`,
+  manifests, HMAC y sello, y la semántica de `NOT_DEMONSTRATED` ante una caída del harness o
+  evidencia incompleta.
+- **No comparte:** proveedor, credencial, cuota, protocolo R2 ni dos ventanas. EX-10 corre en el
+  entorno aislado S11, con adaptador IA `fake`, en una sola sesión sin sello intermedio.
+- **Requiere reglas propias:** el generador de carga con barrera de 10 VU, la ventana de 60 s, el
+  throttle real de 5/h, el dataset `s11-load-v1`, la reconciliación de los 50 intentos con base,
+  ledger y cola, y la regla compuesta HT-1 (S11A-D05). Su ejecutor también está pendiente y se
+  preparará aparte.
+
+**Consecuencia.** Con esta decisión aprobada, S11-C3 queda definida y EX-09 y EX-10 pasan a poder
+prepararse, cada uno por separado. Ninguno queda ejecutado ni demostrado, y no existe resultado
+`PASS`, `FAIL` ni `NOT_DEMONSTRATED` para ninguno de los dos. S11-C2 sigue cerrado y S11-C sigue
+abierto.
+
 ### Pruebas realizadas
 
 - Gate inicial: rama `main`, HEAD exacto y working tree limpio.
