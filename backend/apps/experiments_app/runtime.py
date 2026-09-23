@@ -39,7 +39,7 @@ def require_isolation() -> IsolationReport:
     return verify_isolation(isolation_config())
 
 
-def evidence_store() -> EvidenceStore:
+def evidence_store(*, rolling_checksums: bool = True) -> EvidenceStore:
     require_isolation()
     return EvidenceStore(
         Path(settings.S11_ARTIFACT_ROOT),
@@ -48,6 +48,7 @@ def evidence_store() -> EvidenceStore:
             settings.S11_CUSTODY_HMAC_KEY.encode() if settings.S11_CUSTODY_HMAC_KEY else None
         ),
         publication_verification_key=_publication_verification_key(),
+        rolling_checksums=rolling_checksums,
     )
 
 

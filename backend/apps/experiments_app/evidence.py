@@ -80,12 +80,16 @@ class EvidenceStore:
         custody_hmac_key: bytes | None = None,
         publication_verification_key: bytes | None = None,
         clock=lambda: datetime.now(UTC),
+        rolling_checksums: bool = True,
     ) -> None:
         self.root = root.resolve()
         self.allow_sensitive = allow_sensitive
         self.custody_hmac_key = custody_hmac_key
         self.publication_verification_key = publication_verification_key
         self.clock = clock
+        # `False` sólo para runs de varias sesiones (S11-C3/EX-09): entre lotes el run
+        # queda abierto sin `SHA256SUMS`, que se escribe una única vez al finalizar.
+        self.rolling_checksums = rolling_checksums
         self._mutation_depth = 0
         self._mutation_lock_file = None
         if self.root == Path("/tmp") or Path("/tmp") in self.root.parents:
@@ -579,7 +583,7 @@ class EvidenceStore:
         original_index_signature = (
             index_signature.read_bytes() if index_signature.is_file() else None
         )
-        original_checksums = checksums.read_bytes()
+        original_checksums = checksums.read_bytes() if checksums.is_file() else None
         target = run_root / kind.value / scenario_id / safe_name
         if target.exists():
             raise EvidencePolicyError(f"El artefacto ya existe y es inmutable: {safe_name}")
@@ -588,7 +592,9 @@ class EvidenceStore:
         journal_root.chmod(0o700)
         journal = journal_root / f"{run_id}.json"
         journal_payload = {
-            "original_checksums_b64": b64encode(original_checksums).decode(),
+            "original_checksums_b64": (
+                b64encode(original_checksums).decode() if original_checksums is not None else None
+            ),
             "original_index_b64": b64encode(original_index).decode(),
             "original_index_signature_b64": (
                 b64encode(original_index_signature).decode()
@@ -686,7 +692,12 @@ class EvidenceStore:
                         index_signature.unlink()
                 else:
                     self._atomic_replace(index_signature, b64decode(encoded_signature))
-                self._atomic_replace(checksums, b64decode(payload["original_checksums_b64"]))
+                encoded_checksums = payload["original_checksums_b64"]
+                if encoded_checksums is None:
+                    if checksums.exists():
+                        checksums.unlink()
+                else:
+                    self._atomic_replace(checksums, b64decode(encoded_checksums))
             elif state == "COMMITTED":
                 run_root = self.initialize_run(run_id)
                 validate_finalized_state(
@@ -957,7 +968,8 @@ class EvidenceStore:
                 os.fsync(destination.fileno())
             path.chmod(0o600)
             self.write_index_signature(run_root.name)
-            self.write_checksums(run_root.name)
+            if self.rolling_checksums:
+                self.write_checksums(run_root.name)
 
     @contextmanager
     def mutation(self):
