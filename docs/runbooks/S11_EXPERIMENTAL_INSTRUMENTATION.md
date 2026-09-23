@@ -42,9 +42,9 @@ está **demostrado**: el run `s11-0e2feac0-6583-513c-a6aa-33430394d14a` (`main@9
 **demostrado**: el run `s11-545491b8-01fe-55e6-8f08-1a0ebbdca8d3` (`main@9bf778f`) cerró
 `COMPLETED` con las catorce fases en `rc=0`, trazabilidad y custodia en `PASS`, y gate
 `S11C2_EX07_PASS`, precedido por el intento `NOT_DEMONSTRATED`
-`s11-176a55e0-1c27-5b2f-a0f2-ef50dbe6d959`. Los siete escenarios de C2 tienen `PASS`; el gate
-permanece abierto hasta su revisión de cierre. EX-09 y EX-10 quedan fuera de C2 y siguen siendo
-requisitos de S11-C.
+`s11-176a55e0-1c27-5b2f-a0f2-ef50dbe6d959`. Los siete escenarios de C2 tienen `PASS` y la
+revisión formal del 23/09/2026 cerró el gate: **S11-C2 está cerrado**. EX-09 y EX-10 quedan fuera
+de C2 y siguen siendo requisitos de S11-C, que permanece abierto.
 
 Lo precedieron cinco intentos que quedan como evidencia histórica `NOT_DEMONSTRATED`, conservados
 sin reinterpretar: `s11-3b48870b-7979-542b-8a46-1c6dfce7bed8` (`npm` ausente),

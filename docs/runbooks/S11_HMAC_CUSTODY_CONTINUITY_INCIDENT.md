@@ -236,7 +236,8 @@ spec y el run `s11-0e2feac0-6583-513c-a6aa-33430394d14a` cerró `COMPLETED`: **e
 `s11-176a55e0-1c27-5b2f-a0f2-ef50dbe6d959` quedó `NOT_DEMONSTRATED` por un defecto de aserción del
 spec y el run `s11-545491b8-01fe-55e6-8f08-1a0ebbdca8d3` cerró `COMPLETED`: **el estado vigente de
 `EX-07` es `PASS`**, con gate `S11C2_EX07_PASS`. S11-C2, cuyo alcance formal es EX-02…EX-08,
-tiene sus siete escenarios en `PASS` y sigue abierto hasta su revisión de cierre.
+tiene sus siete escenarios en `PASS` y quedó **cerrado** tras la revisión formal del 23/09/2026;
+S11-C sigue abierto con EX-09 y EX-10 pendientes.
 Nada de esto altera el rebaseline de custodia descrito arriba ni sus gates, y la tabla «Estado
 actual» de §5 se conserva como instantánea del 21/09/2026: sus filas `EX-02` y `EX-03` en
 `NOT_EXECUTED` describen esa fecha y no se reescriben.
