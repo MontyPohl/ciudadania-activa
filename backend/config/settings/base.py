@@ -92,8 +92,8 @@ OPENAI_MODEL = env("OPENAI_MODEL", default="")
 # `reasoning.effort` de la Responses API. Vacío omite el parámetro y deja el valor
 # por defecto del modelo; forma parte de lo que se documenta con la medición.
 OPENAI_REASONING_EFFORT = env("OPENAI_REASONING_EFFORT", default="")
-# Proveedor de S8. Se conserva porque las corridas prerregistradas S8-E2 y EX-09
-# se ejecutan contra él.
+# Proveedor histórico de S8. Se conserva porque S8-E2 y la preparación no ejecutada
+# de EX-09 archivan su código; no es proveedor de ninguna medición futura.
 GEMINI_API_KEY = env("GEMINI_API_KEY", default="")
 GEMINI_MODEL = env("GEMINI_MODEL", default="")
 # Umbral de aplicación automática asistida (contrato S8-A, D5).

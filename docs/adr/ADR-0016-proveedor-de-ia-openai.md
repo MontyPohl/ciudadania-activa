@@ -12,11 +12,19 @@
 
 ## Contexto
 
-La integración con Google Gemini acumuló contratiempos técnicos y operativos. El más
-visible quedó documentado en el propio adapter: en la primera medición real (S8-E2) las
-28 llamadas devolvieron 404 y ninguna se clasificó, porque la Interactions API lanza
-excepciones de una jerarquía distinta de la del resto del SDK. El equipo decidió cambiar
-de proveedor.
+La integración con Google Gemini acumuló contratiempos técnicos y operativos. Estos son
+los que constan en el repositorio:
+
+- la primera corrida de S8-E2, con `gemini-2.5-flash`, devolvió 404 en los 28 casos
+  porque ese modelo ya no estaba disponible para usuarios nuevos (`a47db36`); además,
+  el adapter no clasificaba esas excepciones, que la Interactions API lanza desde una
+  jerarquía propia (`1a6c7ac`);
+- la corrida canónica con `gemini-3.6-flash` quedó `NOT_DEMONSTRATED`, con 22 errores
+  de 28, bajo un nivel gratuito de RPM 5 y RPD 20;
+- la recuperación R1 quedó `ABORTED`;
+- R2 no llegó a ejecutarse.
+
+El equipo decidió cambiar de proveedor.
 
 ADR-0008 previó este escenario —«Costos o cambio de proveedor de IA» figura como riesgo
 del backlog— y la arquitectura lo absorbe: el dominio solo conoce
@@ -29,8 +37,11 @@ Hay tres restricciones que el nuevo proveedor debe cumplir sin rebajar el contra
 - **salida estructurada** contra el esquema cerrado de seis campos (D3);
 - **no conservar** la petición en el proveedor, como hacía `store=False` en Gemini.
 
-Además, S8-E2-R2 y EX-09 (S11) están **prerregistrados contra Gemini**
-(`gemini-3.6-flash`) y archivan el commit del código que ejecutan.
+Además, S8-E2-R2 y la preparación de EX-09 (S11, `73e5037`) se prerregistraron contra
+Gemini (`gemini-3.6-flash`) y archivan el commit del código. Ninguna de las dos se
+ejecutó. La decisión metodológica del 26/09/2026 (`docs/PROGRESO_SPRINTS.md`, S11, P1–P9)
+las cierra como preparaciones históricas: Gemini no es proveedor de ninguna medición
+futura.
 
 ## Decisión
 
@@ -54,8 +65,10 @@ el adapter de Gemini contra la Responses API del SDK oficial `openai` (serie 3.x
 
 `OPENAI_MODEL` no tiene valor por defecto en `settings` (CT-32). El modelo elegido es
 `gpt-6-luna`: acepta imagen, admite Structured Outputs y es el más económico de la
-familia GPT-6. Si la concordancia no alcanza el umbral, el siguiente candidato es
-`gpt-6-sol`, sin tocar código.
+familia GPT-6. Técnicamente, `gpt-6-sol` podría configurarse sin tocar código, pero eso no
+permite cambiar de modelo tras una medición. Cambiar de modelo después de ver una
+concordancia baja sería elegir el resultado. El primer run válido es vinculante, y
+cualquier otro modelo sería una medición nueva, prerregistrada como tal.
 
 `OPENAI_REASONING_EFFORT` fija `reasoning.effort`. Vacío omite el parámetro y deja el
 valor por defecto del modelo. Es un parámetro que afecta al resultado, así que se
@@ -71,8 +84,10 @@ decidir por sí solo cuál clasifica. Se mantiene el interruptor
 
 ### 4. El adapter de Gemini se conserva sin cambios
 
-`gemini.py`, `google-genai` y las variables `GEMINI_*` se mantienen, porque S8-E2-R2 y
-EX-09 se ejecutan contra Gemini y su evidencia archiva el commit del código. Por eso el
+`gemini.py`, `google-genai` y las variables `GEMINI_*` se mantienen como código
+histórico. S8-E2 y la preparación no ejecutada de EX-09 archivan el commit de ese código,
+y retirarlo impediría releerlo tal como se prerregistró. No vuelven a ejecutarse contra
+Gemini. Por eso el
 adapter de OpenAI **replica** el esquema y el texto de entrada en lugar de importarlos
 de `gemini.py`. Una **prueba de paridad** exige que ambos sean idénticos: cambiar de
 proveedor no puede cambiar de paso lo que se le pregunta al modelo.
@@ -107,7 +122,7 @@ proveedores. `base.py` lee el `.env` local, y la clave real de OpenAI vive ahí.
 | Amazon Bedrock / Azure AI Foundry | Aportan contrato empresarial y región, a costa de configurar IAM. Sin exigencia institucional que lo justifique hoy |
 | Modelo abierto autoalojado (vLLM/Ollama) | Máxima privacidad, pero añade operación de GPU que el proyecto no puede sostener |
 | DeepSeek (API oficial) | Datos procesados y almacenados en China, sin retención cero. Su visión era experimental (agosto de 2026) y su modo JSON no garantiza el esquema |
-| Retirar Gemini por completo | Dejaría inejecutables las corridas prerregistradas S8-E2-R2 y EX-09 |
+| Retirar Gemini por completo | Borraría el código que archivan S8-E2 y la preparación histórica de EX-09 |
 | Importar esquema y texto desde `gemini.py` | Acopla el adapter nuevo al SDK de Google y a un archivo que forma parte de evidencia archivada |
 
 ## Consecuencias
@@ -117,14 +132,20 @@ proveedores. `base.py` lee el `.env` local, y la clave real de OpenAI vive ahí.
 - **La concordancia de CA-4 debe medirse de nuevo contra OpenAI.** Los resultados
   obtenidos o prerregistrados contra Gemini no se transfieren. La medición exige un
   protocolo prerregistrado propio, con modelo, esfuerzo de razonamiento, timeout,
-  dataset y prompt fijados. Esa decisión metodológica queda pendiente y no forma parte de
-  este ADR.
-- `gpt-6-luna` es un alias sin *snapshot* fechado: OpenAI puede actualizarlo. Toda
-  medición registra la fecha junto al modelo.
-- Retención: `store=False` evita que la respuesta quede guardada, pero la política de
-  datos de la API puede conservar registros durante un tiempo limitado para vigilar
-  abusos, salvo acuerdo de retención cero con OpenAI. Hay que confirmarlo antes de
-  activar la clasificación con reportes reales.
+  dataset y prompt fijados. Esa decisión metodológica no forma parte de este ADR. Su
+  propuesta, sin aprobar, está en `docs/PROGRESO_SPRINTS.md` (S11, P5–P7).
+- La documentación oficial lista para `gpt-6-luna` un único *snapshot* con el mismo ID y
+  sin fecha, así que no hay versión fechada que fijar. Toda medición registra la fecha y
+  el `model` que devuelve cada respuesta. `reasoning.effort` vacío delega en el valor por
+  defecto del modelo, hoy `medium`, y `detail: "auto"` delega en su tamaño de imagen por
+  defecto. Una medición debe fijar ambos de forma explícita.
+- Retención: con `store=False`, `/v1/responses` no guarda estado de aplicación. Aun así,
+  OpenAI conserva los datos 30 días para vigilar abusos, salvo que la organización tenga
+  retención cero (ZDR), que requiere aprobación previa de OpenAI. Las imágenes que el
+  clasificador marca como posible CSAM se retienen incluso con ZDR. `store=False` no
+  equivale, por tanto, a retención cero. Hay que resolverlo antes de activar la
+  clasificación con reportes reales. Fuente: guía oficial «Your data», consultada el
+  26/09/2026.
 - Conviven dos SDK de proveedor en `requirements/base.txt`. El de OpenAI trae `httpx2`,
   un paquete distinto del `httpx` que usa `google-genai`; no entran en conflicto.
 - Un entorno que tuviera `AI_CLASSIFICATION_ENABLED=true` con solo `GEMINI_*` deja de
