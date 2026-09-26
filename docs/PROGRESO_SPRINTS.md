@@ -3144,6 +3144,120 @@ EX-09 OpenAI: PREPARED · NOT EXECUTED · READY FOR PROVIDER PREFLIGHT
    - `limits_check` con el tier, los límites y el crédito observados;
    - la clave temporal del run.
 
+### S11-C3 / EX-09 OpenAI — gate previo, preflight del proveedor y política de TPM (26/09/2026)
+
+En toda esta secuencia no se hizo ninguna llamada a OpenAI ni a Gemini, no se usó ninguna
+credencial real, no se creó ningún `run_id` y no se generó evidencia experimental.
+
+**Gate previo sobre `73b6b19`.**
+
+- **Working tree.** `docs/Cuestionario_Ciudadania_Activa_Anexo_G_v2.docx`, ajeno a S11, se aisló
+  fuera del checkout sin modificarlo ni versionarlo (SHA-256 `67c4f204…4c6e`). Vuelve a `docs/`
+  cuando termine EX-09.
+- **Re-atestación P02/P03.** Se repitió con el procedimiento oficial (`s11_verify_custody`
+  prepare → complete → attest, en contenedores separados), la misma clave de época
+  (`7205a04f93cc3da9`) y el ID `s11-custody-20260926-p02p03-v7`, ligado a `73b6b19`. Resultado:
+  `PASS`.
+  - Cambiaron 8 fuentes desde la v6, no 6: además de las cuatro de la integración, `constants.py`
+    y `manifest.py`, cambiaron `evidence.py` y `runtime.py` en `73e5037`. Ese cambio añade
+    `rolling_checksums=True` por defecto y no altera `S11-CUSTODY-v1.0`.
+  - La v6 (`5895329`) se conserva byte a byte como atestación histórica.
+- **Preflight del proveedor.** Quedó `NOT_DEMONSTRATED`: no había clave temporal, y el
+  `OPENAI_API_KEY` productivo no se usa. Además, el único registro de límites exigía `start`, es
+  decir, un `run_id`.
+
+**Preflight sin `run_id` (`7c76d8f`).** El subcomando `provider-preflight` es un gate
+administrativo previo a `start`. Repite el preflight local y recoge las atestaciones del operador
+leídas en la consola: tier, RPM, TPM, RPD (presente, ausente o desconocido), crédito, gasto y
+retención.
+
+- No crea `run_id`, manifest ni evidencia, no escribe en `var/s11-runs/` y no llama al proveedor.
+- La clave temporal es opcional y sólo se registra su huella.
+- Lo no atestado queda `UNKNOWN`.
+- El modelo queda `configured_model = gpt-6-luna` con `availability = NOT_DEMONSTRATED`.
+- El run conserva su propio `limits_check` custodiado.
+
+#### Decisión metodológica: política de TPM para EX-09 OpenAI (26/09/2026)
+
+**Problema.** TPM se mide en tokens, y antes del run sólo se conocen los bytes exactos de las 28
+entradas: 158 866 bytes UTF-8 en total y 5 715 como máximo por petición. No hay tokens de entrada
+exactos:
+
+- no hay tokenizador local del modelo;
+- el SDK fijado sí ofrece un contador oficial (`POST /v1/responses/input_tokens`, sin
+  generación), pero usarlo exige enviar el prompt de clasificación y los casos, que el preflight
+  prohíbe.
+
+Tampoco hay tope de salida: P6 no congela `max_output_tokens`, el parámetro que en la Responses
+API acota a la vez la salida visible y los tokens de razonamiento.
+
+**Decisión: `TPM policy = TPM_STRICT_DEMONSTRATED_MAXIMUM`.** TPM es `PASS` sólo si se demuestra
+que el consumo máximo posible de la sesión cabe en el límite. La regla `TPM_PRECHECK` se adopta
+como clasificación, y sólo `PASS` cuenta para el gate:
+
+| Estado | Condición |
+|---|---|
+| `UNKNOWN` | límite no atestado |
+| `NOT_DEMONSTRATED` | sin tokens de entrada exactos por petición, o cota máxima por encima del límite |
+| `FAIL` | una sola petición supera el límite: nunca cabe en un minuto |
+| `COMPATIBLE_MINIMUM_ONLY` | el mínimo cabe, pero la salida y el razonamiento no están acotados |
+| `PASS` | entrada total + 28 × `max_output_tokens` ≤ límite: la sesión entera cabría en un minuto |
+
+- **`FAIL` usa sólo el máximo por petición.** La entrada total no es un mínimo por minuto,
+  porque la sesión puede repartirse en varios minutos.
+- **Los bytes nunca se convierten en tokens.** El preflight los informa marcados
+  `used_in_tpm_evaluation: false`.
+
+**Por qué no la política de mínimo verificable:**
+
+1. Su condición previa, el consumo mínimo de entrada, no se obtiene sin una llamada que envíe el
+   prompt y el dataset.
+2. Aun cumplida, sólo demuestra que el mínimo cabe. Si abriera el gate, convertiría una
+   incertidumbre en garantía de capacidad. Si no lo abre, no aporta nada frente a la política
+   estricta.
+
+`COMPATIBLE_MINIMUM_ONLY` se conserva como estado informativo, nunca como `PASS`.
+
+**Efecto metodológico.** `S11A-v1.1` y `s11-ex09-openai-v1` no cambian y siguen congeladas: el
+dataset, el prompt, el esquema, CA-4, los 28 casos, la sesión única, el timeout y los reintentos
+son válidos. Pero bajo `s11-ex09-openai-v1` TPM sólo puede ser `UNKNOWN` o `NOT_DEMONSTRATED`,
+así que **EX-09 OpenAI no puede alcanzar `READY_FOR_EXECUTION` con este protocolo**. P6 es
+insuficiente para demostrar TPM.
+
+**Propuesta, no adoptada ni ejecutada.** Una versión `S11A-v1.2` con `s11-ex09-openai-v2`, que
+conservaría `S11A-v1.1` / `s11-ex09-openai-v1` como protocolo histórico congelado, en estado
+`PREPARED · NOT EXECUTED`. Tendría que fijar y justificar por escrito, antes de cualquier run y
+sin usar resultados de EX-09:
+
+- **`max_output_tokens = N`.** Una respuesta cortada termina `incomplete` → `provider_incomplete`
+  → run `NOT_DEMONSTRATED`, nunca `FAIL`. Por eso `N` cambia el tratamiento experimental y exige
+  una versión nueva.
+- **Tokens de entrada exactos.** Autorizar el contador del proveedor para las 28 peticiones como
+  paso previo al run, aceptando que envía el prompt y los casos sintéticos bajo la misma
+  retención.
+- **La contabilidad de TPM del proveedor.** Cómo cuenta las peticiones con tope de salida.
+
+Esa versión sólo se justifica si se decide ejecutar EX-09 con demostración de TPM.
+
+La alternativa que no cambia el protocolo es degradar TPM de criterio del gate a riesgo residual
+aceptado. Un 429 por TPM invalida el run (`rate_limit_429` → `NOT_DEMONSTRATED`) y no puede sesgar
+CA-4. Esta opción contradice el criterio vigente del gate («TPM compatible») y queda como decisión
+humana explícita, no adoptada aquí.
+
+**Estado resultante.**
+
+```text
+S11-C2: CLOSED
+S11-C: OPEN
+EX-09 Gemini: PREPARED · NOT EXECUTED · HISTORICAL
+EX-09 OpenAI: PREPARED · NOT EXECUTED
+Methodology: S11A-v1.1 · Protocol: s11-ex09-openai-v1
+P02/P03: PASS (s11-custody-20260926-p02p03-v7)
+TPM policy: TPM_STRICT_DEMONSTRATED_MAXIMUM
+Provider preflight: NOT_DEMONSTRATED
+READY_FOR_EXECUTION: FALSE
+```
+
 ### Pruebas realizadas
 
 - Gate inicial: rama `main`, HEAD exacto y working tree limpio.

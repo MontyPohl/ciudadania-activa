@@ -7,6 +7,7 @@ es inventada. Nada de esto es evidencia de EX-09.
 """
 
 import hashlib
+import inspect
 import json
 import re
 import shutil
@@ -983,24 +984,161 @@ def test_an_applicable_rpd_must_admit_the_28_requests(ctx, rpd, status):
     assert ("rpd" in report["failed"]) is (status == "FAIL")
 
 
-def test_tpm_is_never_assumed_compatible(ctx):
-    unknown = _provider_preflight(ctx, {KEY_ENV: KEY}, **{**FAVORABLE, "tpm": None})
-    assert unknown["parameters"]["tpm"]["status"] == "UNKNOWN"
-    assert unknown["ready_for_execution"] is False
+#: Conteos exactos inyectados sólo para ejercitar la regla. Son ficticios: bajo
+#: `s11-ex09-openai-v1` no existe un mecanismo legítimo para obtenerlos antes del run.
+EXACT_INPUT = [1_000] * 27 + [1_500]
 
-    known = _provider_preflight(ctx, {KEY_ENV: KEY}, **FAVORABLE)
-    tpm = known["parameters"]["tpm"]
+
+def _decide(tpm, input_tokens=None, **overrides):
+    return ex09_openai.evaluate_provider_preflight(
+        local={"gate": ex09_openai.READY_FOR_PROVIDER_PREFLIGHT},
+        attestation=ex09_openai.ProviderAttestation(**{**FAVORABLE, "tpm": tpm, **overrides}),
+        credential_available=True,
+        credential_fingerprint_value=ex09_openai.credential_fingerprint(KEY),
+        input_payload=None,
+        input_tokens=input_tokens,
+    )
+
+
+def test_an_unknown_tpm_limit_stays_unknown(ctx):
+    report = _provider_preflight(ctx, {KEY_ENV: KEY}, **{**FAVORABLE, "tpm": None})
+    tpm = report["parameters"]["tpm"]
+
+    assert tpm["status"] == "UNKNOWN"
+    assert tpm["limit"] == "unknown"
+    assert report["ready_for_execution"] is False
+    # Ni con tokens exactos: sin límite atestado no hay comparación posible.
+    assert _decide(None, EXACT_INPUT)["parameters"]["tpm"]["status"] == "UNKNOWN"
+
+
+def test_a_known_tpm_without_exact_input_tokens_is_not_demonstrated(ctx):
+    before = _tree(ctx.store.root)
+    report = _provider_preflight(ctx, {KEY_ENV: KEY}, **FAVORABLE)
+    tpm = report["parameters"]["tpm"]
+
+    assert report["tpm_policy"] == "TPM_STRICT_DEMONSTRATED_MAXIMUM"
+    assert tpm["policy"] == "TPM_STRICT_DEMONSTRATED_MAXIMUM"
     assert tpm["limit"] == "present"
     assert tpm["value"] == 500_000
-    assert tpm["compatibility"] == "NOT_DEMONSTRATED"
-    assert tpm["consumption"]["requests"] == 28
-    assert tpm["consumption"]["input_utf8_bytes_total"] > 0
-    assert tpm["consumption"]["unit"] == "UTF-8 bytes, not tokens"
-    # Todo lo demás atestado a favor: TPM es lo único pendiente.
-    assert known["failed"] == []
-    assert known["pending"] == ["tpm"]
-    assert known["provider_preflight"] == "NOT_DEMONSTRATED"
-    assert known["ready_for_execution"] is False
+    assert tpm["status"] == "NOT_DEMONSTRATED"
+    assert tpm["input_tokens"]["status"] == "UNAVAILABLE"
+    assert "/v1/responses/input_tokens" in tpm["input_tokens"]["reason"]
+    assert tpm["demonstrable_minimum_tokens"] is None
+    # Todo lo demás atestado a favor: TPM es lo único pendiente y no hay run.
+    assert report["failed"] == []
+    assert report["pending"] == ["tpm"]
+    assert report["provider_preflight"] == "NOT_DEMONSTRATED"
+    assert report["ready_for_execution"] is False
+    assert report["run_id"] is None
+    assert _tree(ctx.store.root) == before
+
+
+def test_a_single_request_above_the_tpm_limit_is_fail():
+    report = _decide(1_499, EXACT_INPUT)
+
+    assert report["parameters"]["tpm"]["status"] == "FAIL"
+    assert report["parameters"]["tpm"]["demonstrable_minimum_tokens"] == 1_500
+    assert "tpm" in report["failed"]
+    assert report["provider_preflight"] == "FAIL"
+    # La entrada total (28 500) supera el límite, pero la sesión puede repartirse en
+    # varios minutos: eso no demuestra un fallo.
+    spread = _decide(1_500, EXACT_INPUT)["parameters"]["tpm"]
+    assert spread["status"] == "COMPATIBLE_MINIMUM_ONLY"
+
+
+def test_a_tpm_above_the_demonstrable_minimum_is_compatible_minimum_only():
+    tpm = _decide(500_000, EXACT_INPUT)["parameters"]["tpm"]
+
+    assert tpm["status"] == "COMPATIBLE_MINIMUM_ONLY"
+    assert tpm["input_tokens"] == {"status": "EXACT", "total": 28_500, "max_request": 1_500}
+    assert tpm["session_maximum_tokens"] is None
+
+
+def test_minimum_compatibility_never_passes_the_gate():
+    report = _decide(500_000, EXACT_INPUT)
+
+    assert report["parameters"]["tpm"]["status"] == "COMPATIBLE_MINIMUM_ONLY"
+    assert report["failed"] == []
+    assert report["pending"] == ["tpm"]
+    assert report["provider_preflight"] == "NOT_DEMONSTRATED"
+    assert report["ready_for_execution"] is False
+    assert report["gate"] == "NOT_READY_FOR_EXECUTION"
+
+
+def test_output_and_reasoning_are_unbounded_under_the_frozen_protocol():
+    assert ex09_openai.PROTOCOL_MAX_OUTPUT_TOKENS is None
+    tpm = _decide(500_000, EXACT_INPUT)["parameters"]["tpm"]
+
+    assert tpm["output_bound"] == {
+        "max_output_tokens": None,
+        "status": "UNBOUNDED",
+        "covers": "visible output and reasoning tokens",
+    }
+
+
+def test_the_frozen_protocol_sends_no_max_output_tokens(dataset):
+    assert "max_output_tokens" not in ex09_openai.PROTOCOL.fields()
+    assert "max_output_tokens" not in ex09_openai.PREREGISTERED
+    assert "max_output_tokens" in ex09_openai._FORBIDDEN_REQUEST_FIELDS
+    captured = list(ex09_openai._captured_requests(dataset))
+    assert len(captured) == 28
+    for case, _request, params, failure in captured:
+        assert failure is None, case.id
+        assert "max_output_tokens" not in params, case.id
+
+
+def test_the_strict_policy_passes_only_a_bounded_session_maximum():
+    # Un protocolo hipotético con tope de salida, no s11-ex09-openai-v1.
+    bounded = ex09_openai.evaluate_tpm(
+        tpm_limit=500_000, input_tokens=EXACT_INPUT, max_output_tokens=10_000
+    )
+    assert bounded["session_maximum_tokens"] == 28_500 + 28 * 10_000
+    assert bounded["status"] == "PASS"
+    above = ex09_openai.evaluate_tpm(
+        tpm_limit=300_000, input_tokens=EXACT_INPUT, max_output_tokens=10_000
+    )
+    assert above["status"] == "NOT_DEMONSTRATED"
+
+
+@pytest.mark.parametrize(
+    ("input_tokens", "max_output_tokens"),
+    [
+        (EXACT_INPUT[:27], None),
+        ([0] + EXACT_INPUT[1:], None),
+        ([True] + EXACT_INPUT[1:], None),
+        (EXACT_INPUT, 0),
+    ],
+)
+def test_malformed_token_counts_are_rejected(input_tokens, max_output_tokens):
+    with pytest.raises(ex09_openai.Ex09OpenAiError):
+        ex09_openai.evaluate_tpm(
+            tpm_limit=500_000, input_tokens=input_tokens, max_output_tokens=max_output_tokens
+        )
+
+
+@pytest.mark.parametrize(("payload_bytes", "tpm"), [(10**12, 1), (1, 10**9)])
+def test_bytes_are_never_converted_to_tokens(ctx, monkeypatch, payload_bytes, tpm):
+    parameters = set(inspect.signature(ex09_openai.evaluate_tpm).parameters)
+    assert parameters == {"tpm_limit", "input_tokens", "max_output_tokens", "total_requests"}
+    monkeypatch.setattr(
+        ex09_openai,
+        "session_input_measure",
+        lambda dataset: {
+            "requests": 28,
+            "input_utf8_bytes_total": payload_bytes,
+            "input_utf8_bytes_max_request": payload_bytes,
+            "unit": "UTF-8 bytes, not tokens",
+            "used_in_tpm_evaluation": False,
+        },
+    )
+    tpm_report = _provider_preflight(ctx, {KEY_ENV: KEY}, **{**FAVORABLE, "tpm": tpm})[
+        "parameters"
+    ]["tpm"]
+
+    # Ni un volumen absurdo produce FAIL ni uno mínimo produce PASS.
+    assert tpm_report["status"] == "NOT_DEMONSTRATED"
+    assert tpm_report["input_payload"]["input_utf8_bytes_total"] == payload_bytes
+    assert tpm_report["input_payload"]["used_in_tpm_evaluation"] is False
 
 
 @pytest.mark.parametrize(
@@ -1041,11 +1179,13 @@ def test_the_model_is_configured_but_its_availability_is_not_demonstrated(ctx):
 
 def test_provider_preflight_sends_no_classification_request(ctx, monkeypatch):
     from openai.resources.responses import Responses
+    from openai.resources.responses.input_tokens import InputTokens
 
     def forbidden(*args, **kwargs):
         raise AssertionError("El preflight del proveedor no puede llamar al proveedor.")
 
     monkeypatch.setattr(Responses, "create", forbidden)
+    monkeypatch.setattr(InputTokens, "count", forbidden)
     monkeypatch.setattr(ex09_openai, "run_openai_session", forbidden)
     report = _provider_preflight(ctx, {KEY_ENV: KEY}, **FAVORABLE)
 

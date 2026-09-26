@@ -119,12 +119,25 @@ proveedor**: sólo imprime su resultado, como el preflight local.
   NOT_DEMONSTRATED`. No se hace ninguna petición de prueba: la primera petición del run
   demuestra el modelo, la respuesta, el request id y el modelo servido. La validez de la
   clave tampoco se demuestra antes.
-- **TPM.** Se registra el límite, pero su compatibilidad queda `NOT_DEMONSTRATED`: P6
-  excluye `max_output_tokens` y los tokens de razonamiento no están acotados, así que el
-  consumo de la sesión no se deriva del protocolo. El preflight informa, como base para
-  una regla futura, el tamaño exacto en bytes UTF-8 de lo que recibiría el modelo en
-  las 28 peticiones (no son tokens). Mientras no exista una regla metodológica de
-  consumo, `ready_for_execution` no puede ser `true`.
+- **TPM, política `TPM_STRICT_DEMONSTRATED_MAXIMUM`** (decisión del 26/09/2026 en
+  `docs/PROGRESO_SPRINTS.md`). TPM sólo es `PASS` si se demuestra que el consumo máximo
+  posible de la sesión cabe en el límite. Los estados son:
+  - `UNKNOWN`: límite no atestado.
+  - `NOT_DEMONSTRATED`: no hay tokens de entrada exactos por petición.
+  - `FAIL`: una sola petición supera el límite y nunca cabe en un minuto.
+  - `COMPATIBLE_MINIMUM_ONLY`: el mínimo cabe, pero la salida y el razonamiento no están
+    acotados. **No es `PASS`** y no abre el gate.
+  - `PASS`: la entrada total más 28 × `max_output_tokens` cabe en el límite.
+
+  Bajo `s11-ex09-openai-v1`, TPM queda siempre `UNKNOWN` o `NOT_DEMONSTRATED`, y
+  `ready_for_execution` no puede ser `true`:
+  - no hay tokens de entrada exactos: no hay tokenizador local del modelo, y el contador
+    del proveedor (`POST /v1/responses/input_tokens`) enviaría el prompt y el dataset, que
+    este preflight prohíbe;
+  - P6 no fija `max_output_tokens`, que acotaría la salida visible y el razonamiento.
+
+  El preflight informa el tamaño exacto en bytes UTF-8 de las 28 entradas, marcado
+  `used_in_tpm_evaluation: false`: los bytes nunca se convierten en tokens.
 
 `provider_preflight` es `FAIL` si algún criterio falla (`rpm` o `rpd` < 28, crédito
 insuficiente, tope de gasto alcanzado, retención `extended`); `PASS` sólo si todos los

@@ -631,10 +631,88 @@ _MODEL_AVAILABILITY_NOTE = (
     "sin llamada al proveedor no se demuestra; la primera petición del run demuestra a "
     "la vez el modelo, la respuesta, el request id y el modelo servido"
 )
-_TPM_NOTE = (
-    "consumo previsto no derivable del protocolo: P6 excluye max_output_tokens y los "
-    "tokens de razonamiento no están acotados; no se inventa una cifra"
+
+#: Política de TPM decidida el 26/09/2026 (`docs/PROGRESO_SPRINTS.md`). TPM sólo es `PASS`
+#: si se demuestra que el consumo máximo posible de la sesión cabe en el límite.
+TPM_POLICY = "TPM_STRICT_DEMONSTRATED_MAXIMUM"
+TPM_COMPATIBLE_MINIMUM_ONLY = "COMPATIBLE_MINIMUM_ONLY"
+#: P6 no congela `max_output_tokens`, que en la Responses API acota a la vez la salida
+#: visible y los tokens de razonamiento. Bajo `s11-ex09-openai-v1` no hay tope.
+PROTOCOL_MAX_OUTPUT_TOKENS: int | None = None
+#: Por qué no hay tokens de entrada exactos antes del run. Nunca se derivan de bytes.
+INPUT_TOKENS_UNAVAILABLE = (
+    "no local tokenizer for the model; the provider counter (POST /v1/responses/input_tokens) "
+    "would send the prompt and the dataset, which the provider preflight forbids"
 )
+
+
+def evaluate_tpm(
+    *,
+    tpm_limit: int | None,
+    input_tokens: Sequence[int] | None,
+    max_output_tokens: int | None,
+    total_requests: int = MINIMUM_REQUESTS,
+) -> dict[str, Any]:
+    """Aplica `TPM_STRICT_DEMONSTRATED_MAXIMUM`. Sólo `PASS` cuenta para el gate.
+
+    - Límite desconocido: `UNKNOWN`.
+    - Sin tokens de entrada exactos por petición: `NOT_DEMONSTRATED`.
+    - Una sola petición supera el límite: `FAIL`, porque nunca cabe en un minuto. Es el
+      único mínimo demostrable: la sesión puede repartirse en varios minutos, así que la
+      entrada total no lo es.
+    - Sin tope de salida: `COMPATIBLE_MINIMUM_ONLY`. El mínimo cabe, pero la salida y el
+      razonamiento no están acotados y la sesión no queda garantizada.
+    - Entrada total más `total_requests × max_output_tokens` dentro del límite: `PASS`,
+      porque la sesión entera cabría en un solo minuto.
+    - En otro caso, `NOT_DEMONSTRATED`: superar esa cota no demuestra un fallo.
+    """
+    if input_tokens is not None and (
+        len(input_tokens) != total_requests
+        or any(type(value) is not int or value <= 0 for value in input_tokens)
+    ):
+        raise Ex09OpenAiError(
+            f"Los tokens de entrada deben ser {total_requests} enteros positivos exactos."
+        )
+    if max_output_tokens is not None and (
+        type(max_output_tokens) is not int or max_output_tokens <= 0
+    ):
+        raise Ex09OpenAiError("max_output_tokens debe ser un entero positivo.")
+    minimum = max(input_tokens) if input_tokens is not None else None
+    maximum = (
+        sum(input_tokens) + total_requests * max_output_tokens
+        if input_tokens is not None and max_output_tokens is not None
+        else None
+    )
+    if tpm_limit is None:
+        status = STATUS_UNKNOWN
+    elif minimum is None:
+        status = STATUS_NOT_DEMONSTRATED
+    elif minimum > tpm_limit:
+        status = CHECK_FAIL
+    elif maximum is None:
+        status = TPM_COMPATIBLE_MINIMUM_ONLY
+    elif maximum <= tpm_limit:
+        status = CHECK_PASS
+    else:
+        status = STATUS_NOT_DEMONSTRATED
+    return {
+        "status": status,
+        "policy": TPM_POLICY,
+        "limit": "present" if tpm_limit is not None else "unknown",
+        "value": tpm_limit,
+        "input_tokens": (
+            {"status": "EXACT", "total": sum(input_tokens), "max_request": minimum}
+            if input_tokens is not None
+            else {"status": "UNAVAILABLE", "reason": INPUT_TOKENS_UNAVAILABLE}
+        ),
+        "output_bound": {
+            "max_output_tokens": max_output_tokens,
+            "status": "BOUNDED" if max_output_tokens is not None else "UNBOUNDED",
+            "covers": "visible output and reasoning tokens",
+        },
+        "demonstrable_minimum_tokens": minimum,
+        "session_maximum_tokens": maximum,
+    }
 
 
 @dataclass(frozen=True, slots=True)
@@ -672,7 +750,8 @@ def session_input_measure(dataset: EvaluationDataset) -> dict[str, Any]:
     """Tamaño exacto de lo que recibiría el modelo en las 28 peticiones, sin enviarlas.
 
     Suma las instrucciones, el texto del usuario y el esquema de cada petición. Son
-    bytes UTF-8, no tokens: sirven de base para una regla de consumo, no la sustituyen.
+    bytes UTF-8, no tokens. Es un dato informativo: `evaluate_tpm` no lo recibe, porque
+    no existe una conversión demostrable de bytes a tokens.
     """
     sizes = []
     for case, _request, params, failure in _captured_requests(dataset):
@@ -691,6 +770,7 @@ def session_input_measure(dataset: EvaluationDataset) -> dict[str, Any]:
         "input_utf8_bytes_total": sum(sizes),
         "input_utf8_bytes_max_request": max(sizes, default=0),
         "unit": "UTF-8 bytes, not tokens",
+        "used_in_tpm_evaluation": False,
     }
 
 
@@ -704,13 +784,15 @@ def evaluate_provider_preflight(
     attestation: ProviderAttestation,
     credential_available: bool,
     credential_fingerprint_value: str | None,
-    consumption: Mapping[str, Any] | None,
+    input_payload: Mapping[str, Any] | None,
+    input_tokens: Sequence[int] | None = None,
 ) -> dict[str, Any]:
     """Decide el preflight del proveedor. `PASS` sólo si todo criterio está demostrado.
 
     Un criterio que falla (`FAIL`, `BLOCKED`) hace el preflight `FAIL`; uno que no se
     pudo demostrar lo deja `NOT_DEMONSTRATED`. La disponibilidad del modelo nunca es
-    criterio: se demuestra en la primera petición del run.
+    criterio: se demuestra en la primera petición del run. TPM sólo cuenta como `PASS`;
+    `COMPATIBLE_MINIMUM_ONLY` queda pendiente.
     """
     minimum = MINIMUM_REQUESTS
     local_ok = local.get("gate") == READY_FOR_PROVIDER_PREFLIGHT
@@ -729,7 +811,11 @@ def evaluate_provider_preflight(
             value=attestation.rpd,
             minimum=minimum,
         )
-    tpm_known = attestation.tpm is not None
+    tpm = evaluate_tpm(
+        tpm_limit=attestation.tpm,
+        input_tokens=input_tokens,
+        max_output_tokens=PROTOCOL_MAX_OUTPUT_TOKENS,
+    )
     parameters = {
         "local_preflight": _parameter(
             CHECK_PASS if local_ok else CHECK_FAIL, gate=local.get("gate")
@@ -754,14 +840,7 @@ def evaluate_provider_preflight(
             minimum=minimum,
         ),
         "rpd": rpd,
-        "tpm": _parameter(
-            STATUS_NOT_DEMONSTRATED if tpm_known else STATUS_UNKNOWN,
-            limit="present" if tpm_known else "unknown",
-            value=attestation.tpm,
-            compatibility=STATUS_NOT_DEMONSTRATED if tpm_known else STATUS_UNKNOWN,
-            consumption=dict(consumption) if consumption else None,
-            note=_TPM_NOTE,
-        ),
+        "tpm": {**tpm, "input_payload": dict(input_payload) if input_payload else None},
         "spend_limit": _parameter(
             {"absent": CHECK_PASS, "compatible": CHECK_PASS, "reached": CHECK_FAIL}.get(
                 attestation.spend_limit, STATUS_UNKNOWN
@@ -838,7 +917,7 @@ def run_provider_preflight(
         mounts_path=mounts_path,
     )
     key = read_credential({PROVIDER_KEY_ENV: environ.get(PROVIDER_KEY_ENV, "")})
-    consumption = None
+    input_payload = None
     try:
         _identity, dataset = build_identity(
             git_sha=git_sha,
@@ -846,7 +925,7 @@ def run_provider_preflight(
             evidence_mode=evidence_mode,
             dataset_path=dataset_path,
         )
-        consumption = session_input_measure(dataset)
+        input_payload = session_input_measure(dataset)
     except Ex09OpenAiError:
         # El preflight local ya registra el fallo de los inputs y no queda listo.
         pass
@@ -855,7 +934,9 @@ def run_provider_preflight(
         attestation=attestation,
         credential_available=key is not None,
         credential_fingerprint_value=credential_fingerprint(key) if key else None,
-        consumption=consumption,
+        input_payload=input_payload,
+        # Sin mecanismo legítimo sin llamada (INPUT_TOKENS_UNAVAILABLE), no se inyectan.
+        input_tokens=None,
     )
     report = {
         "schema_version": "s11c3-ex09-openai-provider-preflight-v1",
@@ -870,6 +951,7 @@ def run_provider_preflight(
         "persisted": False,
         "provider_calls": 0,
         "classification_requests": 0,
+        "tpm_policy": TPM_POLICY,
         "provider_config": {
             "provider": PROTOCOL.provider,
             "api": PROTOCOL.api,
