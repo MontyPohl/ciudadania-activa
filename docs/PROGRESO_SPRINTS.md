@@ -1593,8 +1593,8 @@ intentos previos `NOT_DEMONSTRATED`—, `EX-03` en `PASS` —run
 `s11-545491b8-01fe-55e6-8f08-1a0ebbdca8d3`, `S11C2_EX07_PASS`—; **S11-C2 cerrado** el 23/09/2026;
 S11-C abierto con EX-09 y EX-10 pendientes. Desde el 26/09/2026 el proveedor de EX-09 es OpenAI:
 la preparación Gemini (`73e5037`) queda histórica y sin ejecutar. El protocolo
-`s11-ex09-openai-v1` y la enmienda `S11A-v1.1` están congelados; EX-09 OpenAI no está preparado
-ni ejecutado
+`s11-ex09-openai-v1` y la enmienda `S11A-v1.1` están congelados. EX-09 OpenAI está preparado
+(`f88c0a2`) y listo para el preflight del proveedor, pero no se ha ejecutado
 **Fecha real de cierre:** —
 
 > **Rebaseline S11-A (21/09/2026).** El título histórico “Créditos, ranking del mes en curso y
@@ -3082,6 +3082,67 @@ EX-09 OpenAI: DEFINED · NOT PREPARED · NOT EXECUTED
 
 La decisión sobre el manifiesto de HT-5 y la retención para reportes reales son gates aparte que no
 bloquean EX-09.
+
+### S11-C3 / EX-09 OpenAI — integración y preparación del ejecutor (26/09/2026)
+
+- **Baseline:** `main@440cba4492c94b6307f3dadbe9c34061ec006f84`. No se hizo ninguna llamada a
+  OpenAI ni a Gemini, no se usó ninguna credencial real, no se creó ningún `run_id` oficial y no
+  se generó evidencia experimental.
+- **Integración.** `d355ed6` hace un merge `--no-ff` de `feat/ai-openai-provider` y conserva
+  `1e71d06` y `9fd05d6`. No hubo conflictos: `main` sólo había cambiado documentos de S11.
+- **SDK.** `52d7ddd` fija `openai==3.19.2`, la versión instalada y verificada, junto con
+  `httpx2` 2.13.1, `pydantic` 2.13.5 y `jiter` 0.17.0. El proyecto no usa lockfile.
+- **`S11A-v1.1` en el harness (`c84b77d`).**
+  - `METHODOLOGY_VERSION` pasa a `S11A-v1.1` y es la versión que registra todo run nuevo.
+  - `S11A-v1.0` sigue siendo válida sólo para los 16 runs históricos, enumerados uno a uno
+    (C1 ×2 y EX-02…EX-08 con sus intentos). Ninguno es de EX-09.
+  - Cualquier otro valor se rechaza, incluidos los parecidos.
+  - `evidence.py` no cambió.
+  - Una prueba valida copias temporales de los 32 manifests históricos reales y comprueba que
+    los originales no se alteran.
+- **Protocolo y sesión (`1b7252b`).** `s11-ex09-openai-v1` queda implementado en
+  `ai_client_app/evaluation/openai_session.py` y reutiliza el dataset, el prompt, el parser y el
+  `compare_case` de CA-4. El adaptador expone `response.id`, `x-request-id` y el `model`
+  servido.
+- **Ejecutor (`f88c0a2`).** `ex09_openai.py`, el comando `s11_ex09_openai`, su lanzador, su
+  compose efímero y el runbook [`S11_EX09_OPENAI_EXECUTOR.md`](runbooks/S11_EX09_OPENAI_EXECUTOR.md).
+  El ejecutor Gemini (`ex09.py`) y su compose no se tocaron.
+- **Verificado en el SDK instalado:**
+  - con `max_retries=0` el bucle hace un solo intento (`range(max_retries + 1)`);
+  - el request id es la cabecera `x-request-id`;
+  - `timeout=60.0` se aplica **por fase** (conexión, lectura, escritura y pool), no como plazo
+    total. Por eso el ejecutor mide la duración total de cada caso e invalida el run si alguno
+    supera 60 s (matriz 2.2 de S11-A).
+- **Preflight local.** Se ejecutó en el contenedor efímero construido con el lanzador desde un
+  checkout limpio de `f88c0a2`, sin red y sin clave del proveedor. Resultado:
+  `READY_FOR_PROVIDER_PREFLIGHT`, con `ready_for_execution=false` y 0 llamadas.
+  - Pasaron: methodology, protocol-frozen, dataset, prompt, schema, sdk-version, request-shape
+    (las 28 peticiones reales construidas sin enviar), image-absence, timeout, retries y
+    environment-boundary (el contenedor no ve `.env` y las credenciales productivas están
+    vacías).
+  - `credential` y `provider-limits` quedan `NOT_EVALUATED` por diseño.
+  - `evidence-root` falló, correctamente, cuando el checkout de verificación estaba en `/tmp`
+    (tmpfs). Pasó con una raíz ext4, que es el sistema de archivos de `var/s11-runs`.
+
+```text
+EX-09 Gemini: PREPARED · NOT EXECUTED · HISTORICAL
+EX-09 OpenAI: PREPARED · NOT EXECUTED · READY FOR PROVIDER PREFLIGHT
+```
+
+**Pendiente antes de ejecutar:**
+
+1. **Working tree limpio.** El lanzador exige `git status --porcelain` vacío.
+   `docs/Cuestionario_Ciudadania_Activa_Anexo_G_v2.docx`, sin seguimiento, lo impide hoy.
+2. **Custodia atestada.** Esta preparación cambió cuatro fuentes atestadas por la custodia al
+   integrar OpenAI (`.env.example`, `settings/base.py`, `settings/test.py`,
+   `requirements/base.txt`) y dos al soportar `S11A-v1.1` (`constants.py`, `manifest.py`). La
+   atestación P02/P03 sigue siendo válida para su commit, pero no describe estas fuentes. Queda
+   para decisión del custodio si debe repetirse antes del run; la verificación no llama al
+   proveedor.
+3. **Preflight del proveedor, a cargo del operador:**
+   - las claves de custodia en la sesión;
+   - `limits_check` con el tier, los límites y el crédito observados;
+   - la clave temporal del run.
 
 ### Pruebas realizadas
 

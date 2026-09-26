@@ -48,7 +48,7 @@ futura.
 ### 1. OpenAI con la Responses API
 
 Se añade `apps/ai_client_app/adapters/openai.py`, que implementa la misma interfaz que
-el adapter de Gemini contra la Responses API del SDK oficial `openai` (serie 3.x):
+el adapter de Gemini contra la Responses API del SDK oficial `openai`, fijado en `3.19.2`:
 
 | Aspecto | Implementación |
 | --- | --- |
@@ -132,8 +132,9 @@ proveedores. `base.py` lee el `.env` local, y la clave real de OpenAI vive ahí.
 - **La concordancia de CA-4 debe medirse de nuevo contra OpenAI.** Los resultados
   obtenidos o prerregistrados contra Gemini no se transfieren. La medición exige un
   protocolo prerregistrado propio, con modelo, esfuerzo de razonamiento, timeout,
-  dataset y prompt fijados. Esa decisión metodológica no forma parte de este ADR. Su
-  propuesta, sin aprobar, está en `docs/PROGRESO_SPRINTS.md` (S11, P5–P7).
+  dataset y prompt fijados. Esa decisión metodológica no forma parte de este ADR: quedó
+  congelada el 26/09/2026 como `s11-ex09-openai-v1`, con la enmienda `S11A-v1.1`
+  (`docs/PROGRESO_SPRINTS.md`, S11).
 - La documentación oficial lista para `gpt-6-luna` un único *snapshot* con el mismo ID y
   sin fecha, así que no hay versión fechada que fijar. Toda medición registra la fecha y
   el `model` que devuelve cada respuesta. `reasoning.effort` vacío delega en el valor por
