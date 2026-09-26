@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from apps.experiments_app.constants import RunStatus
+from apps.experiments_app.constants import METHODOLOGY_VERSION, RunStatus
 from apps.experiments_app.manifest import (
     ArtifactReference,
     ManifestError,
@@ -119,7 +119,7 @@ def create_base_manifest():
 
     return RunManifest(
         schema_version="s11-run-manifest-v1",
-        methodology_version="S11A-v1.0",
+        methodology_version=METHODOLOGY_VERSION,
         run_id="s11-00000000-0000-5000-8000-000000000001",
         git_sha=GIT_SHA,
         git_clean=True,

@@ -10,7 +10,12 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 from .canonical import canonical_json_bytes, sha256_bytes
-from .constants import METHODOLOGY_VERSION, RunStatus
+from .constants import (
+    HISTORICAL_METHODOLOGY_RUN_IDS,
+    HISTORICAL_METHODOLOGY_VERSION,
+    METHODOLOGY_VERSION,
+    RunStatus,
+)
 
 _SHA = re.compile(r"^[0-9a-f]{40}$")
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
@@ -82,8 +87,9 @@ def validate_run_manifest(manifest: RunManifest) -> None:
         raise ManifestError("El manifest contiene strings obligatorios inválidos.")
     if manifest.schema_version != "s11-run-manifest-v1":
         raise ManifestError("schema_version no corresponde al contrato S11.")
-    if manifest.methodology_version != METHODOLOGY_VERSION:
-        raise ManifestError("methodology_version no corresponde al baseline congelado.")
+    methodology_error = methodology_version_error(manifest.methodology_version, manifest.run_id)
+    if methodology_error:
+        raise ManifestError(methodology_error)
     if not _IDENTIFIER.fullmatch(manifest.run_id):
         raise ManifestError("run_id no tiene un formato seguro.")
     if not _SHA.fullmatch(manifest.git_sha):
@@ -137,6 +143,25 @@ def validate_run_manifest(manifest: RunManifest) -> None:
                 raise ManifestError("Un manifest INVALID requiere invalidity_reason.")
         elif manifest.invalidity_reason is not None:
             raise ManifestError("Sólo INVALID admite invalidity_reason.")
+
+
+def methodology_version_error(methodology_version: object, run_id: object) -> str | None:
+    """Por qué `methodology_version` no vale para `run_id`, o `None` si vale.
+
+    La compatibilidad es explícita, versión por versión: `S11A-v1.1` rige para todo
+    run nuevo y `S11A-v1.0` sólo para los runs históricos enumerados. Cualquier otro
+    valor se rechaza, aunque se parezca a una versión S11-A.
+    """
+    if methodology_version == METHODOLOGY_VERSION:
+        return None
+    if methodology_version == HISTORICAL_METHODOLOGY_VERSION:
+        if run_id in HISTORICAL_METHODOLOGY_RUN_IDS:
+            return None
+        return (
+            f"{HISTORICAL_METHODOLOGY_VERSION} sólo es válida para los runs históricos "
+            f"registrados; un run nuevo registra {METHODOLOGY_VERSION}."
+        )
+    return "methodology_version no corresponde a ninguna versión S11-A vigente ni histórica."
 
 
 def _parse_utc_timestamp(value: str, field: str) -> datetime:
