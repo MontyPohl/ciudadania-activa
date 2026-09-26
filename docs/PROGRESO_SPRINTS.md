@@ -3559,6 +3559,340 @@ TPM policy: TPM_RESIDUAL_OPERATIONAL_RISK
 EX-10: pendiente, sin ejecutar
 ```
 
+### Decisión G0 — protocolo de ejecución de EX-10 (26/09/2026)
+
+- **Autoridad:** Monty Emmanuel Pohl Amarilla, autor y custodio.
+- **Estado de la decisión:** redactada a partir del pre-gate de preparación de EX-10 y de la
+  propuesta de resolución que lo siguió. El autor y custodio la aprobó el 26/09/2026, con MD-10 en la
+  opción A. Entra en vigor con el commit documental que la incorpora.
+- **Baseline:** `main@8157235840a10c6ff30097ad3c10959d6a95ddfa`, con el working tree limpio. Durante
+  el pre-gate, la propuesta y este registro no se ejecutó ningún componente de S11, no se levantó
+  Docker, no se creó ningún `run_id`, no se generó evidencia y no se hizo ninguna llamada externa.
+- **Alcance:** fija, antes de cualquier observación, los parámetros de ejecución de EX-10 que S11-A
+  deja abiertos. Es la decisión que S11-C3 anunció para EX-10 («Requiere reglas propias», decisión
+  del 23/09/2026). No modifica `docs/tesis/`, `S11A-v1.1`, HT-1, sus umbrales, el dataset ni la
+  custodia, y no implementa ni prepara el ejecutor.
+
+**Antecedentes.**
+
+- S11-C3 D1: EX-10 se ejecuta en S11-C3, fuera del harness full-stack de C2 y con ejecutor propio.
+  Su salida exige un run oficial válido, con la custodia verificada y la reconciliación registrada
+  en un commit documental.
+- El pre-gate del 26/09/2026 dejó EX-10 en `BLOCKED_BY_METHODOLOGICAL_DECISION`. S11-A fija el
+  endpoint, el dataset, 10 × 5 = 50 requests, la barrera, la ventana de 60 s, el throttle real, el
+  worker con concurrencia 2, la IA fake, los umbrales y la regla HT-1. Deja libres diez puntos que
+  cambian lo que se mide o cómo se clasifica un run (MD-01…MD-10) y cuatro decisiones técnicas
+  (TD-01…TD-04).
+- Hechos verificados en lectura que esta decisión usa:
+  - el overlay S11 sirve el API con `runserver` de Django 5.2: multihilo, HTTP/1.1 y una cola de
+    `accept` de 10. Usa `config.settings.dev`;
+  - el repositorio no fija la concurrencia de gunicorn en producción: `heroku.yml` no pasa
+    `--workers` y no existe `WEB_CONCURRENCY`. Gunicorn no está en la imagen de desarrollo;
+  - la telemetría S11 persiste `http.finished` y `celery.queued` dentro del tiempo de la request, con
+    un `flock` global compartido con el worker y `fsync`;
+  - `process_report_classification` puede terminar sin excepción y sin persistir nada.
+    `AiClassification.model_name` registra el adaptador que clasificó;
+  - en los runs de C2, tras el reset con `flushdb`, las tareas `ai.classify_report` se encolaron,
+    empezaron y terminaron en el worker;
+  - la atestación P02/P03 v7 (`73b6b19`) sigue describiendo las fuentes atestadas de HEAD.
+
+**Identificador.** Protocolo `s11-ex10-v1`: escenario `EX-10`, metodología `S11A-v1.1`, dataset
+`s11-load-v1` (seed `20260921`, SHA-256
+`c6883b59dc861fb07fae730594c929fdd572a9ed71aee6d8b85c87f71ede0acb`). El ejecutor rechaza cualquier
+otro valor. La identidad del run registra además el SHA del commit de esta decisión.
+
+**Invariantes, que no cambian.**
+
+- 10 ciudadanos sintéticos verificados, un VU por ciudadano y 5 requests secuenciales por VU:
+  exactamente 50 requests.
+- Ventana de 60 s abierta por la barrera.
+- Throttle real `report_create = 5/hour`.
+- Un worker Celery no-eager con `--concurrency=2` y la IA fake `s11-deterministic-fake-v1`.
+- 0 reintentos del generador.
+- HT1-01 ≥ 50/min, HT1-02 P50 ≤ 800 ms, HT1-03 P99 ≤ 2 000 ms y HT1-04 estructural.
+- La regla HT-1, los veredictos `PASS`, `FAIL` y `NOT_DEMONSTRATED`, y `S11-CUSTODY-v1.0`.
+
+**Resumen de la resolución.**
+
+| ID | Decisión |
+| --- | --- |
+| MD-01 | Se emiten siempre los 50 requests. Los no iniciados antes de `window_end` se envían igual y nunca cuentan como éxito |
+| MD-02 | Plazo de 60 s por request. El timeout y los errores de transporte son fallos válidos, salvo que el entorno se haya alterado |
+| MD-03 | El denominador del throughput es la ventana de 60 s exactos |
+| MD-04 | El servidor es el `runserver` del overlay S11 atestado, sin cambios |
+| MD-05 | La telemetría sigue activa. La persistencia de `http.finished` y `celery.queued` sale del tiempo medido |
+| MD-06 | Regla booleana de HT1-04, más abajo |
+| MD-07 | Drenaje de hasta 300 s, como límite de vivacidad y no de rendimiento |
+| MD-08 | No hay ensayo full-stack previo |
+| MD-09 | El primer run válido es vinculante. Sólo se reintenta tras `NOT_DEMONSTRATED` |
+| MD-10 | Opción A, elegida por el autor: lazo cerrado sin pausa entre los requests de un VU |
+| TD-01 | Python 3.11, biblioteca estándar |
+| TD-02 | Contenedor efímero del servicio `backend` en la red Compose |
+| TD-03 | Conexión nueva por request, cuerpo precodificado, `t_start` antes del connect y `t_end` tras el último byte |
+| TD-04 | Histograma diagnóstico de 100 ms hasta 2 000 ms |
+
+**Entorno y servidor (MD-04).**
+
+- Se usa el stack del overlay S11 atestado sin modificarlo. El API es `python manage.py runserver
+  0.0.0.0:8000` con `config.settings.dev`. El worker es `celery -A config worker --loglevel=info
+  --concurrency=2`, con `S11_FAKE_AI_ENABLED=true`.
+- Los contenedores `backend` y `worker` se recrean para cada intento antes de `start`, de modo que
+  ningún proceso del sistema bajo prueba haya publicado tareas antes del reset.
+- El resultado mide el API del prototipo en el entorno experimental aislado. No es una medida de
+  capacidad de producción ni de SLA (DIC HT1-01 y HT1-02, «Limitaciones»). El servidor de desarrollo
+  (`runserver`) y `DEBUG=True` se declaran como limitación.
+
+**Generador (TD-01, TD-02 y TD-03).**
+
+- Python 3.11 de la imagen del backend, con biblioteca estándar: `http.client`, `socket`,
+  `threading`, `time.monotonic_ns` y `time.time_ns`. Sin bibliotecas HTTP de terceros, sin pool y con
+  0 reintentos.
+- Se ejecuta en un contenedor efímero del servicio `backend` (`docker compose … run --rm --no-deps
+  backend`) sobre la red Compose. El destino es `backend:8000`, resuelto a IP antes de la barrera.
+  La cabecera `Host` es `backend:8000`.
+- El mismo proceso hace el reset, el fixture y la carga. Los tokens nunca salen de su memoria.
+- Se crean 10 hilos (10 VU), uno por usuario del dataset, cada uno con sus 5 `request_key` en el
+  orden de `sequence_for_user`. En total, 50 requests.
+- Los 50 cuerpos multipart se precodifican antes de la barrera: bytes, `Content-Length` y boundary
+  determinista. Cabeceras: `Authorization: Bearer`, `X-S11-Run-ID`, `X-S11-Scenario-ID: EX-10`,
+  `X-S11-Request-ID` (determinista por `request_key`) y `Connection: close`.
+- Cada request abre una conexión TCP nueva. Cada ítem del plan admite exactamente un envío.
+- Los tokens se emiten después del reset y del fixture y se verifican localmente antes de la
+  barrera, con una vida restante de al menos 10 min.
+
+**Tiempos y ventana (MD-01 y MD-03).**
+
+- `t0` se toma con `monotonic_ns()` dentro de la acción de `threading.Barrier(10)`, que se ejecuta
+  una sola vez, cuando han llegado los 10 VU y antes de liberarlos. `window_end = t0 + 60 000 000 000
+  ns`: la ventana dura exactamente 60 s.
+- `t_start` es `monotonic_ns()` inmediatamente antes de abrir la conexión TCP. `t_end` es
+  `monotonic_ns()` inmediatamente después de leer el último byte del cuerpo de la respuesta. La
+  duración es `t_end − t_start`. En `t0`, `t_start` y `t_end` se registra también el UTC (`time_ns`).
+- Se emiten siempre los 50 requests. Uno que empieza después de `window_end` se envía igualmente,
+  lleva `started_in_window=false` y nunca cuenta como éxito para el throughput.
+
+**Ritmo (MD-10, opción A).** Lazo cerrado sin pausa: cada VU envía su siguiente request
+inmediatamente después de terminar el anterior, sea por respuesta, timeout o error.
+
+**Errores del sistema y del transporte (MD-02).** Son errores capturados del sistema bajo prueba o
+del transporte HTTP/red. Pueden producir un `FAIL` válido.
+
+- Cada request tiene un plazo total de 60 s desde `t_start`. Cada operación del socket usa el tiempo
+  restante y, al vencer, se cierra el socket.
+- Son fallos válidos, y el VU continúa sin reintentar:
+  - `timeout`;
+  - `connection_refused`, `connection_reset`, `broken_pipe`, `protocol_error` e `incomplete_read`;
+  - cualquier HTTP 4xx (incluidos 401, 403, 409 y 429);
+  - cualquier HTTP 5xx.
+- Estos errores sólo convierten el run en `NOT_DEMONSTRATED` si el entorno se alteró durante el run:
+  - la instancia de algún contenedor (ID o `StartedAt`) difiere entre la instantánea previa y la
+    posterior;
+  - el log del backend muestra un reload de `runserver` en el intervalo del run; o
+  - cambió el árbol o la huella del sistema bajo prueba.
+
+**Fallos del generador o del aparato de medida.** Dejan el run en `NOT_DEMONSTRATED`, nunca en
+`FAIL`: la muerte de un hilo, la barrera rota, una excepción interna no atribuible al transporte
+HTTP/red, `t_end < t_start`, la pérdida de resultados o la interrupción del operador después de
+`t0`.
+
+**Éxito, throughput y percentiles.**
+
+- **Éxito** (DIC HT1-01): HTTP 201, más estas condiciones:
+  - el cuerpo es `{id: UUID, status: "CREADO", reward: {impact_points: 20, credits: 20, status:
+    "PENDIENTE"}}`;
+  - existe un único `Report` con ese id, del usuario del VU, cuyo `ReportMedia.file_hash` es el SHA
+    de la imagen del plan;
+  - existe un único `REPORT_CREATED` +20/+20 `PENDIENTE`.
+- **Postcondición:** cada éxito tiene exactamente un `AuditLog report.created`.
+- **Throughput:** `N_ok_window = |{éxito ∧ t_end ≤ window_end}|`, dividido por 1 min (el
+  denominador es la ventana de 60 s exactos). HT1-01 se cumple si `N_ok_window ≥ 50`.
+- **Histograma** (TD-04, sólo diagnóstico): intervalos [a, b) en ms, 20 de 100 ms hasta 2 000; luego
+  [2 000, 5 000), [5 000, 10 000), [10 000, 60 000) y [60 000, ∞). Los fallos se cuentan aparte por
+  clase.
+
+**Estimador de percentiles (decisión explícita del protocolo).** S11-A fija el método nearest-rank
+para HT1-02 y HT1-03, pero no terminaba de especificar el procedimiento de cálculo. Distintas
+convenciones de percentil pueden dar resultados distintos en casos de borde, así que `s11-ex10-v1`
+lo congela:
+
+- El conjunto son las duraciones, en ns, de todos los HTTP 201 del run, dentro o fuera de la
+  ventana, ordenadas de menor a mayor.
+- P50 y P99 usan nearest-rank. Para N > 0:
+  - P50 es el elemento ordenado en el rango `ceil(0.50 × N)`;
+  - P99 es el elemento ordenado en el rango `ceil(0.99 × N)`;
+  - el índice es base 1.
+- Sin interpolación y sin descartar outliers.
+- Si N = 0, P50 y P99 son `NOT_COMPUTABLE`, y HT1-02 y HT1-03 no se cumplen.
+- HT1-02 se cumple si P50 ≤ 800 000 000 ns; HT1-03, si P99 ≤ 2 000 000 000 ns.
+- No requiere `S11A-v1.2`: fija el procedimiento de cálculo sin cambiar el método, el conjunto ni los
+  umbrales.
+
+**HT1-04 (MD-06).**
+
+```text
+S = { intentos con éxito }  (incluye 201 tardíos)
+CFG_ASYNC = task_always_eager=False (API y worker) ∧ broker=redis://redis:6379/11
+          ∧ un nodo worker con pool max-concurrency=2 (antes y después)
+          ∧ S11_FAKE_AI_ENABLED=true en el worker
+HT1_04_PASS = CFG_ASYNC ∧ ∀a∈S:
+    un único celery.queued(a): task_name=ai.classify_report, task_id≠∅, process=API(a)
+  ∧ queued.db_transaction_open=false
+  ∧ report(a).created_at ≤ queued.enqueue_at ≤ http(a).finished_at
+  ∧ un único celery.started con el mismo task_id, process≠API(a), start_at ≥ enqueue_at
+  ∧ un único celery.finished con el mismo task_id, status=finished, celery_state=success
+  ∧ un único AiClassification del reporte con model_name=s11-deterministic-fake-v1
+  ∧ estado final CLASIFICADO ∧ un único audit ai.report.classified
+```
+
+- Nunca se compara `task_end` con `http_end`.
+- Tras el drenaje, si falta un evento pero una evidencia independiente prueba el hecho, el run es
+  `NOT_DEMONSTRATED`. La evidencia independiente puede ser `started` con ese `request_id`, la fila
+  `AiClassification` o la tarea en el broker.
+- Si el hecho no ocurrió, el resultado es `FAIL`. Son casos de hecho no ocurrido:
+  - la tarea no se procesó;
+  - `celery.failed`;
+  - `success` sin `AiClassification`;
+  - `db_transaction_open=true`;
+  - la tarea se ejecutó en el proceso del API;
+  - el encolado falló, según el log del backend.
+- Una violación de las relaciones temporales con los indicadores estructurales correctos da
+  `NOT_DEMONSTRATED`.
+- La latencia de cola (`start_at − enqueue_at`) y la duración de las tareas se informan sin umbral.
+
+**Drenaje (MD-07).**
+
+- Empieza en `max(window_end, fin del último intento)`. Durante la ventana no se inspecciona nada.
+- Sondea cada 1 s, sólo en lectura: la base y los `celery.jsonl` del run.
+- Termina cuando todas las creaciones de S tienen estado terminal, o a los 300 s.
+- Al terminar se toma una instantánea de `LLEN celery` y de `inspect active/reserved`.
+- Los 300 s son un límite de vivacidad y no un umbral de rendimiento.
+
+**Telemetría (MD-05).**
+
+- La telemetría `run_id` sigue activa.
+- `http.finished` y `celery.queued` se capturan en los mismos instantes que hoy, pero se persisten
+  después de que el servidor haya escrito la respuesta completa. Eso ocurre en el camino de cierre de
+  la respuesta, también ante errores.
+- Todos los eventos añaden `process {hostname, pid}`. `celery.queued` añade `db_transaction_open`,
+  que vale `in_atomic_block ∨ ¬autocommit` en el momento de publicar.
+- Un fallo de volcado se registra con nivel `ERROR`. La reconciliación lo detecta como evento
+  ausente.
+- `evidence.py` y el formato `s11-technical-event-v1` no cambian, salvo esos campos añadidos. Los
+  runs de C2 no se reinterpretan.
+
+**Validez.** El run es `NOT_DEMONSTRATED`, con `invalidity_reason`, si falla cualquiera de estas
+condiciones:
+
+1. HEAD es el commit de preparación, con el árbol limpio antes y después, y las huellas del sistema
+   bajo prueba y del aparato coinciden con la identidad.
+2. La identidad del protocolo coincide con esta decisión.
+3. El SHA del dataset y el del plan coinciden.
+4. Las instantáneas de contenedores previa y posterior son iguales; no hay reload de `runserver`;
+   hay un worker con concurrencia 2 antes y después; eager=false; fake activo; throttle `5/hour`.
+5. El pre-check del reset tiene conteos cero: reportes, rewards, auditoría de reportes,
+   `AiClassification`, claves de throttle y `LLEN celery = 0`.
+6. Hay 10 usuarios `APROBADO` y los tokens se verificaron.
+7. Hay exactamente 50 intentos, con los `request_id` del plan, un envío por ítem y tiempos o clase de
+   error registrados.
+8. Hay un único `http.finished` por cada intento con respuesta, y ninguno con un `request_id` ajeno.
+9. No hubo fallos internos del generador o del aparato de medida después de `t0`: muerte de hilo,
+   barrera rota, excepción interna no atribuible al transporte HTTP/red, pérdida de resultados o
+   interrupción del operador. Los errores del sistema o del transporte capturados (MD-02) no
+   invalidan el run.
+10. Todos los `Report` y movimientos de ledger de los usuarios del fixture se correlacionan con el
+    plan por id o por hash.
+11. Los artefactos están completos, la custodia verifica (SHA y HMAC) y no hay secretos ni PII.
+12. El cleanup se ejecutó y se registraron los conteos posteriores.
+
+**Decisión.**
+
+- `NOT_DEMONSTRATED`: falla alguna condición de validez, o HT1-04 no puede evaluarse por falta de
+  evidencia. El manifest queda `INVALID`.
+- `PASS`: HT1-01, HT1-02, HT1-03 y HT1-04 se cumplen, junto con la postcondición de auditoría. El
+  manifest queda `COMPLETED`.
+- `FAIL`: en cualquier otro caso de run válido, incluidos los errores del sistema o del transporte
+  capturados. El manifest queda `COMPLETED`.
+- La decisión del run usa la plantilla §7.3. La síntesis de HT-1 corresponde a S11-D.
+
+**Reintentos y abandono (MD-09).**
+
+- El primer run válido, `PASS` o `FAIL`, es vinculante: no se repite, no se cambian parámetros y no
+  hay reruns selectivos.
+- Tras un `NOT_DEMONSTRATED` se admite un intento nuevo, con `run_id` y nonce nuevos, los 50 requests
+  y este mismo protocolo.
+- Entre intentos sólo puede cambiar el aparato de medida, con commit y pruebas. La huella del sistema
+  bajo prueba no puede cambiar bajo `s11-ex10-v1`; cambiarla exige una versión nueva del protocolo,
+  decidida antes del intento.
+- El abandono sólo es posible antes de `t0`.
+- Todos los intentos se conservan y se informan.
+- Huella del sistema bajo prueba: SHA-256 de la lista ordenada `ruta sha-blob` que da
+  `git ls-tree -r` sobre `backend/`, `infra/docker-compose.yml` e `infra/docker-compose.s11.yml`,
+  con estas exclusiones:
+  - se excluye `backend/apps/experiments_app/`, pero se incluyen `apps.py`, `ai_runtime.py` y
+    `synthetic_ai.py`;
+  - se excluyen `backend/scripts/s11_*` y toda ruta con un segmento `tests`.
+
+**Ensayo y preparación (MD-08).**
+
+- Ningún `POST /api/v1/reports/` contra el stack S11 fuera de un run oficial.
+- Se admiten:
+  - los tests offline, con sockets bloqueados o transporte inyectado y custodia en
+    `.s11-test-artifacts/`;
+  - el preflight de sólo lectura: health, `inspect ping/stats/conf`, `compose ps/inspect` y conteos.
+
+**Custodia.** `S11-CUSTODY-v1.0`, sin cambios.
+
+| Artefacto | Clase |
+| --- | --- |
+| `run-manifest.initial.json`, `run-manifest.final.json` | INTERNAL |
+| `ex10-preflight.json`, `ex10-environment-snapshot-{pre,post}.json` | INTERNAL |
+| `ex10-reset-precheck.json`, `ex10-drain.json`, `ex10-cleanup.json` | INTERNAL |
+| `logs/EX-10/http.jsonl`, `logs/EX-10/celery.jsonl` | INTERNAL |
+| `ex10-service-logs.txt` y `ex10-stderr.txt`, redactados | INTERNAL |
+| `ex10-custody-verification.json`, verificación previa al sello | INTERNAL |
+| `ex10-fixture.json`: aliases e IDs, nunca tokens ni HMAC | EXPERIMENTAL |
+| `ex10-load-plan.json`: 50 ítems, sin imágenes ni coordenadas | EXPERIMENTAL |
+| `ex10-load-raw.json`: 50 registros de intento | EXPERIMENTAL |
+| `ex10-reconciliation-export.json` y `ex10-reconciliation.json`, sin coordenadas, HMAC ni imágenes | EXPERIMENTAL |
+| `ex10-ht1-calculation.json`, con el histograma | EXPERIMENTAL |
+| `ex10-decision.json` | EXPERIMENTAL |
+
+Se cierran con `SHA256SUMS`, `artifacts.jsonl` y su `.hmac`, y el sello `.s11-finalized`. No se
+persiste nada `SENSITIVE` ni `SECRET`. El lanzador del host toma las instantáneas y los logs de
+servicio y los registra en el run.
+
+**Qué no cambia de S11-A.** `S11A-v1.1` sigue vigente sin modificaciones: la hipótesis HT-1;
+HT1-01…04 y sus umbrales; la población de 10 × 5 = 50; el dataset y su SHA; la regla HT-1 y las de
+síntesis; los veredictos; la ficha y las matrices de EX-10; el protocolo común §6; la política de
+custodia; `docs/tesis/`.
+
+**Versionado.** No requiere `S11A-v1.2` y no se crea. Las resoluciones fijan parámetros que S11-A
+deja libres, resuelven tensiones textuales a favor del texto literal (MD-01 y MD-03), fijan el
+procedimiento de cálculo de los percentiles u operacionalizan el «predicado estructural» de HT1-04
+con las fuentes que S11-A ya enumera. No cambian hipótesis, dataset, umbral, población ni regla
+decisoria.
+
+**Estado resultante.**
+
+```text
+S11-C2: CLOSED
+S11-C:  OPEN
+S11-C3: OPEN (EX-10 pendiente)
+EX-09 OpenAI: EXECUTED · FAIL · reconciliado
+EX-10:  DEFINED · NOT PREPARED · NOT EXECUTED
+Protocol: s11-ex10-v1 · Methodology: S11A-v1.1
+G0: APPROVED · CLOSED
+Next gate: EX-10 implementation/preparation
+```
+
+**Criterio de salida de G0.** G0 queda cerrado con este commit documental: registra la aprobación
+del autor, incluida MD-10 en la opción A, sin cambios en código, tests, infra, `docs/tesis/` ni
+`var/s11-runs/`.
+
+**Gate siguiente: preparación técnica.** Los commits del aparato con sus pruebas offline, el
+preflight local en `READY` y, si alguna fuente atestada cambia, la re-atestación de P02/P03. Tras
+ella, EX-10 pasa a `PREPARED · NOT EXECUTED`.
+
 ### Pruebas realizadas
 
 - Gate inicial: rama `main`, HEAD exacto y working tree limpio.
