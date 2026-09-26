@@ -54,7 +54,7 @@ ciudadania-activa/
 cp .env.example .env
 ```
 
-Completar los valores de terceros (Google OAuth, Gemini, Supabase, email) a medida que los
+Completar los valores de terceros (Google OAuth, OpenAI, Supabase, email) a medida que los
 sprints correspondientes los requieran. `.env` nunca se versiona.
 
 `.env` describe **siempre el entorno local**. Las credenciales de Supabase no van aquí: viven en

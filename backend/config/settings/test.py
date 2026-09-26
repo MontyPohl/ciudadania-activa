@@ -37,3 +37,15 @@ DEFAULT_FROM_EMAIL = "Ciudadanía Activa <remitente-de-prueba@example.test>"
 # Se declara solo en los ajustes de prueba: la extensión sigue siendo infraestructura
 # provisionada (ADR-0003) y ninguna migración la crea. Local y CI usan la misma imagen.
 DATABASES["default"]["TEST"] = {"TEMPLATE": "template_postgis"}  # noqa: F405
+
+# La suite se ejecuta sin credenciales de IA (ADR-0008 §4) aunque el `.env` local tenga
+# una clave real: `base.py` lo lee, y sin esto cualquier prueba que encendiera el
+# interruptor podría construir un cliente con la clave de verdad. Las pruebas que
+# necesitan un proveedor configurado usan valores ficticios con la fixture `settings`.
+AI_CLASSIFICATION_ENABLED = False
+AI_PROVIDER = ""
+OPENAI_API_KEY = ""
+OPENAI_MODEL = ""
+OPENAI_REASONING_EFFORT = ""
+GEMINI_API_KEY = ""
+GEMINI_MODEL = ""
