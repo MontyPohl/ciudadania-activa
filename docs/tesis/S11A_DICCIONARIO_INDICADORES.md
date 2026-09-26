@@ -1,6 +1,6 @@
 # S11-A — Diccionario de indicadores, HT-1 y universo crítico HT-5
 
-**Versión congelada:** `S11A-v1.0`
+**Versión congelada:** `S11A-v1.1`. Enmienda de `S11A-v1.0` limitada a la instancia experimental de EX-09/HT-2; ver `S11A_DATOS_EVIDENCIA_Y_REBASELINE.md` §13.
 
 **Baseline:** `main@635d89956ca0632d620916dc0ab298af48079ec4`
 
@@ -128,11 +128,11 @@ HE sólo puede ser `PASS` si una ejecución válida de EX-01 alcanza simultánea
 ### HT2-01 — Concordancia conjunta CA-4
 
 - **Relación / escenario:** HT-2, PE-3, OE-5, OE-6; EX-09.
-- **Clasificación:** `OBSERVABLE` una vez ejecutado R2; actualmente sin observación.
+- **Clasificación:** `OBSERVABLE` una vez ejecutado EX-09; actualmente sin observación.
 - **Definición / fórmula / unidad:** caso concordante sólo cuando `category_slug`, `institution_slug` y `priority` coinciden exactamente con sus tres etiquetas de oro; `(casos concordantes / 28) × 100`, porcentaje.
 - **Numerador / denominador / población:** casos conjuntos exactos / 28 casos del dataset `s8-evaluation-v1`.
-- **Fuente / ventana / granularidad:** dos lotes R2 de 14 en ventanas RPD distintas; un registro por caso y un agregado único tras combinar 28.
-- **Inclusiones:** modelo `gemini-3.6-flash`, prompt y parser congelados, nulos sólo coinciden con nulos.
+- **Fuente / ventana / granularidad:** una sola sesión de EX-09 con los 28 casos; un registro por caso y un agregado único sobre los 28.
+- **Inclusiones:** proveedor, modelo y parámetros de la instancia registrados en `s11-ex09-openai-v1` (OpenAI, `gpt-6-luna`); prompt y parser congelados; nulos sólo coinciden con nulos. El proveedor y el modelo son parámetros de la instancia, no parte de la hipótesis.
 - **Exclusiones:** confidence y semántica de justification; no hay reruns selectivos.
 - **Esperado / umbral:** `≥ 85.00 %`, equivalente a al menos `24/28`.
 - **Tipo / método:** decisorio; comparación exacta.
@@ -142,7 +142,7 @@ HE sólo puede ser `PASS` si una ejecución válida de EX-01 alcanza simultánea
 ### HT2-02 — Exactitud por campo
 
 - **Relación / escenario:** HT-2; EX-09.
-- **Clasificación:** `DERIVABLE` de una ejecución R2 válida.
+- **Clasificación:** `DERIVABLE` de una ejecución válida de EX-09.
 - **Definición / fórmula / unidad:** exactitud separada de categoría, institución y prioridad; `(coincidencias exactas del campo / 28) × 100`, tres porcentajes.
 - **Población / fuente / ventana / granularidad / inclusiones / exclusiones:** iguales a HT2-01.
 - **Esperado / umbral:** sin umbral; diagnóstico.
@@ -153,7 +153,7 @@ HE sólo puede ser `PASS` si una ejecución válida de EX-01 alcanza simultánea
 ### HT2-03 — Inconsistencia
 
 - **Relación / escenario:** HT-2 y PE-3; EX-09.
-- **Clasificación:** `DERIVABLE` de una ejecución R2 válida.
+- **Clasificación:** `DERIVABLE` de una ejecución válida de EX-09.
 - **Definición / fórmula / unidad:** `(predicciones booleanas de inconsistency exactas / 28) × 100`; porcentaje; también se presenta concordancia estricta que añade este campo a HT2-01.
 - **Población / fuente / ventana / granularidad / inclusiones / exclusiones:** iguales a HT2-01.
 - **Esperado / umbral:** sin umbral; diagnóstico.
@@ -161,7 +161,7 @@ HE sólo puede ser `PASS` si una ejecución válida de EX-01 alcanza simultánea
 - **Limitaciones:** no participa en el `PASS/FAIL` de HT-2.
 - **Estado:** `NOT_DEMONSTRATED`.
 
-**Validez R2:** protocolo `s8-e2-r2`; dataset SHA-256 `3bc54d591dc104aeabeecb2f5cc7c7a38e70ba042e7f045321ab33ae9b5efad4`; prompt `s8-classification-v1` con SHA-256 `f3c803984806a3b934db0417f6cc3ce59a49cdde1e30b4c86b862c2e11c665ca`; timeout 60 s; pacing 20 s; dos lotes fijos de 14; cero reintentos. Cualquier error, timeout, caso ausente, divergencia de hash/parámetro o artefacto perdido invalida el run: HT-2 queda `NOT_DEMONSTRATED`, no `FAIL`. Los dos lotes forman una sola corrida y no se interpreta el primero por separado.
+**Validez de EX-09:** protocolo `s11-ex09-openai-v1`; proveedor OpenAI, Responses API, modelo `gpt-6-luna`, `reasoning.effort=low`, `store=false`; dataset SHA-256 `3bc54d591dc104aeabeecb2f5cc7c7a38e70ba042e7f045321ab33ae9b5efad4`; prompt `s8-classification-v1` con SHA-256 `f3c803984806a3b934db0417f6cc3ce59a49cdde1e30b4c86b862c2e11c665ca`; timeout 60 s; una sola sesión secuencial de 28 casos; cero reintentos. La especificación completa de la instancia consta en `docs/PROGRESO_SPRINTS.md` (decisión del 26/09/2026). Cualquier error, timeout, caso ausente o duplicado, divergencia de hash/parámetro o artefacto perdido invalida el run: HT-2 queda `NOT_DEMONSTRATED`, no `FAIL`. En `S11A-v1.0` esta regla se llamaba «Validez R2» y fijaba `s8-e2-r2` con Gemini, dos lotes de 14 y pacing de 20 s. Esa instancia nunca se ejecutó.
 
 ### HT3-01 — Ausencia de cédula textual persistida
 

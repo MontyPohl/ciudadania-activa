@@ -1,6 +1,6 @@
 # S11-A — Matriz de escenarios, eventos y protocolo experimental
 
-**Versión congelada:** `S11A-v1.0`
+**Versión congelada:** `S11A-v1.1`. Enmienda de `S11A-v1.0` limitada a la instancia experimental de EX-09/HT-2; ver `S11A_DATOS_EVIDENCIA_Y_REBASELINE.md` §13.
 
 **Baseline:** `main@635d89956ca0632d620916dc0ab298af48079ec4`
 
@@ -28,7 +28,7 @@ Cada escenario es independiente salvo que declare expresamente otra cosa. Los ac
 | EX-06 | Reversión + revalidación | OE-4/5/6 / HT-4, HT-6 | REQUIRES_INSTRUMENTATION | NOT_DEMONSTRATED |
 | EX-07 | Rechazo antes de validar | OE-4/5/6 / HT-4, HT-6 | REQUIRES_INSTRUMENTATION | NOT_DEMONSTRATED |
 | EX-08 | Trazabilidad integral | OE-2/3/5/6 / HT-3, HT-4, HT-6 | REQUIRES_INSTRUMENTATION | NOT_DEMONSTRATED |
-| EX-09 | Evaluación IA R2 | OE-5/6 / HT-2 | MISSING | NOT_DEMONSTRATED |
+| EX-09 | Evaluación IA | OE-5/6 / HT-2 | MISSING | NOT_DEMONSTRATED |
 | EX-10 | Rendimiento y asincronía | OE-3/5/6 / HT-1 | REQUIRES_INSTRUMENTATION | NOT_DEMONSTRATED |
 | EX-11 | Ranking y redención | OE-4/6 / HT-4, HT-6 | FUTURE_FEATURE | NOT_DEMONSTRATED |
 
@@ -45,7 +45,7 @@ Las clasificaciones pertenecen al vocabulario tesis→sistema. Una capacidad pue
 | EX-06 | Reporte validado/resuelto o cerrado en ciclo 1 | admin + operador A | revertir, repetir/stale, revalidar, probar evidencia vieja y resolver con nueva | `report.validation_reverted`, `report.validated`, eventos de proceso/evidencia/resolución | tras reversión `CLASIFICADO`; tras revalidar `ASIGNADO`; final `RESUELTO` | conserva 1 al revertir; sube a 2 al revalidar |
 | EX-07 | Reporte no validado con rewards pendientes | operador A | rechazar; intentar repetir y validar | `report.rejected` | `RECHAZADO`, sin validación | conserva 0 |
 | EX-08 | Dos tenants, actores autorizados/prohibidos, entorno limpio | autor, confirmador, operadores A/B, admin, anónimo | recorrer flujo completo e intentos prohibidos | conjunto de eventos del flujo y rechazos sin mutación | proyección final reconciliada; tenant B sin acceso | según evento; no hay saltos ni decrementos |
-| EX-09 | R2, cuota ≥14 por lote, hashes/config iguales | ejecutor + Gemini | ejecutar lotes fijos 1–14 y 15–28; combinar | resultados experimentales R2; no evento de dominio | 28 casos válidos o run inválido | no aplica |
+| EX-09 | protocolo `s11-ex09-openai-v1`, límites y crédito del proveedor verificados en el preflight, hashes/config congelados | ejecutor + OpenAI | ejecutar los 28 casos en una sola sesión secuencial | resultados experimentales por caso; no evento de dominio | 28 casos válidos o run inválido | no aplica |
 | EX-10 | Entorno aislado, 10 usuarios, 50 payloads, worker 2 | VU + API + worker | 10×5 POST en ventana de 60 s y reconciliar tareas | `report.created` y tarea correlacionada por éxito | reportes/rewards/tareas consistentes | 0 para reportes recién creados |
 
 ### 2.2 Matriz normalizada EX-02…EX-10: evidencia y decisión
@@ -59,7 +59,7 @@ Las clasificaciones pertenecen al vocabulario tesis→sistema. Una capacidad pue
 | EX-06 | reversal→validation→processing/evidence/resolution | compensaciones del ciclo 1, nuevo +30 y +50 del ciclo 2; creación no se reactiva | validación1 < reversión < revalidación2 < evidencia2 ≤ resolución2 | ciclo monotónico; stale controlado; evidencia1 no sirve en ciclo2 | audit/history, pares ledger, evidencias por ciclo, responses | compensación, ciclos e idempotencia exactos | run válido con pérdida histórica, doble emisión o uso de evidencia vieja | no ejecutado, inválido o pares no reconciliables |
 | EX-07 | un `report.rejected` | +20/+10 pendientes pasan a `ANULADO`; ningún bonus/reversal | creación/confirmación < rechazo; `validated_at` permanece null | rechazo sólo prevalidación; repetición no muta | responses, report, audit/history, ledger pre/post | estado/ciclo/anulación exactos | run válido con acreditación, compensación o mutación repetida | no ejecutado, inválido o evidencia incompleta |
 | EX-08 | una entrada por mutación autorizada; ninguna por intentos que el contrato no audita | ledger reconciliado por evento/ciclo | timestamps no decrecientes por cadena causal; cierre/reversión posteriores a resolución | cero acceso cross-tenant, 100 % de celdas obligatorias trazables | matriz evento×audit×history×ledger×evidence, responses | HT4-01/02 al 100 % del escenario | omisión, evento no controlado, acceso cruzado o inconsistencia | no ejecutado, interceptado en vez de full-stack, inválido o incompleto |
-| EX-09 | ninguna entrada `AuditLog` del dominio; manifest experimental en su lugar | ninguna | ≥20 s entre inicios de requests; 60 s máximo por request; lotes en ventanas RPD distintas | 28 casos, cero retry, parámetros/hashes idénticos | JSON/JSONL por caso, manifests de lote, combinado, stderr y hashes | run válido y CA-4 ≥85 % | run válido, 28/28 respuestas válidas y CA-4 <85 % | cualquier error/timeout/falta/divergencia/pérdida o no ejecución |
+| EX-09 | ninguna entrada `AuditLog` del dominio; manifest experimental en su lugar | ninguna | requests secuenciales, sin concurrencia; 60 s máximo por request | 28 casos, cero retry, parámetros/hashes idénticos | JSON/JSONL por caso, informe único, stderr y hashes | run válido y CA-4 ≥85 % | run válido, 28/28 respuestas válidas y CA-4 <85 % | cualquier error/timeout/falta/divergencia/pérdida o no ejecución |
 | EX-10 | un `report.created` por creación exitosa | un `REPORT_CREATED +20/+20 PENDIENTE` por éxito | commit ≤ enqueue; task start ≥ enqueue; HTTP no requiere `task_end` (sin imponer orden artificial task_end/http_end) | 50 intentos únicos reconciliados, throttle real y sin IA síncrona | salida cruda, config, timestamps, filas, cola, logs y hashes | regla compuesta HT-1 | run válido que incumple throughput/latencia/asincronía | caída de harness, correlación/config/artefactos incompletos o no ejecución |
 
 ## 3. Escenarios congelados
@@ -176,18 +176,19 @@ Las clasificaciones pertenecen al vocabulario tesis→sistema. Una capacidad pue
 - **Dependencias:** `run_id` y extractor S11-B; éstos no son evidencia.
 - **Clasificación / estado:** `REQUIRES_INSTRUMENTATION`; `NOT_DEMONSTRATED`.
 
-### EX-09 — Evaluación IA R2
+### EX-09 — Evaluación IA
 
-- **Actores:** ejecutor autorizado y proveedor Gemini; no intervienen usuarios reales.
-- **Precondición:** protocolo `s8-e2-r2`, cuota visual ≥14 antes de cada lote, credencial disponible sólo en entorno, commit/config/prompt/dataset iguales en ambos lotes y directorio persistente seguro.
+- **Actores:** ejecutor autorizado y proveedor OpenAI; no intervienen usuarios reales.
+- **Precondición:** protocolo `s11-ex09-openai-v1`. El preflight atesta sin secreto los límites y el crédito del proveedor. La credencial sólo está disponible en el entorno. Commit, config, prompt y dataset son los congelados, y el directorio persistente es seguro.
 - **Datos sintéticos:** 28 casos `s8-evaluation-v1`, SHA-256 `3bc54d591dc104aeabeecb2f5cc7c7a38e70ba042e7f045321ab33ae9b5efad4`.
-- **Estado inicial:** ningún resultado R2; cero llamadas realizadas por el run.
-- **Secuencia:** preflight sin consumir llamada; lote fijo 1–14 con pacing 20 s/timeout 60 s/cero reintentos; persistir y verificar hash; esperar otra ventana RPD; repetir preflight; lote 15–28 idéntico; combinar una sola vez; calcular métricas.
-- **Estado final esperado:** 28 respuestas válidas y correlacionadas, parámetros invariantes, informe conjunto y diagnósticos; cualquier error invalida la corrida completa.
-- **Evidencia:** manifests de ambos lotes, JSON/JSONL por caso, stderr redactado, informe combinado, versiones/hashes, comprobación de cuota documentada sin secreto y hashes de todos los artefactos.
+- **Estado inicial:** ningún resultado de EX-09; cero llamadas realizadas por el run.
+- **Secuencia:** preflight sin consumir llamada; los 28 casos en orden, en una sola sesión, uno por vez, con timeout de 60 s y cero reintentos; persistir y verificar hash; calcular métricas una sola vez.
+- **Estado final esperado:** 28 respuestas válidas y correlacionadas, parámetros invariantes, informe único y diagnósticos; cualquier error invalida la corrida completa.
+- **Evidencia:** manifest, JSON/JSONL por caso, stderr redactado, informe único, versiones/hashes, atestación de límites y crédito documentada sin secreto y hashes de todos los artefactos.
 - **Cleanup:** retirar secreto del proceso y revocar acceso temporal; no borrar artefactos persistentes.
 - **Criterio PASS/FAIL:** sólo con 28 válidas: PASS si CA-4 ≥85 % (≥24/28), FAIL si <85 %. Con error/timeout/caso faltante/divergencia/evidencia perdida: `NOT_DEMONSTRATED`.
-- **Dependencias:** cuota y proveedor externos; son condiciones, no evidencia de exactitud.
+- **Dependencias:** límites, crédito y proveedor externos; son condiciones, no evidencia de exactitud.
+- **Instancia anterior:** en `S11A-v1.0` esta ficha fijaba el proveedor Gemini y el protocolo `s8-e2-r2` (dos lotes de 14 en ventanas RPD distintas, pacing de 20 s y cuota ≥14 por lote). Esa configuración se sustituyó antes de ejecutarse; nunca produjo un resultado de EX-09.
 - **Clasificación / estado:** `MISSING`; `NOT_DEMONSTRATED`.
 
 ### EX-10 — Rendimiento y asincronía
@@ -270,7 +271,7 @@ Para el subtotal actual, el denominador es R-01…R-07 y cada regla debe satisfa
 
 Antes de mutar el entorno, cada ejecución debe producir un manifest inmutable con:
 
-- `methodology_version=S11A-v1.0` y SHA-256 de los cuatro documentos S11-A;
+- `methodology_version` vigente al iniciar el run (`S11A-v1.1`; los runs anteriores a la enmienda registran `S11A-v1.0`) y SHA-256 de los cuatro documentos S11-A;
 - commit y estado limpio; versión de dataset/fixture, semilla y SHA-256;
 - versiones de SO/runtime/dependencias, imagen/lockfiles y servicios DB/Redis;
 - configuración no secreta relevante, zona horaria y reloj;

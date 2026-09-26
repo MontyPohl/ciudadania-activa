@@ -1,6 +1,6 @@
 # S11-A — Datos, evidencia, privacidad y rebaseline de tesis
 
-**Versión congelada:** `S11A-v1.0`
+**Versión congelada:** `S11A-v1.1`. Enmienda de `S11A-v1.0` limitada a la instancia experimental de EX-09/HT-2; ver `S11A_DATOS_EVIDENCIA_Y_REBASELINE.md` §13.
 
 **Baseline:** `main@635d89956ca0632d620916dc0ab298af48079ec4`
 
@@ -41,7 +41,7 @@ La planificación histórica de S12–S16 no es evidencia ni queda automáticame
 |---|---|---|---|---|---|
 | `s11-functional-v1` | EX-02…EX-08 y pruebas de trazabilidad | 20 reportes totalmente sintéticos: dos por cada una de las diez categorías del catálogo congelado; cobertura de tres instituciones, estados/ciclos y actores previstos | `20260921` con namespace `functional` | Se calcula sobre el artefacto generado en S11-B; hasta entonces `UNRESOLVED/BLOCKED` | Especificación congelada, artefacto no generado |
 | `s11-load-v1` | EX-10 | 50 payloads y 50 imágenes únicos; diez usuarios verificados sintéticos × cinco requests | `20260921` con namespace `load` | Se calcula en S11-B; hasta entonces `UNRESOLVED/BLOCKED` | Especificación congelada, artefacto no generado |
-| `s8-evaluation-v1` | EX-09 | 28 casos, etiquetas de oro de categoría/institución/prioridad/inconsistencia | Dataset ya congelado | `3bc54d591dc104aeabeecb2f5cc7c7a38e70ba042e7f045321ab33ae9b5efad4` | Existente; R2 no ejecutada |
+| `s8-evaluation-v1` | EX-09 | 28 casos, etiquetas de oro de categoría/institución/prioridad/inconsistencia | Dataset ya congelado | `3bc54d591dc104aeabeecb2f5cc7c7a38e70ba042e7f045321ab33ae9b5efad4` | Existente; EX-09 no ejecutado |
 | Encuesta | EX-01 | Cuestionario existente en Anexo G; N observado no disponible; la tesis calcula aproximadamente 150 respuestas válidas, con fuente poblacional aún por verificar | No aplica | Se calcula al preservar formulario/export original | Respuestas `MISSING`; formulario digital, aprobación, ventana y custodia `UNRESOLVED/BLOCKED` |
 
 La semilla no basta para reproducibilidad: el manifest debe fijar también generador y versión, orden, catálogo, locale/zona horaria, dependencias, configuración y hash del resultado. Si cambia cualquier elemento, se crea una versión nueva; nunca se edita silenciosamente `v1`.
@@ -149,7 +149,7 @@ Una dependencia nunca se etiqueta como primaria o derivada. El análisis debe en
 
 ```text
 criterion_id:
-methodology_version: S11A-v1.0
+methodology_version: <la registrada en el manifest del run: S11A-v1.1, o S11A-v1.0 si es anterior a la enmienda>
 run_id:
 status: PASS | FAIL | NOT_DEMONSTRATED
 observed_value:
@@ -174,7 +174,7 @@ No se permiten `PARTIAL`, `IN_PROGRESS`, “casi PASS”, colores intermedios o 
 
 1. HE exige simultáneamente HE-01 y HE-02; HE-03/04 sólo interpretan.
 2. HT-1 exige los cuatro indicadores HT1 y un run válido.
-3. HT-2 exige R2 válida de 28 casos y HT2-01; HT2-02/03 sólo diagnostican.
+3. HT-2 exige un EX-09 válido de 28 casos (`s11-ex09-openai-v1`) y HT2-01; HT2-02/03 sólo diagnostican.
 4. HT-3 exige HT3-01 y HT3-02.
 5. HT-4 exige HT4-01 y HT4-02 al 100 % en el alcance actual, pero su texto completo permanece `NOT_DEMONSTRATED` mientras EX-11 esté diferido.
 6. HT-5 se decide sólo con el manifiesto crítico congelado, nunca con cobertura global.
@@ -189,7 +189,7 @@ No se permiten `PARTIAL`, `IN_PROGRESS`, “casi PASS”, colores intermedios o 
 | S11A-D01 | S11 es metodología→instrumentación→experimentos→análisis→evidencia; la propuesta previa de ranking/créditos queda histórica. |
 | S11A-D02 | Toda prueba técnica usa datos sintéticos aislados; los 16 reportes productivos quedan excluidos. |
 | S11A-D03 | Los únicos veredictos son `PASS`, `FAIL`, `NOT_DEMONSTRATED`. |
-| S11A-D04 | R2 usa 28 casos, dos lotes 14+14, modelo/hash/prompt congelados, pacing 20 s, timeout 60 s, cero reintentos; cualquier error invalida el run. |
+| S11A-D04 | EX-09 usa `s11-ex09-openai-v1`: 28 casos en una sola sesión secuencial, proveedor/modelo/parámetros/hash/prompt congelados, timeout 60 s, cero reintentos; cualquier error invalida el run. Enmendada en `S11A-v1.1`; en `S11A-v1.0` fijaba R2 con Gemini, dos lotes 14+14 y pacing 20 s. |
 | S11A-D05 | HT-1 mide `POST /api/v1/reports/` con 10 usuarios×5 requests, ventana 60 s, 50/min, P50≤800 ms y P99≤2.000 ms. |
 | S11A-D06 | HT-5 usa sólo el manifiesto crítico versionado; cobertura global no decide. |
 | S11A-D07 | `resolution_cycle` representa ciclos de validación; nace en 0, validación incrementa, reversión conserva y revalidación vuelve a incrementar. |
@@ -221,3 +221,69 @@ Estado formal del gate:
 `S11A_METHODOLOGY_FROZEN`
 
 Este estado indica que la metodología de S11-A fue congelada para las siguientes etapas de instrumentación, experimentación, análisis y evidencia. No implica que los experimentos hayan sido ejecutados ni que las hipótesis hayan sido demostradas.
+
+## 13. Enmienda `S11A-v1.1` (26/09/2026)
+
+- **Autoridad:** Monty Emmanuel Pohl Amarilla, autor y custodio. La enmienda sigue la regla del
+  §11 («cualquier enmienda metodológica versionada antes de implementar»).
+- **Motivo.** La decisión del 26/09/2026 retira a Gemini de toda medición futura y fija OpenAI como
+  proveedor de EX-09. `S11A-v1.0` ligaba la instancia de EX-09/HT-2 a Gemini: el modelo
+  `gemini-3.6-flash`, el protocolo `s8-e2-r2` y los dos lotes en ventanas RPD distintas. Con ese
+  texto, una medición con otro proveedor habría quedado fuera de las inclusiones de HT2-01. La
+  decisión, el protocolo `s11-ex09-openai-v1` completo y la historia de Gemini constan en
+  `docs/PROGRESO_SPRINTS.md`.
+- **Alcance.** Sólo cambian los campos de la instancia experimental de EX-09/HT-2 y las
+  referencias a la versión metodológica:
+  - `S11A_ESCENARIOS_Y_PROTOCOLO.md`: matriz maestra, matrices 2.1/2.2 y ficha EX-09 (nombre,
+    actor, precondición, estado inicial y final, secuencia, evidencia, dependencias e instancia
+    anterior); §6.1.
+  - `S11A_DICCIONARIO_INDICADORES.md`: la clasificación, la fuente y las inclusiones de HT2-01;
+    la clasificación de HT2-02/03; la regla «Validez R2», que pasa a «Validez de EX-09».
+  - `S11A_DATOS_EVIDENCIA_Y_REBASELINE.md`: la fila de `s8-evaluation-v1`, la plantilla §7.3,
+    la regla de síntesis 3 y S11A-D04.
+  - `S11A_CATALOGO_Y_MATRIZ.md`: las filas PE-3 y HT-2 del catálogo, las dos filas PE-3/HT-2 de
+    la matriz tesis→sistema y las filas PE-3, OE-5 y HT-2 de la matriz de evidencia. La fila del
+    componente de IA pasa de `EXISTING` a `REQUIRES_INSTRUMENTATION`, porque el adaptador OpenAI
+    y su ejecutor todavía no están en `main`.
+- **Lo que no cambia:**
+  - objetivos, preguntas e hipótesis, incluido el texto de HT-2;
+  - la fórmula, el numerador y el denominador (28) de CA-4/HT2-01, y el umbral (≥ 85 %, al menos
+    24/28);
+  - HT2-02/03 como diagnósticos;
+  - el dataset `s8-evaluation-v1`, sus etiquetas de oro, su orden y su SHA-256;
+  - el prompt `s8-classification-v1` y su SHA-256;
+  - el parser;
+  - la regla de que todo error invalida y nunca produce `FAIL`;
+  - los veredictos;
+  - los escenarios y su numeración;
+  - los denominadores de HT-4 y HT-5;
+  - `S11A_POLITICA_CUSTODIA_Y_ACCESO.md`.
+
+  La cita literal de la hipótesis técnica principal de la tesis (§1.6.2, «Google Gemini API»)
+  se conserva: su corrección pertenece al documento de tesis (CT-55).
+- **Identificación de `S11A-v1.0`.** Commit `35f850eb24df552805fe8694f50fcbb3588a4141`, sin
+  cambios hasta `c3725fd2535fdd5209be376738b594cabfc2ada2`. SHA-256 de los cuatro documentos en
+  esa versión:
+
+  | Documento | SHA-256 en `S11A-v1.0` |
+  | --- | --- |
+  | `S11A_CATALOGO_Y_MATRIZ.md` | `c2fa856bb112b00b529d0624efc6ec726c6c89259f2cd3f7d5557c1345713fc7` |
+  | `S11A_DICCIONARIO_INDICADORES.md` | `f924f8a4e9ea44f7061c88028b7e96057f062a4580d04ca5f0667ad872ec5913` |
+  | `S11A_ESCENARIOS_Y_PROTOCOLO.md` | `c44e4160a98601ae1fbb8cd12be33ad6aa51fbfdbe2a904de67074dac5d8e166` |
+  | `S11A_DATOS_EVIDENCIA_Y_REBASELINE.md` | `4cc6b1d12778527384895d638c9538dbc9ef738c59ab3210696eb42ce19883c5` |
+
+  Los runs de EX-02…EX-08, P02/P03 y C1 se ejecutaron bajo `S11A-v1.0`, la conservan y no se
+  reinterpretan.
+- **Consecuencia para la implementación.** El harness acepta hoy una sola versión
+  (`METHODOLOGY_VERSION = "S11A-v1.0"` en `experiments_app/constants.py`) y rechaza cualquier
+  otra, incluso al validar runs ya cerrados. Antes de iniciar cualquier run bajo `S11A-v1.1`, sea
+  EX-09 o EX-10, la preparación debe hacer dos cosas: que los runs nuevos registren
+  `S11A-v1.1` y que se sigan validando los runs históricos con `S11A-v1.0`. Ningún run puede
+  iniciarse bajo esta enmienda sin ese cambio.
+- **Decisión abierta que esta enmienda no resuelve:** el manifiesto crítico de HT-5 (§4 del
+  diccionario). Incluye `adapters/gemini.py` y no incluye el adaptador OpenAI. Cambiar esa
+  lista altera el denominador de HT5-01 y, según el propio manifiesto, exige una versión
+  metodológica previa a medir. No afecta a EX-09 ni a HT-2, pero debe decidirse antes de medir
+  HT-5.
+
+Estado del gate tras la enmienda: `S11A_METHODOLOGY_FROZEN` en `S11A-v1.1`.

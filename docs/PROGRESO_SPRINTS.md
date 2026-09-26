@@ -1592,8 +1592,9 @@ intentos previos `NOT_DEMONSTRATED`—, `EX-03` en `PASS` —run
 `s11-0e2feac0-6583-513c-a6aa-33430394d14a`, `S11C2_EX05_PASS`— y `EX-07` en `PASS` —run
 `s11-545491b8-01fe-55e6-8f08-1a0ebbdca8d3`, `S11C2_EX07_PASS`—; **S11-C2 cerrado** el 23/09/2026;
 S11-C abierto con EX-09 y EX-10 pendientes. Desde el 26/09/2026 el proveedor de EX-09 es OpenAI:
-la preparación Gemini (`73e5037`) queda histórica y sin ejecutar, y el protocolo de la nueva
-medición está propuesto pero sin aprobar
+la preparación Gemini (`73e5037`) queda histórica y sin ejecutar. El protocolo
+`s11-ex09-openai-v1` y la enmienda `S11A-v1.1` están congelados; EX-09 OpenAI no está preparado
+ni ejecutado
 **Fecha real de cierre:** —
 
 > **Rebaseline S11-A (21/09/2026).** El título histórico “Créditos, ranking del mes en curso y
@@ -2854,6 +2855,233 @@ condiciones, en este orden:
 4. Commit de preparación del ejecutor adaptado, con sus pruebas locales.
 
 Hasta entonces no puede prepararse ni ejecutarse ningún run de EX-09.
+
+### Decisión metodológica: congelación de EX-09 OpenAI y enmienda `S11A-v1.1` (26/09/2026)
+
+- **Autoridad:** Monty Emmanuel Pohl Amarilla, autor y custodio.
+- **Qué resuelve.** Resuelve P5, P6 y P7 de la decisión anterior con los valores que el autor fijó el
+  26/09/2026. Entra en vigor con el commit que la incorpora.
+- **Baseline:** `main@c3725fd2535fdd5209be376738b594cabfc2ada2`. No se hizo ninguna llamada a
+  OpenAI ni a Gemini, no se usó ninguna credencial real y no se integró la rama OpenAI.
+- **Fuentes oficiales de OpenAI**, consultadas el 26/09/2026:
+  - `developers.openai.com/api/docs/models/gpt-6-luna`;
+  - `…/guides/images-vision`;
+  - `…/guides/rate-limits`;
+  - `…/guides/your-data`;
+  - `…/guides/structured-outputs`;
+  - `…/guides/error-codes`.
+- **La instancia Gemini no cambia.** EX-09 con Gemini sigue siendo
+  `PREPARED · NOT EXECUTED · NO OFFICIAL RESULT · HISTORICAL` (`73e5037`).
+
+**P5 — Identidad (resuelto).**
+
+| Campo | Valor |
+| --- | --- |
+| Escenario | `EX-09`, instancia OpenAI |
+| Protocolo | `s11-ex09-openai-v1`. No es `R3`: la serie R son recuperaciones de la configuración Gemini |
+| Proveedor / API | OpenAI, Responses API, `POST /v1/responses` |
+| Modelo | `gpt-6-luna`. La documentación oficial lo lista con un único snapshot, `gpt-6-luna`, sin fecha, y lo declara compatible con `v1/responses`, Structured Outputs e imagen. No existe un snapshot fechado que registrar. El corte de conocimiento publicado, 18/05/2026, se registra como dato informativo |
+| SDK | `openai` 3.19.2, la versión resuelta y probada en la auditoría. `requirements/base.txt` declara un rango, así que la preparación debe fijar esa versión o el preflight debe rechazar cualquier otra |
+| Registro por caso | el `model` y el `id` que devuelve cada respuesta, el request id del proveedor y los timestamps UTC |
+
+**P6 — Protocolo `s11-ex09-openai-v1` (resuelto).**
+
+| Parámetro | Valor congelado |
+| --- | --- |
+| Escenario / proveedor / modelo / protocolo | EX-09 / OpenAI / `gpt-6-luna` / `s11-ex09-openai-v1` |
+| Dataset | `s8-evaluation-v1`, 28 casos (`S8-EVAL-001`…`028`) en el orden original, SHA-256 `3bc54d591dc104aeabeecb2f5cc7c7a38e70ba042e7f045321ab33ae9b5efad4`, verificado. El dataset no contiene imágenes |
+| Prompt | `s8-classification-v1`, SHA-256 `f3c803984806a3b934db0417f6cc3ce59a49cdde1e30b4c86b862c2e11c665ca`, verificado; sin versión nueva |
+| Esquema de salida | contrato v1, `strict: true`, nombre `classification_v1`, SHA-256 canónico `ef2a7d354dc1f4526e6776c22e2356afa9881370618de75343aef339c5425f23` (idéntico al de Gemini por la prueba de paridad) |
+| `reasoning.effort` | `low`, enviado siempre de forma explícita |
+| `detail` de la imagen | `auto` (sin efecto en EX-09, ver abajo) |
+| Timeout | 60 s por request, como timeout del cliente |
+| Reintentos | 0: `max_retries=0` en el SDK, ninguno en el script y Celery no interviene. No se reintentan 429, 5xx, timeouts ni errores de parser o de JSON |
+| Casos / partición | 28, en una sola sesión, secuenciales, una petición en curso a la vez y sin pausa entre casos |
+| CA-4 | `PASS` ≥ 24/28 y `FAIL` ≤ 23/28, sólo con 28 respuestas válidas; denominador 28 |
+| Invalidez | `NOT_DEMONSTRATED`, nunca `FAIL` |
+| `store` | `false` |
+| No se envían | `user`, `safety_identifier`, `metadata`, `temperature`, `max_output_tokens`, herramientas ni `previous_response_id` |
+| Credencial | requerida. Ver «Credencial» abajo |
+
+- **Prompt: contenido y envoltorio.** El contenido semántico no cambia:
+  - el template se renderiza igual;
+  - el texto del caso es idéntico;
+  - el esquema es idéntico.
+
+  Sólo cambia el envoltorio técnico de la API:
+
+  | Elemento | Gemini | OpenAI |
+  | --- | --- | --- |
+  | Prompt | `system_instruction` | `instructions` |
+  | Texto del caso | bloque `text` | bloque `input_text` |
+  | Esquema | `response_format` | `text.format` de tipo `json_schema` |
+- **`detail=auto`.**
+  - **No está documentado para este modelo.** La tabla oficial de tamaños de imagen documenta
+    `auto` para otros modelos, por ejemplo `gpt-6-astra` («same sizing behavior as `original`»),
+    pero **no tiene fila para `gpt-6-luna`**. Por tanto, no puede afirmarse que la resolución
+    efectiva esté documentada.
+  - **No afecta a EX-09.** `s8-evaluation-v1` no tiene imágenes y el runner envía
+    `image_bytes=b""`, así que ninguna petición de EX-09 incluye un bloque `input_image` y
+    `detail` nunca llega al proveedor. Se congela `auto` y P6 no se bloquea.
+  - **El ejecutor debe verificarlo.** Debe comprobar y registrar que las 28 peticiones salen sin
+    imagen; si alguna la lleva, el run es `NOT_DEMONSTRATED`.
+  - **Límite de la conclusión.** Como ya ocurría con Gemini, HT-2 queda medida sobre
+    clasificación de texto.
+  - **Si algún día se incorporan imágenes,** hará falta una versión nueva del protocolo con un
+    nivel explícito (`low`, `high` u `original`), fijado antes de ejecutar.
+- **Sin pausas.** El pacing de 20 s, los lotes 14 + 14, las ventanas RPD, la comprobación de
+  cuota ≥ 14 y el límite de 7 días respondían al nivel gratuito de Gemini (RPM 5, RPD 20). No se
+  heredan. La documentación oficial publica para `gpt-6-luna` límites desde 500 RPM y 500 000 TPM
+  (Tier 1), sin RPD. Una sesión secuencial de 28 peticiones no justifica técnicamente ninguna
+  pausa.
+- **Límites y crédito: PARAMETER TO VERIFY AT PRE-FLIGHT.** OpenAI fija los límites por
+  organización y por proyecto, y no pueden verificarse sin credenciales. Por eso no se fija
+  ningún valor. En el preflight, el operador atesta sin secreto:
+  - el tier;
+  - los límites RPM, TPM y, si existe, RPD de `gpt-6-luna` para la organización y el proyecto;
+  - que queda crédito y que el límite de gasto no está alcanzado.
+
+  Condiciones derivadas del propio protocolo: RPM ≥ 28 y, si hay RPD, RPD ≥ 28. Cualquier 429
+  durante el run, incluido `insufficient_quota`, lo invalida. Según los precios oficiales, el
+  coste estimado es del orden de centavos de dólar y no condiciona el diseño.
+- **Validez.** Un caso entra en CA-4 sólo si se cumplen todas estas condiciones:
+  - pertenece al dataset;
+  - tiene una sola respuesta, correlacionada sin ambigüedad con su `case_id`;
+  - la respuesta tiene `status` `completed`;
+  - trae texto y no una negativa;
+  - supera el parser congelado: JSON válido, exactamente los seis campos, `category_slug` e
+    `institution_slug` como cadena no vacía o `null`, y `priority`, `confidence`,
+    `inconsistency` y `justification` válidos;
+  - no hay timeout ni error de la API.
+
+  Un slug que el parser acepta pero que no coincide con la etiqueta de oro es una predicción
+  válida **no concordante**. Es la regla congelada de S8 y esta decisión no la modifica.
+
+  | Situación | Resultado del run |
+  | --- | --- |
+  | Caso ausente o menos de 28 respuestas | `NOT_DEMONSTRATED` |
+  | Caso duplicado o respuesta no correlacionable | `NOT_DEMONSTRATED` |
+  | Respuesta malformada o rechazada por el parser (esquema) | `NOT_DEMONSTRATED` |
+  | Error del proveedor (4xx, 5xx, 429, `incomplete`, negativa) | `NOT_DEMONSTRATED` |
+  | Timeout o fallo de transporte | `NOT_DEMONSTRATED` |
+  | Divergencia de parámetros, hashes, SDK o commit, o `model` devuelto distinto entre casos | `NOT_DEMONSTRATED` |
+  | Petición con imagen | `NOT_DEMONSTRATED` |
+  | Pérdida de artefactos o fallo de custodia o de finalización | `NOT_DEMONSTRATED` |
+  | 28 respuestas válidas y CA-4 ≥ 24/28 | `PASS` |
+  | 28 respuestas válidas y CA-4 ≤ 23/28 | `FAIL` |
+
+  Un caso inválido nunca se cuenta como respuesta incorrecta para completar el denominador. El
+  primer run válido es vinculante y ningún parámetro puede cambiarse después de ver resultados.
+  Tras un run `NOT_DEMONSTRATED` sólo puede hacerse un nuevo intento con un `run_id` nuevo, los 28
+  casos y parámetros idénticos (S11-C3 D3.7). Todos los intentos se conservan y se informan.
+- **CA-4.** La definición se verificó en HT2-01 y no cambia:
+  - caso concordante sólo si `category_slug`, `institution_slug` y `priority` coinciden
+    exactamente con el oro;
+  - los nulos sólo coinciden con nulos;
+  - fórmula: `(concordantes / 28) × 100`;
+  - umbral: ≥ 85,00 %.
+
+  HT2-02 y HT2-03 siguen siendo diagnósticos.
+- **`store=false` no es retención cero.** Con `store=false`, `/v1/responses` no guarda estado de
+  aplicación. Aun así, OpenAI conserva los datos 30 días para vigilar abusos. La retención cero
+  (ZDR) requiere aprobación previa de OpenAI, y las imágenes marcadas como posible CSAM se
+  retienen incluso con ZDR.
+  - **EX-09 no exige ZDR.** Sus datos son sintéticos, sin identificadores ni PII (S11A-D02), y
+    S11-A no pide garantías de retención al proveedor para datos sintéticos. La retención de 30
+    días se registra en la identidad del run como condición conocida.
+  - **Gate aparte para reportes reales.** Activar la clasificación con reportes reales sigue
+    bloqueado hasta resolver formalmente el régimen de retención de la organización.
+- **Datos enviados.** Van el template renderizado, la descripción sintética delimitada, los
+  slugs actuales y los permitidos, y la mención `image: no disponible`. No van el `case_id`, las
+  etiquetas de oro, las notas, identificadores ciudadanos, nombres, correos ni secretos. Se
+  verificó que ninguna descripción del dataset contiene «@».
+- **Credencial.** Es obligatoria y se provisiona así:
+  - una clave de proyecto temporal y dedicada, creada por el operador justo antes del run;
+  - se inyecta sólo al proceso que llama al proveedor, como `S11_EX09_PROVIDER_KEY`;
+  - se retira y se revoca al terminar;
+  - el ejecutor no puede leer `.env`.
+
+  Sólo se registra su huella: los 16 primeros hexadecimales de su SHA-256 (S11-C3 D2). Nunca se
+  registran la clave, ningún fragmento de ella ni la vista enmascarada de la consola, y no se
+  escribe en Git, logs, manifests ni evidencia.
+- **Timeout.** Los 60 s son el timeout del cliente (`timeout=60.0`). La preparación debe
+  verificar en `openai` 3.19.2 cómo lo aplica el SDK y registrar la duración total de cada caso.
+
+**Relación con S11-C3 (D1–D4).**
+
+| Punto | Tratamiento en la instancia OpenAI |
+| --- | --- |
+| D1 | Se aplica sin cambios |
+| D2 | Se aplica con dos cambios: el protocolo congelado es `s11-ex09-openai-v1` en lugar de `R2`, y la clave es una por run en lugar de una por lote |
+| D3 | Se sustituye. Hay un único `run_id` y no hay lotes, ventanas RPD, límite de 7 días ni estado abierto entre lotes. La custodia es la estándar: `SHA256SUMS` al finalizar |
+| D4 | La comprobación de cuota ≥ 14 pasa a ser la atestación de límites y crédito. Los registros `credential_provisioned`, `credential_removed` y `access_revoked` se mantienen, una vez por run |
+| Modelo de validez | Se aplica la tabla anterior; desaparecen las causas de RPD y de 7 días |
+
+**Custodia.** `S11-CUSTODY-v1.0` no cambia. El ejecutor debe añadir a la identidad del run:
+
+- proveedor, API y versión del SDK;
+- modelo solicitado y `model` devuelto;
+- `reasoning.effort`, `detail`, `store` y `max_retries`;
+- el timeout;
+- el SHA-256 del esquema;
+- el recuento de imágenes enviadas (0);
+- la atestación de límites y crédito;
+- la condición de retención.
+
+`evidence.py` y EX-02…EX-08 no se tocan.
+
+**P7 — Enmienda `S11A-v1.1` (resuelta para EX-09 y HT-2).**
+
+- **Versión nueva.** Se aplicó en `docs/tesis/` como enmienda versionada, siguiendo la regla del
+  §11 de `S11A_DATOS_EVIDENCIA_Y_REBASELINE.md`. El registro está en su §13. No se reescribió
+  `S11A-v1.0` conservando la etiqueta: EX-02…EX-08 registran `S11A-v1.0` y esa etiqueta tiene que
+  seguir identificando el texto con el que se ejecutaron.
+- **Qué cambia.** Sólo la instancia de EX-09/HT-2:
+  - ficha y matrices de EX-09;
+  - HT2-01…03 y «Validez R2», que pasa a «Validez de EX-09»;
+  - S11A-D04 y la regla de síntesis 3;
+  - las filas afectadas del catálogo y de las matrices;
+  - las referencias a la versión metodológica.
+- **Qué no cambia:**
+  - la hipótesis HT-2, CA-4, el umbral y los denominadores;
+  - el escenario EX-09 y su numeración;
+  - los denominadores de HT-4 (EX-02…EX-08) y HT-5;
+  - la salida de S11-C3 y la de S11-C;
+  - la política de custodia.
+
+  La cita literal de la tesis que nombra a Gemini (§1.6.2) se conserva y queda en CT-55.
+- **Decisión abierta, identificada y no resuelta:** el manifiesto crítico de HT-5. Incluye
+  `adapters/gemini.py` y no el adaptador OpenAI. Cambiarlo altera el denominador de HT5-01 y exige
+  su propia versión metodológica antes de medir HT-5. No bloquea EX-09.
+- **Consecuencia técnica.** El harness sólo acepta `METHODOLOGY_VERSION = "S11A-v1.0"`, también al
+  validar runs cerrados. Ningún run bajo `S11A-v1.1`, ni EX-09 ni EX-10, puede iniciarse hasta que
+  la preparación haga que los runs nuevos registren `S11A-v1.1` sin dejar de validar los
+  históricos con `S11A-v1.0`.
+
+**Estado resultante.**
+
+```text
+P5: RESOLVED
+P6: RESOLVED
+P7: RESOLVED (EX-09/HT-2) · manifiesto HT-5: decisión abierta, no bloquea EX-09
+S11A: S11A_METHODOLOGY_FROZEN en S11A-v1.1
+S11-C2: CLOSED
+S11-C: OPEN
+EX-09 Gemini: PREPARED · NOT EXECUTED · NO OFFICIAL RESULT · HISTORICAL
+EX-09 OpenAI: DEFINED · NOT PREPARED · NOT EXECUTED
+```
+
+**Gate siguiente.** Antes de autorizar la ejecución de EX-09 deben cumplirse:
+
+1. **Integración:** integrar `feat/ai-openai-provider` en `main`, fijando `openai==3.19.2`.
+2. **Versión en el harness:** registrar `S11A-v1.1` en los runs nuevos sin dejar de validar los
+   históricos con `S11A-v1.0`.
+3. **Ejecutor:** adaptarlo a `s11-ex09-openai-v1` y crear su commit de preparación, con pruebas
+   locales sin red.
+4. **Preflight:** completarlo sin coste.
+
+La decisión sobre el manifiesto de HT-5 y la retención para reportes reales son gates aparte que no
+bloquean EX-09.
 
 ### Pruebas realizadas
 
