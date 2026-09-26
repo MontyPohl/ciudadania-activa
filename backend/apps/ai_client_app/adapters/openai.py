@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import base64
 import json
+from dataclasses import dataclass
 
 from openai import APIConnectionError, APIStatusError, OpenAI
 
@@ -85,17 +86,37 @@ def build_classification_schema() -> dict:
     }
 
 
-def build_client(*, api_key: str, timeout_seconds: int) -> OpenAI:
+def build_client(*, api_key: str, timeout_seconds: int, http_client=None) -> OpenAI:
     """Crea el cliente con el timeout contractual y sin reintentos internos.
 
     El SDK expresa `timeout` en **segundos**, a diferencia del de Gemini, que usa
-    milisegundos. La clave se usa aquí y no se conserva en ningún atributo propio.
+    milisegundos. Un `float` se aplica por fase (conexión, escritura, lectura y
+    pool), no como plazo total de la petición. La clave se usa aquí y no se
+    conserva en ningún atributo propio.
+
+    `http_client` existe sólo para que las pruebas ejerciten el SDK real contra un
+    transporte en memoria, sin red.
     """
     return OpenAI(
         api_key=api_key,
         timeout=float(timeout_seconds),
         max_retries=_SDK_MAX_RETRIES,
+        http_client=http_client,
     )
+
+
+@dataclass(frozen=True, slots=True)
+class ProviderCall:
+    """Texto devuelto y metadatos de correlación de una respuesta completada.
+
+    Ninguno es secreto: `response_id` es el `id` de la respuesta, `request_id` la
+    cabecera `x-request-id` y `model` el modelo que el proveedor declara haber usado.
+    """
+
+    text: str
+    response_id: str | None
+    request_id: str | None
+    model: str | None
 
 
 class OpenAiClassificationAdapter:
@@ -113,9 +134,18 @@ class OpenAiClassificationAdapter:
         return f"{type(self).__name__}(model={self._model!r})"
 
     def classify(self, request: ClassificationRequest) -> str:
+        return self.classify_with_metadata(request).text
+
+    def classify_with_metadata(self, request: ClassificationRequest) -> ProviderCall:
+        """Como `classify`, pero conserva la correlación que exige la evidencia de EX-09."""
         response = self._create_response(request)
         self._check_status(response)
-        return self._extract_text(response)
+        return ProviderCall(
+            text=self._extract_text(response),
+            response_id=_texto_o_none(getattr(response, "id", None)),
+            request_id=_texto_o_none(getattr(response, "_request_id", None)),
+            model=_texto_o_none(getattr(response, "model", None)),
+        )
 
     def _create_response(self, request: ClassificationRequest):
         parametros = {
@@ -188,6 +218,10 @@ def _traducir_error(exc: BaseException) -> BaseException:
     return PermanentAiProviderError(f"El proveedor de IA rechazó la petición ({status}).")
 
 
+def _texto_o_none(value) -> str | None:
+    return value if isinstance(value, str) and value else None
+
+
 def _build_input(request: ClassificationRequest) -> list[dict]:
     """Bloques del turno del usuario: texto siempre, imagen solo si existe.
 
@@ -231,6 +265,7 @@ def _build_user_text(request: ClassificationRequest) -> str:
 __all__ = [
     "PROMPT_VERSION",
     "OpenAiClassificationAdapter",
+    "ProviderCall",
     "build_classification_schema",
     "build_client",
 ]
