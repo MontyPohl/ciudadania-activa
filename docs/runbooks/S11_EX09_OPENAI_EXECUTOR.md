@@ -119,31 +119,27 @@ proveedor**: sólo imprime su resultado, como el preflight local.
   NOT_DEMONSTRATED`. No se hace ninguna petición de prueba: la primera petición del run
   demuestra el modelo, la respuesta, el request id y el modelo servido. La validez de la
   clave tampoco se demuestra antes.
-- **TPM, política `TPM_STRICT_DEMONSTRATED_MAXIMUM`** (decisión del 26/09/2026 en
-  `docs/PROGRESO_SPRINTS.md`). TPM sólo es `PASS` si se demuestra que el consumo máximo
-  posible de la sesión cabe en el límite. Los estados son:
-  - `UNKNOWN`: límite no atestado.
-  - `NOT_DEMONSTRATED`: no hay tokens de entrada exactos por petición.
-  - `FAIL`: una sola petición supera el límite y nunca cabe en un minuto.
-  - `COMPATIBLE_MINIMUM_ONLY`: el mínimo cabe, pero la salida y el razonamiento no están
-    acotados. **No es `PASS`** y no abre el gate.
-  - `PASS`: la entrada total más 28 × `max_output_tokens` cabe en el límite.
+- **TPM, política `TPM_RESIDUAL_OPERATIONAL_RISK`** (OPCIÓN B, decisión del 26/09/2026
+  en `docs/PROGRESO_SPRINTS.md`, que sustituye a `TPM_STRICT_DEMONSTRATED_MAXIMUM`). TPM es un
+  riesgo operacional residual, no una capacidad demostrada:
+  - `--tpm <N>` atestado (entero positivo): `RESIDUAL_RISK_ACCEPTED`, con
+    `compatibility = NOT_DEMONSTRATED`. Satisface el criterio de TPM del gate, pero nunca se
+    informa como `PASS`, «suficiente» ni «compatible».
+  - Sin `--tpm`: `UNKNOWN`, que bloquea el gate.
+  - `--tpm` cero, negativo o no numérico: se rechaza como error del operador; no se
+    convierte en `UNKNOWN`.
 
-  Bajo `s11-ex09-openai-v1`, TPM queda siempre `UNKNOWN` o `NOT_DEMONSTRATED`, y
-  `ready_for_execution` no puede ser `true`:
-  - no hay tokens de entrada exactos: no hay tokenizador local del modelo, y el contador
-    del proveedor (`POST /v1/responses/input_tokens`) enviaría el prompt y el dataset, que
-    este preflight prohíbe;
-  - P6 no fija `max_output_tokens`, que acotaría la salida visible y el razonamiento.
-
-  El preflight informa el tamaño exacto en bytes UTF-8 de las 28 entradas, marcado
-  `used_in_tpm_evaluation: false`: los bytes nunca se convierten en tokens.
+  No se cuentan tokens, no se compara el límite con ninguna cota y no se envía
+  `max_output_tokens`. El preflight informa el tamaño exacto en bytes UTF-8 de las 28
+  entradas, marcado `used_in_tpm_evaluation: false`: los bytes nunca se convierten en
+  tokens. Un 429 por TPM durante el run lo invalida (`NOT_DEMONSTRATED`), como cualquier 429.
 
 `provider_preflight` es `FAIL` si algún criterio falla (`rpm` o `rpd` < 28, crédito
-insuficiente, tope de gasto alcanzado, retención `extended`); `PASS` sólo si todos los
-criterios están en `PASS` (`rpd` ausente no cuenta); y `NOT_DEMONSTRATED` en otro caso.
-Los criterios son el preflight local, la credencial, el crédito, RPM, RPD, TPM, el
-gasto y la retención.
+insuficiente, tope de gasto alcanzado, retención `extended`). Es `PASS` sólo si todos los
+criterios están satisfechos: en `PASS`, o TPM en `RESIDUAL_RISK_ACCEPTED`; `rpd` ausente no
+cuenta. En otro caso es `NOT_DEMONSTRATED`. Los criterios son el preflight local, la
+credencial, el crédito, RPM, RPD, TPM, el gasto y la retención. `ready_for_execution` es
+`true` sólo con `provider_preflight = PASS`.
 
 ## Límites y crédito dentro del run
 
@@ -159,8 +155,13 @@ La comprobación queda `OK` sólo con estas condiciones, derivadas de los 28 cas
 - crédito disponible;
 - límite de gasto no alcanzado.
 
+TPM no decide `OK`: debe atestarse como entero positivo, y el registro guarda
+`tpm_assessment` con `RESIDUAL_RISK_ACCEPTED` y `compatibility = NOT_DEMONSTRATED`.
+
 Sin una comprobación `OK`, `run` se rechaza sin llamar al proveedor. Cualquier 429 durante
-la sesión, incluido `insufficient_quota`, invalida el run.
+la sesión, incluido `insufficient_quota`, invalida el run. El caso afectado queda con su
+clase de error, la sesión sigue con los casos restantes sin reintentar ninguno, y el run se
+cierra `NOT_DEMONSTRATED`.
 
 ## Validez y decisión
 

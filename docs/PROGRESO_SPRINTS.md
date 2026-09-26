@@ -3421,6 +3421,31 @@ READY_FOR_EXECUTION: FALSE
 **Gate siguiente.** Implementar `TPM_RESIDUAL_OPERATIONAL_RISK` en el preflight del proveedor,
 con pruebas locales sin red, sin cambiar el protocolo ni el contrato del run.
 
+#### Implementación de `TPM_RESIDUAL_OPERATIONAL_RISK` (26/09/2026)
+
+Se implementó en el commit `fix(s11): implement TPM as residual operational risk`, sobre
+`cc17d17`, sin llamadas al proveedor ni credenciales reales.
+
+- **`provider-preflight`.**
+  - Con TPM atestado: `RESIDUAL_RISK_ACCEPTED`, con `compatibility = NOT_DEMONSTRATED`.
+    Satisface el criterio de TPM del gate sin escribirse nunca como `PASS`.
+  - Sin atestación: `UNKNOWN`, que bloquea.
+  - Un TPM cero, negativo o no numérico se rechaza como error del operador.
+  - Se retiraron `evaluate_tpm`, `COMPATIBLE_MINIMUM_ONLY` y toda comparación con tokens o
+    con `max_output_tokens`. Los bytes siguen siendo informativos.
+- **`limits_check` del run.** Sigue obligatorio y su `result` no cambia: sólo lo deciden RPM,
+  RPD, crédito y gasto. Ahora exige un TPM positivo y guarda `tpm_assessment` con la misma
+  interpretación.
+- **Sin cambios:** el protocolo, `S11A-v1.1`, CA-4, la custodia, `docs/tesis`, el ejecutor
+  Gemini y el tratamiento de un 429 durante el run. El caso queda con su clase de error, la
+  sesión sigue con los casos restantes sin reintentos y el run cierra `NOT_DEMONSTRATED`.
+
+```text
+TPM policy: TPM_RESIDUAL_OPERATIONAL_RISK · IMPLEMENTED
+Provider preflight: NOT_DEMONSTRATED
+READY_FOR_EXECUTION: FALSE
+```
+
 ### Pruebas realizadas
 
 - Gate inicial: rama `main`, HEAD exacto y working tree limpio.

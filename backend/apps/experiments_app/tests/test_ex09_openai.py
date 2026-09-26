@@ -956,7 +956,7 @@ def test_rpm_must_admit_the_28_requests(ctx, rpm, status):
     report = _provider_preflight(ctx, {KEY_ENV: KEY}, **{**FAVORABLE, "rpm": rpm})
 
     assert report["parameters"]["rpm"]["status"] == status
-    assert report["ready_for_execution"] is False
+    assert report["ready_for_execution"] is (status == "PASS")
     if status == "FAIL":
         assert report["provider_preflight"] == "FAIL"
         assert "rpm" in report["failed"]
@@ -980,84 +980,27 @@ def test_an_applicable_rpd_must_admit_the_28_requests(ctx, rpd, status):
 
     assert report["parameters"]["rpd"]["status"] == status
     assert report["parameters"]["rpd"]["limit"] == "present"
-    assert report["ready_for_execution"] is False
+    assert report["ready_for_execution"] is (status == "PASS")
     assert ("rpd" in report["failed"]) is (status == "FAIL")
 
 
-#: Conteos exactos inyectados sólo para ejercitar la regla. Son ficticios: bajo
-#: `s11-ex09-openai-v1` no existe un mecanismo legítimo para obtenerlos antes del run.
-EXACT_INPUT = [1_000] * 27 + [1_500]
-
-
-def _decide(tpm, input_tokens=None, **overrides):
+def _decide(**overrides):
     return ex09_openai.evaluate_provider_preflight(
         local={"gate": ex09_openai.READY_FOR_PROVIDER_PREFLIGHT},
-        attestation=ex09_openai.ProviderAttestation(**{**FAVORABLE, "tpm": tpm, **overrides}),
+        attestation=ex09_openai.ProviderAttestation(**{**FAVORABLE, **overrides}),
         credential_available=True,
         credential_fingerprint_value=ex09_openai.credential_fingerprint(KEY),
         input_payload=None,
-        input_tokens=input_tokens,
     )
 
 
-def test_an_unknown_tpm_limit_stays_unknown(ctx):
+def test_an_unattested_tpm_is_unknown_and_blocks_the_gate(ctx):
     report = _provider_preflight(ctx, {KEY_ENV: KEY}, **{**FAVORABLE, "tpm": None})
     tpm = report["parameters"]["tpm"]
 
     assert tpm["status"] == "UNKNOWN"
+    assert tpm["compatibility"] == "NOT_DEMONSTRATED"
     assert tpm["limit"] == "unknown"
-    assert report["ready_for_execution"] is False
-    # Ni con tokens exactos: sin límite atestado no hay comparación posible.
-    assert _decide(None, EXACT_INPUT)["parameters"]["tpm"]["status"] == "UNKNOWN"
-
-
-def test_a_known_tpm_without_exact_input_tokens_is_not_demonstrated(ctx):
-    before = _tree(ctx.store.root)
-    report = _provider_preflight(ctx, {KEY_ENV: KEY}, **FAVORABLE)
-    tpm = report["parameters"]["tpm"]
-
-    assert report["tpm_policy"] == "TPM_STRICT_DEMONSTRATED_MAXIMUM"
-    assert tpm["policy"] == "TPM_STRICT_DEMONSTRATED_MAXIMUM"
-    assert tpm["limit"] == "present"
-    assert tpm["value"] == 500_000
-    assert tpm["status"] == "NOT_DEMONSTRATED"
-    assert tpm["input_tokens"]["status"] == "UNAVAILABLE"
-    assert "/v1/responses/input_tokens" in tpm["input_tokens"]["reason"]
-    assert tpm["demonstrable_minimum_tokens"] is None
-    # Todo lo demás atestado a favor: TPM es lo único pendiente y no hay run.
-    assert report["failed"] == []
-    assert report["pending"] == ["tpm"]
-    assert report["provider_preflight"] == "NOT_DEMONSTRATED"
-    assert report["ready_for_execution"] is False
-    assert report["run_id"] is None
-    assert _tree(ctx.store.root) == before
-
-
-def test_a_single_request_above_the_tpm_limit_is_fail():
-    report = _decide(1_499, EXACT_INPUT)
-
-    assert report["parameters"]["tpm"]["status"] == "FAIL"
-    assert report["parameters"]["tpm"]["demonstrable_minimum_tokens"] == 1_500
-    assert "tpm" in report["failed"]
-    assert report["provider_preflight"] == "FAIL"
-    # La entrada total (28 500) supera el límite, pero la sesión puede repartirse en
-    # varios minutos: eso no demuestra un fallo.
-    spread = _decide(1_500, EXACT_INPUT)["parameters"]["tpm"]
-    assert spread["status"] == "COMPATIBLE_MINIMUM_ONLY"
-
-
-def test_a_tpm_above_the_demonstrable_minimum_is_compatible_minimum_only():
-    tpm = _decide(500_000, EXACT_INPUT)["parameters"]["tpm"]
-
-    assert tpm["status"] == "COMPATIBLE_MINIMUM_ONLY"
-    assert tpm["input_tokens"] == {"status": "EXACT", "total": 28_500, "max_request": 1_500}
-    assert tpm["session_maximum_tokens"] is None
-
-
-def test_minimum_compatibility_never_passes_the_gate():
-    report = _decide(500_000, EXACT_INPUT)
-
-    assert report["parameters"]["tpm"]["status"] == "COMPATIBLE_MINIMUM_ONLY"
     assert report["failed"] == []
     assert report["pending"] == ["tpm"]
     assert report["provider_preflight"] == "NOT_DEMONSTRATED"
@@ -1065,15 +1008,113 @@ def test_minimum_compatibility_never_passes_the_gate():
     assert report["gate"] == "NOT_READY_FOR_EXECUTION"
 
 
-def test_output_and_reasoning_are_unbounded_under_the_frozen_protocol():
-    assert ex09_openai.PROTOCOL_MAX_OUTPUT_TOKENS is None
-    tpm = _decide(500_000, EXACT_INPUT)["parameters"]["tpm"]
+def test_an_attested_tpm_is_an_accepted_residual_risk(ctx):
+    before = _tree(ctx.store.root)
+    report = _provider_preflight(ctx, {KEY_ENV: KEY}, **FAVORABLE)
+    tpm = report["parameters"]["tpm"]
 
-    assert tpm["output_bound"] == {
-        "max_output_tokens": None,
-        "status": "UNBOUNDED",
-        "covers": "visible output and reasoning tokens",
+    assert report["tpm_policy"] == "TPM_RESIDUAL_OPERATIONAL_RISK"
+    assert tpm["policy"] == "TPM_RESIDUAL_OPERATIONAL_RISK"
+    assert tpm["status"] == "RESIDUAL_RISK_ACCEPTED"
+    assert tpm["compatibility"] == "NOT_DEMONSTRATED"
+    assert (tpm["limit"], tpm["value"]) == ("present", 500_000)
+    # Con los demás criterios satisfechos, un TPM atestado no bloquea el gate.
+    assert report["failed"] == []
+    assert report["pending"] == []
+    assert report["provider_preflight"] == "PASS"
+    assert report["ready_for_execution"] is True
+    assert report["gate"] == "READY_FOR_EXECUTION"
+    # Sigue sin demostrarse lo que sólo demuestra una petición real, y no hay run.
+    assert report["model"]["availability"] == "NOT_DEMONSTRATED"
+    assert report["parameters"]["credential"]["validity"] == "NOT_DEMONSTRATED"
+    assert report["run_id"] is None
+    assert report["provider_calls"] == 0
+    assert _tree(ctx.store.root) == before
+
+
+@pytest.mark.parametrize("tpm", [None, 1, 500_000])
+def test_tpm_never_reports_pass_compatible_or_demonstrated(ctx, tpm):
+    report = _provider_preflight(ctx, {KEY_ENV: KEY}, **{**FAVORABLE, "tpm": tpm})
+    assessment = {
+        key: value for key, value in report["parameters"]["tpm"].items() if key != "input_payload"
     }
+    serialized = json.dumps(assessment)
+
+    assert assessment["status"] in {"UNKNOWN", "RESIDUAL_RISK_ACCEPTED"}
+    assert assessment["compatibility"] == "NOT_DEMONSTRATED"
+    assert "PASS" not in serialized
+    assert "COMPATIBLE" not in serialized
+    assert re.search(r"(?<!NOT_)DEMONSTRATED", serialized) is None
+    assert re.search(r"TPM\W*(PASS|COMPATIBLE|DEMONSTRATED)", json.dumps(report).upper()) is None
+
+
+@pytest.mark.parametrize("tpm", [0, -1, True, 1.5, "500000"])
+def test_an_invalid_tpm_is_rejected_not_hidden_as_unknown(ctx, tpm):
+    with pytest.raises(ex09_openai.Ex09OpenAiError, match="tpm"):
+        ex09_openai.ProviderAttestation(tpm=tpm)
+    ctx.start()
+    with pytest.raises(ex09_openai.Ex09OpenAiError, match="tpm"):
+        ctx.limits(tpm=tpm)
+    assert ex09_openai.limits_checks(ex09_openai.load_state(ctx.store, ctx.run_id)) == []
+
+
+@pytest.mark.parametrize("value", ["0", "-5", "abc", "5e5", ""])
+def test_the_command_rejects_an_invalid_tpm(monkeypatch, value):
+    from django.core.management import call_command
+    from django.core.management.base import CommandError
+
+    _clear_productive_env(monkeypatch)
+    with pytest.raises(CommandError):
+        call_command(
+            "s11_ex09_openai",
+            "provider-preflight",
+            "--tpm",
+            value,
+            "--git-sha",
+            GIT_SHA,
+            "--git-clean",
+        )
+
+
+def test_the_in_run_limits_check_records_tpm_as_residual_risk(ctx):
+    ctx.start()
+    recorded = ctx.limits()
+    assessment = recorded["tpm_assessment"]
+
+    assert recorded["result"] == "OK"
+    assert recorded["tpm"] == 500_000
+    assert assessment["status"] == "RESIDUAL_RISK_ACCEPTED"
+    assert assessment["compatibility"] == "NOT_DEMONSTRATED"
+    assert assessment["policy"] == "TPM_RESIDUAL_OPERATIONAL_RISK"
+    # El registro custodiado conserva la interpretación.
+    stored = ex09_openai.limits_checks(ex09_openai.load_state(ctx.store, ctx.run_id))[-1]
+    assert stored["tpm_assessment"] == assessment
+
+
+def test_the_provider_preflight_counts_no_tokens(ctx, monkeypatch):
+    from openai.resources.responses import Responses
+    from openai.resources.responses.input_tokens import InputTokens
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("El preflight del proveedor no puede llamar al proveedor.")
+
+    monkeypatch.setattr(Responses, "create", forbidden)
+    monkeypatch.setattr(InputTokens, "count", forbidden)
+    for name in (
+        "evaluate_tpm",
+        "TPM_COMPATIBLE_MINIMUM_ONLY",
+        "PROTOCOL_MAX_OUTPUT_TOKENS",
+        "INPUT_TOKENS_UNAVAILABLE",
+    ):
+        assert not hasattr(ex09_openai, name), name
+    assert set(inspect.signature(ex09_openai.tpm_assessment).parameters) == {"tpm_limit"}
+    report = _provider_preflight(ctx, {KEY_ENV: KEY}, **FAVORABLE)
+    tpm = report["parameters"]["tpm"]
+
+    assert set(tpm) == {"status", "compatibility", "policy", "limit", "value", "input_payload"}
+    assert tpm["input_payload"]["used_in_tpm_evaluation"] is False
+    assert report["provider_calls"] == 0
+    assert report["classification_requests"] == 0
 
 
 def test_the_frozen_protocol_sends_no_max_output_tokens(dataset):
@@ -1087,39 +1128,8 @@ def test_the_frozen_protocol_sends_no_max_output_tokens(dataset):
         assert "max_output_tokens" not in params, case.id
 
 
-def test_the_strict_policy_passes_only_a_bounded_session_maximum():
-    # Un protocolo hipotético con tope de salida, no s11-ex09-openai-v1.
-    bounded = ex09_openai.evaluate_tpm(
-        tpm_limit=500_000, input_tokens=EXACT_INPUT, max_output_tokens=10_000
-    )
-    assert bounded["session_maximum_tokens"] == 28_500 + 28 * 10_000
-    assert bounded["status"] == "PASS"
-    above = ex09_openai.evaluate_tpm(
-        tpm_limit=300_000, input_tokens=EXACT_INPUT, max_output_tokens=10_000
-    )
-    assert above["status"] == "NOT_DEMONSTRATED"
-
-
-@pytest.mark.parametrize(
-    ("input_tokens", "max_output_tokens"),
-    [
-        (EXACT_INPUT[:27], None),
-        ([0] + EXACT_INPUT[1:], None),
-        ([True] + EXACT_INPUT[1:], None),
-        (EXACT_INPUT, 0),
-    ],
-)
-def test_malformed_token_counts_are_rejected(input_tokens, max_output_tokens):
-    with pytest.raises(ex09_openai.Ex09OpenAiError):
-        ex09_openai.evaluate_tpm(
-            tpm_limit=500_000, input_tokens=input_tokens, max_output_tokens=max_output_tokens
-        )
-
-
 @pytest.mark.parametrize(("payload_bytes", "tpm"), [(10**12, 1), (1, 10**9)])
 def test_bytes_are_never_converted_to_tokens(ctx, monkeypatch, payload_bytes, tpm):
-    parameters = set(inspect.signature(ex09_openai.evaluate_tpm).parameters)
-    assert parameters == {"tpm_limit", "input_tokens", "max_output_tokens", "total_requests"}
     monkeypatch.setattr(
         ex09_openai,
         "session_input_measure",
@@ -1135,10 +1145,121 @@ def test_bytes_are_never_converted_to_tokens(ctx, monkeypatch, payload_bytes, tp
         "parameters"
     ]["tpm"]
 
-    # Ni un volumen absurdo produce FAIL ni uno mínimo produce PASS.
-    assert tpm_report["status"] == "NOT_DEMONSTRATED"
+    # Ningún volumen de bytes cambia el estado: TPM nunca se compara con nada.
+    assert tpm_report["status"] == "RESIDUAL_RISK_ACCEPTED"
+    assert tpm_report["compatibility"] == "NOT_DEMONSTRATED"
     assert tpm_report["input_payload"]["input_utf8_bytes_total"] == payload_bytes
-    assert tpm_report["input_payload"]["used_in_tpm_evaluation"] is False
+
+
+def test_a_tpm_429_makes_the_run_not_demonstrated_without_retry(ctx, dataset):
+    import httpx2
+
+    from apps.ai_client_app.adapters.openai import OpenAiClassificationAdapter, build_client
+
+    affected = dataset.cases[4].id
+    sent = []
+
+    def respond(request):
+        sent.append(request)
+        case = dataset.cases[len(sent) - 1]
+        headers = {"x-request-id": f"req_local_{len(sent):02d}"}
+        if case.id == affected:
+            error = {
+                "type": "tokens",
+                "code": "rate_limit_exceeded",
+                "message": "LOCAL TEST: rate limit reached on tokens per min (TPM).",
+            }
+            return httpx2.Response(429, headers=headers, json={"error": error})
+        text = _gold_text(case, priorities=dataset.catalog.priorities)
+        body = {
+            "id": f"resp_local_{case.id}",
+            "object": "response",
+            "created_at": 1790000000,
+            "status": "completed",
+            "model": "gpt-6-luna",
+            "output": [
+                {
+                    "type": "message",
+                    "id": f"msg_local_{case.id}",
+                    "status": "completed",
+                    "role": "assistant",
+                    "content": [{"type": "output_text", "text": text, "annotations": []}],
+                }
+            ],
+            "parallel_tool_calls": False,
+            "tool_choice": "auto",
+            "tools": [],
+        }
+        return httpx2.Response(200, headers=headers, json=body)
+
+    def client_factory(*, api_key, timeout_seconds):
+        transport = httpx2.MockTransport(respond)
+        return build_client(
+            api_key=api_key,
+            timeout_seconds=timeout_seconds,
+            http_client=httpx2.Client(transport=transport),
+        )
+
+    runner = partial(
+        run_openai_session,
+        client_factory=client_factory,
+        adapter_factory=OpenAiClassificationAdapter,
+        clock=ctx.clock,
+        monotonic_ns=_monotonic(),
+    )
+    ctx.start()
+    ctx.limits()
+    ctx.run(runner=runner)
+    ctx.close()
+    result = ctx.finalize()
+
+    # Un solo intento por caso: el 429 no se reintenta y no hay reruns selectivos.
+    assert len(sent) == 28
+    records = {record["case_id"]: record for record in ctx.payload("ex09-openai-session")["cases"]}
+    assert records[affected]["error_class"] == "rate_limit_429"
+    assert records[affected]["validity"] == "INVALID"
+    # El run queda inválido: nunca PASS, FAIL ni desacuerdo de clasificación.
+    assert result["decision"] == "NOT_DEMONSTRATED"
+    assert result["manifest_status"] == "INVALID"
+    assert any(reason.startswith(f"invalid:{affected}") for reason in result["reasons"])
+
+
+def test_tpm_does_not_relax_the_other_criteria():
+    assert _decide()["ready_for_execution"] is True
+    for overrides, criterion in (
+        ({"rpm": None}, "rpm"),
+        ({"rpm": 27}, "rpm"),
+        ({"rpd_absent": False}, "rpd"),
+        ({"rpd_absent": False, "rpd": 27}, "rpd"),
+        ({"credit_status": "unknown"}, "credit"),
+        ({"credit_status": "insufficient"}, "credit"),
+        ({"spend_limit": "unknown"}, "spend_limit"),
+        ({"spend_limit": "reached"}, "spend_limit"),
+        ({"retention_status": "unknown"}, "retention"),
+        ({"retention_status": "extended"}, "retention"),
+    ):
+        report = _decide(**overrides)
+        assert report["parameters"]["tpm"]["status"] == "RESIDUAL_RISK_ACCEPTED"
+        assert criterion in report["failed"] + report["pending"], overrides
+        assert report["ready_for_execution"] is False, overrides
+    without_credential = ex09_openai.evaluate_provider_preflight(
+        local={"gate": ex09_openai.READY_FOR_PROVIDER_PREFLIGHT},
+        attestation=ex09_openai.ProviderAttestation(**FAVORABLE),
+        credential_available=False,
+        credential_fingerprint_value=None,
+        input_payload=None,
+    )
+    assert without_credential["pending"] == ["credential"]
+    assert without_credential["ready_for_execution"] is False
+    not_local = ex09_openai.evaluate_provider_preflight(
+        local={"gate": ex09_openai.NOT_READY},
+        attestation=ex09_openai.ProviderAttestation(**FAVORABLE),
+        credential_available=True,
+        credential_fingerprint_value=ex09_openai.credential_fingerprint(KEY),
+        input_payload=None,
+    )
+    assert not_local["failed"] == ["local_preflight"]
+    assert not_local["ready_for_execution"] is False
 
 
 @pytest.mark.parametrize(
@@ -1148,10 +1269,10 @@ def test_bytes_are_never_converted_to_tokens(ctx, monkeypatch, payload_bytes, tp
         ("credit_status", "insufficient", "FAIL", "FAIL"),
         ("spend_limit", "unknown", "UNKNOWN", "NOT_DEMONSTRATED"),
         ("spend_limit", "reached", "FAIL", "FAIL"),
-        ("spend_limit", "compatible", "PASS", "NOT_DEMONSTRATED"),
+        ("spend_limit", "compatible", "PASS", "PASS"),
         ("retention_status", "unknown", "UNKNOWN", "NOT_DEMONSTRATED"),
         ("retention_status", "extended", "BLOCKED", "FAIL"),
-        ("retention_status", "zero-data-retention", "PASS", "NOT_DEMONSTRATED"),
+        ("retention_status", "zero-data-retention", "PASS", "PASS"),
     ],
 )
 def test_credit_spend_and_retention_gate_the_preflight(ctx, field, value, status, outcome):
@@ -1160,7 +1281,7 @@ def test_credit_spend_and_retention_gate_the_preflight(ctx, field, value, status
 
     assert report["parameters"][name]["status"] == status
     assert report["provider_preflight"] == outcome
-    assert report["ready_for_execution"] is False
+    assert report["ready_for_execution"] is (outcome == "PASS")
 
 
 def test_the_model_is_configured_but_its_availability_is_not_demonstrated(ctx):

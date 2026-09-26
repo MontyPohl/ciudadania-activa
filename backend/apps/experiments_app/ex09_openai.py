@@ -632,87 +632,42 @@ _MODEL_AVAILABILITY_NOTE = (
     "la vez el modelo, la respuesta, el request id y el modelo servido"
 )
 
-#: Política de TPM decidida el 26/09/2026 (`docs/PROGRESO_SPRINTS.md`). TPM sólo es `PASS`
-#: si se demuestra que el consumo máximo posible de la sesión cabe en el límite.
-TPM_POLICY = "TPM_STRICT_DEMONSTRATED_MAXIMUM"
-TPM_COMPATIBLE_MINIMUM_ONLY = "COMPATIBLE_MINIMUM_ONLY"
-#: P6 no congela `max_output_tokens`, que en la Responses API acota a la vez la salida
-#: visible y los tokens de razonamiento. Bajo `s11-ex09-openai-v1` no hay tope.
-PROTOCOL_MAX_OUTPUT_TOKENS: int | None = None
-#: Por qué no hay tokens de entrada exactos antes del run. Nunca se derivan de bytes.
-INPUT_TOKENS_UNAVAILABLE = (
-    "no local tokenizer for the model; the provider counter (POST /v1/responses/input_tokens) "
-    "would send the prompt and the dataset, which the provider preflight forbids"
-)
+#: Política de TPM adoptada el 26/09/2026 (OPCIÓN B, `docs/PROGRESO_SPRINTS.md`). TPM es
+#: un riesgo operacional residual: un límite atestado se acepta como riesgo, nunca como
+#: capacidad demostrada. No se cuentan tokens ni se compara con ninguna cota. Un 429
+#: durante el run lo invalida (`NOT_DEMONSTRATED`), como fija P6.
+TPM_POLICY = "TPM_RESIDUAL_OPERATIONAL_RISK"
+TPM_RESIDUAL_RISK_ACCEPTED = "RESIDUAL_RISK_ACCEPTED"
+#: Estados que satisfacen un criterio del gate. El de TPM nunca se escribe como `PASS`.
+_SATISFIED = (CHECK_PASS, TPM_RESIDUAL_RISK_ACCEPTED)
 
 
-def evaluate_tpm(
-    *,
-    tpm_limit: int | None,
-    input_tokens: Sequence[int] | None,
-    max_output_tokens: int | None,
-    total_requests: int = MINIMUM_REQUESTS,
-) -> dict[str, Any]:
-    """Aplica `TPM_STRICT_DEMONSTRATED_MAXIMUM`. Sólo `PASS` cuenta para el gate.
+def tpm_assessment(tpm_limit: int | None) -> dict[str, Any]:
+    """Aplica `TPM_RESIDUAL_OPERATIONAL_RISK`.
 
-    - Límite desconocido: `UNKNOWN`.
-    - Sin tokens de entrada exactos por petición: `NOT_DEMONSTRATED`.
-    - Una sola petición supera el límite: `FAIL`, porque nunca cabe en un minuto. Es el
-      único mínimo demostrable: la sesión puede repartirse en varios minutos, así que la
-      entrada total no lo es.
-    - Sin tope de salida: `COMPATIBLE_MINIMUM_ONLY`. El mínimo cabe, pero la salida y el
-      razonamiento no están acotados y la sesión no queda garantizada.
-    - Entrada total más `total_requests × max_output_tokens` dentro del límite: `PASS`,
-      porque la sesión entera cabría en un solo minuto.
-    - En otro caso, `NOT_DEMONSTRATED`: superar esa cota no demuestra un fallo.
+    Un límite atestado queda `RESIDUAL_RISK_ACCEPTED`, que satisface el criterio de TPM
+    del gate. Sin atestación queda `UNKNOWN` y lo bloquea. La compatibilidad con el
+    consumo de la sesión queda `NOT_DEMONSTRATED` en ambos casos.
     """
-    if input_tokens is not None and (
-        len(input_tokens) != total_requests
-        or any(type(value) is not int or value <= 0 for value in input_tokens)
-    ):
-        raise Ex09OpenAiError(
-            f"Los tokens de entrada deben ser {total_requests} enteros positivos exactos."
-        )
-    if max_output_tokens is not None and (
-        type(max_output_tokens) is not int or max_output_tokens <= 0
-    ):
-        raise Ex09OpenAiError("max_output_tokens debe ser un entero positivo.")
-    minimum = max(input_tokens) if input_tokens is not None else None
-    maximum = (
-        sum(input_tokens) + total_requests * max_output_tokens
-        if input_tokens is not None and max_output_tokens is not None
-        else None
-    )
-    if tpm_limit is None:
-        status = STATUS_UNKNOWN
-    elif minimum is None:
-        status = STATUS_NOT_DEMONSTRATED
-    elif minimum > tpm_limit:
-        status = CHECK_FAIL
-    elif maximum is None:
-        status = TPM_COMPATIBLE_MINIMUM_ONLY
-    elif maximum <= tpm_limit:
-        status = CHECK_PASS
-    else:
-        status = STATUS_NOT_DEMONSTRATED
+    attested = tpm_limit is not None
     return {
-        "status": status,
+        "status": TPM_RESIDUAL_RISK_ACCEPTED if attested else STATUS_UNKNOWN,
+        "compatibility": STATUS_NOT_DEMONSTRATED,
         "policy": TPM_POLICY,
-        "limit": "present" if tpm_limit is not None else "unknown",
+        "limit": "present" if attested else "unknown",
         "value": tpm_limit,
-        "input_tokens": (
-            {"status": "EXACT", "total": sum(input_tokens), "max_request": minimum}
-            if input_tokens is not None
-            else {"status": "UNAVAILABLE", "reason": INPUT_TOKENS_UNAVAILABLE}
-        ),
-        "output_bound": {
-            "max_output_tokens": max_output_tokens,
-            "status": "BOUNDED" if max_output_tokens is not None else "UNBOUNDED",
-            "covers": "visible output and reasoning tokens",
-        },
-        "demonstrable_minimum_tokens": minimum,
-        "session_maximum_tokens": maximum,
     }
+
+
+def _require_positive_tpm(value: Any, *, optional: bool) -> None:
+    """Un TPM atestado es un entero positivo. Cero o negativo es un error del operador."""
+    if value is None and optional:
+        return
+    if type(value) is not int or value <= 0:
+        raise Ex09OpenAiError(
+            "tpm debe ser un entero positivo observado en la consola"
+            + (" o omitirse." if optional else ".")
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -729,10 +684,11 @@ class ProviderAttestation:
     retention_status: str = "unknown"
 
     def __post_init__(self):
-        for name in ("rpm", "tpm", "rpd"):
+        for name in ("rpm", "rpd"):
             value = getattr(self, name)
             if value is not None and (type(value) is not int or value < 0):
                 raise Ex09OpenAiError(f"{name} debe ser un entero no negativo o omitirse.")
+        _require_positive_tpm(self.tpm, optional=True)
         if self.rpd is not None and self.rpd_absent:
             raise Ex09OpenAiError("rpd y rpd_absent se excluyen: el límite existe o no.")
         if self.tier is not None and (not isinstance(self.tier, str) or not self.tier.strip()):
@@ -750,7 +706,7 @@ def session_input_measure(dataset: EvaluationDataset) -> dict[str, Any]:
     """Tamaño exacto de lo que recibiría el modelo en las 28 peticiones, sin enviarlas.
 
     Suma las instrucciones, el texto del usuario y el esquema de cada petición. Son
-    bytes UTF-8, no tokens. Es un dato informativo: `evaluate_tpm` no lo recibe, porque
+    bytes UTF-8, no tokens. Es un dato informativo: la evaluación de TPM no lo usa, porque
     no existe una conversión demostrable de bytes a tokens.
     """
     sizes = []
@@ -785,14 +741,13 @@ def evaluate_provider_preflight(
     credential_available: bool,
     credential_fingerprint_value: str | None,
     input_payload: Mapping[str, Any] | None,
-    input_tokens: Sequence[int] | None = None,
 ) -> dict[str, Any]:
     """Decide el preflight del proveedor. `PASS` sólo si todo criterio está demostrado.
 
     Un criterio que falla (`FAIL`, `BLOCKED`) hace el preflight `FAIL`; uno que no se
     pudo demostrar lo deja `NOT_DEMONSTRATED`. La disponibilidad del modelo nunca es
-    criterio: se demuestra en la primera petición del run. TPM sólo cuenta como `PASS`;
-    `COMPATIBLE_MINIMUM_ONLY` queda pendiente.
+    criterio: se demuestra en la primera petición del run. TPM satisface su criterio con
+    `RESIDUAL_RISK_ACCEPTED`, nunca con `PASS`.
     """
     minimum = MINIMUM_REQUESTS
     local_ok = local.get("gate") == READY_FOR_PROVIDER_PREFLIGHT
@@ -811,11 +766,7 @@ def evaluate_provider_preflight(
             value=attestation.rpd,
             minimum=minimum,
         )
-    tpm = evaluate_tpm(
-        tpm_limit=attestation.tpm,
-        input_tokens=input_tokens,
-        max_output_tokens=PROTOCOL_MAX_OUTPUT_TOKENS,
-    )
+    tpm = tpm_assessment(attestation.tpm)
     parameters = {
         "local_preflight": _parameter(
             CHECK_PASS if local_ok else CHECK_FAIL, gate=local.get("gate")
@@ -867,7 +818,7 @@ def evaluate_provider_preflight(
         name for name, status in criteria.items() if status in (CHECK_FAIL, STATUS_BLOCKED)
     )
     pending = sorted(
-        name for name, status in criteria.items() if status != CHECK_PASS and name not in failed
+        name for name, status in criteria.items() if status not in _SATISFIED and name not in failed
     )
     if failed:
         result = CHECK_FAIL
@@ -935,8 +886,6 @@ def run_provider_preflight(
         credential_available=key is not None,
         credential_fingerprint_value=credential_fingerprint(key) if key else None,
         input_payload=input_payload,
-        # Sin mecanismo legítimo sin llamada (INPUT_TOKENS_UNAVAILABLE), no se inyectan.
-        input_tokens=None,
     )
     report = {
         "schema_version": "s11c3-ex09-openai-provider-preflight-v1",
@@ -1191,9 +1140,9 @@ def _limits_check(
         raise Ex09OpenAiRefusal(["limits-check-after-session-start"], terminal=False)
     if not isinstance(tier, str) or not tier.strip():
         raise Ex09OpenAiError("El tier observado es obligatorio.")
-    for name, value in (("rpm", rpm), ("tpm", tpm)):
-        if type(value) is not int or value < 0:
-            raise Ex09OpenAiError(f"{name} debe ser un entero no negativo observado en la consola.")
+    if type(rpm) is not int or rpm < 0:
+        raise Ex09OpenAiError("rpm debe ser un entero no negativo observado en la consola.")
+    _require_positive_tpm(tpm, optional=False)
     if rpd is not None and (type(rpd) is not int or rpd < 0):
         raise Ex09OpenAiError("rpd debe ser un entero no negativo, u omitirse si no existe.")
     if type(credit_available) is not bool or type(spend_limit_reached) is not bool:
@@ -1219,6 +1168,8 @@ def _limits_check(
         credit_available=credit_available,
         spend_limit_reached=spend_limit_reached,
         minimum_requests=MINIMUM_REQUESTS,
+        # TPM no decide `result`: se registra como riesgo residual aceptado.
+        tpm_assessment=tpm_assessment(tpm),
         source="provider console, read-only; no provider call",
     )
     return payload, _type(f"limits-check-{sequence:02d}")
