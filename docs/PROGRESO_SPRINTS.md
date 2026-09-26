@@ -3258,6 +3258,169 @@ Provider preflight: NOT_DEMONSTRATED
 READY_FOR_EXECUTION: FALSE
 ```
 
+#### Decisión metodológica final sobre TPM: OPCIÓN B (26/09/2026)
+
+```text
+DECISION = B
+TPM policy = TPM_RESIDUAL_OPERATIONAL_RISK
+```
+
+Esta decisión sustituye a `TPM_STRICT_DEMONSTRATED_MAXIMUM`, que se conserva arriba como
+historial. Se toma **antes de cualquier observación**: nunca se hizo una llamada a OpenAI con
+`s11-ex09-openai-v1`, no existe ningún run de EX-09 y no hay ningún dato de consumo.
+
+**Qué criterio se reemplaza.** El criterio del gate «TPM compatible con el consumo previsto de la
+sesión». Se introdujo el 26/09/2026 en la especificación del gate previo y se implementó en
+`7c76d8f` y `8d65d30`. **No forma parte de la metodología congelada:**
+
+- `docs/tesis` no menciona TPM ni `max_output_tokens`;
+- P6 (resuelto) fija como «condiciones derivadas del propio protocolo» sólo RPM ≥ 28 y, si
+  existe, RPD ≥ 28. TPM sólo se atesta, y «cualquier 429 durante el run lo invalida»;
+- el `limits_result` congelado del run (`f88c0a2`) compara RPM, RPD, crédito y gasto, y registra
+  TPM sin compararlo.
+
+**Por qué no la Opción A (`S11A-v1.2` / `s11-ex09-openai-v2`).**
+
+- **A1, `max_output_tokens`.** Su único propósito sería hacer demostrable TPM: es exactamente la
+  motivación que A1 excluye. No hay base a priori para su valor:
+  - `justification` es texto libre sin `maxLength` (el tope de 1000 caracteres lo aplica el
+    parser después de generar);
+  - no se pueden usar resultados de EX-09;
+  - un piloto con los 28 casos sería contaminación.
+
+  Un tope alto no demuestra TPM y uno bajo trunca respuestas: `incomplete` →
+  `provider_incomplete` → run `NOT_DEMONSTRATED`. Además, revertiría una exclusión deliberada de
+  P6 («No se envían: … `max_output_tokens`») y rompería la paridad con la instancia Gemini/S8,
+  cuyo adaptador tampoco acota la salida.
+- **A2, razonamiento.** Según el SDK 3.19.2, `max_output_tokens` acota a la vez la salida visible
+  y los tokens de razonamiento. `reasoning.effort=low` no tiene un consumo documentado: un tope
+  puede agotarse razonando y dejar la respuesta incompleta, con una probabilidad desconocida a
+  priori.
+- **A3, tokens de entrada.**
+  - No hay tokenizador local del modelo.
+  - Los bytes no son tokens.
+  - Una estimación no es una demostración.
+  - El `usage` de una respuesta real sólo existe después: no puede justificar el preflight.
+  - El contador oficial (`POST /v1/responses/input_tokens`) exigiría exponer al proveedor el
+    prompt y los 28 casos antes del experimento.
+- **A4, contabilidad de TPM.** Aun con entrada exacta y un tope, `Σ entrada + 28 × tope ≤ TPM`
+  sólo demuestra algo si el limitador del proveedor cuenta exactamente esos tokens. Hay tres
+  cosas que no pueden verificarse desde el repositorio, el SDK ni las fuentes de P6:
+  - si usa estimaciones o reservas al admitir la petición;
+  - su ventana;
+  - su trato de los topes.
+
+  La Opción A no alcanza una demostración estricta: traslada el supuesto no verificable al
+  proveedor.
+- **A5, timeout.** 60 s no depende de TPM y no justifica ningún cambio.
+- **A6, comparabilidad.** El estímulo no cambia, pero el espacio de respuestas sí: aparece un
+  canal nuevo de invalidez por truncamiento. Cambiar el tratamiento experimental para satisfacer
+  un control administrativo invierte la prioridad metodológica.
+- **A7, CA-4.** No cambiaría, pero la Opción A añadiría invalidez sin ganar validez.
+
+**Por qué la Opción B no desplaza la meta.** El criterio retirado no protege la validez de CA-4,
+sólo la probabilidad de completar un run. Según las reglas congeladas de P6 y S11-C3, que esta
+decisión no cambia:
+
+1. Un 429, por TPM, RPM o `insufficient_quota`, es un error del proveedor (`rate_limit_429` o
+   `insufficient_quota`), nunca un resultado experimental.
+2. Un caso afectado nunca cuenta como desacuerdo de clasificación.
+3. El run queda `NOT_DEMONSTRATED`, nunca `FAIL` ni `PASS`.
+4. El denominador sigue siendo 28 y un caso inválido nunca lo completa.
+5. No hay reintentos: SDK 0, script 0, Celery no interviene.
+6. No hay reruns selectivos. Tras un `NOT_DEMONSTRATED` sólo cabe un intento nuevo con `run_id`
+   nuevo, los 28 casos y parámetros idénticos (S11-C3 D3.7), y todos los intentos se conservan y
+   se informan.
+7. El primer run válido es vinculante. Un intento nuevo sólo sigue a un run inválido, así que
+   nunca puede descartar un `PASS` o un `FAIL`.
+
+Un 429 por TPM depende del volumen y del ritmo de tokens, no del acierto de la clasificación. Y
+como invalida el run entero en lugar de excluir casos, el conjunto de runs válidos no se
+selecciona según el resultado. Retirar TPM del gate cambia sólo el riesgo operacional de un
+intento inválido, no lo que CA-4 mide.
+
+**Respuestas formales.**
+
+1. EX-09 puede ejecutarse sin modificar la metodología: `S11A-v1.1` y `s11-ex09-openai-v1`
+   nunca exigieron demostrar TPM.
+2. TPM no puede demostrarse estrictamente bajo `s11-ex09-openai-v1`, y tampoco bajo la Opción A
+   sin suponer la contabilidad del proveedor.
+3. La Opción A no conserva mejor la trazabilidad: abre una versión nueva, revierte una exclusión
+   explícita de P6 y añade un parámetro sin justificación a priori. La Opción B deja intactos
+   los hashes metodológicos y registra un solo cambio de regla del gate, con fecha y previo a
+   cualquier observación.
+4. La Opción B no cambia la validez del gate respecto de CA-4.
+5. La Opción B es la más defendible ante una revisión académica: no altera el tratamiento, se
+   adopta ex ante, restablece la coherencia con P6 y no presenta como garantía algo no
+   demostrado.
+6. Evidencia nueva: sólo la atestación del operador desde la consola. No hacen falta llamadas
+   ni conteo de tokens.
+7. Cambian este registro ahora y, en la implementación, `ex09_openai.py`, sus pruebas y el
+   runbook del ejecutor. No cambian `docs/tesis`, `S11A-v1.1`, el protocolo, la identidad del
+   run ni las fuentes atestadas por la custodia (P02/P03 v7 sigue vigente).
+8. Permanecen congelados:
+   - `S11A-v1.1` y todos los valores de P6, incluido que no se envía `max_output_tokens`;
+   - dataset, prompt y esquema, con sus SHA-256;
+   - CA-4 (denominador 28, `PASS` ≥ 24/28, `FAIL` ≤ 23/28);
+   - timeout de 60 s con la regla de duración total por caso, y reintentos 0;
+   - la sesión única y secuencial;
+   - `store=false`;
+   - las reglas de invalidez y D3.7;
+   - `S11-CUSTODY-v1.0` y `evidence.py`;
+   - las atestaciones v6 y v7, los runs y manifests históricos y el ejecutor Gemini.
+
+**Especificación de la regla `TPM_RESIDUAL_OPERATIONAL_RISK`** (a implementar; sin ejecución).
+
+- **Preflight.** El operador atesta el límite TPM de `gpt-6-luna` leído en la consola (el más
+  restrictivo entre organización y proyecto). El estado de TPM puede ser:
+  - `UNKNOWN`, si no se atesta: bloquea, porque falta la evidencia mínima;
+  - `RESIDUAL_RISK_ACCEPTED`, si se atesta: satisface el criterio de TPM del gate con
+    `compatibility = NOT_DEMONSTRATED` explícito.
+
+  TPM nunca se informa como `PASS`, «suficiente» ni «compatible». No se cuentan tokens, no se
+  compara con ninguna cota, y los bytes siguen informativos (`used_in_tpm_evaluation: false`).
+  Se retiran los estados `COMPATIBLE_MINIMUM_ONLY`, `FAIL` y `PASS` de TPM.
+- **Resto del gate sin cambios.**
+  - Preflight local `READY_FOR_PROVIDER_PREFLIGHT`.
+  - Credencial disponible.
+  - Crédito `sufficient`.
+  - RPM ≥ 28.
+  - RPD ≥ 28 o `ABSENT`.
+  - Gasto `absent` o `compatible`.
+  - Retención `standard` o `zero-data-retention`.
+  - La disponibilidad del modelo sigue `NOT_DEMONSTRATED` hasta la primera petición del run.
+- **Evidencia mínima antes de ejecutar.**
+  - La salida de `provider-preflight`, no persistida, con el valor de TPM, `tpm_policy` e
+    `identity_sha256`.
+  - El `limits_check` custodiado dentro del run, entre `start` y `run`. Ya exige TPM entero y no
+    cambia.
+- **Durante el run.** Nada cambia: un 429 se clasifica por caso, la sesión no se reintenta y el
+  run se decide al finalizar como `NOT_DEMONSTRATED`. La custodia es `S11-CUSTODY-v1.0`, con la
+  clase de error de cada caso en `ex09-openai-session.json`.
+- **Documentación de la implementación.**
+  - En `ex09_openai.py`: `TPM_POLICY`, la evaluación de TPM y la retirada de la comparación.
+  - Sus pruebas.
+  - El punto TPM del runbook.
+
+Hasta ese commit, el ejecutor sigue aplicando la política estricta, más restrictiva: sólo puede
+bloquear, nunca habilitar una ejecución que esta decisión no admita.
+
+**Estado resultante.**
+
+```text
+S11-C2: CLOSED
+S11-C: OPEN
+EX-09 Gemini: PREPARED · NOT EXECUTED · HISTORICAL
+EX-09 OpenAI: PREPARED · NOT EXECUTED
+Methodology: S11A-v1.1 · Protocol: s11-ex09-openai-v1
+TPM policy: TPM_RESIDUAL_OPERATIONAL_RISK (adoptada; implementación pendiente)
+Provider preflight: NOT_DEMONSTRATED
+READY_FOR_EXECUTION: FALSE
+```
+
+**Gate siguiente.** Implementar `TPM_RESIDUAL_OPERATIONAL_RISK` en el preflight del proveedor,
+con pruebas locales sin red, sin cambiar el protocolo ni el contrato del run.
+
 ### Pruebas realizadas
 
 - Gate inicial: rama `main`, HEAD exacto y working tree limpio.
