@@ -237,9 +237,18 @@ spec y el run `s11-0e2feac0-6583-513c-a6aa-33430394d14a` cerró `COMPLETED`: **e
 spec y el run `s11-545491b8-01fe-55e6-8f08-1a0ebbdca8d3` cerró `COMPLETED`: **el estado vigente de
 `EX-07` es `PASS`**, con gate `S11C2_EX07_PASS`. S11-C2, cuyo alcance formal es EX-02…EX-08,
 tiene sus siete escenarios en `PASS` y quedó **cerrado** tras la revisión formal del 23/09/2026;
-S11-C sigue abierto con EX-09 y EX-10 pendientes. La sub-etapa S11-C3, que los ejecutará, usa la
-misma clave custodial estable de esta época: una corrida de EX-09 renueva el HMAC del índice en
-cada alta y sólo se sella al final del segundo lote.
+S11-C sigue abierto. **Previsión documentada el 23/09/2026**, que se conserva como registro de esa
+fecha y no como estado actual: «La sub-etapa S11-C3, que los ejecutará, usa la misma clave
+custodial estable de esta época: una corrida de EX-09 renueva el HMAC del índice en cada alta y
+sólo se sella al final del segundo lote.»
+
+**Estado posterior.** La corrida de dos lotes prevista para Gemini se sustituyó el 26/09/2026
+(`docs/PROGRESO_SPRINTS.md`), y S11-C3 ejecutó `EX-09` con OpenAI en una sola sesión, sin lotes. El
+run `s11-a156a68c-c422-5e57-ae2b-3336d3b55e6c` tiene el manifest final persistido en `COMPLETED`, y
+la salida de `finalize` informó `custody_verification = PASS`. La evidencia revisada en la
+reconciliación no demuestra qué clave custodial firmó ese run, y este documento no lo afirma.
+**El estado vigente de `EX-09` es `FAIL`**: CA-4 19/28 = 67,86 %, bajo el umbral ≥ 85,00 % (al
+menos 24/28). Es un resultado experimental válido, no un fallo técnico. `EX-10` sigue pendiente.
 Nada de esto altera el rebaseline de custodia descrito arriba ni sus gates, y la tabla «Estado
 actual» de §5 se conserva como instantánea del 21/09/2026: sus filas `EX-02` y `EX-03` en
 `NOT_EXECUTED` describen esa fecha y no se reescriben.

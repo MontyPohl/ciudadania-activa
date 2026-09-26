@@ -44,7 +44,13 @@ está **demostrado**: el run `s11-0e2feac0-6583-513c-a6aa-33430394d14a` (`main@9
 `S11C2_EX07_PASS`, precedido por el intento `NOT_DEMONSTRATED`
 `s11-176a55e0-1c27-5b2f-a0f2-ef50dbe6d959`. Los siete escenarios de C2 tienen `PASS` y la
 revisión formal del 23/09/2026 cerró el gate: **S11-C2 está cerrado**. EX-09 y EX-10 quedan fuera
-de C2 y siguen siendo requisitos de S11-C, que permanece abierto.
+de C2 y siguen siendo requisitos de S11-C, que permanece abierto. `EX-09` se ejecutó después en
+S11-C3, ya con OpenAI (`s11-ex09-openai-v1`, `S11A-v1.1`) y con su propio ejecutor, fuera de este
+harness ([`S11_EX09_OPENAI_EXECUTOR.md`](S11_EX09_OPENAI_EXECUTOR.md)). El run
+`s11-a156a68c-c422-5e57-ae2b-3336d3b55e6c` (`main@07ef681`) cerró con el manifest `COMPLETED` y
+`custody_verification = PASS` según la salida de `finalize`. Su resultado es `FAIL`: CA-4 19/28 =
+67,86 %, bajo el umbral ≥ 85,00 % (al menos 24/28). Es un resultado experimental válido, no un
+fallo de ejecución. EX-10 sigue pendiente.
 
 Lo precedieron cinco intentos que quedan como evidencia histórica `NOT_DEMONSTRATED`, conservados
 sin reinterpretar: `s11-3b48870b-7979-542b-8a46-1c6dfce7bed8` (`npm` ausente),
@@ -261,7 +267,8 @@ EX-09 queda preparado mediante el registro del dataset R2 y el exportador; EX-10
 no a S11-B. La decisión del 23/09/2026 en `docs/PROGRESO_SPRINTS.md` los asigna a la sub-etapa
 S11-C3 y fija el contexto de ejecución de EX-09, la custodia de su corrida de dos lotes y los
 registros de cuota y de ciclo de vida del secreto. Este estado no invalida la preparación de
-infraestructura de B6 y evita confundirla con una ejecución experimental.
+infraestructura de B6 y evita confundirla con una ejecución experimental. Es el estado de S11-B.
+El estado posterior de EX-09, ya ejecutado con OpenAI en S11-C3, consta en «Estado y límites».
 
 ## Exportación read-only y trazabilidad
 

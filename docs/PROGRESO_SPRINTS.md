@@ -2,7 +2,7 @@
 
 Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes de iniciar el siguiente.
 
-- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 **completado** (inicio el 22/08/2026, cierre el 23/08/2026: verificación de identidad con HMAC y almacenamiento privado, revisión administrativa manual con cotejo de la cédula, notificaciones asíncronas entregadas por la API HTTPS de Brevo y privacidad configurable del ranking, todo verificado en producción con una identidad real). Sprint 5 **completado** el 27/08/2026: S5-A, S5-B y S5-C están cerradas, integradas y validadas. Sprint 6 **completado** el 28/08/2026: S6-A y S6-B están cerrados. Sprint 7 **completado** el 29/08/2026: S7-A, S7-B y S7-C están integrados en `main`, y S7-D quedó probado en producción y cerrado con evidencia funcional y de base de datos en modo solo lectura. Sprint 8 continúa **en curso**. Sprint 9 quedó **completado** el 09/09/2026: S9-A, S9-B1, S9-B2 y el cierre documental S9-B3 están integrados en `main`; PR #38 fue mergeado mediante `7e95856c1b494d562ce1c267c06d5bebaec28cc8`. Sprint 10 quedó **implementado, desplegado, verificado y reconciliado** el 21/09/2026: el candidato `171f8c8b8f448a4092e73aeb5f67406e6b81ef09` se desplegó en Heroku, PR #39 se integró en `main` mediante `7ae82b865d90c4cade02dd3378b44107f088b7dd`, y backend, frontend, migraciones, backfill, workers e invariantes productivas quedaron verificados. Sprint 11 está **en curso**: S11-A quedó oficialmente congelada en `main@35f850eb24df552805fe8694f50fcbb3588a4141`; S11-B dejó preparada la instrumentación aislada y reproducible, sin generar resultados; S11-C registra seis runs de `EX-02` (21 y 22/09/2026): cinco `NOT_DEMONSTRATED` por causas de infraestructura y de harness, y el sexto, `s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af`, **demostrado en `PASS`**; `EX-03` quedó **demostrado en `PASS`** con el run `s11-6dc3ea66-08c9-51ef-9fe3-70e7dcc67959` `EX-04` con el run `s11-03adb9bc-c9e4-5f8f-b64c-c4360d0c2085` `EX-06` con el run `s11-989218f3-4808-5c6f-ac23-6e8870fec153` y `EX-08` con el run `s11-b567289c-9fe2-5349-a384-e9284bdde863`; `EX-05` quedó demostrado en `PASS` con el run `s11-0e2feac0-6583-513c-a6aa-33430394d14a`; `EX-07` quedó demostrado en `PASS` con el run `s11-545491b8-01fe-55e6-8f08-1a0ebbdca8d3`; S11-C2 quedó **cerrado** el 23/09/2026 con sus siete escenarios en `PASS`; S11-C sigue abierto con EX-09 y EX-10 pendientes, y S11-D y S11-E no se iniciaron.
+- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 **completado** (inicio el 22/08/2026, cierre el 23/08/2026: verificación de identidad con HMAC y almacenamiento privado, revisión administrativa manual con cotejo de la cédula, notificaciones asíncronas entregadas por la API HTTPS de Brevo y privacidad configurable del ranking, todo verificado en producción con una identidad real). Sprint 5 **completado** el 27/08/2026: S5-A, S5-B y S5-C están cerradas, integradas y validadas. Sprint 6 **completado** el 28/08/2026: S6-A y S6-B están cerrados. Sprint 7 **completado** el 29/08/2026: S7-A, S7-B y S7-C están integrados en `main`, y S7-D quedó probado en producción y cerrado con evidencia funcional y de base de datos en modo solo lectura. Sprint 8 continúa **en curso**. Sprint 9 quedó **completado** el 09/09/2026: S9-A, S9-B1, S9-B2 y el cierre documental S9-B3 están integrados en `main`; PR #38 fue mergeado mediante `7e95856c1b494d562ce1c267c06d5bebaec28cc8`. Sprint 10 quedó **implementado, desplegado, verificado y reconciliado** el 21/09/2026: el candidato `171f8c8b8f448a4092e73aeb5f67406e6b81ef09` se desplegó en Heroku, PR #39 se integró en `main` mediante `7ae82b865d90c4cade02dd3378b44107f088b7dd`, y backend, frontend, migraciones, backfill, workers e invariantes productivas quedaron verificados. Sprint 11 está **en curso**: S11-A quedó oficialmente congelada en `main@35f850eb24df552805fe8694f50fcbb3588a4141`; S11-B dejó preparada la instrumentación aislada y reproducible, sin generar resultados; S11-C registra seis runs de `EX-02` (21 y 22/09/2026): cinco `NOT_DEMONSTRATED` por causas de infraestructura y de harness, y el sexto, `s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af`, **demostrado en `PASS`**; `EX-03` quedó **demostrado en `PASS`** con el run `s11-6dc3ea66-08c9-51ef-9fe3-70e7dcc67959` `EX-04` con el run `s11-03adb9bc-c9e4-5f8f-b64c-c4360d0c2085` `EX-06` con el run `s11-989218f3-4808-5c6f-ac23-6e8870fec153` y `EX-08` con el run `s11-b567289c-9fe2-5349-a384-e9284bdde863`; `EX-05` quedó demostrado en `PASS` con el run `s11-0e2feac0-6583-513c-a6aa-33430394d14a`; `EX-07` quedó demostrado en `PASS` con el run `s11-545491b8-01fe-55e6-8f08-1a0ebbdca8d3`; S11-C2 quedó **cerrado** el 23/09/2026 con sus siete escenarios en `PASS`; `EX-09`, en su instancia OpenAI, se ejecutó el 26/09/2026 con el run `s11-a156a68c-c422-5e57-ae2b-3336d3b55e6c` y resultado **`FAIL`** (CA-4 19/28 = 67,86 %, bajo el umbral ≥ 85,00 %, es decir, al menos 24/28; run válido con manifest `COMPLETED` y `custody_verification = PASS` según la salida de `finalize`); S11-C sigue abierto con EX-10 pendiente, y S11-D y S11-E no se iniciaron.
 - **Plan de referencia:** [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md)
 - **Ventana de desarrollo:** 01/08/2026 → 15/11/2026 (16 sprints semanales, Anexo F revisado)
 - **Estados posibles:** `Pendiente` · `En curso` · `Completado` · `Completado con observaciones` · `Bloqueado`
@@ -23,14 +23,14 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 | 8 | 19/09 – 25/09 | Clasificación asistida por IA | En curso |
 | 9 | 26/09 – 02/10 | Panel institucional y validación | Completado |
 | 10 | 03/10 – 09/10 | Estados, evidencias, auditoría y reversión | Completado — implementado, desplegado, verificado y reconciliado |
-| 11 | 10/10 – 16/10 | Metodología, instrumentación, experimentos, análisis y evidencia de tesis | En curso — S11-A congelada; S11-B preparada; S11-C2 cerrado con `EX-02`…`EX-08` en `PASS`; S11-C abierto con EX-09 y EX-10 pendientes; S11-D y S11-E pendientes |
+| 11 | 10/10 – 16/10 | Metodología, instrumentación, experimentos, análisis y evidencia de tesis | En curso — S11-A congelada; S11-B preparada; S11-C2 cerrado con `EX-02`…`EX-08` en `PASS`; `EX-09` OpenAI ejecutado, con resultado `FAIL` (CA-4 19/28, run válido); S11-C abierto con EX-10 pendiente; S11-D y S11-E pendientes |
 | 12 | 17/10 – 23/10 | Catálogo de recompensas y canje simulado | Pendiente |
 | 13 | 24/10 – 30/10 | Dashboards, integración e ingesta social | Pendiente |
 | 14 | 31/10 – 06/11 | Pruebas unitarias, integración, seguridad y E2E | Pendiente |
 | 15 | 07/11 – 13/11 | Carga, dataset definitivo y documentación | Pendiente |
 | 16 | 14/11 – 15/11 | Cierre y preparación de la defensa | Pendiente |
 
-**Progreso:** 8 / 16 sprints completados (Sprints 1, 2 y 3 cerrados el 20/08/2026; Sprint 4 el 23/08/2026; Sprint 5 el 27/08/2026; Sprint 6 el 28/08/2026; Sprint 7 el 29/08/2026; Sprint 9 el 09/09/2026). La ejecución real arrastra el desvío de calendario registrado en CT-29. Sprint 8 continúa **en curso**: R2 permanece prerregistrado/no ejecutado y CA-4 no demostrado. Sprint 11 completó la congelación S11-A y la preparación técnica S11-B; S11-C cerró `EX-02` en `PASS` con el run `s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af` —tras cinco intentos previos `NOT_DEMONSTRATED`—, `EX-03` en `PASS` con el run `s11-6dc3ea66-08c9-51ef-9fe3-70e7dcc67959`, `EX-04` en `PASS` con el run `s11-03adb9bc-c9e4-5f8f-b64c-c4360d0c2085` `EX-06` en `PASS` con el run `s11-989218f3-4808-5c6f-ac23-6e8870fec153` y `EX-08` en `PASS` con el run `s11-b567289c-9fe2-5349-a384-e9284bdde863`; `EX-05` quedó en `PASS` con el run `s11-0e2feac0-6583-513c-a6aa-33430394d14a`; `EX-07` en `PASS` con el run `s11-545491b8-01fe-55e6-8f08-1a0ebbdca8d3`; S11-C2 quedó cerrado el 23/09/2026; S11-C sigue abierto con EX-09 y EX-10 pendientes, y no se iniciaron el análisis S11-D, el cierre S11-E ni S12–S13.
+**Progreso:** 8 / 16 sprints completados (Sprints 1, 2 y 3 cerrados el 20/08/2026; Sprint 4 el 23/08/2026; Sprint 5 el 27/08/2026; Sprint 6 el 28/08/2026; Sprint 7 el 29/08/2026; Sprint 9 el 09/09/2026). La ejecución real arrastra el desvío de calendario registrado en CT-29. Sprint 8 continúa **en curso**: R2 permanece prerregistrado/no ejecutado y la serie S8 con Gemini no produjo ninguna medición válida de CA-4; la primera medición válida, `EX-09` OpenAI en S11-C3, dio `FAIL` (19/28), y su efecto sobre el cierre del Sprint 8 no está decidido. Sprint 11 completó la congelación S11-A y la preparación técnica S11-B; S11-C cerró `EX-02` en `PASS` con el run `s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af` —tras cinco intentos previos `NOT_DEMONSTRATED`—, `EX-03` en `PASS` con el run `s11-6dc3ea66-08c9-51ef-9fe3-70e7dcc67959`, `EX-04` en `PASS` con el run `s11-03adb9bc-c9e4-5f8f-b64c-c4360d0c2085` `EX-06` en `PASS` con el run `s11-989218f3-4808-5c6f-ac23-6e8870fec153` y `EX-08` en `PASS` con el run `s11-b567289c-9fe2-5349-a384-e9284bdde863`; `EX-05` quedó en `PASS` con el run `s11-0e2feac0-6583-513c-a6aa-33430394d14a`; `EX-07` en `PASS` con el run `s11-545491b8-01fe-55e6-8f08-1a0ebbdca8d3`; S11-C2 quedó cerrado el 23/09/2026; `EX-09` OpenAI se ejecutó el 26/09/2026 con el run `s11-a156a68c-c422-5e57-ae2b-3336d3b55e6c` y resultado `FAIL` (CA-4 19/28 = 67,86 %; run válido); S11-C sigue abierto con EX-10 pendiente, y no se iniciaron el análisis S11-D, el cierre S11-E ni S12–S13.
 
 ### Decisiones que condicionan el avance
 
@@ -931,7 +931,7 @@ antes de cerrarlo.
 ## Sprint 8 — Clasificación asistida por IA
 
 **Fechas planificadas:** 19/09/2026 – 25/09/2026
-**Estado:** En curso — S8-A a S8-E1 integrados en `main`, más el hotfix de mapeo de errores, el prerregistro del modelo y la instrumentación de recuperación. La corrida canónica S8-E2 quedó `NOT_DEMONSTRATED` por los límites del nivel gratuito (RPM 5, RPD 20); la recuperación S8-E2-R1 quedó `ABORTED` tras ejecutar solo el lote 1 —10 de 14 casos agotaron el timeout de 20 s y su evidencia JSON se perdió—; y S8-E2-R2 está prerregistrada en local con timeout de 60 s y evidencia persistente, sin ejecutar. **CA-4 sigue sin medición válida.**
+**Estado:** En curso — S8-A a S8-E1 integrados en `main`, más el hotfix de mapeo de errores, el prerregistro del modelo y la instrumentación de recuperación. La corrida canónica S8-E2 quedó `NOT_DEMONSTRATED` por los límites del nivel gratuito (RPM 5, RPD 20); la recuperación S8-E2-R1 quedó `ABORTED` tras ejecutar solo el lote 1 —10 de 14 casos agotaron el timeout de 20 s y su evidencia JSON se perdió—; y S8-E2-R2 está prerregistrada en local con timeout de 60 s y evidencia persistente, sin ejecutar. **Dentro de la serie S8 con Gemini, CA-4 sigue sin medición válida.** La primera medición válida llegó después, fuera de esta serie: `EX-09` OpenAI (S11-C3, run `s11-a156a68c-c422-5e57-ae2b-3336d3b55e6c`) dio `FAIL`, 19/28 = 67,86 %. No está decidido si esa medición resuelve el requisito CA-4 del Sprint 8 (D19 del contrato de IA); el estado del sprint no cambia.
 **Fecha real de cierre:** —
 
 ### Funcionalidades terminadas
@@ -1591,10 +1591,13 @@ intentos previos `NOT_DEMONSTRATED`—, `EX-03` en `PASS` —run
 `s11-b567289c-9fe2-5349-a384-e9284bdde863`, `S11C2_EX08_PASS`— y `EX-05` en `PASS` —run
 `s11-0e2feac0-6583-513c-a6aa-33430394d14a`, `S11C2_EX05_PASS`— y `EX-07` en `PASS` —run
 `s11-545491b8-01fe-55e6-8f08-1a0ebbdca8d3`, `S11C2_EX07_PASS`—; **S11-C2 cerrado** el 23/09/2026;
-S11-C abierto con EX-09 y EX-10 pendientes. Desde el 26/09/2026 el proveedor de EX-09 es OpenAI:
+S11-C abierto con EX-10 pendiente. Desde el 26/09/2026 el proveedor de EX-09 es OpenAI:
 la preparación Gemini (`73e5037`) queda histórica y sin ejecutar. El protocolo
-`s11-ex09-openai-v1` y la enmienda `S11A-v1.1` están congelados. EX-09 OpenAI está preparado
-(`f88c0a2`) y listo para el preflight del proveedor, pero no se ha ejecutado
+`s11-ex09-openai-v1` y la enmienda `S11A-v1.1` están congelados. EX-09 OpenAI se preparó
+(`f88c0a2`) y se ejecutó el 26/09/2026 sobre `main@07ef681`: el run
+`s11-a156a68c-c422-5e57-ae2b-3336d3b55e6c` cerró con el manifest `COMPLETED` y
+`custody_verification = PASS` según la salida de `finalize`. Su resultado es **`FAIL`** (CA-4
+19/28 = 67,86 %; umbral ≥ 85,00 %, al menos 24/28), un resultado experimental válido.
 **Fecha real de cierre:** —
 
 > **Rebaseline S11-A (21/09/2026).** El título histórico “Créditos, ranking del mes en curso y
@@ -3446,6 +3449,116 @@ Provider preflight: NOT_DEMONSTRATED
 READY_FOR_EXECUTION: FALSE
 ```
 
+### S11-C3 / EX-09 OpenAI — ejecución oficial y reconciliación (26/09/2026)
+
+El run oficial de la instancia OpenAI de EX-09 se ejecutó y se finalizó el 26/09/2026. Este
+registro lo reconcilia con la documentación. Para hacerlo se releyó la evidencia custodiada sin
+modificarla: no se ejecutó ningún subcomando del ejecutor, no se hizo ninguna llamada a OpenAI ni a
+Gemini y no se creó ningún `run_id`. El run no es `R3`: la serie R pertenece a la instancia Gemini
+(P5).
+
+**Identidad del run** (manifest final y manifest de sesión):
+
+| Campo | Valor |
+| --- | --- |
+| Escenario / instancia | `EX-09`, instancia OpenAI |
+| `run_id` | `s11-a156a68c-c422-5e57-ae2b-3336d3b55e6c` |
+| Commit | `main@07ef681627b0589c1249cf5f7477aeafcb8857b3`, working tree limpio |
+| Metodología / protocolo | `S11A-v1.1` / `s11-ex09-openai-v1` |
+| Proveedor / modelo | OpenAI, Responses API / `gpt-6-luna`, el mismo `model` servido en los 28 casos |
+| `reasoning.effort` / `store` / reintentos | `low` / `false` / 0 |
+| Dataset | `s8-evaluation-v1`, 28 casos en una sola sesión, 0 imágenes enviadas |
+| Política de TPM | `TPM_RESIDUAL_OPERATIONAL_RISK` |
+| Inicio / fin del run (UTC) | `2026-09-26T22:10:21Z` / `2026-09-26T22:17:47Z` |
+
+**Fases, por separado.**
+
+- **Tres preflights distintos.**
+  1. **Preflight local, previo al run** (`preflight`). Gate sin `run_id` cuya salida no se
+     persiste.
+  2. **`provider-preflight` administrativo, previo al `run_id`.** Repite el preflight local y añade
+     las atestaciones de consola. Su salida no se persiste, por diseño. Según lo informado por el
+     operador, produjo `READY_FOR_EXECUTION`; la evidencia del run no permite verificarlo.
+  3. **Preflight persistido dentro del run**, inmediatamente antes de la sesión
+     (`ex09-openai-preflight.json`, `2026-09-26T22:13:16Z`): `result = PASS`,
+     `gate = READY_FOR_PROVIDER_PREFLIGHT` y `provider_calls = 0`. Registra además
+     `provider-limits = NOT_EVALUATED` y `ready_for_execution = false`. Son los valores del preflight
+     local por diseño: no evalúa los límites del proveedor, que dentro del run cubre el
+     `limits_check`, y su `ready_for_execution` es siempre `false`. No contradicen el resultado del
+     `provider-preflight` administrativo.
+- **`limits_check` custodiado** (`ex09-openai-limits-check-01.json`): `OK`. El operador atestó
+  desde la consola Tier 1, RPM 500, ningún RPD registrado, crédito disponible y límite de gasto no
+  alcanzado. El TPM atestado, 200 000, queda `RESIDUAL_RISK_ACCEPTED` con
+  `compatibility = NOT_DEMONSTRATED`, como fija la política. No es un `PASS` de TPM.
+- **Ejecución.** 28 casos intentados, 28 válidos y ninguna clase de error.
+  `execution_error = null`.
+- **Cierre del ciclo de la credencial** (huella `a0c050da916bc028`). `credential_removed`,
+  `access_revoked` y `cleanup` están registrados en `PASS`.
+- **Finalización.**
+  - **Persistido.** El manifest final quedó `COMPLETED` con `invalidity_reason = null`.
+    `ex09-openai-decision.json` registra `decision = FAIL`, CA-4 y `reasons = []`. Existen
+    `SHA256SUMS` y el sello `.s11-finalized`.
+  - **Salida operativa de `finalize`, no persistida.** `custody_verification = PASS` y
+    `custody_errors = []`; la salida también mostró `reasons = []`. El operador informó el código
+    de salida 0 (`FINALIZE_RC = 0`). `finalize` escribe el sello antes de esa verificación, que no
+    queda registrada en ningún artefacto.
+
+**Resultado** (`ex09-openai-decision.json`, con `decision = FAIL` y `reasons = []`):
+
+| Indicador | Campo persistido | Valor | Umbral | Papel |
+| --- | --- | --- | --- | --- |
+| HT2-01, CA-4 | `ca4_concordant_cases`, `ca4_concordance_pct`, `ca4_result` | 19/28 = 67,86 % | ≥ 85,00 % (al menos 24/28) | decisorio: **`FAIL`** |
+| HT2-02, categoría | `category_accuracy_pct` | 96,43 % | — | diagnóstico, sin veredicto |
+| HT2-02, institución | `institution_accuracy_pct` | 85,71 % | — | diagnóstico, sin veredicto |
+| HT2-02, prioridad | `priority_accuracy_pct` | 78,57 % | — | diagnóstico, sin veredicto |
+| HT2-03, `inconsistency` | `inconsistency_accuracy_pct` | 96,43 % | — | diagnóstico, sin veredicto |
+| HT2-03, concordancia estricta | `strict_concordance_pct` | 67,86 % | — | diagnóstico, sin veredicto |
+
+El artefacto guarda por separado `minimum_concordant_cases = 24` y `threshold_pct = 85.00`. No
+contiene los identificadores HT2-02 ni HT2-03. La correspondencia de cada campo diagnóstico con su
+indicador sigue `S11A_DICCIONARIO_INDICADORES.md`. HT2-02 y HT2-03 no tienen umbral y no reciben
+`PASS` ni `FAIL`. El artefacto no incluye la matriz de confusión booleana de HT2-03, y este registro
+no la reporta.
+
+**Interpretación.** `FAIL` es un resultado experimental válido, completo y custodiado: 19 de los 28
+casos son concordantes y CA-4 exige 24. **No es una invalidez ni un fallo técnico**: no falló la
+ejecución, el proveedor, la infraestructura ni el ejecutor. El manifest final persistido quedó
+`COMPLETED` con `invalidity_reason = null`, las 28 respuestas son válidas y `finalize` informó
+`custody_verification = PASS`. Por las reglas
+congeladas (P6, y punto 7 de la Opción B), este primer run válido es vinculante. No admite otro
+intento con `s11-ex09-openai-v1` ni cambiar parámetros después de ver el resultado. Este registro no
+formula la síntesis de HT-2.
+
+**Consecuencias.**
+
+- **S11-C3 (D1.2).** EX-09 ya tiene un run oficial válido, con la custodia verificada según la
+  salida de `finalize`. Su parte de la
+  salida de S11-C3 queda cubierta cuando esta reconciliación se registre en un commit documental.
+  S11-C3 sigue abierta por EX-10.
+- **Sin cambios de estado:** S11-C sigue abierto, S11-C2 sigue cerrado y la instancia Gemini de
+  EX-09 no cambia.
+- **`docs/tesis/` no se modifica aquí.** Los campos «Estado» de HT2-01…03 y las filas de EX-09 en
+  la matriz de `S11A-v1.1` conservan el texto congelado, anterior al run.
+- **El `.docx` del gate previo sigue fuera del checkout.** Su regreso a `docs/` no forma parte de
+  esta reconciliación.
+
+**Estado resultante.**
+
+```text
+S11-C2: CLOSED
+S11-C: OPEN
+S11-C3: OPEN (EX-10 pendiente)
+EX-09 Gemini: PREPARED · NOT EXECUTED · NO OFFICIAL RESULT · HISTORICAL
+EX-09 OpenAI: EXECUTED · FAIL
+  run_id: s11-a156a68c-c422-5e57-ae2b-3336d3b55e6c
+  CA-4: 19/28 = 67.86 % · threshold_pct: 85.00 · minimum_concordant_cases: 24
+  persisted: manifest COMPLETED · invalidity_reason null · reasons []
+  finalize output: custody_verification PASS · custody_errors []
+Methodology: S11A-v1.1 · Protocol: s11-ex09-openai-v1
+TPM policy: TPM_RESIDUAL_OPERATIONAL_RISK
+EX-10: pendiente, sin ejecutar
+```
+
 ### Pruebas realizadas
 
 - Gate inicial: rama `main`, HEAD exacto y working tree limpio.
@@ -3694,7 +3807,7 @@ Se completa a medida que las mediciones estén disponibles (Sprints 14 y 15).
 | Indicador | Umbral | Medición | Estado |
 |---|---|---|---|
 | Cobertura backend crítico | ≥ 80 % | — | Pendiente |
-| Concordancia IA vs etiquetas de oro | ≥ 85 % | — | Pendiente |
+| Concordancia IA vs etiquetas de oro | ≥ 85 % | 67,86 % (19/28): CA-4 de `EX-09` OpenAI, run `s11-a156a68c-c422-5e57-ae2b-3336d3b55e6c`, 26/09/2026 | `FAIL` |
 | Latencia P50 endpoints críticos | ≤ 800 ms | — | Pendiente |
 | Latencia de red Heroku ↔ Supabase | Medida y documentada | — | Pendiente |
 | Latencia P99 bajo carga | ≤ 2.000 ms | — | Pendiente |

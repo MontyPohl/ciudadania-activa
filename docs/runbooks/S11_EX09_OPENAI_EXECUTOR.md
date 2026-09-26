@@ -1,5 +1,15 @@
 # S11-C3 — Ejecutor de EX-09, instancia OpenAI (`s11-ex09-openai-v1`)
 
+> **Estado desde el 26/09/2026: ejecutado; no debe repetirse.** El run oficial
+> `s11-a156a68c-c422-5e57-ae2b-3336d3b55e6c` (`main@07ef681`) cerró con el manifest `COMPLETED`,
+> con `custody_verification = PASS` según la salida de `finalize` y con resultado `FAIL`: CA-4
+> 19/28 = 67,86 %, bajo el umbral ≥ 85,00 % (al menos 24/28). Es un resultado experimental válido,
+> no un fallo de ejecución. Como primer run válido de
+> `s11-ex09-openai-v1`, es vinculante: sólo un run inválido admite un intento nuevo (P6, y punto 7
+> de la Opción B, en `docs/PROGRESO_SPRINTS.md`). Por eso la secuencia de este documento no debe
+> volver a ejecutarse con este protocolo. El resto del documento se conserva como el procedimiento
+> que se aplicó.
+
 Procedimiento de operación del ejecutor de EX-09 contra OpenAI. Aplica la decisión del
 26/09/2026 que congeló el protocolo (`docs/PROGRESO_SPRINTS.md`, P5–P7) y la enmienda
 `S11A-v1.1`. No define ningún valor: todos salen de
