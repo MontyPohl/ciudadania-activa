@@ -1591,7 +1591,9 @@ intentos previos `NOT_DEMONSTRATED`—, `EX-03` en `PASS` —run
 `s11-b567289c-9fe2-5349-a384-e9284bdde863`, `S11C2_EX08_PASS`— y `EX-05` en `PASS` —run
 `s11-0e2feac0-6583-513c-a6aa-33430394d14a`, `S11C2_EX05_PASS`— y `EX-07` en `PASS` —run
 `s11-545491b8-01fe-55e6-8f08-1a0ebbdca8d3`, `S11C2_EX07_PASS`—; **S11-C2 cerrado** el 23/09/2026;
-S11-C abierto con EX-09 y EX-10 pendientes
+S11-C abierto con EX-09 y EX-10 pendientes. Desde el 26/09/2026 el proveedor de EX-09 es OpenAI:
+la preparación Gemini (`73e5037`) queda histórica y sin ejecutar, y el protocolo de la nueva
+medición está propuesto pero sin aprobar
 **Fecha real de cierre:** —
 
 > **Rebaseline S11-A (21/09/2026).** El título histórico “Créditos, ranking del mes en curso y
@@ -2652,6 +2654,206 @@ cuota y la revocación son atestaciones del operador, autenticadas por la custod
 prepararse, cada uno por separado. Ninguno queda ejecutado ni demostrado, y no existe resultado
 `PASS`, `FAIL` ni `NOT_DEMONSTRATED` para ninguno de los dos. S11-C2 sigue cerrado y S11-C sigue
 abierto.
+
+### Decisión metodológica: sustitución del proveedor de EX-09, de Gemini a OpenAI (26/09/2026)
+
+- **Autoridad:** Monty Emmanuel Pohl Amarilla, autor y custodio.
+- **Qué está decidido y qué no.** P1–P4 son decisión explícita del autor del 26/09/2026 y
+  entran en vigor con el commit que las incorpora. La implementación técnica que la precede está
+  en ADR-0016, en la rama local `feat/ai-openai-provider` (`1e71d06`), que no está integrada. P5
+  y P6 son una **propuesta** que todavía no está aprobada. No están en vigor y no autorizan a
+  preparar ni ejecutar ninguna medición.
+- **Baseline de la auditoría:** `main@73e50376e082b7291f34ee7a657a02723cd916f7`, con el árbol
+  limpio salvo un `.docx` sin seguimiento ajeno a S11. Durante la auditoría no se ejecutó ningún
+  componente de S11, no se hizo ninguna llamada a Gemini ni a OpenAI y no se usó ninguna
+  credencial real.
+- **Qué no modifica:** `docs/tesis/`, `S11A-v1.0`, el commit de preparación `73e5037`, el
+  protocolo `R2` de `recovery.py`, el dataset, las etiquetas de oro, el prompt, la evidencia
+  custodiada ni ningún resultado.
+
+**P1 — Sustitución del proveedor.** Gemini deja de ser el proveedor de las mediciones de IA
+futuras de S11. El proveedor experimental oficial pasa a ser OpenAI, con la Responses API y el
+modelo objetivo `gpt-6-luna`.
+
+**P2 — Los proveedores no son equivalentes.** Pasar de Gemini a OpenAI no es un cambio puramente
+técnico: cambia el factor proveedor/modelo del experimento. Por eso cualquier medición hecha con
+OpenAI es una medición nueva, registrada metodológicamente como tal. Las siguientes
+observaciones de Gemini no se reutilizan, no se combinan y no se presentan como si se hubieran
+obtenido con OpenAI:
+
+- resultados y porcentajes;
+- duraciones y fallos de transporte;
+- límites de cuota.
+
+**P3 — Estado final de la preparación Gemini de EX-09.**
+
+```text
+EX-09, instancia Gemini (protocolo s8-e2-r2, modelo gemini-3.6-flash)
+  preparación:  73e50376e082b7291f34ee7a657a02723cd916f7
+  estado:       PREPARED · NOT EXECUTED · NO OFFICIAL RESULT · HISTORICAL
+```
+
+- **Evidencia de que no se ejecutó:**
+  - `var/s11-runs/runs/` contiene 16 runs: dos `C1-PREPARATION` y runs de EX-02…EX-08. Ninguno
+    es de EX-09.
+  - El último run empezó el `2026-09-23T02:54:55Z`, antes del commit de preparación
+    (`2026-09-23T04:02:11Z`).
+  - No existe ningún directorio de evidencia `s8-e2-r2`.
+- **Sin veredicto.** No se le asigna `PASS`, `FAIL` ni `NOT_DEMONSTRATED`, porque esos son
+  veredictos de un run y este run no existe. El escenario EX-09 conserva su estado de catálogo:
+  `NOT_DEMONSTRATED`, porque no se ha ejecutado.
+- **Qué se conserva.** El ejecutor (`ex09.py`), su lanzador, su compose y su runbook se conservan
+  como registro de la preparación. Lo mismo ocurre con el adapter de Gemini y con los protocolos
+  `R1`/`R2`. No se ejecutan.
+
+**P4 — Antecedentes de Gemini respaldados por el repositorio.** Esta lista recoge sólo hechos
+documentados:
+
+| Medición | Hecho registrado | Fuente |
+| --- | --- | --- |
+| S8-E2 con `gemini-2.5-flash` | 28/28 respuestas HTTP 404 y `errors_count = 28`. Causa: el modelo ya no estaba disponible para usuarios nuevos. Además, el adapter no clasificaba esas excepciones de la Interactions API | `a47db36`, `1a6c7ac`, README de `evaluation` |
+| S8-E2 canónica con `gemini-3.6-flash` | 28 intentados, 6 válidos y 22 `TransientAiProviderError`: `NOT_DEMONSTRATED`. AI Studio mostró nivel gratuito, RPM 5 y RPD 20 (`RATE_LIMIT_CONFIRMED`). El JSON y el stderr se perdieron (tmpfs) | README de `evaluation`, sección S8 de este documento |
+| S8-E2-R1 | Sólo se ejecutó el lote 1: 14 llamadas, 4 válidas y 10 fallos por la ruta de transporte o timeout. Resultado: `ABORTED`. El JSON se perdió; el stderr está preservado en `$HOME/ciudadania-activa-evidence/s8-e2-r1/` | `812c394` |
+| S8-E2-R2 | Prerregistrada y nunca ejecutada | `recovery.py`, `823a41f` |
+| EX-09 (S11-C3) | Preparada y nunca ejecutada (P3) | `73e5037` |
+
+El repositorio no documenta más motivo de abandono que los «contratiempos técnicos y
+operativos» de ADR-0016. ADR-0016 atribuía los 404 a la jerarquía de excepciones del SDK. La
+causa registrada es otra: la indisponibilidad del modelo. La rama lo corrige en un commit propio.
+
+**P5 — Identificador de la nueva medición (propuesta).**
+
+- **Se conserva el escenario `EX-09`.** Es el escenario que decide HT-2. Se nombra así en:
+  - catálogo y matriz;
+  - HT2-01…03;
+  - la salida de S11-C3 (D1) y la de S11-C;
+  - el denominador de HT-5 («EX-09/10 deciden otras hipótesis»).
+
+  HT-2 no nombra ningún proveedor. Como la instancia Gemini no tiene run ni resultado, conservar
+  el identificador no puede confundirse con ninguna medición. Un escenario nuevo, en cambio,
+  dejaría a EX-09 como requisito de salida imposible de cumplir y obligaría a reescribir todas
+  esas referencias.
+- **La instancia cambia.** EX-09 se redefine mediante un protocolo nuevo, distinto de `s8-e2-*`.
+  No es `R3`: la serie R son recuperaciones de una misma medición Gemini con el mismo modelo, y
+  un cambio de proveedor no es una recuperación. Identificador propuesto:
+  `s11-ex09-openai-v1`.
+- **Separación de instancias.** La instancia Gemini queda como preparación histórica de EX-09
+  (P3). La evidencia de la instancia nueva no puede combinarse con artefactos `s8-e2-*`.
+
+**P6 — Protocolo propuesto `s11-ex09-openai-v1` (sin aprobar).** Todo parámetro que pueda cambiar
+el resultado forma parte de la identidad del run y se verifica antes de la primera llamada.
+
+| Parámetro | Valor | Naturaleza |
+| --- | --- | --- |
+| Dataset | `s8-evaluation-v1`, 28 casos en el orden original, SHA-256 `3bc54d591dc104aeabeecb2f5cc7c7a38e70ba042e7f045321ab33ae9b5efad4` | invariante |
+| Etiquetas de oro, parser y scoring | sin cambios | invariante |
+| CA-4 (HT2-01) | triple exacta categoría + institución + prioridad; los nulos sólo coinciden con nulos; denominador 28; `PASS` con ≥ 85 % (≥ 24/28); `FAIL` con < 85 % sólo con 28 respuestas válidas | invariante |
+| HT2-02 / HT2-03 | diagnósticos sin umbral | invariante |
+| Validez | cualquier error, timeout, caso ausente, divergencia o pérdida da `NOT_DEMONSTRATED`, nunca `FAIL`; una sola corrida; sin reruns selectivos; el primer run válido es vinculante | invariante |
+| Prompt | `s8-classification-v1`, SHA-256 `f3c803984806a3b934db0417f6cc3ce59a49cdde1e30b4c86b862c2e11c665ca`, sin versión nueva: el mismo template va en `instructions`, igual que en `system_instruction` con Gemini | invariante (verificado) |
+| Esquema de salida | contrato v1, idéntico al de Gemini (prueba de paridad); `strict: true`; se registra su SHA-256 canónico | invariante (verificado) |
+| Texto del caso | idéntico al de Gemini (prueba de paridad), con la descripción delimitada como contenido no confiable | invariante (verificado) |
+| `store` | `False` | invariante |
+| Reintentos | SDK `max_retries=0`; script 0; Celery no interviene | invariante |
+| Proveedor / API | OpenAI, Responses API, `POST /v1/responses` | depende del proveedor (P1) |
+| Modelo | `gpt-6-luna`. La documentación oficial lista un único snapshot con ese mismo ID y sin fecha, así que se registran la fecha UTC y el `model` devuelto en cada respuesta | depende del proveedor (P1) |
+| `reasoning.effort` | debe fijarse explícitamente. En blanco, el valor queda delegado en el valor por defecto del modelo (hoy `medium`), que puede cambiar | **decisión pendiente** |
+| `detail` de la imagen | debe fijarse explícitamente. La implementación usa `auto`, que delega en el tamaño por defecto del modelo | **decisión pendiente** |
+| `max_output_tokens` / `temperature` | no se envían; se registra así | depende del proveedor |
+| Versión del SDK | versión exacta registrada en la identidad (`openai` 3.19.2 resuelta en la auditoría). El requisito es un rango (`>=3.19,<4.0`) | depende del proveedor |
+| Timeout por solicitud | se propone 60 s (en segundos en este SDK). No hay ninguna observación con OpenAI que justifique otro valor | depende del proveedor; **por aprobar** |
+| Lotes, pacing y ventanas RPD | los lotes 14 + 14 en ventanas RPD distintas, el pacing de 20 s, la comprobación de cuota ≥ 14 y el límite de 7 días existían por el nivel gratuito de Gemini (RPM 5, RPD 20). La documentación oficial de `gpt-6-luna` fija límites por tier (desde 500 RPM). Se propone una única sesión de 28 casos, conservando 20 s de pacing, y sustituir la comprobación de cuota por una de crédito o límite de gasto: un `429 insufficient_quota` invalidaría el run | depende del proveedor; **por aprobar**; exige la enmienda de P7 |
+| Credencial | clave de proyecto temporal con permisos restringidos, creada antes del run, inyectada sólo en `run-lot`, registrada únicamente por su huella de 16 hex y revocada al terminar (D2 y D4 de S11-C3) | depende del proveedor |
+| Correlación | `case_id` ↔ `response.id` y request id del proveedor, más timestamps UTC por caso | depende del proveedor |
+| Retención en el proveedor | `store=False` no equivale a retención cero. Para `/v1/responses` no se guarda estado de aplicación, pero hay 30 días de *abuse monitoring* salvo ZDR, que exige aprobación de OpenAI. Las imágenes marcadas por el clasificador CSAM se retienen incluso con ZDR. Los datos de EX-09 son sintéticos | registro obligatorio; la activación con reportes reales es un gate aparte |
+
+Fuentes oficiales de OpenAI consultadas el 26/09/2026:
+`developers.openai.com/api/docs/models/gpt-6-luna`, `…/guides/your-data`,
+`…/guides/structured-outputs`, `…/guides/images-vision` y `…/guides/error-codes`.
+
+**P7 — Conflicto normativo con `docs/tesis/` (propuesto, no ejecutado).** `S11A-v1.0` fija a
+Gemini en la instancia de EX-09/HT-2:
+
+| Documento | Texto que fija a Gemini |
+| --- | --- |
+| `S11A_ESCENARIOS_Y_PROTOCOLO.md` | matriz 2.1 (actor «ejecutor + Gemini»; «R2, cuota ≥14 por lote»; lotes 1–14/15–28); matriz 2.2 («lotes en ventanas RPD distintas»); ficha EX-09 (actor «proveedor Gemini»; precondición `s8-e2-r2` y «cuota visual ≥14»; secuencia con espera de otra ventana RPD) |
+| `S11A_DICCIONARIO_INDICADORES.md` | HT2-01 (fuente «dos lotes R2 de 14 en ventanas RPD distintas»; **inclusión «modelo `gemini-3.6-flash`»**); HT2-02/03 («ejecución R2 válida»); «Validez R2»; inventario HT-5 (`adapters/gemini.py` como «contrato real con el proveedor»; `openai.py` falta) |
+| `S11A_DATOS_EVIDENCIA_Y_REBASELINE.md` | `s8-evaluation-v1` «R2 no ejecutada»; §HT-2 «exige R2 válida»; S11A-D04 (R2, dos lotes, «modelo … congelados») |
+| `S11A_CATALOGO_Y_MATRIZ.md` | PE-3, HT-2 y matriz («Evaluación canónica R2», «Adaptador Gemini», «dos lotes + combined R2») |
+
+- **Por qué no basta un runbook o un ADR.** La inclusión de HT2-01 es el criterio de población
+  del indicador que decide HT-2. Una medición con `gpt-6-luna` quedaría fuera de él, y ningún
+  documento subordinado puede decir lo contrario sin contradecir la fuente normativa.
+- **Cambio propuesto.** Una enmienda versionada de `S11A-v1.0` limitada a esos campos de
+  instancia:
+  - proveedor y modelo;
+  - protocolo `s11-ex09-openai-v1`;
+  - lotes y cuota según P6;
+  - `openai.py` en el inventario HT-5.
+
+  Su registro de cambios haría constar que la versión anterior nombraba a Gemini. No cambian
+  HT-2, las fórmulas, los umbrales, los denominadores, el dataset ni los criterios de decisión.
+  Requiere aprobación expresa del autor. La tesis en sí (§1.6.2, Tabla 8, Anexo H.3) queda
+  cubierta por CT-55, en la rama OpenAI.
+
+**P8 — Custodia.** `S11-CUSTODY-v1.0` alcanza para OpenAI y no cambia. Ya cubre:
+
+- `run_id` UUIDv5, manifests inicial y final, `invalidity_reason`;
+- índice con SHA-256 y HMAC, `SHA256SUMS`, sello, cleanup;
+- registros de credencial y de revocación.
+
+Los cambios se limitan al ejecutor de EX-09:
+
+- ampliar la identidad con proveedor, API, versión del SDK, `reasoning.effort`, `detail` de la
+  imagen, SHA-256 del esquema, `store` y `max_retries`;
+- correlación por `response.id`;
+- la partición de P6.
+
+Si se adopta la sesión única, `rolling_checksums=False` deja de hacer falta. `evidence.py`
+conserva su valor por omisión, así que EX-02…EX-08 no se ven afectados.
+
+**P9 — Rama `feat/ai-openai-provider`.**
+
+- **Contenido auditado.** Un solo commit sobre `73e5037` que añade:
+  - el adapter con la Responses API, `store=False` y esquema `strict`;
+  - la imagen en *data URL* base64, sin Files API ni URLs;
+  - `max_retries=0`;
+  - `429 insufficient_quota` tratado como permanente;
+  - `AI_PROVIDER` sin valor por defecto, con fallo cerrado;
+  - `OPENAI_*`;
+  - la suite de pruebas vaciando credenciales.
+
+  La petición no envía `user`, `safety_identifier` ni `metadata`. Suite completa: 2286 pasadas y
+  1 omitida, sin llamadas de red.
+- **No se integra todavía.** Toca cuatro fuentes atestadas por la custodia: `.env.example`,
+  `settings/base.py`, `settings/test.py` y `requirements/base.txt`. La atestación P02/P03 sigue
+  siendo válida para su commit, pero dejaría de describir las fuentes de `main`. La ejecución de
+  EX-09 exige además un commit de preparación propio, con el ejecutor adaptado a P6.
+
+**Estado resultante.**
+
+```text
+S11-C2:                      CLOSED
+S11-C:                       OPEN
+EX-02…EX-08:                 PASS (reconciliados)
+EX-09, instancia Gemini:     PREPARED · NOT EXECUTED · NO OFFICIAL RESULT · HISTORICAL
+EX-09, instancia OpenAI:     NOT PREPARED · NOT EXECUTED
+EX-10:                       sin preparar ni ejecutar
+OpenAI:                      IMPLEMENTED (rama local) · LOCALLY VALIDATED · NOT EXPERIMENTALLY EXECUTED
+Protocolo OpenAI:            NEEDS DECISION (P5–P7)
+S11-C:                       BLOCKED BY la aprobación de P5–P7
+```
+
+**Gate siguiente.** Antes de preparar la instancia OpenAI de EX-09 deben cumplirse estas
+condiciones, en este orden:
+
+1. Aprobación de P5 y P6, con `reasoning.effort`, el `detail` de la imagen, el timeout y la
+   partición fijados.
+2. Aprobación y registro de la enmienda de P7.
+3. Integración de la rama OpenAI en `main`.
+4. Commit de preparación del ejecutor adaptado, con sus pruebas locales.
+
+Hasta entonces no puede prepararse ni ejecutarse ningún run de EX-09.
 
 ### Pruebas realizadas
 

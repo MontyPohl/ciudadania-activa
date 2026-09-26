@@ -1,5 +1,13 @@
 # S11-C3 — Ejecutor de EX-09
 
+> **Estado desde el 26/09/2026: preparación histórica, no ejecutable.** Este documento
+> describe la preparación de EX-09 contra Gemini (`gemini-3.6-flash`, protocolo `s8-e2-r2`)
+> del commit `73e50376e082b7291f34ee7a657a02723cd916f7`. Esa preparación **nunca se
+> ejecutó**: no tiene `run_id`, evidencia ni resultado. La decisión de sustitución del
+> proveedor del 26/09/2026 (`docs/PROGRESO_SPRINTS.md`, P1–P9) retira a Gemini de toda
+> medición futura, así que **esta secuencia no debe ejecutarse**. El resto del documento
+> se conserva sin cambios como registro de lo que se preparó.
+
 Procedimiento de operación del ejecutor de EX-09 preparado según la decisión metodológica
 S11-C3 del 23/09/2026 (`docs/PROGRESO_SPRINTS.md`, D1–D4). No sustituye a esa decisión ni
 al prerregistro S8-E2-R2: los aplica. Ningún valor del protocolo (modelo, dataset, prompt,
