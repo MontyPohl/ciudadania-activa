@@ -19,8 +19,8 @@ psycopg[binary]>=3.2,<3.3
 # SDK oficial de Google para Gemini (Sprint 8). Es `google-genai`, no el legado
 # `google-generativeai`: la Interactions API que usa el adapter solo existe aquí.
 google-genai>=2.20,<3.0
-# SDK oficial de OpenAI (ADR-0016). La Responses API y los Structured Outputs en
-# modo `strict` que usa el adapter están verificados contra la serie 3.x.
-openai>=3.19,<4.0
+# SDK oficial de OpenAI (ADR-0016). Versión exacta: forma parte de la identidad del
+# protocolo `s11-ex09-openai-v1` (S11-C3, P6) y el preflight de EX-09 rechaza otra.
+openai==3.19.2
 celery>=5.4,<5.5
 redis>=5.0,<6.0
