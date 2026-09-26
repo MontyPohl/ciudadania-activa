@@ -7,9 +7,10 @@ sin `env_file`, sin base de datos, sin Redis y sin puertos, con el backend monta
 solo lectura y la raíz de evidencia S11.
 
 El entorno del proceso hijo se construye desde cero: sólo lleva lo que Docker
-necesita, las dos claves de custodia y, **únicamente para `run`**, la variable
-`S11_EX09_PROVIDER_KEY`, que se pasa por nombre y nunca se escribe en disco ni en la
-línea de comandos.
+necesita, las dos claves de custodia y, **únicamente para `run` y
+`provider-preflight`**, la variable `S11_EX09_PROVIDER_KEY`, que se pasa por nombre y
+nunca se escribe en disco ni en la línea de comandos. `run` la exige;
+`provider-preflight` la acepta si el operador la exportó, sólo para calcular su huella.
 """
 
 from __future__ import annotations
@@ -26,8 +27,18 @@ COMPOSE_FILE = "infra/docker-compose.s11-ex09-openai.yml"
 COMPOSE_PROJECT = "ciudadania-s11-ex09-openai"
 SERVICE = "ex09-openai"
 COMMAND = "s11_ex09_openai"
-ACTIONS = ("build", "preflight", "start", "record", "run", "finalize", "status")
-_GIT_ACTIONS = {"preflight", "start", "run", "finalize"}
+ACTIONS = (
+    "build",
+    "preflight",
+    "provider-preflight",
+    "start",
+    "record",
+    "run",
+    "finalize",
+    "status",
+)
+_GIT_ACTIONS = {"preflight", "provider-preflight", "start", "run", "finalize"}
+_KEY_ACTIONS = {"provider-preflight", "run"}
 _CUSTODY_ENV = ("S11_CUSTODY_HMAC_KEY", "S11_PUBLICATION_APPROVAL_PUBLIC_KEY")
 _DOCKER_ENV = ("PATH", "HOME", "DOCKER_HOST", "DOCKER_CONFIG", "DOCKER_CONTEXT")
 
@@ -103,9 +114,13 @@ def launch(
     except HarnessError as exc:
         raise LauncherError(str(exc)) from exc
 
-    include_key = action == "run"
-    if not include_key and environ.get(PROVIDER_KEY_ENV, "").strip():
-        raise LauncherError(f"Retira {PROVIDER_KEY_ENV} de la sesión: sólo run la admite.")
+    key_exported = bool(environ.get(PROVIDER_KEY_ENV, "").strip())
+    if key_exported and action not in _KEY_ACTIONS:
+        raise LauncherError(
+            f"Retira {PROVIDER_KEY_ENV} de la sesión: sólo run y provider-preflight la admiten."
+        )
+    # run la exige (child_environment falla sin ella); provider-preflight, si existe.
+    include_key = action == "run" or (action == "provider-preflight" and key_exported)
     env = child_environment(environ, include_key=include_key)
 
     if action in _GIT_ACTIONS:

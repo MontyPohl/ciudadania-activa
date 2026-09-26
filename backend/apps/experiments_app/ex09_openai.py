@@ -14,8 +14,9 @@ dependía de aquel proveedor:
 - **Límites y crédito en lugar de cuota.** El operador atesta, sin secreto, el
   tier, los límites y el crédito observados en la consola. Sus valores no se fijan
   en el protocolo: son `PARAMETER_TO_VERIFY_AT_PREFLIGHT`.
-- **Una clave por run.** Llega sólo al proceso de `run`, como
-  `S11_EX09_PROVIDER_KEY`. Sólo se registra su huella.
+- **Una clave por run.** Llega sólo a los procesos de `provider-preflight` (que sólo
+  calcula su huella) y de `run`, como `S11_EX09_PROVIDER_KEY`. Sólo se registra su
+  huella.
 
 Se conservan las reglas estructurales de S11-C3: la decisión se deriva de la
 evidencia custodiada al finalizar, sólo existen `PASS`, `FAIL` y `NOT_DEMONSTRATED`,
@@ -23,7 +24,8 @@ y un run ejecutado nunca se vuelve a lanzar.
 
 El preflight local nunca declara el run listo para ejecutar. Como mucho devuelve
 `READY_FOR_PROVIDER_PREFLIGHT`: los límites, el crédito y la credencial se verifican
-después, en el preflight del proveedor.
+después, en el preflight del proveedor (`provider-preflight`). Ninguno de los dos crea
+`run_id`, escribe evidencia ni llama al proveedor.
 """
 
 from __future__ import annotations
@@ -42,6 +44,7 @@ from apps.ai_client_app.evaluation.openai_session import (
     OpenAiProtocolError,
     SessionEvaluation,
     adapter_constants,
+    installed_sdk_version,
     run_openai_session,
     verify_protocol_inputs,
 )
@@ -322,34 +325,45 @@ class _DryRun(Exception):
     pass
 
 
-def request_shape_errors(dataset: EvaluationDataset) -> tuple[list[str], int]:
+def _captured_requests(dataset: EvaluationDataset):
     """Construye las 28 peticiones reales con un cliente que no envía nada.
 
-    Comprueba sobre los parámetros exactos que recibiría el SDK: modelo, esfuerzo,
-    `store`, esquema, ausencia de imagen y de identificadores. Devuelve los errores y
-    el número de imágenes encontradas.
+    Produce, por caso, la petición del runner y los parámetros exactos que recibiría el
+    SDK, o el nombre de la excepción si el adaptador no llegó a construirlos.
     """
     from apps.ai_client_app.adapters.openai import OpenAiClassificationAdapter
-    from apps.ai_client_app.evaluation.openai_session import canonical_sha256
 
     client = _CapturingClient()
     adapter = OpenAiClassificationAdapter(
         client=client, model=PROTOCOL.model_name, reasoning_effort=PROTOCOL.reasoning_effort
     )
-    errors: list[str] = []
-    images = 0
     for case in dataset.cases:
         request = build_request(case, dataset)
-        if request.image_bytes:
-            images += 1
         try:
             adapter.classify(request)
         except _DryRun:
-            pass
+            yield case, request, client.responses.calls[-1], None
         except Exception as exc:
-            errors.append(f"dry-run:{case.id}:{type(exc).__name__}")
+            yield case, request, None, type(exc).__name__
+
+
+def request_shape_errors(dataset: EvaluationDataset) -> tuple[list[str], int]:
+    """Comprueba las 28 peticiones reales construidas sin enviarlas.
+
+    Comprueba sobre los parámetros exactos que recibiría el SDK: modelo, esfuerzo,
+    `store`, esquema, ausencia de imagen y de identificadores. Devuelve los errores y
+    el número de imágenes encontradas.
+    """
+    from apps.ai_client_app.evaluation.openai_session import canonical_sha256
+
+    errors: list[str] = []
+    images = 0
+    for case, request, params, failure in _captured_requests(dataset):
+        if request.image_bytes:
+            images += 1
+        if failure is not None:
+            errors.append(f"dry-run:{case.id}:{failure}")
             continue
-        params = client.responses.calls[-1]
         blocks = [block for turn in params["input"] for block in turn["content"]]
         if params["model"] != PROTOCOL.model_name:
             errors.append(f"model:{case.id}")
@@ -533,7 +547,10 @@ def run_preflight(
         checks.append(
             {
                 "check": "credential",
-                "detail": f"mecanismo: {PROVIDER_KEY_ENV}, sólo en el proceso de run",
+                "detail": (
+                    f"mecanismo: {PROVIDER_KEY_ENV}, sólo en los procesos de "
+                    "provider-preflight y run"
+                ),
                 "result": CHECK_NOT_EVALUATED,
             }
         )
@@ -580,6 +597,297 @@ def run_preflight(
         "credential_fingerprint": fingerprint,
         "provider_calls": 0,
     }
+
+
+# --- Preflight del proveedor -----------------------------------------------------------
+#
+# Gate administrativo previo a `start`: nunca crea `run_id`, manifest, paquete de
+# evidencia ni registros de casos, y nunca llama al proveedor. Como el preflight local,
+# sólo imprime su resultado. Los límites, el crédito, el gasto y la retención no los
+# expone la API a una clave de proyecto: son atestaciones del operador leídas en la
+# consola. Lo que no se atesta queda `UNKNOWN` y nunca se convierte en `PASS`.
+#
+# El run no depende de este resultado: sigue exigiendo su propio `limits_check`
+# custodiado entre `start` y `run`.
+
+READY_FOR_EXECUTION = "READY_FOR_EXECUTION"
+NOT_READY_FOR_EXECUTION = "NOT_READY_FOR_EXECUTION"
+STATUS_UNKNOWN = "UNKNOWN"
+STATUS_NOT_DEMONSTRATED = "NOT_DEMONSTRATED"
+STATUS_ABSENT = "ABSENT"
+STATUS_BLOCKED = "BLOCKED"
+
+CREDIT_STATUSES = ("sufficient", "insufficient", "unknown")
+#: `absent`: la cuenta no tiene tope de gasto. `compatible`: lo tiene y no impide las 28
+#: peticiones. `reached`: impediría la sesión.
+SPEND_LIMIT_STATUSES = ("absent", "compatible", "reached", "unknown")
+#: `standard`: `store=false` y la vigilancia de abusos de hasta 30 días que la identidad
+#: ya declara como condición conocida. `zero-data-retention`: ZDR aprobada. `extended`:
+#: cualquier retención o uso mayor (por ejemplo, compartir datos para entrenamiento),
+#: que la política aceptada en S11A-v1.1 no cubre.
+RETENTION_STATUSES = ("standard", "zero-data-retention", "extended", "unknown")
+
+_MODEL_AVAILABILITY_NOTE = (
+    "sin llamada al proveedor no se demuestra; la primera petición del run demuestra a "
+    "la vez el modelo, la respuesta, el request id y el modelo servido"
+)
+_TPM_NOTE = (
+    "consumo previsto no derivable del protocolo: P6 excluye max_output_tokens y los "
+    "tokens de razonamiento no están acotados; no se inventa una cifra"
+)
+
+
+@dataclass(frozen=True, slots=True)
+class ProviderAttestation:
+    """Valores que el operador lee en la consola de OpenAI. `None` es desconocido."""
+
+    tier: str | None = None
+    rpm: int | None = None
+    tpm: int | None = None
+    rpd: int | None = None
+    rpd_absent: bool = False
+    credit_status: str = "unknown"
+    spend_limit: str = "unknown"
+    retention_status: str = "unknown"
+
+    def __post_init__(self):
+        for name in ("rpm", "tpm", "rpd"):
+            value = getattr(self, name)
+            if value is not None and (type(value) is not int or value < 0):
+                raise Ex09OpenAiError(f"{name} debe ser un entero no negativo o omitirse.")
+        if self.rpd is not None and self.rpd_absent:
+            raise Ex09OpenAiError("rpd y rpd_absent se excluyen: el límite existe o no.")
+        if self.tier is not None and (not isinstance(self.tier, str) or not self.tier.strip()):
+            raise Ex09OpenAiError("El tier se atesta como texto no vacío o se omite.")
+        for name, allowed in (
+            ("credit_status", CREDIT_STATUSES),
+            ("spend_limit", SPEND_LIMIT_STATUSES),
+            ("retention_status", RETENTION_STATUSES),
+        ):
+            if getattr(self, name) not in allowed:
+                raise Ex09OpenAiError(f"{name} debe ser uno de {list(allowed)}.")
+
+
+def session_input_measure(dataset: EvaluationDataset) -> dict[str, Any]:
+    """Tamaño exacto de lo que recibiría el modelo en las 28 peticiones, sin enviarlas.
+
+    Suma las instrucciones, el texto del usuario y el esquema de cada petición. Son
+    bytes UTF-8, no tokens: sirven de base para una regla de consumo, no la sustituyen.
+    """
+    sizes = []
+    for case, _request, params, failure in _captured_requests(dataset):
+        if failure is not None:
+            raise Ex09OpenAiError(f"No se pudo construir la petición de {case.id}.")
+        texts = [params["instructions"]] + [
+            block["text"]
+            for turn in params["input"]
+            for block in turn["content"]
+            if block.get("type") == "input_text"
+        ]
+        schema = canonical_json_bytes(params["text"]["format"]["schema"])
+        sizes.append(sum(len(text.encode("utf-8")) for text in texts) + len(schema))
+    return {
+        "requests": len(sizes),
+        "input_utf8_bytes_total": sum(sizes),
+        "input_utf8_bytes_max_request": max(sizes, default=0),
+        "unit": "UTF-8 bytes, not tokens",
+    }
+
+
+def _parameter(status: str, **fields: Any) -> dict[str, Any]:
+    return {"status": status, **fields}
+
+
+def evaluate_provider_preflight(
+    *,
+    local: Mapping[str, Any],
+    attestation: ProviderAttestation,
+    credential_available: bool,
+    credential_fingerprint_value: str | None,
+    consumption: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    """Decide el preflight del proveedor. `PASS` sólo si todo criterio está demostrado.
+
+    Un criterio que falla (`FAIL`, `BLOCKED`) hace el preflight `FAIL`; uno que no se
+    pudo demostrar lo deja `NOT_DEMONSTRATED`. La disponibilidad del modelo nunca es
+    criterio: se demuestra en la primera petición del run.
+    """
+    minimum = MINIMUM_REQUESTS
+    local_ok = local.get("gate") == READY_FOR_PROVIDER_PREFLIGHT
+
+    def threshold(value: int | None) -> str:
+        if value is None:
+            return STATUS_UNKNOWN
+        return CHECK_PASS if value >= minimum else CHECK_FAIL
+
+    if attestation.rpd_absent:
+        rpd = _parameter(STATUS_ABSENT, limit="absent", value=None, minimum=minimum)
+    else:
+        rpd = _parameter(
+            threshold(attestation.rpd),
+            limit="present" if attestation.rpd is not None else "unknown",
+            value=attestation.rpd,
+            minimum=minimum,
+        )
+    tpm_known = attestation.tpm is not None
+    parameters = {
+        "local_preflight": _parameter(
+            CHECK_PASS if local_ok else CHECK_FAIL, gate=local.get("gate")
+        ),
+        "credential": _parameter(
+            CHECK_PASS if credential_available else STATUS_NOT_DEMONSTRATED,
+            credential_available=credential_available,
+            credential_fingerprint=credential_fingerprint_value,
+            validity=STATUS_NOT_DEMONSTRATED,
+            delivery=f"process environment variable {PROVIDER_KEY_ENV}, not persisted",
+        ),
+        "credit": _parameter(
+            {"sufficient": CHECK_PASS, "insufficient": CHECK_FAIL}.get(
+                attestation.credit_status, STATUS_UNKNOWN
+            ),
+            credit_status=attestation.credit_status,
+        ),
+        "rpm": _parameter(
+            threshold(attestation.rpm),
+            limit="present" if attestation.rpm is not None else "unknown",
+            value=attestation.rpm,
+            minimum=minimum,
+        ),
+        "rpd": rpd,
+        "tpm": _parameter(
+            STATUS_NOT_DEMONSTRATED if tpm_known else STATUS_UNKNOWN,
+            limit="present" if tpm_known else "unknown",
+            value=attestation.tpm,
+            compatibility=STATUS_NOT_DEMONSTRATED if tpm_known else STATUS_UNKNOWN,
+            consumption=dict(consumption) if consumption else None,
+            note=_TPM_NOTE,
+        ),
+        "spend_limit": _parameter(
+            {"absent": CHECK_PASS, "compatible": CHECK_PASS, "reached": CHECK_FAIL}.get(
+                attestation.spend_limit, STATUS_UNKNOWN
+            ),
+            spend_limit=attestation.spend_limit,
+        ),
+        "retention": _parameter(
+            {
+                "standard": CHECK_PASS,
+                "zero-data-retention": CHECK_PASS,
+                "extended": STATUS_BLOCKED,
+            }.get(attestation.retention_status, STATUS_UNKNOWN),
+            retention_status=attestation.retention_status,
+            store=PROTOCOL.store,
+            policy="S11A-v1.1: store=false, synthetic data without PII, ZDR not required",
+        ),
+    }
+    criteria = {
+        name: parameter["status"]
+        for name, parameter in parameters.items()
+        if parameter["status"] != STATUS_ABSENT
+    }
+    failed = sorted(
+        name for name, status in criteria.items() if status in (CHECK_FAIL, STATUS_BLOCKED)
+    )
+    pending = sorted(
+        name for name, status in criteria.items() if status != CHECK_PASS and name not in failed
+    )
+    if failed:
+        result = CHECK_FAIL
+    elif pending:
+        result = STATUS_NOT_DEMONSTRATED
+    else:
+        result = CHECK_PASS
+    ready = result == CHECK_PASS
+    return {
+        "provider_preflight": result,
+        "ready_for_execution": ready,
+        "gate": READY_FOR_EXECUTION if ready else NOT_READY_FOR_EXECUTION,
+        "failed": failed,
+        "pending": pending,
+        "parameters": parameters,
+        "tier": attestation.tier.strip() if attestation.tier else STATUS_UNKNOWN,
+        "model": {
+            "configured_model": PROTOCOL.model_name,
+            "availability": STATUS_NOT_DEMONSTRATED,
+            "note": _MODEL_AVAILABILITY_NOTE,
+        },
+    }
+
+
+def run_provider_preflight(
+    *,
+    git_sha: str,
+    git_clean: bool,
+    environ: Mapping[str, str],
+    repo_root: Path,
+    evidence_root: Path,
+    evidence_mode: str,
+    attestation: ProviderAttestation,
+    recorded_at: datetime,
+    dataset_path: Path | None = None,
+    mounts_path: Path = Path("/proc/self/mounts"),
+) -> dict[str, Any]:
+    """Preflight administrativo del proveedor. Sin red, sin `run_id` y sin evidencia."""
+    local = run_preflight(
+        git_sha=git_sha,
+        git_clean=git_clean,
+        environ=environ,
+        repo_root=repo_root,
+        evidence_root=evidence_root,
+        evidence_mode=evidence_mode,
+        dataset_path=dataset_path,
+        mounts_path=mounts_path,
+    )
+    key = read_credential({PROVIDER_KEY_ENV: environ.get(PROVIDER_KEY_ENV, "")})
+    consumption = None
+    try:
+        _identity, dataset = build_identity(
+            git_sha=git_sha,
+            git_clean=git_clean,
+            evidence_mode=evidence_mode,
+            dataset_path=dataset_path,
+        )
+        consumption = session_input_measure(dataset)
+    except Ex09OpenAiError:
+        # El preflight local ya registra el fallo de los inputs y no queda listo.
+        pass
+    decision = evaluate_provider_preflight(
+        local=local,
+        attestation=attestation,
+        credential_available=key is not None,
+        credential_fingerprint_value=credential_fingerprint(key) if key else None,
+        consumption=consumption,
+    )
+    report = {
+        "schema_version": "s11c3-ex09-openai-provider-preflight-v1",
+        "scenario_id": SCENARIO_ID,
+        "protocol_version": PROTOCOL.version,
+        "methodology_version": METHODOLOGY_VERSION,
+        "evidence_mode": evidence_mode,
+        "recorded_at": _as_utc(recorded_at),
+        "operator": OPERATOR,
+        "attestation": "operator, provider console read-only",
+        "run_id": None,
+        "persisted": False,
+        "provider_calls": 0,
+        "classification_requests": 0,
+        "provider_config": {
+            "provider": PROTOCOL.provider,
+            "api": PROTOCOL.api,
+            "endpoint": PROTOCOL.endpoint,
+            "configured_model": PROTOCOL.model_name,
+            "reasoning_effort": PROTOCOL.reasoning_effort,
+            "store": PROTOCOL.store,
+            "request_timeout_seconds": PROTOCOL.request_timeout_seconds,
+            "sdk_max_retries": PROTOCOL.sdk_max_retries,
+        },
+        "sdk_version": installed_sdk_version(),
+        "identity_sha256": local["identity_sha256"],
+        **decision,
+        "local_preflight": local,
+    }
+    if key and key.encode("utf-8") in canonical_json_bytes(report):
+        raise Ex09OpenAiError("El resultado del preflight contendría la clave del proveedor.")
+    return report
 
 
 # --- Estado y persistencia -------------------------------------------------------------

@@ -6,7 +6,9 @@ adaptador son dobles, y toda la custodia vive en `.s11-test-artifacts/` con
 es inventada. Nada de esto es evidencia de EX-09.
 """
 
+import hashlib
 import json
+import re
 import shutil
 import socket
 from dataclasses import asdict, replace
@@ -844,3 +846,364 @@ def test_command_refuses_the_key_outside_run(monkeypatch):
     monkeypatch.setenv(ex09_openai.PROVIDER_KEY_ENV, KEY)
     with pytest.raises(CommandError, match="sólo puede existir en el proceso de run"):
         call_command("s11_ex09_openai", "preflight", "--git-sha", GIT_SHA, "--git-clean")
+
+
+# --- Preflight del proveedor (sin run_id) ----------------------------------------------
+
+KEY_ENV = ex09_openai.PROVIDER_KEY_ENV
+#: Lo más favorable que el operador podría atestar. Aun así, TPM no queda demostrado.
+FAVORABLE = {
+    "tier": "Tier 1",
+    "rpm": 500,
+    "tpm": 500_000,
+    "rpd_absent": True,
+    "credit_status": "sufficient",
+    "spend_limit": "absent",
+    "retention_status": "standard",
+}
+
+
+def _provider_preflight(ctx, environ=None, **attestation):
+    return ex09_openai.run_provider_preflight(
+        git_sha=GIT_SHA,
+        git_clean=True,
+        environ=environ or {},
+        repo_root=ctx.repo_root,
+        evidence_root=ctx.store.root,
+        evidence_mode=MODE,
+        attestation=ex09_openai.ProviderAttestation(**attestation),
+        recorded_at=START,
+        mounts_path=ctx.mounts,
+    )
+
+
+def _tree(root):
+    if not root.exists():
+        return {}
+    return {
+        str(path.relative_to(root)): (
+            hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else "dir"
+        )
+        for path in root.rglob("*")
+    }
+
+
+def test_provider_preflight_creates_no_run_id_manifest_or_evidence(ctx):
+    before = _tree(ctx.store.root)
+    report = _provider_preflight(ctx, {KEY_ENV: KEY}, **FAVORABLE)
+
+    assert report["run_id"] is None
+    assert report["persisted"] is False
+    assert report["local_preflight"]["gate"] == "READY_FOR_PROVIDER_PREFLIGHT"
+    assert _tree(ctx.store.root) == before
+    assert not list(ctx.store.root.rglob("run-manifest*.json"))
+    runs = ctx.store.root / "runs"
+    assert not runs.exists() or not any(runs.iterdir())
+
+
+def test_provider_preflight_keeps_only_the_credential_fingerprint(ctx):
+    report = _provider_preflight(ctx, {KEY_ENV: KEY}, **FAVORABLE)
+    credential = report["parameters"]["credential"]
+
+    assert credential["status"] == "PASS"
+    assert credential["credential_available"] is True
+    assert credential["credential_fingerprint"] == ex09_openai.credential_fingerprint(KEY)
+    assert re.fullmatch(r"[0-9a-f]{16}", credential["credential_fingerprint"])
+    assert credential["validity"] == "NOT_DEMONSTRATED"
+    serialized = json.dumps(report)
+    for forbidden in (KEY, "Bearer", "Authorization", "OPENAI_API_KEY="):
+        assert forbidden not in serialized
+
+
+def test_provider_preflight_without_a_credential_is_not_demonstrated(ctx):
+    report = _provider_preflight(ctx, {}, **FAVORABLE)
+    credential = report["parameters"]["credential"]
+
+    assert credential["credential_available"] is False
+    assert credential["credential_fingerprint"] is None
+    assert credential["status"] == "NOT_DEMONSTRATED"
+    assert report["provider_preflight"] == "NOT_DEMONSTRATED"
+    assert report["ready_for_execution"] is False
+    assert report["run_id"] is None
+
+
+def test_unattested_values_stay_unknown_and_never_pass(ctx):
+    report = _provider_preflight(ctx, {KEY_ENV: KEY})
+    parameters = report["parameters"]
+
+    for name in ("credit", "rpm", "rpd", "tpm", "spend_limit", "retention"):
+        assert parameters[name]["status"] == "UNKNOWN", name
+    assert parameters["rpd"]["limit"] == "unknown"
+    assert parameters["tpm"]["limit"] == "unknown"
+    assert report["tier"] == "UNKNOWN"
+    assert report["failed"] == []
+    assert set(report["pending"]) == {
+        "credit",
+        "rpm",
+        "rpd",
+        "tpm",
+        "spend_limit",
+        "retention",
+    }
+    assert report["provider_preflight"] == "NOT_DEMONSTRATED"
+    assert report["ready_for_execution"] is False
+    assert report["gate"] == "NOT_READY_FOR_EXECUTION"
+
+
+@pytest.mark.parametrize(("rpm", "status"), [(27, "FAIL"), (28, "PASS")])
+def test_rpm_must_admit_the_28_requests(ctx, rpm, status):
+    report = _provider_preflight(ctx, {KEY_ENV: KEY}, **{**FAVORABLE, "rpm": rpm})
+
+    assert report["parameters"]["rpm"]["status"] == status
+    assert report["ready_for_execution"] is False
+    if status == "FAIL":
+        assert report["provider_preflight"] == "FAIL"
+        assert "rpm" in report["failed"]
+
+
+def test_an_absent_rpd_is_recorded_as_absent_never_as_a_number(ctx):
+    report = _provider_preflight(ctx, {KEY_ENV: KEY}, **FAVORABLE)
+    rpd = report["parameters"]["rpd"]
+
+    assert rpd == {"status": "ABSENT", "limit": "absent", "value": None, "minimum": 28}
+    assert "rpd" not in report["failed"] + report["pending"]
+    silent = _provider_preflight(ctx, {KEY_ENV: KEY}, **{**FAVORABLE, "rpd_absent": False})
+    assert silent["parameters"]["rpd"]["status"] == "UNKNOWN"
+    assert "rpd" in silent["pending"]
+
+
+@pytest.mark.parametrize(("rpd", "status"), [(27, "FAIL"), (28, "PASS")])
+def test_an_applicable_rpd_must_admit_the_28_requests(ctx, rpd, status):
+    attestation = {**FAVORABLE, "rpd_absent": False, "rpd": rpd}
+    report = _provider_preflight(ctx, {KEY_ENV: KEY}, **attestation)
+
+    assert report["parameters"]["rpd"]["status"] == status
+    assert report["parameters"]["rpd"]["limit"] == "present"
+    assert report["ready_for_execution"] is False
+    assert ("rpd" in report["failed"]) is (status == "FAIL")
+
+
+def test_tpm_is_never_assumed_compatible(ctx):
+    unknown = _provider_preflight(ctx, {KEY_ENV: KEY}, **{**FAVORABLE, "tpm": None})
+    assert unknown["parameters"]["tpm"]["status"] == "UNKNOWN"
+    assert unknown["ready_for_execution"] is False
+
+    known = _provider_preflight(ctx, {KEY_ENV: KEY}, **FAVORABLE)
+    tpm = known["parameters"]["tpm"]
+    assert tpm["limit"] == "present"
+    assert tpm["value"] == 500_000
+    assert tpm["compatibility"] == "NOT_DEMONSTRATED"
+    assert tpm["consumption"]["requests"] == 28
+    assert tpm["consumption"]["input_utf8_bytes_total"] > 0
+    assert tpm["consumption"]["unit"] == "UTF-8 bytes, not tokens"
+    # Todo lo demás atestado a favor: TPM es lo único pendiente.
+    assert known["failed"] == []
+    assert known["pending"] == ["tpm"]
+    assert known["provider_preflight"] == "NOT_DEMONSTRATED"
+    assert known["ready_for_execution"] is False
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "status", "outcome"),
+    [
+        ("credit_status", "unknown", "UNKNOWN", "NOT_DEMONSTRATED"),
+        ("credit_status", "insufficient", "FAIL", "FAIL"),
+        ("spend_limit", "unknown", "UNKNOWN", "NOT_DEMONSTRATED"),
+        ("spend_limit", "reached", "FAIL", "FAIL"),
+        ("spend_limit", "compatible", "PASS", "NOT_DEMONSTRATED"),
+        ("retention_status", "unknown", "UNKNOWN", "NOT_DEMONSTRATED"),
+        ("retention_status", "extended", "BLOCKED", "FAIL"),
+        ("retention_status", "zero-data-retention", "PASS", "NOT_DEMONSTRATED"),
+    ],
+)
+def test_credit_spend_and_retention_gate_the_preflight(ctx, field, value, status, outcome):
+    report = _provider_preflight(ctx, {KEY_ENV: KEY}, **{**FAVORABLE, field: value})
+    name = {"credit_status": "credit", "spend_limit": "spend_limit"}.get(field, "retention")
+
+    assert report["parameters"][name]["status"] == status
+    assert report["provider_preflight"] == outcome
+    assert report["ready_for_execution"] is False
+
+
+def test_the_model_is_configured_but_its_availability_is_not_demonstrated(ctx):
+    report = _provider_preflight(ctx, {KEY_ENV: KEY}, **FAVORABLE)
+
+    assert report["model"]["configured_model"] == "gpt-6-luna"
+    assert report["model"]["availability"] == "NOT_DEMONSTRATED"
+    assert report["provider_config"]["configured_model"] == "gpt-6-luna"
+    assert report["provider_config"]["reasoning_effort"] == "low"
+    assert report["provider_config"]["store"] is False
+    assert report["provider_config"]["request_timeout_seconds"] == 60
+    assert report["provider_config"]["sdk_max_retries"] == 0
+    assert report["sdk_version"] == "3.19.2"
+    assert "model" not in report["parameters"]
+
+
+def test_provider_preflight_sends_no_classification_request(ctx, monkeypatch):
+    from openai.resources.responses import Responses
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("El preflight del proveedor no puede llamar al proveedor.")
+
+    monkeypatch.setattr(Responses, "create", forbidden)
+    monkeypatch.setattr(ex09_openai, "run_openai_session", forbidden)
+    report = _provider_preflight(ctx, {KEY_ENV: KEY}, **FAVORABLE)
+
+    assert report["provider_calls"] == 0
+    assert report["classification_requests"] == 0
+    assert ctx.adapter.calls == []
+
+
+@pytest.mark.parametrize(
+    "attestation",
+    [
+        {"rpd": 100, "rpd_absent": True},
+        {"rpm": -1},
+        {"rpm": True},
+        {"tpm": "500000"},
+        {"tier": "  "},
+        {"credit_status": "yes"},
+        {"spend_limit": "none"},
+        {"retention_status": "zdr"},
+    ],
+)
+def test_malformed_attestations_are_rejected(attestation):
+    with pytest.raises(ex09_openai.Ex09OpenAiError):
+        ex09_openai.ProviderAttestation(**attestation)
+
+
+def test_provider_preflight_leaves_existing_evidence_untouched(ctx):
+    ctx.complete()
+    ctx.finalize()
+    before = _tree(ctx.store.root)
+
+    _provider_preflight(ctx, {KEY_ENV: KEY}, **FAVORABLE)
+
+    assert _tree(ctx.store.root) == before
+
+
+#: Blobs de `73e5037`. La preparación Gemini es histórica y no se modifica.
+_GEMINI_EXECUTOR_SHA256 = {
+    "apps/experiments_app/ex09.py": (
+        "be227f2d94d649fbcb41727471bcd3dff2794195d8914b480cf3109c98628be3"
+    ),
+    "apps/experiments_app/ex09_launcher.py": (
+        "6f17bda8c6b4f88a35344d02ebb3adcae4c30ee02447cdc24da459e65e15c16d"
+    ),
+    "apps/experiments_app/management/commands/s11_ex09.py": (
+        "5480dc86cd42cd5c01d8f8303d6559d044cea0e62fe0f3b07efd7c7204c7ed57"
+    ),
+    "scripts/s11_ex09.py": "2ac48f1f1e0217dc6ad6f34a418ab596c4447735d1711dcddb5bcbf2814f9647",
+}
+
+
+def test_the_gemini_executor_is_unchanged():
+    backend = Path(__file__).resolve().parents[3]
+    for relative, expected in _GEMINI_EXECUTOR_SHA256.items():
+        digest = hashlib.sha256((backend / relative).read_bytes()).hexdigest()
+        assert digest == expected, relative
+    from apps.experiments_app import ex09_launcher
+
+    assert "provider-preflight" not in ex09_launcher.ACTIONS
+
+
+def test_provider_preflight_neither_opens_nor_admits_a_run(ctx):
+    from apps.experiments_app.runtime import valid_run_id
+
+    report = _provider_preflight(ctx, {KEY_ENV: KEY}, **FAVORABLE)
+    started = ctx.start()
+
+    assert valid_run_id(started["run_id"])
+    assert started["methodology_version"] == "S11A-v1.1"
+    assert started["identity_sha256"] == report["identity_sha256"]
+    # El run conserva su contrato: exige su propio limits_check custodiado.
+    with pytest.raises(ex09_openai.Ex09OpenAiRefusal) as missing:
+        ctx.run()
+    assert missing.value.terminal is False
+    assert "limits-check-missing" in missing.value.reasons
+    assert ctx.adapter.calls == []
+
+    ctx.limits()
+    summary = ctx.run()
+    assert summary["attempted_cases"] == 28
+
+
+def test_launcher_passes_the_key_to_provider_preflight_only_by_name(launcher_env):
+    processes = FakeProcesses()
+    environ = {**launcher_env, KEY_ENV: KEY}
+    ex09_openai_launcher.launch(
+        "provider-preflight",
+        ["--rpm", "500"],
+        repo_root=Path("."),
+        expected_git_sha=GIT_SHA,
+        environ=environ,
+        runner=processes,
+    )
+    command, kwargs = next(call for call in processes.calls if "provider-preflight" in call[0])
+    assert KEY not in " ".join(command)
+    assert ("-e", KEY_ENV) == command[9:11]
+    assert command[-3:] == ("--git-sha", GIT_SHA, "--git-clean")
+    assert kwargs["env"][KEY_ENV] == KEY
+    assert "OPENAI_API_KEY" not in kwargs["env"]
+
+
+def test_launcher_runs_provider_preflight_without_a_key(launcher_env):
+    processes = FakeProcesses()
+    ex09_openai_launcher.launch(
+        "provider-preflight",
+        [],
+        repo_root=Path("."),
+        expected_git_sha=GIT_SHA,
+        environ=launcher_env,
+        runner=processes,
+    )
+    command, kwargs = processes.calls[-1]
+    assert "provider-preflight" in command
+    assert "-e" not in command
+    assert KEY_ENV not in kwargs["env"]
+
+
+def test_command_provider_preflight_accepts_the_key_and_creates_no_run(monkeypatch, capsys):
+    from django.core.management import call_command
+
+    _clear_productive_env(monkeypatch)
+    monkeypatch.setenv(KEY_ENV, KEY)
+    call_command(
+        "s11_ex09_openai",
+        "provider-preflight",
+        "--tier",
+        "Tier 1",
+        "--rpm",
+        "500",
+        "--rpd-absent",
+        "--credit-status",
+        "sufficient",
+        "--git-sha",
+        GIT_SHA,
+        "--git-clean",
+    )
+    output = capsys.readouterr().out
+    assert KEY not in output
+    report = json.loads(output)
+    assert report["evidence_mode"] == "OFFICIAL"
+    assert report["run_id"] is None
+    assert report["provider_calls"] == 0
+    assert report["parameters"]["credential"]["credential_available"] is True
+    assert report["parameters"]["rpm"]["status"] == "PASS"
+    assert report["parameters"]["rpd"]["status"] == "ABSENT"
+    assert report["parameters"]["tpm"]["status"] == "UNKNOWN"
+    assert report["ready_for_execution"] is False
+
+
+def test_command_provider_preflight_without_a_key_is_not_demonstrated(monkeypatch, capsys):
+    from django.core.management import call_command
+
+    _clear_productive_env(monkeypatch)
+    call_command("s11_ex09_openai", "provider-preflight", "--git-sha", GIT_SHA, "--git-clean")
+    report = json.loads(capsys.readouterr().out)
+    credential = report["parameters"]["credential"]
+    assert credential["credential_available"] is False
+    assert credential["status"] == "NOT_DEMONSTRATED"
+    assert "credential" in report["pending"]
+    assert report["run_id"] is None
+    assert report["ready_for_execution"] is False

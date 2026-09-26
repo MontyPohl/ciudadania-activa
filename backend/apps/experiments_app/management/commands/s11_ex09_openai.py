@@ -31,11 +31,36 @@ class Command(BaseCommand):
         "backend/scripts/s11_ex09_openai.py en el contenedor efímero."
     )
 
+    #: Únicos subcomandos que admiten la clave temporal. provider-preflight sólo calcula
+    #: su huella; run es el único que la usa.
+    key_actions = ("provider-preflight", "run")
+
     def add_arguments(self, parser):
         subcommands = parser.add_subparsers(dest="action", required=True)
 
         preflight = subcommands.add_parser("preflight", help="Comprobación local, sin red.")
         self._git_arguments(preflight)
+
+        provider = subcommands.add_parser(
+            "provider-preflight",
+            help="Gate administrativo del proveedor, sin red y sin run_id.",
+        )
+        provider.add_argument("--tier")
+        provider.add_argument("--rpm", type=int)
+        provider.add_argument("--tpm", type=int)
+        rpd = provider.add_mutually_exclusive_group()
+        rpd.add_argument("--rpd", type=int)
+        rpd.add_argument("--rpd-absent", action="store_true")
+        provider.add_argument(
+            "--credit-status", choices=list(ex09_openai.CREDIT_STATUSES), default="unknown"
+        )
+        provider.add_argument(
+            "--spend-limit", choices=list(ex09_openai.SPEND_LIMIT_STATUSES), default="unknown"
+        )
+        provider.add_argument(
+            "--retention-status", choices=list(ex09_openai.RETENTION_STATUSES), default="unknown"
+        )
+        self._git_arguments(provider)
 
         start = subcommands.add_parser("start", help="Asigna run_id y manifest inicial.")
         start.add_argument("--nonce", required=True)
@@ -75,12 +100,16 @@ class Command(BaseCommand):
         run_id = options.get("run_id")
         if run_id is not None and not valid_run_id(run_id):
             raise CommandError("run_id no tiene el formato S11 esperado.")
-        if action != "run" and os.environ.get(ex09_openai.PROVIDER_KEY_ENV, "").strip():
+        if (
+            action not in self.key_actions
+            and os.environ.get(ex09_openai.PROVIDER_KEY_ENV, "").strip()
+        ):
             raise CommandError(
-                f"{ex09_openai.PROVIDER_KEY_ENV} sólo puede existir en el proceso de run."
+                f"{ex09_openai.PROVIDER_KEY_ENV} sólo puede existir en el proceso de run "
+                "o de provider-preflight."
             )
         try:
-            result = getattr(self, f"_{action}")(options)
+            result = getattr(self, f"_{action.replace('-', '_')}")(options)
         except ex09_openai.Ex09OpenAiRefusal as exc:
             payload = {"refused": True, "terminal": exc.terminal, "reasons": list(exc.reasons)}
             sys.stderr.write(json.dumps(payload, sort_keys=True, ensure_ascii=False) + "\n")
@@ -98,6 +127,28 @@ class Command(BaseCommand):
             repo_root=Path(settings.REPO_ROOT),
             evidence_root=Path(settings.S11_ARTIFACT_ROOT),
             evidence_mode=ex09_openai.OFFICIAL_MODE,
+        )
+
+    def _provider_preflight(self, options):
+        # Sólo imprime: no crea run_id, manifest ni evidencia, y no llama al proveedor.
+        return ex09_openai.run_provider_preflight(
+            git_sha=options["git_sha"],
+            git_clean=options["git_clean"],
+            environ=os.environ,
+            repo_root=Path(settings.REPO_ROOT),
+            evidence_root=Path(settings.S11_ARTIFACT_ROOT),
+            evidence_mode=ex09_openai.OFFICIAL_MODE,
+            attestation=ex09_openai.ProviderAttestation(
+                tier=options["tier"],
+                rpm=options["rpm"],
+                tpm=options["tpm"],
+                rpd=options["rpd"],
+                rpd_absent=options["rpd_absent"],
+                credit_status=options["credit_status"],
+                spend_limit=options["spend_limit"],
+                retention_status=options["retention_status"],
+            ),
+            recorded_at=_now(),
         )
 
     def _start(self, options):

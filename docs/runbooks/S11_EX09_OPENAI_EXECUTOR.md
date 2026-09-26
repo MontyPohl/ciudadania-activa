@@ -14,11 +14,12 @@ La preparación Gemini (`S11_EX09_EXECUTOR.md`, `73e5037`) es histórica y no se
 | --- | --- |
 | `backend/apps/ai_client_app/evaluation/openai_session.py` | Protocolo congelado, verificación de inputs, sesión única y clases de error |
 | `backend/apps/experiments_app/ex09_openai.py` | Identidad, preflight local, custodia, atestaciones, validez, CA-4 y decisión |
-| `backend/apps/experiments_app/management/commands/s11_ex09_openai.py` | Subcomandos `preflight`, `start`, `record`, `run`, `finalize` y `status` |
+| `backend/apps/experiments_app/management/commands/s11_ex09_openai.py` | Subcomandos `preflight`, `provider-preflight`, `start`, `record`, `run`, `finalize` y `status` |
 | `backend/apps/experiments_app/ex09_openai_launcher.py` y `backend/scripts/s11_ex09_openai.py` | Lanzador de host: verifica el commit y el working tree limpio y arma el entorno mínimo |
 | `infra/docker-compose.s11-ex09-openai.yml` | Contenedor efímero: sin `env_file`, base, Redis ni puertos |
 
-Sólo `run` contacta al proveedor. El resto no hace ninguna llamada de red.
+Sólo `run` contacta al proveedor. El resto, incluido `provider-preflight`, no hace
+ninguna llamada de red.
 
 ## Protocolo que el ejecutor impone
 
@@ -55,10 +56,12 @@ Sólo `run` contacta al proveedor. El resto no hace ninguna llamada de red.
 - **Credenciales productivas vacías.** `OPENAI_API_KEY`, `GEMINI_API_KEY`, `SUPABASE_*`,
   `BREVO_API_KEY` y `DOCUMENT_HMAC_SECRET` se fuerzan a vacío, y `AI_PROVIDER` también.
   `AI_CLASSIFICATION_ENABLED` y `S11_FAKE_AI_ENABLED` quedan apagados.
-- **La clave del run.** La clave temporal llega sólo al proceso de `run`, como
-  `S11_EX09_PROVIDER_KEY`, pasada por nombre (`-e`). El lanzador rechaza cualquier otra
-  acción mientras esa variable siga exportada, y el comando rechaza cualquier subcomando
-  distinto de `run` si la recibe. Sólo se registra su huella: los 16 primeros
+- **La clave del run.** La clave temporal llega sólo a los procesos de
+  `provider-preflight` y de `run`, como `S11_EX09_PROVIDER_KEY`, pasada por nombre
+  (`-e`). `run` la exige y la usa. `provider-preflight` la acepta si está exportada,
+  sólo para calcular su huella, y nunca llama al proveedor. El lanzador rechaza
+  cualquier otra acción mientras esa variable siga exportada, y el comando rechaza
+  cualquier otro subcomando si la recibe. Sólo se registra su huella: los 16 primeros
   hexadecimales de su SHA-256.
 - **Límite conocido.** La salida de red no está restringida por firewall al dominio del
   proveedor.
@@ -73,10 +76,17 @@ preparación, con el working tree limpio.
 python3 backend/scripts/s11_ex09_openai.py build     --expected-git-sha <SHA>
 python3 backend/scripts/s11_ex09_openai.py preflight --expected-git-sha <SHA>
 #   → gate READY_FOR_PROVIDER_PREFLIGHT; ready_for_execution siempre false
+# crear la clave temporal del run en la consola del proyecto; exportarla sin imprimirla
+s11_ex09_openai.py provider-preflight --expected-git-sha <SHA> --tier "<tier>" \
+    --rpm <N> --tpm <N> (--rpd <N> | --rpd-absent) --credit-status sufficient|insufficient|unknown \
+    --spend-limit absent|compatible|reached|unknown \
+    --retention-status standard|zero-data-retention|extended|unknown
+#   → sin run_id ni evidencia; ready_for_execution sólo con todos los criterios en PASS
+# unset S11_EX09_PROVIDER_KEY (start y record la rechazan)
 s11_ex09_openai.py start  --expected-git-sha <SHA> --nonce ex-09-openai-operator-approved-001 → run_id
 s11_ex09_openai.py record --expected-git-sha <SHA> --run-id <RUN> --event limits_check \
     --tier "<tier>" --rpm <N> --tpm <N> [--rpd <N>] --credit-available yes|no --spend-limit-reached yes|no
-# crear la clave temporal del run en la consola del proyecto; exportarla sin imprimirla
+# volver a exportar la misma clave temporal, sin imprimirla
 s11_ex09_openai.py run    --expected-git-sha <SHA> --run-id <RUN>
 # unset S11_EX09_PROVIDER_KEY
 s11_ex09_openai.py record --expected-git-sha <SHA> --run-id <RUN> --event credential_removed
@@ -87,9 +97,45 @@ s11_ex09_openai.py record --expected-git-sha <SHA> --run-id <RUN> --event cleanu
 s11_ex09_openai.py finalize --expected-git-sha <SHA> --run-id <RUN>
 ```
 
-## Límites y crédito
+## Preflight del proveedor, sin `run_id`
 
-No se fija ningún valor. En `limits_check` el operador atesta lo que ve en la consola para
+`provider-preflight` es el gate administrativo previo a `start`. Repite el preflight
+local y añade las atestaciones del operador. **No crea `run_id`, manifest, paquete de
+evidencia ni registros de casos, no escribe nada en `var/s11-runs/` y no llama al
+proveedor**: sólo imprime su resultado, como el preflight local.
+
+- **Consola, no API.** La API no expone el crédito, los límites, el gasto ni la
+  retención a una clave de proyecto. El operador los lee en la consola de OpenAI y los
+  pasa como argumentos. Lo que no pasa queda `UNKNOWN` y nunca se convierte en `PASS`.
+- **RPD.** `--rpd <N>` si el límite existe; `--rpd-absent` si la consola muestra que no
+  existe. Sin ninguno de los dos queda `UNKNOWN`. Un RPD ausente se registra `ABSENT`,
+  sin valor: no se asume infinito.
+- **Retención.** `standard` es `store=false` más la vigilancia de abusos de hasta 30
+  días que la identidad ya declara, y `zero-data-retention` es ZDR aprobada. Las dos son
+  compatibles con la política de `S11A-v1.1` para datos sintéticos sin PII. `extended`
+  (cualquier retención o uso mayor, por ejemplo compartir datos para entrenamiento)
+  queda `BLOCKED`.
+- **Modelo.** Registra `configured_model = gpt-6-luna` y `availability =
+  NOT_DEMONSTRATED`. No se hace ninguna petición de prueba: la primera petición del run
+  demuestra el modelo, la respuesta, el request id y el modelo servido. La validez de la
+  clave tampoco se demuestra antes.
+- **TPM.** Se registra el límite, pero su compatibilidad queda `NOT_DEMONSTRATED`: P6
+  excluye `max_output_tokens` y los tokens de razonamiento no están acotados, así que el
+  consumo de la sesión no se deriva del protocolo. El preflight informa, como base para
+  una regla futura, el tamaño exacto en bytes UTF-8 de lo que recibiría el modelo en
+  las 28 peticiones (no son tokens). Mientras no exista una regla metodológica de
+  consumo, `ready_for_execution` no puede ser `true`.
+
+`provider_preflight` es `FAIL` si algún criterio falla (`rpm` o `rpd` < 28, crédito
+insuficiente, tope de gasto alcanzado, retención `extended`); `PASS` sólo si todos los
+criterios están en `PASS` (`rpd` ausente no cuenta); y `NOT_DEMONSTRATED` en otro caso.
+Los criterios son el preflight local, la credencial, el crédito, RPM, RPD, TPM, el
+gasto y la retención.
+
+## Límites y crédito dentro del run
+
+El run no depende del preflight del proveedor ni hereda sus valores. No se fija ningún
+valor. En `limits_check` el operador atesta lo que ve en la consola para
 `gpt-6-luna`, a nivel de organización y de proyecto: el tier, los límites RPM, TPM y, si
 existe, RPD, si queda crédito y si se alcanzó el límite de gasto.
 
