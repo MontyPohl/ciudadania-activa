@@ -3981,6 +3981,30 @@ S11-C3: OPEN
 S11-C: OPEN
 ```
 
+### Cierre del incidente de exposición de secretos (27/09/2026)
+
+- **Registro:** `docs/runbooks/S11_SECRET_EXPOSURE_INCIDENT_20260926.md`, §10.14.
+- **Transcripción afectada:** el operador eliminó el JSONL de la sesión y su directorio
+  `subagents/` el 27/09/2026 a las 21:42:06 UTC, con el script preparado para el incidente. La
+  sesión no se volvió a abrir y no se eliminó ninguna otra.
+- **Borrado lógico:** el borrado físico seguro en SSD no está demostrado
+  (`PHYSICAL_SECURE_ERASE_PROVEN=NO`). El control efectivo es la rotación de todos los secretos
+  activos identificados.
+- **EX-10:** los dos archivos de la fase 1 siguen sin seguimiento, fuera de `v8`, sin ejecutar y con
+  sus SHA-256 originales.
+
+```text
+Incidente: CLOSED · TECHNICAL REMEDIATION COMPLETE · TRANSCRIPT LOGICAL DELETION COMPLETE
+Borrado físico seguro en SSD: NOT DEMONSTRATED · control efectivo: SECRET ROTATION
+Época 7205a04f93cc3da9: CLOSED / RETIRED (sólo verificación histórica)
+Época 587966006e85202a: ACTIVE · P02/P03 v8 PASS
+C1: no repetido
+G0: APPROVED / CLOSED
+EX-10: READY_TO_IMPLEMENT · NOT PREPARED · NOT EXECUTED
+S11-C3: OPEN
+S11-C: OPEN
+```
+
 ### Pruebas realizadas
 
 - Gate inicial: rama `main`, HEAD exacto y working tree limpio.

@@ -6,20 +6,21 @@
 
 **Clasificación:** `SECRET_EXPOSURE`
 
-**Estado:** `INCIDENT OPEN / TECHNICAL REMEDIATION COMPLETE / TRANSCRIPT DELETION PENDING`
+**Estado:** `INCIDENT CLOSED / TECHNICAL REMEDIATION COMPLETE / TRANSCRIPT LOGICAL DELETION COMPLETE`
 
-**Última actualización:** 27/09/2026.
-- Secretos rotados.
+**Última actualización:** 27/09/2026, cierre del incidente (§10.14).
+- Secretos rotados. La rotación es el control efectivo.
 - Época `7205a04f93cc3da9` `CLOSED / RETIRED`.
 - Época `587966006e85202a` `ACTIVE`, con P02/P03 `v8` = `PASS` (§10.7–§10.13).
-- El incidente sigue abierto sólo por la eliminación pendiente de la transcripción (§10.13).
+- Transcripción afectada eliminada lógicamente el 27/09/2026 a las 21:42:06 UTC. El borrado
+  físico seguro en SSD no está demostrado (§10.14).
 
 **Autoridad:** Monty Emmanuel Pohl Amarilla, autor y custodio.
 
 **Alcance:** registro documental del incidente y del procedimiento aprobado. No es un resultado
 experimental, no cambia `S11A-v1.1` ni `S11-CUSTODY-v1.0`, no autoriza un run y no modifica
-`var/s11-runs`, `var/s11-backup`, `var/s11-restore` ni producción. Las rotaciones las ejecutó
-manualmente el operador, fuera del repositorio (§10.7).
+`var/s11-runs`, `var/s11-backup`, `var/s11-restore` ni producción. Las rotaciones (§10.7) y el
+borrado de la transcripción (§10.14) los ejecutó manualmente el operador, fuera del repositorio.
 
 ## 1. Hechos
 
@@ -344,6 +345,8 @@ autor aprueba esta secuencia:
 - **Paso 9:** el incidente queda actualizado, pero **no se cierra**. El autor decidió mantenerlo
   abierto hasta completar los pasos 10 a 12.
 - **EX-10:** vuelve a la implementación (§10.12).
+- **Pasos 9 a 12, cumplidos** el 27/09/2026: sesión cerrada, JSONL y `subagents/` eliminados,
+  limitación del borrado físico registrada e incidente cerrado (§10.14).
 
 ## 8. Prevención
 
@@ -380,6 +383,8 @@ Se reafirma el 27/09/2026, al activar la nueva época.
   autor.
 - **Imágenes borradas.** El alcance de las imágenes *dangling* borradas por `down --rmi local` no
   se puede reconstruir.
+- **Borrado de la transcripción.** Fue lógico. En un SSD el borrado físico seguro no puede
+  demostrarse; la rotación es el control efectivo (§10.14).
 - **Limitaciones concretas del resultado:** §10.3.
 
 ## 10. Registro cronológico
@@ -702,4 +707,112 @@ TRANSCRIPT DELETION PENDING
   activo. También se eliminará su directorio `subagents/`.
 - **Limitación:** no se puede demostrar el borrado físico seguro en un SSD. La rotación es el
   control efectivo.
-- **Cierre:** el incidente no se cierra hasta completar los pasos 10 a 12 de §7.
+- **Cierre:** el incidente no se cierra hasta completar los pasos 10 a 12 de §7. Estado posterior:
+  §10.14.
+
+### 10.14 27/09/2026 — Eliminación de la transcripción y cierre del incidente
+
+**Ejecución.**
+- El operador cerró la sesión del agente afectada y no la volvió a abrir ni a reanudar.
+- Después ejecutó una sola vez `~/s11-incident-20260926/delete-affected-transcript.sh`.
+- **Borrado lógico:** 27/09/2026, 21:42:06 UTC (18:42:06 −03:00), con `exit_code=0`. El inicio y
+  el fin quedaron registrados en el mismo segundo.
+- **Alcance:** exactamente dos objetos, con rutas literales y sin globbing:
+  - el JSONL de la sesión afectada;
+  - su directorio `subagents/`.
+- No se eliminó ninguna otra sesión. El script no borra otros JSONL, el directorio de la sesión,
+  `memory/` ni el proyecto.
+- **Controles previos del script:**
+  - dueño, modo (JSONL 0600, `subagents/` 0700), mismo sistema de archivos y ausencia de symlinks;
+  - ningún proceso con el ID de la sesión;
+  - `lsof`, autoprobado, sin descriptores abiertos sobre los dos objetos;
+  - confirmación interactiva del operador;
+  - metadatos sin cambios durante la confirmación.
+- El script no lee, copia, mueve ni hashea el contenido, y no usa `shred` ni herramientas de
+  borrado seguro.
+
+**Resultado saneado** (`transcript-deletion-result.txt`, fuera del repositorio):
+
+```text
+TRANSCRIPT_JSONL_DELETED=YES
+TRANSCRIPT_SUBAGENTS_DELETED=YES
+PHYSICAL_SECURE_ERASE_PROVEN=NO
+ROTATION_IS_EFFECTIVE_CONTROL=YES
+open_file_check=lsof
+operator_confirmation=YES
+started_utc=2026-09-27T21:42:06Z
+finished_utc=2026-09-27T21:42:06Z
+exit_code=0
+```
+
+**Verificación posterior** (27/09/2026, desde una sesión nueva):
+- el script no se volvió a ejecutar;
+- con las rutas literales del script sólo se comprobó la existencia, sin leer nada:
+  - el JSONL afectado ya no existe;
+  - el directorio `subagents/` asociado ya no existe;
+- `transcript-deletion-result.txt` es un archivo regular, no es symlink, pertenece a `monty` y tiene
+  modo 0600;
+- no se leyó ninguna transcripción, no se intentó recuperar contenido eliminado y no se buscaron
+  copias por contenido;
+- el script y su resultado se conservan en `~/s11-incident-20260926/`.
+
+**Alcance del borrado:**
+- fue un borrado **lógico**;
+- en un SSD, el borrado físico seguro **no puede demostrarse**;
+- el **control efectivo** es la rotación de todos los secretos activos identificados: los valores
+  que contenía la transcripción ya no son válidos;
+- la limitación de §9 sobre otras copias de la salida expuesta se mantiene, y la rotación también
+  la cubre.
+
+**Secretos remediados** (sólo nombres; detalle en §10.7):
+- **Rotados:**
+  - `S11_CUSTODY_HMAC_KEY`;
+  - `S11_DOCUMENT_HMAC_SECRET`;
+  - `DJANGO_SECRET_KEY` local;
+  - `OPENAI_API_KEY` local;
+  - `OPENAI_API_KEY` de Heroku.
+- **OpenAI:**
+  - clave local y clave de Heroku independientes; la antigua, eliminada;
+  - Usage revisado, sin consumo inesperado;
+  - release v15 de Heroku saludable, con `web`, `worker` y `beat` operativos;
+  - `/api/v1/health/` con HTTP 200, y DB y Redis operativos.
+- **`DJANGO_SECRET_KEY` de Heroku:** `HEROKU_DJANGO_SECRET_DISTINCT=YES`. No se rotó porque era
+  independiente del secreto local expuesto.
+
+**Custodia:**
+
+| Época | Estado | Uso |
+|---|---|---|
+| `7205a04f93cc3da9` | **`CLOSED / RETIRED`** | `HISTORICAL VERIFICATION ONLY`. La clave sigue archivada en Bitwarden, fuera del entorno operativo. No vuelve al `.env` ni firma evidencia nueva |
+| `587966006e85202a` | **`ACTIVE`** | P02/P03 `v8` = **`PASS`** (`s11-custody-20260927-p02p03-v8`), con commit atestado `8e68d78fc7e2e659bade53452661b82b2f37d616` |
+
+**C1 y EX-10:**
+- **C1: no repetido.** La remediación no modificó el aislamiento, el reset, la reproducibilidad, el
+  dataset ni sus gates.
+- Los dos archivos de la fase 1 de EX-10 siguen:
+  - sin seguimiento;
+  - fuera de P02/P03 `v8`;
+  - sin ejecutar;
+  - intactos byte a byte. Sus SHA-256 se comprobaron al inicio y al final de este cierre:
+    - `ex10_load.py`:
+      `ef8083f9d50757dd9bd8c610375f7ff3d60939be9ebdb94ef83c84b426dd328d`;
+    - `test_ex10_load.py`:
+      `9094ed11ff6d4467c14312e6d91fcfb5e6921c8e3bd06f76f173e3a8f0c20cec`.
+
+```text
+G0:     APPROVED / CLOSED
+EX-10:  READY_TO_IMPLEMENT · NOT PREPARED · NOT EXECUTED
+S11-C3: OPEN
+S11-C:  OPEN
+```
+
+**Estado final del incidente.** Se cumplieron los pasos 9 a 12 de §7. La prevención de §8 sigue
+vigente.
+
+```text
+INCIDENT CLOSED
+TECHNICAL REMEDIATION:        COMPLETE
+TRANSCRIPT LOGICAL DELETION:  COMPLETE
+PHYSICAL SECURE ERASE ON SSD: NOT DEMONSTRATED
+EFFECTIVE CONTROL:            SECRET ROTATION
+```
