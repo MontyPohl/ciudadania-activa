@@ -4005,6 +4005,164 @@ S11-C3: OPEN
 S11-C: OPEN
 ```
 
+### Decisión G0-A1 — aclaraciones operativas de transporte y clasificación de EX-10 (27/09/2026)
+
+- **Autoridad:** Monty Emmanuel Pohl Amarilla, autor y custodio.
+- **Estado de la decisión:** `APPROVED / CLOSED`. Es un addendum de la Decisión G0
+  (`1693d0ae562bfe777c496b616c9f8c8d5fa8a591`) y entra en vigor con el commit documental que lo
+  incorpora.
+- **Origen:** después de aprobar G0, la implementación de la Fase 1 de EX-10 y sus tests offline
+  encontraron casos de frontera. Su interpretación debía quedar congelada antes del primer commit
+  técnico. El autor fijó las decisiones A y B y confirmó C a E el 26/09/2026, durante la
+  implementación, y los dos archivos de la Fase 1 ya las aplican.
+- **Baseline:** `main@1adc0437a9f9de50a02a67ac6e906c90049bb5f0`. Los dos archivos de la Fase 1
+  siguen sin seguimiento y sin modificar. No se ejecutó EX-10 ni Docker, no se creó ningún `run_id`
+  y no se generó evidencia.
+- **Alcance:** operacionaliza casos que G0 ya distinguía entre fallos válidos del sistema y fallos
+  del aparato de medida. No cambia la población, el dataset, los umbrales, HT1-01…HT1-04, la regla
+  HT-1, los veredictos `PASS` / `FAIL` / `NOT_DEMONSTRATED` ni `s11-ex10-v1`.
+
+**Decisión A — familia de errores de transporte.** La lista de errores de G0 (MD-02) no es
+exhaustiva. Un error es un fallo válido del request (`VALID_REQUEST_FAILURE`) si se cumplen todas
+estas condiciones:
+
+1. ocurre durante una operación de transporte del request: `connect`, `send` o `receive`;
+2. puede atribuirse inequívocamente a HTTP, socket o red;
+3. el intento conserva `request_id`, `t_start`, la fase del error y la clase de error saneada;
+4. el entorno y el aparato siguen válidos:
+   - destino y protocolo correctos;
+   - instancias de contenedores sin cambios, sin reload y con el árbol sin cambios;
+   - sin fallo interno del generador.
+
+- **Ejemplos**, sin constituir una enumeración cerrada: timeout, connection refused, connection
+  reset, connection aborted, broken pipe, remote disconnected, incomplete read, bad status line,
+  protocol error, host unreachable, network unreachable, host down, network down y network reset.
+- **Efecto:** pueden contribuir a un run válido que termine en `FAIL`.
+- **Fallo del aparato.** Una excepción no se convierte en `FAIL` por defecto si:
+  - no es atribuible inequívocamente a HTTP/red;
+  - la causan recursos o estado local del generador; o
+  - es desconocida.
+
+  Se clasifica como `APPARATUS_FAILURE` y el run queda `NOT_DEMONSTRATED`. Ejemplos: `EMFILE`,
+  `ENFILE`, `ENOBUFS`, `EADDRNOTAVAIL`, `EINVAL`, `PermissionError`, una excepción interna de Python
+  no atribuible al transporte, la muerte de un hilo, la barrera rota y la pérdida de resultados.
+- **Registro:** cada error de transporte registra `error_phase` (`connect`, `send` o `receive`).
+  El mensaje original no se persiste si pudiera contener datos sensibles.
+
+**Decisión B — precedencia de `NOT_DEMONSTRATED`.** Un `FAIL` experimental vinculante exige un run
+válido, completo, reconciliable y enteramente evaluable. Si en cualquier parte requerida del run hay
+una causa que impide demostrar la validez o un criterio decisorio, el resultado global es
+`NOT_DEMONSTRATED`, aunque otra parte demuestre un hecho suficiente para `FAIL`.
+
+```text
+1. APPARATUS_INVALID · EVIDENCE_MISSING · INCONSISTENT que impida demostrar el criterio
+   · pérdida de correlación · evidencia necesaria incompleta     → NOT_DEMONSTRATED
+2. Run válido y evaluable, con uno o más criterios fallidos       → FAIL
+3. Run válido y evaluable, con todos los criterios cumplidos      → PASS
+```
+
+Ejemplos congelados:
+
+| Caso | Resultado |
+| --- | --- |
+| `FACT_FAILED` + `EVIDENCE_MISSING` | `NOT_DEMONSTRATED` |
+| `FACT_FAILED` + `INCONSISTENT` | `NOT_DEMONSTRATED` |
+| Varios `FACT_FAILED`, sin pérdida de evidencia | `FAIL` |
+| HT1-01 fallido + postcondición de auditoría no demostrable | `NOT_DEMONSTRATED` |
+| HT1-01, HT1-03 y HT1-04 fallidos, con evidencia completa | `FAIL` |
+
+La precedencia evita convertir evidencia incompleta en un `FAIL` vinculante y preserva la política
+de reintentos de MD-09:
+- el primer `PASS` o `FAIL` válido es vinculante;
+- tras un `NOT_DEMONSTRATED` se admite un intento completo nuevo, con `run_id` nuevo y el mismo
+  protocolo.
+
+**Decisión C — status HTTP final distinto de 201.** Una respuesta HTTP final, completa y
+correctamente observada con status distinto de 201 es un fallo válido del request si el aparato
+sigue válido.
+
+- **Incluye:**
+  - un 1xx final, no informacional o no esperado;
+  - un 2xx distinto de 201;
+  - 3xx, 4xx y 5xx;
+  - un status no estándar observado correctamente.
+- **Registro:** se registra la familia: `http_1xx`, `http_2xx`, `http_3xx`, `http_4xx`, `http_5xx`
+  o `http_nonstandard_status`.
+- **Efecto:**
+  - no es `NOT_DEMONSTRATED` sólo por su status;
+  - no cuenta como éxito reconciliado;
+  - puede llevar a `FAIL` por HT1-01 o por las demás reglas.
+
+**`100 Continue`.** Es una respuesta intermedia informativa, no la respuesta final que clasifica el
+intento.
+
+- El generador no envía `Expect: 100-continue`.
+- Si el servidor emite un `100 Continue` intermedio, el transporte lo consume y la clasificación usa
+  la respuesta final:
+  - `100 → 201` se evalúa como respuesta final 201;
+  - `100 → 500` se evalúa como respuesta final 500.
+
+**Decisión D — conjunto de P50/P99.** Contiene todas las respuestas HTTP finales 201 que se leyeron
+completamente y tienen `t_start`, `t_end` y `duration_ns` válidos. Da igual que terminen dentro o
+fuera de `window_end` y que el cuerpo sea contractual o no.
+
+| Respuesta | P50/P99 | Éxito de HT1-01 |
+| --- | --- | --- |
+| 201 completo, cuerpo contractual | Entra | Puede ser `HTTP_ACCEPTED`; es éxito sólo si se reconcilia |
+| 201 completo, cuerpo no contractual | Entra | No es éxito reconciliado; contribuye a un run válido que puede terminar en `FAIL` |
+
+- El conjunto de percentiles no equivale al conjunto de éxitos reconciliados.
+- Se mantiene el estimador de G0: nearest-rank, base 1, sin interpolación y sin eliminar outliers.
+
+**Decisión E — respuesta 201 truncada.** Un HTTP 201 cuyo cuerpo no puede leerse por completo:
+
+- conserva el status 201 sólo como diagnóstico;
+- no tiene un `t_end` de respuesta completa y no entra en P50 ni P99;
+- se clasifica como fallo de transporte o de protocolo, por ejemplo incomplete read, reset durante el
+  cuerpo o timeout durante el cuerpo;
+- no se reintenta;
+- con el aparato válido es un fallo válido y puede llevar a `FAIL`; con el aparato inválido, el run
+  es `NOT_DEMONSTRATED`.
+
+**Seguridad y datos.** Estas aclaraciones no autorizan a persistir:
+- mensajes originales de excepciones;
+- tokens ni la cabecera `Authorization`;
+- cuerpos multipart, imágenes ni coordenadas;
+- secretos ni valores del `.env`.
+
+Los errores se persisten con clases y detalles saneados.
+
+**Relación con G0.**
+
+- G0 sigue `APPROVED / CLOSED`; este addendum no lo reemplaza.
+- `s11-ex10-v1` no cambia.
+- `S11A-v1.1` sigue vigente. No se requiere `S11A-v1.2` y no se crea: igual que G0, el addendum no
+  cambia hipótesis, dataset, umbrales, población ni regla decisoria.
+- El addendum forma parte de la identidad documental del protocolo. La implementación registra el
+  commit de G0 (`1693d0ae562bfe777c496b616c9f8c8d5fa8a591`) y el de G0-A1.
+- El SHA de G0-A1 no se escribe aquí, porque sería autorreferencial. Es el commit que incorpora esta
+  sección (`docs(s11): clarify EX-10 transport and decision semantics`), y un commit técnico
+  posterior lo incorpora como constante documental.
+
+**Pendiente para el commit técnico.** Verificado sólo en lectura sobre los dos archivos de la Fase 1:
+- la constante documental del commit G0-A1, porque hoy la identidad sólo registra el de G0;
+- un test explícito de `100 → 500`.
+
+Ya existe el test de `100 → 201` en el transporte. El test de cabeceras congeladas compara el
+conjunto exacto, así que cubre la ausencia de `Expect`.
+
+**Estado resultante.**
+
+```text
+G0:       APPROVED / CLOSED
+G0-A1:    APPROVED / CLOSED
+Protocol: s11-ex10-v1 · Methodology: S11A-v1.1
+Incidente de secretos: CLOSED
+EX-10:    READY_TO_IMPLEMENT · NOT PREPARED · NOT EXECUTED
+S11-C3:   OPEN
+S11-C:    OPEN
+```
+
 ### Pruebas realizadas
 
 - Gate inicial: rama `main`, HEAD exacto y working tree limpio.
