@@ -1129,6 +1129,15 @@ def test_index_signature_rejects_omission_of_public_record(custody_roots):
         manager.backup_run(run_id, identity=PRIMARY_CUSTODIAN)
 
 
+def test_closed_custody_verifier_and_its_tests_are_attested_sources():
+    # Decisión del autor tras el incidente del 26/09/2026: P02/P03 atesta el verificador
+    # read-only de épocas cerradas y sus pruebas.
+    assert {
+        "backend/scripts/s11_verify_closed_custody.py",
+        "backend/apps/experiments_app/tests/test_s11_verify_closed_custody.py",
+    } <= set(ATTESTED_SOURCE_PATHS)
+
+
 def test_commit_snapshot_rejects_commit_outside_approved_baseline(monkeypatch, tmp_path):
     commit_sha = "a" * 40
 
