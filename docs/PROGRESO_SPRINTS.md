@@ -4163,6 +4163,42 @@ S11-C3:   OPEN
 S11-C:    OPEN
 ```
 
+### Fase 1 de EX-10 y atestación P02/P03 `v9` (27/09/2026)
+
+- **Fase 1 de EX-10:** comprometida en `a5107cd`, con el núcleo offline del aparato de medida.
+  - Incorpora a la identidad del protocolo los commits de G0 y G0-A1.
+  - Usa `APPARATUS_FAILURE` como término público.
+  - Suma 259 tests.
+- **Corrección del verificador:** `3768622` corrigió 37 errores de *teardown* conocidos en
+  `test_s11_verify_closed_custody.py`, una fuente atestada.
+  - Las aserciones no cambiaron.
+  - La suite backend completa queda verde: 2802 passed, 4 skipped (de entorno), 0 failed,
+    0 errors, exit 0.
+- **P02/P03 `v9`** (`s11-custody-20260927-p02p03-v9`): **`PASS`** sobre `3768622`.
+  - Misma época `587966006e85202a` y 28 fuentes; la única cambiada es la corregida.
+  - Cinco HMAC válidos, bundle de 20 archivos, backup y restore idénticos y canario destruido.
+  - Sin transacciones residuales y `EXTENDED_SECRET_HITS=0`.
+  - Los 350 SHA-256 históricos quedaron idénticos.
+  - Detalle en `docs/runbooks/S11_HMAC_CUSTODY_CONTINUITY_INCIDENT.md`, adenda `v9`.
+- **`v8`:** se conserva como `PASS · HISTORICAL SNAPSHOT` de `8e68d78`.
+- **Runner abortado previo:** `PRE_EXECUTION_RUNNER_ABORT`, antes de cualquier fase y sin usar el
+  ID, sin evidencia ni secretos expuestos. No cuenta como ejecución de `v9`.
+- **C1:** no se repitió; la corrección no tocó aislamiento, reset, reproducibilidad, dataset ni
+  gates.
+- **Siguiente gate:** Fase 2 de EX-10. `v9` satisface el requisito custodial para empezarla, pero
+  no convierte por sí sola EX-10 en `PREPARED`.
+
+```text
+P02/P03 v9: PASS · CURRENT / VIGENTE (3768622)
+P02/P03 v8: PASS · HISTORICAL SNAPSHOT (8e68d78)
+Época 587966006e85202a: ACTIVE
+Backend: 2802 passed · 4 skipped · 0 failed · 0 errors
+G0: APPROVED / CLOSED · G0-A1: APPROVED / CLOSED
+EX-10: READY_TO_CONTINUE_IMPLEMENTATION · NOT PREPARED · NOT EXECUTED
+S11-C3: OPEN
+S11-C: OPEN
+```
+
 ### Pruebas realizadas
 
 - Gate inicial: rama `main`, HEAD exacto y working tree limpio.

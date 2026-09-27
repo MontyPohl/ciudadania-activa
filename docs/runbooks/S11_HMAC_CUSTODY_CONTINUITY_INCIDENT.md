@@ -284,3 +284,125 @@ La época de custodia abierta por la Decisión C (§4), con huella `7205a04f93cc
 - **C1.** No se repitió: la rotación no afectó aislamiento, reset, reproducibilidad ni sus gates.
 
 Las secciones §4, §8 y §9 se conservan como registro del 21/09/2026.
+
+---
+
+## Adenda — P02/P03 `v9`, atestación vigente de la época `587966006e85202a` (27/09/2026)
+
+**Motivo.** El commit `3768622d623cc29e4481c95eeacbbf8c499710ec`
+(`test(s11): fix closed custody verifier teardown`) corrigió 37 errores de *teardown* en una
+fuente atestada. Por eso `v8` dejó de describir el contenido actual de esa fuente, y hacía falta
+una atestación nueva sobre el commit actual. No se creó época nueva, no rotó ninguna clave y no
+se reabre el incidente de exposición de secretos, que sigue `CLOSED`.
+
+**Ejecución.**
+- Una sola ejecución oficial, el 27/09/2026 hacia las 23:14 UTC.
+- Se usó el procedimiento de
+  [`S11_EXPERIMENTAL_INSTRUMENTATION.md`](S11_EXPERIMENTAL_INSTRUMENTATION.md), «Repetir la
+  verificación de custodia».
+
+| Campo | Valor |
+|---|---|
+| Verification ID | `s11-custody-20260927-p02p03-v9` |
+| Resultado | **`PASS`**: 0 `FAIL`, 0 `INCOMPLETE` |
+| Época | `587966006e85202a` (`ACTIVE`), la misma de `v8` |
+| Clave pública | `8c1e5a8ad7390f4d` |
+| Commit atestado | `3768622d623cc29e4481c95eeacbbf8c499710ec` |
+| Baseline | `d3b492a7f5d203fc1dbd8c63e1732b7fd9227656`, ancestro del commit |
+| Fuentes atestadas | 28, sin duplicados; todas coinciden con los blobs del commit |
+| Agregado de fuentes | `77b4e82bd3f4074458f1f94fa8a8fa94991675a060e9f4474eb8be08bb53a872` |
+| Fases | `prepare`, `complete`, `attest` y `hmac-recheck` con `exit=0` |
+
+| Registro | SHA-256 |
+|---|---|
+| `prepare.json` | `cb68b49a471d4cdc85a40123e8ac34f772a4a6f299276b7868b2e73d41f56ae6` |
+| `complete.json` | `7dc64ed95db57317f48cccd9a6a03c603598740df6c72ede0ef8ba39af94db34` |
+| `attestation.json` | `f248c4711abc7b8e198b2b7b0aa2bb085465b4602cac95ffd572041b380fc908` |
+| `destruction.intent.json` | `8c959700ce96c3482e290eb34d2174430d3389e5040c3b6a2e353f6aa9c62630` |
+| `destruction.json` | `3e3bc81aaf7831173fb223b53476583f7dff95c0f317a07196a21e00a776755b` |
+
+**Fuente modificada respecto de `v8`.** Es la única:
+`backend/apps/experiments_app/tests/test_s11_verify_closed_custody.py`.
+- En `v9`: `3b4617f83e831921b6b2a4471fcbb7c610efa830d3d10ffceb4363c951a4d668`.
+- En `v8`: `3968b99485a27ba4e9a0d64dcd0da34ceef46ad14b892586d0f9687116b94757`.
+- Siguen incluidos el verificador `backend/scripts/s11_verify_closed_custody.py` y esa prueba.
+- Ningún archivo de EX-10 aparece como fuente.
+
+**Resultados.**
+- **Instantánea previa:** `PRE_SNAPSHOT_COMPLETE`.
+  - Cubre `var/s11-runs`, `var/s11-backup` y `var/s11-restore`: 560 entradas y 350 archivos con
+    SHA-256, incluidos los 6 de `p02p03-v3`.
+  - 0 errores y stderr vacío.
+- **HMAC:** `HMAC_OK` con la clave de la época en `prepare.json`, `complete.json`,
+  `destruction.intent.json`, `destruction.json` y `attestation.json`.
+- **Bundle:**
+  - 20 archivos regulares en 0600, en un directorio 0700, con dueño `monty:monty`;
+  - sin symlinks, FIFOs ni extras;
+  - JSON canónico;
+  - los cinco `.sha256`, `.commit` y `.hmac` válidos.
+- **Persistencia:** `container-recreated`, con hostnames `9cc4ca932ad2` (`prepare`) y
+  `b8d2b5621af1` (`complete`).
+- **Backup y restore:** 5 archivos cada uno, `sha256_match=true`: primary = backup = restore.
+- **Gates y acceso:** los cuatro gates en `true` y la matriz de acceso de 23 casos, ambas idénticas
+  a las de `v8`.
+- **Canario:** `DESTROYED`, `remaining_artifact_ids=[]`. `runs/s11-custody-20260927-p02p03-v9`
+  no existe en primary, backup ni restore.
+- **Transacciones residuales:** ninguna. `custody-transactions/` y `finalization-transactions/`
+  quedaron vacíos.
+- **Escaneo extendido:** `EXTENDED_SECRET_HITS=0` en el bundle y en las salidas operativas
+  (44 archivos en el reescaneo final).
+  - Cubrió todas las variables sensibles no vacías del `.env` en forma literal, hexadecimal y
+    base64.
+  - Cubrió los patrones `Authorization`, `Bearer`, `PRIVATE KEY`, prefijos de API key, JWT y el
+    canario.
+- **Comparación histórica:** `PASS`.
+  - Los 350 SHA-256 históricos son idénticos y `v8` está intacta (20/20); no se eliminó ni se
+    modificó nada histórico.
+  - Sólo es nuevo el bundle `v9` (20 archivos y su directorio).
+  - Los metadatos sólo cambiaron en las raíces, `runs/`, `custody-verifications/`,
+    `custody-transactions/` y `.s11-custody.lock`.
+  - El `nlink` de `custody-verifications/` sube en 1 por el subdirectorio nuevo.
+
+**Runner abortado previo.** Antes de la ejecución oficial, el runner abortó por un error de
+sintaxis en su comprobación de huellas:
+
+```text
+PRE_EXECUTION_RUNNER_ABORT
+NO_VERIFICATION_ID_CONSUMED
+NO_PHASE_STARTED
+NO_EVIDENCE_CREATED
+NO_CANARY_CREATED
+NO_CONTAINER_CREATED
+NO_SECRET_EXPOSED
+```
+
+No es un `FAIL`, un `INCOMPLETE`, un `NOT_DEMONSTRATED` ni una segunda ejecución de `v9`: la
+ejecución oficial ocurrió una sola vez.
+
+**Desviaciones registradas, que no invalidan `v9`:**
+1. el runner abortado previo;
+2. las instantáneas se capturaron por stdout, sin montaje escribible ni archivos propiedad de root;
+3. `compose run` usó `-T` para no asignar TTY;
+4. `var/s11-objects` se incluyó sólo como raíz informativa y no cambió;
+5. `destroyed_at` es `expires_at` + 1 s, la simulación de retención del diseño, aunque la fecha
+   sea el 26/12/2026;
+6. los stderr de las fases sólo contienen la creación del contenedor.
+
+Las salidas operativas están fuera del repositorio, en `~/s11-p02p03-v9/` (0700/0600).
+
+**Estado.**
+
+```text
+Época 7205a04f93cc3da9: CLOSED / RETIRED (sólo verificación histórica)
+Época 587966006e85202a: ACTIVE
+P02/P03 v8 (s11-custody-20260927-p02p03-v8, 8e68d78): PASS · HISTORICAL SNAPSHOT
+P02/P03 v9 (s11-custody-20260927-p02p03-v9, 3768622): PASS · CURRENT / VIGENTE
+C1: no repetido
+```
+
+`v8` no se modifica ni se reemplaza retrospectivamente: sigue siendo evidencia válida de su
+snapshot.
+
+**C1 no se repitió.** La corrección sólo cambió la infraestructura de *teardown* de una prueba
+custodial. No alteró el aislamiento, el reset, la reproducibilidad, el dataset, el entorno
+funcional ni los gates de C1.

@@ -28,8 +28,15 @@ explícita del operador por run y no se utilizó en las verificaciones P02/P03 o
 - **Época vigente.** Es la `587966006e85202a`. P02/P03 se repitieron con
   `s11-custody-20260927-p02p03-v8` = `PASS`, ligada a `8e68d78` con 28 fuentes atestadas.
   Entre ellas están el verificador read-only `backend/scripts/s11_verify_closed_custody.py` y sus
-  pruebas.
-- **C1** no se repitió, porque la rotación no afectó su gate.
+  pruebas. `v8` se conserva como snapshot histórico válido.
+- **Atestación vigente.** Es `s11-custody-20260927-p02p03-v9` = `PASS`, ligada a HEAD
+  `3768622d623cc29e4481c95eeacbbf8c499710ec`, con las mismas 28 fuentes y la misma época.
+  - Sólo cambió `backend/apps/experiments_app/tests/test_s11_verify_closed_custody.py`, por la
+    corrección de su *teardown*.
+  - Detalle en
+    [`S11_HMAC_CUSTODY_CONTINUITY_INCIDENT.md`](S11_HMAC_CUSTODY_CONTINUITY_INCIDENT.md), adenda
+    `v9`.
+- **C1** no se repitió, porque ni la rotación ni la corrección de `v9` afectaron su gate.
 
 `EX-02` está **demostrado**: el run `s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af` (`main@721462a`)
 cerró `COMPLETED` con las catorce fases del harness en `rc=0`, y la auditoría independiente de su
@@ -385,8 +392,24 @@ permanecen.
 ### Repetir la verificación de custodia
 
 Desde `8e68d78`, las fuentes atestadas (`ATTESTED_SOURCE_PATHS`) son 28 e incluyen el verificador
-read-only de épocas cerradas y sus pruebas. Una instantánea previa de `var/` debe tolerar el
-código 1 de `find` ante rutas ilegibles (véase el runbook del incidente, §8).
+read-only de épocas cerradas y sus pruebas. La atestación vigente es `v9`, sobre `3768622`.
+
+- **Instantánea previa de `var/`:** debe tolerar el código 1 de `find` ante rutas ilegibles (véase
+  el runbook del incidente, §8).
+  - En `v9` se tomó completa, incluida `p02p03-v3`, con un contenedor root con
+    `--cap-drop ALL --cap-add DAC_READ_SEARCH`, `--read-only`, `--network none` y montajes de
+    sólo lectura.
+  - La salida se capturó por stdout, sin montaje escribible.
+- **Runner abortado:** un runner que aborta antes de `prepare`, sin usar el verification ID, no
+  consume la ejecución oficial. Puede corregirse y lanzarse con el mismo ID, siempre que se
+  compruebe antes que no existen:
+  - el bundle;
+  - el run del canario en las tres raíces;
+  - contenedores efímeros;
+  - registro de fases.
+
+  Si alguna fase llegó a iniciarse, el ID queda consumido y cualquier repetición necesita uno
+  nuevo.
 
 Esta comprobación no ejecuta escenarios ni utiliza `--custody-approved`. Antes de iniciarla deben
 estar exportadas también `S11_CUSTODY_HMAC_KEY`, `S11_PUBLICATION_APPROVAL_PUBLIC_KEY`,
