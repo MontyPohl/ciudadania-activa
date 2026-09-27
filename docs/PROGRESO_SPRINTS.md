@@ -3893,6 +3893,32 @@ del autor, incluida MD-10 en la opción A, sin cambios en código, tests, infra,
 preflight local en `READY` y, si alguna fuente atestada cambia, la re-atestación de P02/P03. Tras
 ella, EX-10 pasa a `PREPARED · NOT EXECUTED`.
 
+### Incidente de exposición de secretos custodiales (26/09/2026)
+
+- **Registro:** `docs/runbooks/S11_SECRET_EXPOSURE_INCIDENT_20260926.md`.
+- **Estado:** `INCIDENT OPEN / ROTATION NOT EXECUTED`.
+- **Hecho:** durante la validación de desarrollo de la fase 1 de EX-10, `docker compose config`
+  resolvió `env_file: ../.env` e imprimió en la sesión del agente los valores de:
+  - `S11_CUSTODY_HMAC_KEY`;
+  - `S11_DOCUMENT_HMAC_SECRET`;
+  - `DJANGO_SECRET_KEY`.
+- **Sin uso experimental:** no hubo run, POST, llamada a proveedores ni evidencia nueva.
+- **Decisión del autor:**
+  - nueva época custodial; la época `7205a04f93cc3da9` queda `COMPROMISED / CLOSING`;
+  - sin re-firma de la evidencia histórica;
+  - verificación read-only pendiente, con la clave antigua y la línea base parcial de
+    `1693d0a`;
+  - archivo de la clave antigua fuera del entorno;
+  - rotación de los tres secretos; `DATABASE_URL` y la clave pública no rotan;
+  - P02/P03 `v8` obligatoria tras la rotación; C1 no se repite sólo por ella.
+- **Bloqueo:** EX-10 queda bloqueado hasta cerrar el incidente.
+
+```text
+Incidente: OPEN · rotación NO ejecutada
+Época custodial 7205a04f93cc3da9: COMPROMISED / CLOSING · verificación read-only pendiente
+EX-10: DEFINED · NOT PREPARED · NOT EXECUTED · BLOQUEADO por el incidente
+```
+
 ### Pruebas realizadas
 
 - Gate inicial: rama `main`, HEAD exacto y working tree limpio.
