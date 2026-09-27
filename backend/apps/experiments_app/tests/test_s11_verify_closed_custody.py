@@ -401,8 +401,12 @@ class WriteSpy:
 
 
 @pytest.fixture
-def forbid_writes(monkeypatch):
-    return WriteSpy(monkeypatch)
+def forbid_writes(custody):
+    # Parches propios, no los de `monkeypatch`: el `autouse` de `backend/conftest.py` lo
+    # desmonta después de `custody`. Depender de `custody` retira el espía antes de que
+    # `custody` restaure permisos y limpie; no invertir este orden.
+    with pytest.MonkeyPatch.context() as patcher:
+        yield WriteSpy(patcher)
 
 
 def verify(custody, *, key=KEY, baseline=_DEFAULT, **kwargs):
@@ -495,6 +499,17 @@ def _documenting_repo(tmp_path, *extra_lines):
     lines = [f"Run `{RUN_A}`, run `{RUN_B}`, verificación `{VERIFICATION}`.", *extra_lines]
     commit, _ = _git_repo(tmp_path / "repo", "\n".join(lines) + "\n")
     return tmp_path / "repo", commit
+
+
+def test_write_spy_blocks_mutations_until_the_test_ends(custody, forbid_writes):
+    # Activo durante toda la prueba; la limpieza de `custody` (con `os.chmod`) sólo pasa
+    # si el espía ya se retiró.
+    forbid_writes()
+    with pytest.raises(AssertionError, match="os.chmod"):
+        os.chmod(custody.base, 0o700)
+    with pytest.raises(AssertionError, match="open en escritura"):
+        open(custody.base / "extra.txt", "w")
+    assert not (custody.base / "extra.txt").exists()
 
 
 # --- Evidencia válida: PASS sin cambiar un byte ---------------------------------------
