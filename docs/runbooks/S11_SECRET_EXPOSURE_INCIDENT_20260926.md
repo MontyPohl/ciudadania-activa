@@ -6,16 +6,20 @@
 
 **Clasificación:** `SECRET_EXPOSURE`
 
-**Estado:** `INCIDENT OPEN / OLD EPOCH VERIFIED / CLOSING / ROTATION NOT EXECUTED`
+**Estado:** `INCIDENT OPEN / TECHNICAL REMEDIATION COMPLETE / TRANSCRIPT DELETION PENDING`
 
-**Última actualización:** 27/09/2026. Verificación read-only ejecutada y resultado aceptado por
-el autor (§10). Ningún secreto se ha rotado todavía.
+**Última actualización:** 27/09/2026.
+- Secretos rotados.
+- Época `7205a04f93cc3da9` `CLOSED / RETIRED`.
+- Época `587966006e85202a` `ACTIVE`, con P02/P03 `v8` = `PASS` (§10.7–§10.13).
+- El incidente sigue abierto sólo por la eliminación pendiente de la transcripción (§10.13).
 
 **Autoridad:** Monty Emmanuel Pohl Amarilla, autor y custodio.
 
 **Alcance:** registro documental del incidente y del procedimiento aprobado. No es un resultado
-experimental, no cambia `S11A-v1.1` ni `S11-CUSTODY-v1.0`, no autoriza un run, no rota ningún
-secreto y no modifica `var/s11-runs`, `var/s11-backup`, `var/s11-restore` ni producción.
+experimental, no cambia `S11A-v1.1` ni `S11-CUSTODY-v1.0`, no autoriza un run y no modifica
+`var/s11-runs`, `var/s11-backup`, `var/s11-restore` ni producción. Las rotaciones las ejecutó
+manualmente el operador, fuera del repositorio (§10.7).
 
 ## 1. Hechos
 
@@ -41,7 +45,8 @@ Sólo se registran nombres. Ningún valor aparece en este documento ni en el rep
 |---|---|
 | `S11_CUSTODY_HMAC_KEY` | Rota. Cierra la época custodial `7205a04f93cc3da9` |
 | `S11_DOCUMENT_HMAC_SECRET` | Rota. La evidencia S11 sólo registra presencia y longitud de `document_hmac`, así que ninguna verificación necesita el secreto antiguo |
-| `DJANGO_SECRET_KEY` | Rota. Invalida JWT emitidos, sesiones de admin, cookies firmadas y enlaces de evidencia firmados (TTL de 300 s). No afecta a producción, que tiene su propia clave |
+| `DJANGO_SECRET_KEY` | Rota. Invalida JWT emitidos, sesiones de admin, cookies firmadas y enlaces de evidencia firmados (TTL de 300 s). No afecta a producción, que tiene su propia clave (confirmado el 27/09/2026, §10.7) |
+| `OPENAI_API_KEY` | Rota. Se identificó en el inventario del 27/09/2026: entró a `backend`, `worker` y `beat` por `env_file`. Se reemplazó la clave local y la de Heroku, y la antigua se eliminó (§10.7) |
 
 La huella de la clave custodial es el SHA-256 de su UTF-8, truncado a 16 hexadecimales. La de la
 época antigua es `7205a04f93cc3da9` y ya estaba publicada en `docs/PROGRESO_SPRINTS.md`. Nunca
@@ -49,7 +54,8 @@ se registra el valor.
 
 **No rotan en este incidente:**
 
-- `DATABASE_URL`. La salida mostró la credencial local que ya está versionada en el Compose.
+- `DATABASE_URL` y `REDIS_URL`. Los servicios afectados usan los valores locales versionados en el
+  Compose, porque `environment:` anula el `.env`.
 - `S11_PUBLICATION_APPROVAL_PUBLIC_KEY`. Es la clave pública Ed25519 de aprobación, de huella
   `8c1e5a8ad7390f4d`. No es secreta y su clave privada no estuvo expuesta.
 
@@ -77,7 +83,7 @@ se registra el valor.
      - `backend/apps/experiments_app/tests/test_s11_verify_closed_custody.py`.
 9. C1 no se repite sólo porque rote la clave. Sólo se repetiría si la remediación cambia fuentes
    que afecten su gate.
-10. **EX-10 queda bloqueado** hasta cerrar este incidente.
+10. **EX-10 queda bloqueado** hasta cerrar este incidente. Estado posterior: §10.12.
 11. Se autoriza `docker run` directo para la verificación, con estas condiciones:
     - sin Compose ni `env_file`;
     - `--network none`;
@@ -326,7 +332,23 @@ autor aprueba esta secuencia:
 12. Registrar que el borrado físico seguro en SSD no puede demostrarse y que la rotación es el
     control efectivo.
 
+**Estado de la secuencia al 27/09/2026:**
+
+- **Pasos 1 a 8, cumplidos** (§10):
+  - paso 1 en `1d2a64c`;
+  - clave antigua archivada;
+  - rotación, que además incluyó `OPENAI_API_KEY`;
+  - nueva época `587966006e85202a`;
+  - P02/P03 `v8` = `PASS`;
+  - C1 no repetido.
+- **Paso 9:** el incidente queda actualizado, pero **no se cierra**. El autor decidió mantenerlo
+  abierto hasta completar los pasos 10 a 12.
+- **EX-10:** vuelve a la implementación (§10.12).
+
 ## 8. Prevención
+
+Se reafirma el 27/09/2026, al activar la nueva época.
+
 
 - **Prohibido en S11:**
   - `docker compose config` contra el `.env` real cuando la salida pueda mostrarse;
@@ -337,9 +359,14 @@ autor aprueba esta secuencia:
   `env_file`, y no se consideran suficientes.
 - **Prohibido en validaciones S11:** `docker compose down --rmi local`.
   - La limpieza se dirige por un project name aislado (`down -v --remove-orphans`).
+  - Los contenedores se borran por nombre exacto (`docker rm <nombre>`), sin `--force` ni `-v`.
   - Las imágenes se borran por nombre exacto (`docker image rm <nombre>`).
 - **Secretos:** no se leen con `cat .env`, `env`, `printenv` ni un `grep` que muestre valores.
-  Para comprobar una variable se informa `PRESENTE`/`AUSENTE` o una huella ya publicada.
+  Para comprobar una variable se informa `PRESENTE`/`AUSENTE`, `EMPTY`/`NON_EMPTY` o una huella ya
+  publicada.
+- **Instantáneas de `var/`:** `find` devuelve código 1 al atravesar una ruta ilegible, como
+  `p02p03-v3`, aunque stderr esté redirigido. Con `errexit` o `pipefail`, el bloque debe tolerar
+  ese código explícitamente y confirmar que terminó (§10.10).
 
 ## 9. Limitaciones
 
@@ -507,7 +534,7 @@ La aceptación **no** las convierte en `PASS`, `HISTORICAL_ANCHORED` ni `AUTHENT
 | Tras esta decisión documental | `VERIFIED / CLOSING` · `RESIDUAL HISTORICAL LIMITATION ACCEPTED` · `ROTATION PENDING` |
 | Todavía no | `CLOSED`, `ROTATED` ni `NEW EPOCH ACTIVE` |
 
-La secuencia que falta para el cierre está en §7.
+La secuencia que falta para el cierre está en §7. Estado posterior: §10.11.
 
 ### 10.6 Transcripción expuesta
 
@@ -524,6 +551,155 @@ La secuencia que falta para el cierre está en §7.
   - antes de ella, el agente la consultó sólo para recuperar comandos anteriores y la hora del
     comando expuesto, sin imprimir salidas.
 - **Eliminación:** sólo después de establecer y verificar la nueva época (§7, pasos 10 a 12).
+  Estado posterior: §10.13.
 - **Backups:** no debe entrar en backups nuevos.
 - **Documentación:** no se documenta su contenido ni una ruta completa que revele información del
   entorno.
+
+### 10.7 27/09/2026 — Rotación y remediación de secretos
+
+Sólo se registran nombres, nunca valores.
+
+**Inventario previo.**
+- Se hizo en proceso, informando únicamente `EMPTY`, `NON_EMPTY` o `ABSENT` por nombre.
+- Refleja el `.env` actual, así que es una base conservadora y no demuestra el estado del
+  26/09/2026 a las 22:10.
+- Encontró no vacío `OPENAI_API_KEY`, que entró a `backend`, `worker` y `beat` por `env_file` y
+  no estaba en la lista inicial de §2.
+
+**Rotados localmente:**
+
+- `S11_CUSTODY_HMAC_KEY`;
+- `S11_DOCUMENT_HMAC_SECRET`;
+- `DJANGO_SECRET_KEY`;
+- `OPENAI_API_KEY`.
+
+**Clave custodial antigua.** Está archivada en Bitwarden, fuera del entorno operativo. No vuelve al
+`.env` ni firma evidencia nueva.
+
+**OpenAI**, según la verificación del operador:
+- se instaló una clave local nueva y una clave de Heroku nueva e independiente;
+- la clave antigua se eliminó;
+- se revisó Usage y no se detectó consumo inesperado;
+- la release v15 de Heroku está saludable, con `web`, `worker` y `beat` operativos;
+- `/api/v1/health/` respondió HTTP 200 con `DB=true` y `Redis=true`.
+
+**`DJANGO_SECRET_KEY` de Heroku.** El operador confirmó `HEROKU_DJANGO_SECRET_DISTINCT=YES`:
+- la clave de Heroku era independiente de la clave local expuesta;
+- no estuvo comprometida por el `.env` local, así que no se rotó;
+- no se creó una release adicional por este secreto.
+
+**Clasificación del resto:**
+
+| Variables | Clasificación |
+|---|---|
+| `DOCUMENT_HMAC_SECRET`, `GOOGLE_OAUTH_CLIENT_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`, `EMAIL_HOST_PASSWORD`, `TELEGRAM_BOT_TOKEN` | `NOT_CONFIGURED` · `NO_ACTIVE_SECRET_TO_ROTATE` |
+| `DATABASE_URL`, `REDIS_URL` | `CONFIG_NON_SECRET` para este incidente: los servicios afectados usaban los valores locales versionados del Compose |
+| `S11_PUBLICATION_APPROVAL_PUBLIC_KEY` | `PUBLIC_NON_SECRET` · no rotada |
+
+**Contenedores con el entorno antiguo.**
+- Se eliminaron por nombre exacto con `docker rm`, sin `-v` ni `--force`, los contenedores detenidos
+  desde el 22/09/2026 `ciudadania-s11-backend-1` y `ciudadania-s11-worker-1`.
+- Se conservan `db` y `redis`, que no cargan `.env`.
+- No se tocaron volúmenes, redes ni imágenes.
+
+### 10.8 27/09/2026 — Fuentes atestadas
+
+- **Commit técnico:** `8e68d78fc7e2e659bade53452661b82b2f37d616`
+  (`test(s11): include closed custody verifier in attested sources`).
+- **`ATTESTED_SOURCE_PATHS`** pasa de 26 a **28** fuentes, con
+  `backend/scripts/s11_verify_closed_custody.py` y
+  `backend/apps/experiments_app/tests/test_s11_verify_closed_custody.py`.
+- **Prueba nueva:** una prueba de `test_custody.py` fija ambas rutas.
+- **Baseline:** sigue en `d3b492a7f5d203fc1dbd8c63e1732b7fd9227656`.
+
+### 10.9 27/09/2026 — P02/P03 `v8`
+
+| Campo | Valor |
+|---|---|
+| Verification ID | `s11-custody-20260927-p02p03-v8` |
+| Resultado | **`PASS`** |
+| Huella custodial nueva | `587966006e85202a` (la anterior era `7205a04f93cc3da9`) |
+| Clave pública | `8c1e5a8ad7390f4d` |
+| Commit atestado | `8e68d78fc7e2e659bade53452661b82b2f37d616`, con 28 fuentes. No incluye los archivos de EX-10 sin seguimiento |
+| Fases | `prepare`, `complete`, `attest` y `hmac-recheck` terminaron con `exit=0` |
+| HMAC | `PASS` con la clave nueva en los cinco registros (`prepare.json`, `complete.json`, `destruction.intent.json`, `destruction.json`, `attestation.json`) |
+| Bundle | 20 archivos regulares, modo 600, en un directorio 700, con dueño `monty:monty` |
+| Backup y restore | `PASS`, `sha256_match=true` |
+| Persistencia | `container-recreated`, con hostnames distintos |
+| Canario | `DESTROYED` en primary, backup y restore; `remaining_artifact_ids=[]` |
+| Transacciones residuales | Ninguna |
+| Escaneo extendido de secretos | `EXTENDED_SECRET_HITS=0`, incluido `OPENAI_API_KEY` |
+
+**Auditoría posterior, read-only:**
+- los cinco `*.sha256` y los cinco `*.commit` coinciden;
+- los hashes de las 28 fuentes coinciden con los blobs de git del commit atestado;
+- las salidas de las fases, en `~/s11-p02p03-v8/` (directorio 0700, archivos 0600), coinciden con
+  el bundle.
+
+### 10.10 Instantánea previa e integridad histórica
+
+**`PRE_SNAPSHOT_INCOMPLETE`.**
+- El bloque se detuvo porque `find` devolvió código 1 al atravesar `p02p03-v3`, aunque stderr
+  estuviera redirigido.
+- Sólo quedó completo `s11-runs.meta.pre`, con metadatos de `var/s11-runs` y sin hashes.
+- La instantánea previa no fue completa.
+
+**La integridad histórica se comprobó contra el reporte read-only aceptado** (SHA-256
+`9b3f17a2fa99e3b27497130c9ac212a7a39ed8df9c2de0d924aac6b9f88ff40b`). Resultado: **`PASS`**.
+
+- **Archivos históricos:** los 328 están presentes. Todos se pudieron leer con montaje de sólo
+  lectura y `DAC_READ_SEARCH`, y todos tienen el mismo SHA-256.
+- **Archivos nuevos:** los únicos de evidencia son los 20 del bundle `v8`.
+- **`.s11-custody.lock`:**
+  - ya existía y tiene 0 bytes;
+  - sólo cambió su ctime, por el `chmod` del lock de mutación;
+  - los demás cambios de metadatos son horas de directorios que el código prevé.
+- **Backup y restore:** su contenido no cambió.
+
+### 10.11 Estado de las épocas
+
+| Época | Estado | Uso permitido |
+|---|---|---|
+| `7205a04f93cc3da9` | **`CLOSED / RETIRED`** | Sólo verificación histórica, con la clave archivada. No se re-firmó ni se re-autenticó evidencia |
+| `587966006e85202a` | **`ACTIVE`**, con P02/P03 `v8` = `PASS` | Firmar y verificar evidencia nueva |
+
+### 10.12 C1 y EX-10
+
+**C1 no se repitió.** La rotación, el verificador y P02/P03 `v8` no modificaron el aislamiento, el
+reset, la reproducibilidad, el dataset, el entorno funcional que evalúa C1 ni sus gates.
+
+**EX-10:**
+
+```text
+G0:     APPROVED / CLOSED
+EX-10:  READY_TO_IMPLEMENT · NOT PREPARED · NOT EXECUTED
+S11-C3: OPEN
+S11-C:  OPEN
+```
+
+- **Bloqueo:** con la remediación técnica completa, EX-10 vuelve a la implementación aunque el
+  incidente siga abierto por la transcripción. No queda habilitada su preparación ni su ejecución.
+- **Archivos sin seguimiento:** los dos de la fase 1 siguen sin seguimiento.
+  - Se aislaron temporalmente durante `v8` y se restauraron con rename atómico.
+  - Conservan sus SHA-256 originales y no forman parte de la atestación `v8`.
+
+### 10.13 Estado del incidente y transcripción
+
+```text
+INCIDENT OPEN
+TECHNICAL REMEDIATION COMPLETE
+TRANSCRIPT DELETION PENDING
+```
+
+- **Contenido:** el JSONL afectado contiene valores ya rotados.
+- **Permisos:** el archivo está en 0600, los directorios en 0700 y los `meta.json` en 0600.
+- **Accesos:**
+  - durante la verificación controlada no se leyó ni se copió;
+  - antes de fijar esa regla se consultó para recuperar comandos y la hora del incidente
+    (§10.6).
+- **Eliminación:** se hará después de este commit y de cerrar la sesión del agente que lo mantiene
+  activo. También se eliminará su directorio `subagents/`.
+- **Limitación:** no se puede demostrar el borrado físico seguro en un SSD. La rotación es el
+  control efectivo.
+- **Cierre:** el incidente no se cierra hasta completar los pasos 10 a 12 de §7.

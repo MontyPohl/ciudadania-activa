@@ -3945,6 +3945,42 @@ Incidente: OPEN · rotación NO ejecutada
 EX-10: DEFINED · NOT PREPARED · NOT EXECUTED · BLOCKED por el incidente de custodia
 ```
 
+### Rotación y nueva época custodial `587966006e85202a` (27/09/2026)
+
+- **Registro:** `docs/runbooks/S11_SECRET_EXPOSURE_INCIDENT_20260926.md`, §10.7–§10.13.
+- **Secretos rotados localmente** (sólo nombres):
+  - `S11_CUSTODY_HMAC_KEY`;
+  - `S11_DOCUMENT_HMAC_SECRET`;
+  - `DJANGO_SECRET_KEY`;
+  - `OPENAI_API_KEY`: clave local y de Heroku nuevas, la antigua eliminada y la release v15
+    saludable.
+- **`DJANGO_SECRET_KEY` de Heroku:** no se rotó. Era independiente de la clave local
+  (`HEROKU_DJANGO_SECRET_DISTINCT=YES`).
+- **Clave custodial antigua:** archivada fuera del entorno operativo.
+- **Fuentes atestadas:** el commit `8e68d78` añade a `ATTESTED_SOURCE_PATHS` el verificador
+  read-only y sus pruebas. Pasan a ser 28.
+- **P02/P03 `v8`** (`s11-custody-20260927-p02p03-v8`): **`PASS`**.
+  - Huella `587966006e85202a`; clave pública `8c1e5a8ad7390f4d`.
+  - HMAC válido en los cinco registros; backup y restore con `sha256_match=true`.
+  - Canario destruido en las tres raíces; sin transacciones residuales.
+  - `EXTENDED_SECRET_HITS=0`.
+- **Instantánea previa: `PRE_SNAPSHOT_INCOMPLETE`**, porque `find` devolvió 1 en `p02p03-v3`. La
+  integridad histórica se comprobó contra el reporte `9b3f17a2…`: `PASS`, con 328 archivos intactos.
+- **C1:** no se repitió.
+- **EX-10:** vuelve a la implementación. Los dos archivos de la fase 1 siguen sin seguimiento y con
+  sus SHA-256 originales.
+
+```text
+Incidente: OPEN · TECHNICAL REMEDIATION COMPLETE · TRANSCRIPT DELETION PENDING
+Época 7205a04f93cc3da9: CLOSED / RETIRED (sólo verificación histórica)
+Época 587966006e85202a: ACTIVE · P02/P03 v8 PASS
+C1: no repetido
+G0: APPROVED / CLOSED
+EX-10: READY_TO_IMPLEMENT · NOT PREPARED · NOT EXECUTED
+S11-C3: OPEN
+S11-C: OPEN
+```
+
 ### Pruebas realizadas
 
 - Gate inicial: rama `main`, HEAD exacto y working tree limpio.

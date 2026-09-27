@@ -19,6 +19,18 @@ actual. Esto completa el rebaseline de custodia, pero no ejecuta ni autoriza EX-
 escenario requiere su propio pre-gate. `--custody-approved` continúa siendo una afirmación
 explícita del operador por run y no se utilizó en las verificaciones P02/P03 o C1.
 
+**Estado de custodia al 27/09/2026.** Tras el incidente de exposición de secretos del 26/09/2026
+([`S11_SECRET_EXPOSURE_INCIDENT_20260926.md`](S11_SECRET_EXPOSURE_INCIDENT_20260926.md)):
+- **Época anterior.** La época `7205a04f93cc3da9`, la de la v6, la C1 v2, la v7 y los runs de
+  S11-C2 y EX-09, quedó `CLOSED / RETIRED`. Antes de retirarla se verificó en sólo lectura.
+  Desde entonces sólo sirve para verificación histórica con su clave archivada. «Clave actual»,
+  en el párrafo anterior, se refiere a esa época.
+- **Época vigente.** Es la `587966006e85202a`. P02/P03 se repitieron con
+  `s11-custody-20260927-p02p03-v8` = `PASS`, ligada a `8e68d78` con 28 fuentes atestadas.
+  Entre ellas están el verificador read-only `backend/scripts/s11_verify_closed_custody.py` y sus
+  pruebas.
+- **C1** no se repitió, porque la rotación no afectó su gate.
+
 `EX-02` está **demostrado**: el run `s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af` (`main@721462a`)
 cerró `COMPLETED` con las catorce fases del harness en `rc=0`, y la auditoría independiente de su
 evidencia custodiada lo confirmó como `S11C2_EX02_PASS_CONFIRMED`. `EX-03` también está
@@ -115,9 +127,15 @@ incluyen cédulas, teléfonos, correos ni ubicaciones reales.
 
 Antes de un run futuro, confirmar que la política de custodia sigue vigente y definir fuera de Git
 un secreto documental efímero, una clave HMAC custodial y la clave pública Ed25519 de Monty. La
-clave HMAC debe conservarse durante toda la retención; rotarla exige verificar con la anterior y
-volver a autenticar de forma controlada. La clave privada Ed25519 permanece offline y nunca se
-inyecta al backend o al worker:
+clave HMAC debe conservarse durante toda la retención. Para rotarla:
+1. Verificar en sólo lectura la época anterior con su clave
+   (`backend/scripts/s11_verify_closed_custody.py`).
+2. Archivar esa clave fuera del entorno.
+3. Abrir una nueva época con una nueva atestación P02/P03.
+
+La evidencia histórica no se re-firma. Es el procedimiento aplicado el 27/09/2026, descrito en
+[`S11_SECRET_EXPOSURE_INCIDENT_20260926.md`](S11_SECRET_EXPOSURE_INCIDENT_20260926.md). La clave
+privada Ed25519 permanece offline y nunca se inyecta al backend o al worker:
 
 ```bash
 export S11_DOCUMENT_HMAC_SECRET='<valor efímero de al menos 32 bytes>'
@@ -365,6 +383,10 @@ ancla histórica verificable hasta completar sus 365 días; los artefactos `PUBL
 permanecen.
 
 ### Repetir la verificación de custodia
+
+Desde `8e68d78`, las fuentes atestadas (`ATTESTED_SOURCE_PATHS`) son 28 e incluyen el verificador
+read-only de épocas cerradas y sus pruebas. Una instantánea previa de `var/` debe tolerar el
+código 1 de `find` ante rutas ilegibles (véase el runbook del incidente, §8).
 
 Esta comprobación no ejecuta escenarios ni utiliza `--custody-approved`. Antes de iniciarla deben
 estar exportadas también `S11_CUSTODY_HMAC_KEY`, `S11_PUBLICATION_APPROVAL_PUBLIC_KEY`,

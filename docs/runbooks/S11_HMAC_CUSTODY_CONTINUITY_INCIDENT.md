@@ -252,3 +252,35 @@ menos 24/28). Es un resultado experimental válido, no un fallo técnico. `EX-10
 Nada de esto altera el rebaseline de custodia descrito arriba ni sus gates, y la tabla «Estado
 actual» de §5 se conserva como instantánea del 21/09/2026: sus filas `EX-02` y `EX-03` en
 `NOT_EXECUTED` describen esa fecha y no se reescriben.
+
+---
+
+## Adenda — cierre de la época `7205a04f93cc3da9` (27/09/2026)
+
+La época de custodia abierta por la Decisión C (§4), con huella `7205a04f93cc3da9`, quedó
+**`CLOSED / RETIRED`** por el incidente de exposición de secretos del 26/09/2026
+([`S11_SECRET_EXPOSURE_INCIDENT_20260926.md`](S11_SECRET_EXPOSURE_INCIDENT_20260926.md)).
+
+- **Verificación previa al cierre.** El 27/09/2026 se ejecutó una verificación read-only con la
+  clave de la época.
+  - Resultado: `PASS_WITH_UNANCHORED_HISTORICAL`, aceptado por el autor.
+  - SHA-256 del reporte: `9b3f17a2fa99e3b27497130c9ac212a7a39ed8df9c2de0d924aac6b9f88ff40b`.
+- **Resultado por unidad:**
+  - quedaron en `PASS` la repetición P02/P03 `s11-custody-20260921-p02p03-v6` (§8) y la repetición
+    C1 `s11-c1-20260921-isolation-repro-reset-v2` (§9);
+  - el run de EX-09 `s11-a156a68c-c422-5e57-ae2b-3336d3b55e6c` quedó autenticado con la clave de
+    esta época, lo que responde a lo que la adenda anterior dejaba sin demostrar.
+- **Evidencia anterior a la época.**
+  - `s11-custody-20260921-p02p03-v5` y `s11-c1-20260921-isolation-repro-reset-v1` (§2) conservan su
+    estado `HISTORICAL_UNVERIFIABLE`. En esa verificación sus bytes quedaron anclados
+    (`HISTORICAL_ANCHORED`), pero eso no restituye su autenticidad HMAC.
+  - `s11-custody-20260921-p02p03-v1` a `-v4` se aceptaron como `RESIDUAL_LIMITATION_ACCEPTED` y
+    `NON_EVIDENTIARY`.
+- **Uso posterior.** La clave de la época está archivada fuera del entorno operativo y sólo sirve
+  para verificación histórica. Ninguna evidencia se re-firmó ni se re-autenticó.
+- **Nueva época.** La época `587966006e85202a` está **`ACTIVE`**. Su atestación P02/P03 es
+  `s11-custody-20260927-p02p03-v8` = `PASS`, ligada a `8e68d78fc7e2e659bade53452661b82b2f37d616`
+  con 28 fuentes atestadas.
+- **C1.** No se repitió: la rotación no afectó aislamiento, reset, reproducibilidad ni sus gates.
+
+Las secciones §4, §8 y §9 se conservan como registro del 21/09/2026.
