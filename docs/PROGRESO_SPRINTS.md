@@ -3919,6 +3919,32 @@ Incidente: OPEN · rotación NO ejecutada
 EX-10: DEFINED · NOT PREPARED · NOT EXECUTED · BLOQUEADO por el incidente
 ```
 
+### Verificación read-only de la época `7205a04f93cc3da9` (27/09/2026)
+
+- **Registro:** `docs/runbooks/S11_SECRET_EXPOSURE_INCIDENT_20260926.md`, §10.
+- **Ejecución:** una sola, el 27/09/2026 entre las 18:14:06 y las 18:14:08 UTC, con el comando del
+  runbook §5.3.
+- **Resultado:** `PASS_WITH_UNANCHORED_HISTORICAL`, código 4.
+  - 30 unidades: 21 `PASS`, 0 `FAIL`, 0 `INCOMPLETE`, 5 `HISTORICAL_ANCHORED` y
+    4 `HISTORICAL_UNANCHORED`.
+  - EX-09 OpenAI en `PASS`; `p02p03-v3` leída.
+- **Trazabilidad:**
+  - reporte fuera del repositorio, SHA-256
+    `9b3f17a2fa99e3b27497130c9ac212a7a39ed8df9c2de0d924aac6b9f88ff40b`;
+  - verificador en `0d93f6a`;
+  - línea base `1693d0a`.
+- **Decisión del autor:** se aceptan como `RESIDUAL_LIMITATION_ACCEPTED` y `NON_EVIDENTIARY` las
+  unidades `HISTORICAL_UNANCHORED` `s11-custody-20260921-p02p03-v1` a `-v4`.
+  - Se conservan sin modificar ni re-firmar.
+  - No pasan a `PASS` ni se consideran autenticadas.
+- **Rotación:** pendiente, según la secuencia del runbook §7. No se rotó ningún secreto.
+
+```text
+Incidente: OPEN · rotación NO ejecutada
+Época custodial 7205a04f93cc3da9: VERIFIED / CLOSING · RESIDUAL HISTORICAL LIMITATION ACCEPTED · ROTATION PENDING
+EX-10: DEFINED · NOT PREPARED · NOT EXECUTED · BLOCKED por el incidente de custodia
+```
+
 ### Pruebas realizadas
 
 - Gate inicial: rama `main`, HEAD exacto y working tree limpio.

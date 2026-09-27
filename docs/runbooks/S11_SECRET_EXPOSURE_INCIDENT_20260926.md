@@ -6,7 +6,10 @@
 
 **Clasificación:** `SECRET_EXPOSURE`
 
-**Estado:** `INCIDENT OPEN / ROTATION NOT EXECUTED`
+**Estado:** `INCIDENT OPEN / OLD EPOCH VERIFIED / CLOSING / ROTATION NOT EXECUTED`
+
+**Última actualización:** 27/09/2026. Verificación read-only ejecutada y resultado aceptado por
+el autor (§10). Ningún secreto se ha rotado todavía.
 
 **Autoridad:** Monty Emmanuel Pohl Amarilla, autor y custodio.
 
@@ -54,11 +57,13 @@ se registra el valor.
 
 1. Se aprueba una nueva época custodial.
 2. La época `7205a04f93cc3da9` queda **`COMPROMISED / CLOSING`**. Se cierra sólo después de una
-   verificación read-only con su clave y de la revisión de su resultado (§6).
+   verificación read-only con su clave y de la revisión de su resultado (§6). Estado vigente:
+   §10.5.
 3. La evidencia histórica no se re-firma ni se re-autentica. No se reescriben sidecars ni se
    ejecuta recovery o finalización de `EvidenceStore` sobre runs cerrados.
 4. La verificación read-only de la época queda **pendiente**. Se hará con
    `backend/scripts/s11_verify_closed_custody.py` y la clave antigua, antes de retirarla.
+   Se ejecutó el 27/09/2026 (§10).
 5. La unidad `s11-custody-20260921-p02p03-v3` debe leerse y verificarse. Un `INCOMPLETE` por
    permisos no se acepta.
 6. La clave antigua se archivará fuera del entorno operativo, en almacenamiento cifrado bajo
@@ -95,11 +100,14 @@ verificador los lee sólo con `git`, desde los objetos de ese commit (`--baselin
   - están presentes todas las unidades documentadas;
   - no están documentados el run `s11-99e928d6-f4b5-52bf-8f33-c69c5e5d50c1` ni
     `s11-custody-20260921-p02p03-v1` a `-v4`.
-  - El reporte de la verificación sustituye esta medición.
+  - El reporte de la verificación sustituye esta medición (§10.2 y §10.3).
 - Esos commits son locales: `origin/main` está en `635d899` (21/09/2026) y hay 51 commits sin
   publicar. **No existe un ancla externa previa a la exposición.**
 
-## 5. Verificación read-only pendiente
+## 5. Verificación read-only
+
+Ejecutada una sola vez el 27/09/2026 con el comando de §5.3. El resultado y la decisión del
+autor están en §10.
 
 ### 5.1 Alcance
 
@@ -289,19 +297,34 @@ anteriores. Un cambio en las declaraciones `--historical` requiere una decisión
   - el SHA-256 del reporte;
 - `read_only_guard` = `audit-hook`.
 
-## 7. Secuencia pendiente
+## 7. Secuencia de cierre aprobada (27/09/2026)
 
-1. Ejecutar la verificación read-only (§5.3). Si el resultado no es `PASS`, o
-   `PASS_WITH_UNANCHORED_HISTORICAL` aceptado por el autor, se detiene y no se rota.
-2. Hacer un commit documental con el reporte y su SHA-256, antes de la rotación. Pasa a ser el
-   ancla de toda comprobación posterior (`--compare-report`).
-3. Archivar la clave antigua fuera del entorno y retirarla del `.env`.
-4. Generar y configurar, sin imprimirlos, la nueva clave custodial, el nuevo
-   `S11_DOCUMENT_HMAC_SECRET` y el nuevo `DJANGO_SECRET_KEY`. Registrar sólo la nueva huella
-   custodial.
-5. Incorporar el verificador y sus pruebas a `ATTESTED_SOURCE_PATHS` y ejecutar la atestación
-   P02/P03 `v8` bajo la nueva época.
-6. Registrar el cierre del incidente y levantar el bloqueo de EX-10.
+La verificación read-only previa ya se ejecutó y su resultado fue aceptado (§10). Desde ahí, el
+autor aprueba esta secuencia:
+
+1. Registrar en Git la decisión y el SHA-256 del reporte (§10).
+   - El JSON queda fuera del repositorio; el SHA-256 versionado lo ancla.
+   - Una comprobación posterior con `--compare-report` usa ese archivo tras verificar su SHA-256.
+2. Archivar manualmente la clave antigua fuera del entorno operativo (§3.6).
+3. Rotar, sin imprimirlos:
+   - `S11_CUSTODY_HMAC_KEY`;
+   - `S11_DOCUMENT_HMAC_SECRET`;
+   - `DJANGO_SECRET_KEY`.
+4. Retirar la clave antigua del `.env` y de las shells activas.
+5. Crear una nueva época custodial. Se registra sólo su huella (§3.7).
+6. Ejecutar P02/P03 `v8` bajo la nueva época, con el verificador y sus pruebas incorporados a sus
+   fuentes atestadas (§3.8).
+7. Confirmar P02/P03 `v8` = `PASS`.
+8. No repetir C1 únicamente por la rotación (§3.9).
+9. Actualizar y cerrar documentalmente el incidente. EX-10 sigue bloqueado hasta ese cierre
+   (§3.10).
+10. Terminar la sesión del agente que contiene la transcripción expuesta (§10.6).
+11. Eliminar:
+    - el JSONL afectado;
+    - su directorio `subagents/`;
+    - cualquier copia local identificada.
+12. Registrar que el borrado físico seguro en SSD no puede demostrarse y que la rotación es el
+    control efectivo.
 
 ## 8. Prevención
 
@@ -330,3 +353,177 @@ anteriores. Un cambio en las declaraciones `--historical` requiere una decisión
   autor.
 - **Imágenes borradas.** El alcance de las imágenes *dangling* borradas por `down --rmi local` no
   se puede reconstruir.
+- **Limitaciones concretas del resultado:** §10.3.
+
+## 10. Registro cronológico
+
+### 10.1 27/09/2026 — Ejecución de la verificación read-only
+
+- **Autorización:** el autor autorizó expresamente una única ejecución del comando de §5.3, con la
+  clave antigua todavía activa.
+- **Comprobaciones previas**, sin revelar valores:
+  - HEAD `0d93f6a0c564ec2a4466d60eba9293ea0048c190`, con el working tree limitado a los dos
+    archivos de EX-10 sin seguimiento;
+  - el texto de §5.3 en HEAD, idéntico byte a byte al ensayado, y el SHA-256 del verificador;
+  - una sola línea por variable en el `.env`;
+  - huella de la clave custodial `MATCH 7205a04f93cc3da9` y de la clave pública
+    `MATCH 8c1e5a8ad7390f4d`;
+  - el directorio de salida no existía.
+- **Ejecución única:** 27/09/2026, 18:14:06–18:14:08 UTC. No se repitió. Después, ninguna de las
+  dos variables de clave quedaba en el shell.
+- **Salida**, fuera del repositorio, en `~/s11-incident-20260926/` (directorio 0700, archivos
+  0600):
+  - el reporte JSON y stderr (0 bytes);
+  - el código de salida;
+  - los metadatos de la ejecución;
+  - una copia del texto del comando;
+  - el plan de la transcripción (§10.6).
+- **El reporte no se modifica ni se mueve todavía.** El repositorio no tiene una convención para
+  adjuntar reportes de incidentes, así que no se versiona el JSON: sólo su SHA-256 y el resumen
+  de §10.2.
+- **Revisión de fugas**, hecha antes de leer el resultado: 0 coincidencias en el reporte y en
+  stderr de:
+  - nombres de variables sensibles;
+  - valores del `.env` y sus variantes;
+  - patrones de credenciales.
+- **Integridad posterior:**
+  - en las tres raíces, metadatos idénticos (modo, dueño, tamaño, mtime, ctime, inode) y SHA-256
+    idéntico de todo archivo legible por el operador;
+  - `.env` idéntico;
+  - contenedores, redes, volúmenes e imágenes de Docker idénticos;
+  - HEAD sin cambios.
+  - El contenido de `p02p03-v3` no es legible por el operador. Su directorio no cambió y los
+    montajes eran de sólo lectura.
+
+### 10.2 Resultado
+
+| Campo | Valor |
+|---|---|
+| Resultado global | `PASS_WITH_UNANCHORED_HISTORICAL` |
+| Código de salida | 4 |
+| Huella de la época | `7205a04f93cc3da9` |
+| Huella de la clave pública | `8c1e5a8ad7390f4d` |
+| SHA-256 del verificador | `5b42c123fb49e5fcde176b4f99a02803a7ec0761eed1cadade155cb779f20d4f` |
+| Commit del verificador | `0d93f6a0c564ec2a4466d60eba9293ea0048c190` |
+| Línea base git | `1693d0ae562bfe777c496b616c9f8c8d5fa8a591` |
+| SHA-256 del reporte | `9b3f17a2fa99e3b27497130c9ac212a7a39ed8df9c2de0d924aac6b9f88ff40b` |
+| Unidades | 30: 21 `PASS`, 0 `FAIL`, 0 `INCOMPLETE`, 5 `HISTORICAL_ANCHORED`, 4 `HISTORICAL_UNANCHORED` |
+| Archivos inventariados | 328 |
+| Línea base | 41 anclas, 26 coincidencias actuales, 21 unidades documentadas |
+| Hallazgos | Ninguno, ni por unidad ni por raíz. Ninguna advertencia |
+| Fuera de `S11-CUSTODY-v1.0` | `control/`, con 0 archivos |
+| Guarda read-only | `audit-hook` |
+
+**Por raíz:**
+
+- primary: 19 `PASS`, 3 `HISTORICAL_ANCHORED`, 4 `HISTORICAL_UNANCHORED`;
+- backup: 1 `PASS`, 1 `HISTORICAL_ANCHORED`;
+- restore: 1 `PASS`, 1 `HISTORICAL_ANCHORED`.
+
+**Unidades vigiladas:**
+
+| Unidad | Estado | Archivos | Interpretación |
+|---|---|---|---|
+| EX-09 OpenAI, `primary:runs/s11-a156a68c-c422-5e57-ae2b-3336d3b55e6c` | `PASS` | 17 | Autenticada con la clave de la época `7205a04f93cc3da9`: su HMAC custodial se validó. No estaba anclada individualmente en la línea base git |
+| `s11-99e928d6-f4b5-52bf-8f33-c69c5e5d50c1` en runs, backup y restore | `HISTORICAL_ANCHORED` en las tres raíces | 12 por unidad | 7 de 12 archivos anclados en cada una |
+| `primary:custody-verifications/s11-custody-20260921-p02p03-v3` | `HISTORICAL_UNANCHORED` | 6 | Leída correctamente con uid 0, `DAC_READ_SEARCH` y montaje de sólo lectura. No queda ningún `PermissionError` pendiente |
+
+**`HISTORICAL_UNANCHORED` (lista exacta):**
+
+- `primary:custody-verifications/s11-custody-20260921-p02p03-v1`
+- `primary:custody-verifications/s11-custody-20260921-p02p03-v2`
+- `primary:custody-verifications/s11-custody-20260921-p02p03-v3`
+- `primary:custody-verifications/s11-custody-20260921-p02p03-v4`
+
+**`HISTORICAL_ANCHORED`:**
+
+- `s11-custody-20260921-p02p03-v5`;
+- `s11-c1-20260921-isolation-repro-reset-v1`;
+- `s11-99e928d6-f4b5-52bf-8f33-c69c5e5d50c1` en las tres raíces.
+
+**No históricas sin ancla en la línea base.** Todas están en `PASS`, es decir, tienen HMAC válido
+con la clave de la época:
+
+- `primary:runs/s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af`
+- `primary:runs/s11-6dc3ea66-08c9-51ef-9fe3-70e7dcc67959`
+- `primary:runs/s11-6efb78d7-ca14-523f-b7e5-7c5d6ee14fad`
+- `primary:runs/s11-95954a43-507b-5093-824d-8f0c83c1a1a7`
+- `primary:runs/s11-a156a68c-c422-5e57-ae2b-3336d3b55e6c`
+- `primary:runs/s11-d407a461-ca75-5809-97bd-bcfea7593f3e`
+- `primary:custody-verifications/s11-custody-20260926-p02p03-v7`
+
+**No documentadas en la línea base:** `s11-99e928d6-f4b5-52bf-8f33-c69c5e5d50c1` y
+`s11-custody-20260921-p02p03-v1` a `-v4`.
+
+### 10.3 Limitaciones de la línea base
+
+Son limitaciones de la línea base, no fallos de la verificación:
+
+- **No existe un inventario SHA-256 completo previo a la exposición.**
+- **No existe un ancla externa.**
+- **La línea base git es parcial:** son los 41 hashes y los 21 identificadores citados en `docs/`
+  en `1693d0a`.
+- **La ascendencia git local prueba el orden de los commits, no su fecha.** Los commits todavía no
+  están publicados externamente: `origin/main` sigue en `635d899`.
+- **Ningún mtime ni ctime de las tres raíces es posterior a la exposición.** El último ctime es del
+  26/09/2026 a las 19:17:54 (−03:00). Es un indicio complementario, no un ancla criptográfica.
+- **El marcador `.s11-evidence-root` no cuenta como ancla individual**, porque su contenido es
+  común a todos los runs.
+  - Por eso el reporte da 26 coincidencias frente a las 27 de la medición preliminar de §4.
+  - La diferencia es el hash del marcador, citado en
+    `docs/runbooks/S11_A4_EVIDENCE_LOSS_INCIDENT.md`.
+
+### 10.4 27/09/2026 — Decisión del autor sobre las unidades no ancladas
+
+El autor revisó el resultado (`PASS_WITH_UNANCHORED_HISTORICAL`, código 4) y acepta cerrar la fase
+de verificación previa a la rotación.
+
+Las cuatro unidades `HISTORICAL_UNANCHORED` de §10.2 se aceptan como limitación histórica
+residual, con esta clasificación:
+
+```text
+HISTORICAL_UNANCHORED
+RESIDUAL_LIMITATION_ACCEPTED
+NON_EVIDENTIARY
+```
+
+Significado:
+
+- se conservan;
+- no se modifican;
+- no se re-firman;
+- no se presentan como evidencia autenticada;
+- no sustentan ningún resultado vigente;
+- no bloquean la nueva época, porque son anteriores a la época custodial `7205a04f93cc3da9`;
+- su falta de ancla queda documentada de forma permanente.
+
+La aceptación **no** las convierte en `PASS`, `HISTORICAL_ANCHORED` ni `AUTHENTICATED`.
+
+### 10.5 Estado de la época `7205a04f93cc3da9`
+
+| Momento | Estado |
+|---|---|
+| Antes de la verificación | `COMPROMISED / VERIFICATION PENDING` |
+| Tras esta decisión documental | `VERIFIED / CLOSING` · `RESIDUAL HISTORICAL LIMITATION ACCEPTED` · `ROTATION PENDING` |
+| Todavía no | `CLOSED`, `ROTATED` ni `NEW EPOCH ACTIVE` |
+
+La secuencia que falta para el cierre está en §7.
+
+### 10.6 Transcripción expuesta
+
+- **Qué es:** la transcripción local de la sesión del agente que contiene la salida expuesta, con
+  su directorio `subagents/`. Se considera una copia no controlada de los secretos.
+- **Ubicación**, sin ruta completa: `~/.claude/projects/<proyecto>/<sesión>.jsonl` y
+  `<sesión>/subagents/`.
+- **Permisos**, comprobados sólo con `stat` el 27/09/2026:
+  - el JSONL permanece temporalmente en 0600;
+  - sus directorios de acceso quedaron en 0700 (tres estaban en 0775);
+  - los `meta.json` quedaron en 0600 (estaban en 0664).
+- **Contenido:**
+  - durante la verificación no se leyó ni se copió;
+  - antes de ella, el agente la consultó sólo para recuperar comandos anteriores y la hora del
+    comando expuesto, sin imprimir salidas.
+- **Eliminación:** sólo después de establecer y verificar la nueva época (§7, pasos 10 a 12).
+- **Backups:** no debe entrar en backups nuevos.
+- **Documentación:** no se documenta su contenido ni una ruta completa que revele información del
+  entorno.
