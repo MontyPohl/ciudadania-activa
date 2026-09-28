@@ -1341,18 +1341,26 @@ class LoadGenerator:
         )
 
     def _release(self) -> None:
-        # Acción de la barrera: se ejecuta una vez, con los 10 VU ya en la barrera.
+        # Acción de la barrera: se ejecuta una vez, con los 10 VU ya en la barrera y su lock
+        # tomado. t0 se publica sólo cuando las dos lecturas del reloj se completaron; si la
+        # acción falla antes, t0 queda ausente y la barrera rota es real.
         if self._t0 is not None:
             raise Ex10ApparatusError("t0 ya estaba fijado.")
-        self._t0 = self._clock()
-        self._t0_utc = self._wall_clock()
+        t0, t0_utc = self._clock(), self._wall_clock()
+        self._t0, self._t0_utc = t0, t0_utc
 
     def _vu_main(self, vu: int, ledger: _ItemLedger, barrier: threading.Barrier) -> None:
         try:
             try:
                 barrier.wait()
             except threading.BrokenBarrierError:
-                self._fault(FaultKind.BARRIER_BROKEN, vu=vu)
+                # Con t0 ya publicado (bajo el lock de la barrera, que ordena esta lectura), el
+                # error viene de un `abort` posterior a t0 que llegó antes de que este VU
+                # saliera de `wait()`: CPython re-evalúa el estado al despertar. No se fabrica
+                # un BARRIER_BROKEN pre-t0; la causa post-t0 la registra el hilo principal. El
+                # VU no envía nada.
+                if self._t0 is None:
+                    self._fault(FaultKind.BARRIER_BROKEN, vu=vu)
                 return
             for item in self._plan.for_vu(vu):
                 if self._stop.is_set():

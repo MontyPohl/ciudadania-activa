@@ -10,11 +10,13 @@ import _thread
 import copy
 import errno
 import http.client
+import itertools
 import json
 import pickle
 import re
 import signal
 import socket
+import sys
 import threading
 import time
 import uuid
@@ -1082,6 +1084,116 @@ def test_a_second_interruption_does_not_discard_the_run(plan, prepared):
     assert run.interrupted is True
     assert run.faults == (ex10.ApparatusFault(Fault.OPERATOR_INTERRUPTED, detail="after_t0"),)
     assert run.attempts[0].outcome is Outcome.HTTP_ACCEPTED
+
+
+def recorded_threads():
+    threads = []
+
+    def thread_factory(*, target, args, name, daemon):
+        thread = threading.Thread(target=target, args=args, name=name, daemon=daemon)
+        threads.append(thread)
+        return thread
+
+    return threads, thread_factory
+
+
+def assert_interrupted_after_t0_only(plan, run, transport, threads):
+    """Tras t0, la interrupción es la única causa: ningún VU liberado queda como barrera
+    rota, nada se envía dos veces y ningún VU sigue vivo ni atrapado en la barrera."""
+    assert run.t0_ns is not None and run.interrupted is True
+    assert run.faults == (ex10.ApparatusFault(Fault.OPERATOR_INTERRUPTED, detail="after_t0"),)
+    assert all(a.outcome in {Outcome.HTTP_ACCEPTED, Outcome.NOT_SENT} for a in run.attempts)
+    assert Counter(key for key, _ in transport.calls) == {
+        a.request_key: 1 for a in run.attempts if a.outcome is Outcome.HTTP_ACCEPTED
+    }
+    assert all(a.send_count == (a.outcome is Outcome.HTTP_ACCEPTED) for a in run.attempts)
+    assert "operator-interrupted" in ex10.apparatus_invalidity(plan, run)
+    assert ex10.evaluate_run(plan, run).decision is constants.Decision.NOT_DEMONSTRATED
+    for thread in threads:
+        thread.join(5)
+    assert len(threads) == 10 and not any(thread.is_alive() for thread in threads)
+
+
+@pytest.mark.parametrize("switch_interval", [1.0, None, 1e-6], ids=["long", "default", "short"])
+def test_an_interruption_at_t0_never_breaks_a_released_vu(plan, prepared, switch_interval):
+    # La interrupción más cercana a t0: la primera lectura del reloj, dentro de la acción de
+    # la barrera, la dispara y espera a que el hilo principal la atienda. Su `abort` llega
+    # con la barrera ya liberada y con VU que aún no despertaron; con un intervalo de cambio
+    # largo, los nueve que esperaban. Ninguno es un fallo de la barrera.
+    handled = threading.Event()
+    reads = itertools.count()
+
+    def handler(signum, frame):
+        handled.set()
+        raise KeyboardInterrupt
+
+    def clock():
+        if next(reads) == 0:
+            _thread.interrupt_main()
+            handled.wait(5)
+        return time.monotonic_ns()
+
+    threads, thread_factory = recorded_threads()
+    transport = FakeTransport()
+    previous, interval = signal.signal(signal.SIGINT, handler), sys.getswitchinterval()
+    if switch_interval is not None:
+        sys.setswitchinterval(switch_interval)
+    started = time.monotonic()
+    try:
+        run = run_generator(plan, prepared, transport, clock=clock, thread_factory=thread_factory)
+    finally:
+        sys.setswitchinterval(interval)
+        signal.signal(signal.SIGINT, previous)
+    assert time.monotonic() - started < 5  # sin esperas de barrera ni de join
+    assert handled.is_set()
+    assert_interrupted_after_t0_only(plan, run, transport, threads)
+    assert (signal.getsignal(signal.SIGINT), sys.getswitchinterval()) == (previous, interval)
+
+
+def test_an_interruption_once_every_vu_left_the_barrier_is_only_the_interruption(plan, prepared):
+    # Los 10 primeros requests en vuelo a la vez: todos los VU salieron ya de la barrera.
+    first = {plan.for_vu(vu)[0].request_key for vu in plan.vus}
+    together = threading.Barrier(10, action=_thread.interrupt_main, timeout=5)
+    handled = threading.Event()
+
+    def handler(signum, frame):
+        handled.set()
+        raise KeyboardInterrupt
+
+    def hook(request):
+        if request.item.request_key in first:
+            together.wait()
+            handled.wait(5)
+
+    threads, thread_factory = recorded_threads()
+    transport = FakeTransport(hook=hook)
+    previous = signal.signal(signal.SIGINT, handler)
+    try:
+        run = run_generator(plan, prepared, transport, thread_factory=thread_factory)
+    finally:
+        signal.signal(signal.SIGINT, previous)
+    assert handled.is_set()
+    assert_interrupted_after_t0_only(plan, run, transport, threads)
+    by_key = {a.request_key: a for a in run.attempts}
+    assert all(by_key[key].outcome is Outcome.HTTP_ACCEPTED for key in first)
+
+
+def test_a_failing_barrier_action_leaves_no_t0_and_breaks_the_barrier(plan, prepared):
+    # La acción falla tras leer el reloj monotónico, antes de completar la segunda lectura:
+    # t0 queda ausente y la barrera rota es real, así que los nueve que esperaban sí la
+    # registran.
+    def wall_clock():
+        raise RuntimeError("reloj de pared no disponible")
+
+    transport = FakeTransport()
+    run = run_generator(plan, prepared, transport, wall_clock=wall_clock)
+    assert transport.calls == []
+    assert run.t0_ns is None and run.t0_utc_ns is None and run.interrupted is False
+    assert sum(f.kind is Fault.BARRIER_BROKEN for f in run.faults) == 9
+    assert [f.detail for f in run.faults if f.kind is Fault.THREAD_DIED] == ["RuntimeError"]
+    assert all(a.outcome is Outcome.NOT_SENT for a in run.attempts)
+    assert "t0-missing" in ex10.apparatus_invalidity(plan, run)
+    assert ex10.evaluate_run(plan, run).decision is constants.Decision.NOT_DEMONSTRATED
 
 
 class InterruptedStart(threading.Thread):
