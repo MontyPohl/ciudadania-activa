@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 from time import perf_counter
 
 from celery import signals
+from django.db import connection
 
 from .context import TraceContext, current_trace, reset_trace, set_trace
 from .events import record_event
@@ -22,10 +23,12 @@ def before_task_publish(sender=None, headers=None, **kwargs):
     headers["s11_run_id"] = trace.run_id
     headers["s11_scenario_id"] = trace.scenario_id
     headers["s11_request_id"] = trace.request_id
+    # Dentro de un request S11 se persiste al cerrar la respuesta; fuera, en el acto.
     record_event(
         run_id=trace.run_id,
         scenario_id=trace.scenario_id,
         stream="celery",
+        defer=True,
         event={
             "event": "celery.queued",
             "request_id": trace.request_id,
@@ -33,10 +36,25 @@ def before_task_publish(sender=None, headers=None, **kwargs):
             "task_name": sender,
             "enqueue_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
             "status": "queued",
+            "db_transaction_open": _db_transaction_open(),
         },
     )
 
 
+def _db_transaction_open() -> bool | None:
+    """`in_atomic_block ∨ ¬autocommit` de la conexión por defecto al publicar (G0, MD-05).
+
+    `None` si no puede leerse: la evidencia queda incompleta y nunca se supone cerrada.
+    """
+    try:
+        return bool(connection.in_atomic_block or not connection.get_autocommit())
+    except Exception:
+        return None
+
+
+# Los eventos del worker se persisten en el acto, también en eager. Eso es compatibilidad
+# técnica, no asincronía: `process` es siempre el proceso real, que en eager es el del API.
+# El preflight oficial rechaza eager (CFG_ASYNC de HT1-04).
 @signals.task_prerun.connect(weak=False)
 def task_prerun(task_id=None, task=None, **kwargs):
     if not enabled() or task is None or not _valid_headers(task.request):
