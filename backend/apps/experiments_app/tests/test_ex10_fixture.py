@@ -9,6 +9,7 @@ import io
 import json
 import pickle
 import threading
+import traceback
 from datetime import timedelta
 
 import pytest
@@ -84,26 +85,136 @@ def test_altered_dataset_bytes_are_rejected_before_any_write():
 
 
 @pytest.mark.parametrize(
-    ("mutate", "code"),
+    ("mutate", "issue"),
     [
-        (lambda p: p["users"][0].update(email="real.person@example.com"), "user-fields"),
-        (lambda p: p["users"][1].update(role="operator"), "user-role-or-verification"),
-        (lambda p: p["users"][2].update(verified=False), "user-role-or-verification"),
-        (lambda p: p["users"][3].update(alias="real-name"), "user-alias"),
+        (
+            lambda p: p["users"][0].update(email="real.person@example.com"),
+            fx.DatasetIssue("fields", "exact-fields-required", 1, "missing:none,extra:1"),
+        ),
+        (
+            lambda p: p["users"][1].update(role="operator"),
+            fx.DatasetIssue("role", "citizen-required", 2),
+        ),
+        (
+            lambda p: p["users"][2].update(verified=False),
+            fx.DatasetIssue("verified", "true-required", 3),
+        ),
+        (
+            lambda p: p["users"][3].update(alias="real-name"),
+            fx.DatasetIssue("alias", "canonical-alias-required", 4),
+        ),
+        (
+            lambda p: p["users"][4].update(id="not-a-uuid"),
+            fx.DatasetIssue("id", "canonical-uuid-required", 5),
+        ),
+        (
+            lambda p: p["users"][5].pop("verified"),
+            fx.DatasetIssue("fields", "exact-fields-required", 6, "missing:verified,extra:0"),
+        ),
     ],
 )
-def test_dataset_users_are_validated_beyond_the_hash(dataset, mutate, code):
+def test_dataset_users_are_validated_beyond_the_hash(dataset, mutate, issue):
     with pytest.raises(fx.Ex10FixtureError) as rejected:
         fx.actor_specs(with_payload(dataset, mutate))
-    assert rejected.value.code.startswith("DATASET_INVALID") and code in rejected.value.code
+    assert (rejected.value.code, rejected.value.issues) == ("DATASET_INVALID", (issue,))
+    assert str(rejected.value) == f"DATASET_INVALID: {issue}"
     assert "real.person" not in str(rejected.value)
 
 
 def test_dataset_with_other_sha_or_size_is_rejected(dataset):
-    with pytest.raises(fx.Ex10FixtureError, match="dataset-sha256"):
+    with pytest.raises(fx.Ex10FixtureError) as rejected:
         fx.actor_specs(ex10_load.LoadDataset("0" * 64, dataset.payload))
+    assert rejected.value.issues == (fx.DatasetIssue("sha256", "frozen-sha256-required"),)
     with pytest.raises(fx.Ex10FixtureError, match="DATASET_USERS"):
         fx.actor_specs(with_payload(dataset, lambda p: p["users"].pop()))
+
+
+#: Valores que un dataset alterado podría traer: ninguno puede volver en un error.
+HOSTILE = [
+    "load-citizen-01\nload-citizen-02",
+    "../../var/s11-runs/secret",
+    "real.person@example.com",
+    "eyJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoiaG9zdGlsZSJ9.aG9zdGlsZS1zaWduYXR1cmU",
+    "Authorization: Bearer hostile-token-0123456789abcdef",
+    "sk-proj-HOSTILEHOSTILEHOSTILEHOSTILE0123456789",
+    "load-citizen-01\x1b[31m\x00\x07",
+    "load-citizen-" + "9" * 10_000,
+]
+
+
+def assert_no_dataset_value(error, value):
+    """Ni el valor ni un fragmento reconocible aparecen en el error ni en su traceback."""
+    texts = [str(error), repr(error), *map(str, error.args), *map(str, error.issues)]
+    assert all(text.isprintable() and len(text) < 2_000 for text in texts)
+    # La excepción original (p. ej. un KeyError con el alias) no se encadena ni se muestra.
+    assert error.__cause__ is None
+    assert error.__context__ is None or error.__suppress_context__
+    texts.append("".join(traceback.format_exception(error)))
+    fragments = {value, value[:16], value[-16:]}
+    assert not [f for f in fragments for text in texts if f in text]
+
+
+@pytest.mark.parametrize("value", HOSTILE, ids=range(len(HOSTILE)))
+@pytest.mark.parametrize(
+    "companion",
+    [
+        {},
+        {"email": "real.person@example.com"},  # la ruta de campos extra citaba el alias
+        {"role": "operator"},  # la ruta de rol citaba el alias
+    ],
+    ids=["alias-only", "with-extra-field", "with-wrong-role"],
+)
+def test_hostile_aliases_never_reach_the_error(dataset, value, companion):
+    def mutate(payload):
+        payload["users"][3].update(alias=value, **companion)
+
+    with pytest.raises(fx.Ex10FixtureError) as rejected:
+        fx.actor_specs(with_payload(dataset, mutate))
+    error = rejected.value
+    assert error.code == "DATASET_INVALID"
+    assert {(i.actor_index, i.field) for i in error.issues} <= {
+        (4, "alias"),
+        (4, "role"),
+        (4, "fields"),
+    }
+    assert_no_dataset_value(error, value)
+
+
+@pytest.mark.parametrize("value", HOSTILE[1:6], ids=range(5))
+def test_hostile_values_in_other_fields_and_keys_never_reach_the_error(dataset, value):
+    def mutate(payload):
+        users = payload["users"]
+        users[0].update(id=value)
+        users[1].update(role=value)
+        users[2].update(verified=value)
+        users[3][value] = value  # clave extra hostil
+
+    with pytest.raises(fx.Ex10FixtureError) as rejected:
+        fx.actor_specs(with_payload(dataset, mutate))
+    assert [(i.actor_index, i.field) for i in rejected.value.issues] == [
+        (1, "id"),
+        (2, "role"),
+        (3, "verified"),
+        (4, "fields"),
+    ]
+    assert_no_dataset_value(rejected.value, value)
+
+
+@pytest.mark.parametrize("value", HOSTILE, ids=range(len(HOSTILE)))
+def test_hostile_request_rows_never_reach_the_plan_error(dataset, value):
+    def unknown_user(payload):
+        payload["requests"][0]["user_alias"] = value  # antes: KeyError con el alias crudo
+
+    def rejected_plan(payload):
+        payload["requests"][0].update(request_key=value)  # Ex10PlanError citaba la clave
+        payload["requests"][0]["image"]["sha256"] = "not-a-sha"
+
+    for mutate, detail in ((unknown_user, "KeyError"), (rejected_plan, "plan-image-sha256")):
+        with pytest.raises(fx.Ex10FixtureError) as rejected:
+            fx.actor_specs(with_payload(dataset, mutate))
+        assert rejected.value.code == "DATASET_PLAN"
+        assert detail in {issue.detail for issue in rejected.value.issues}
+        assert_no_dataset_value(rejected.value, value)
 
 
 # --- Fixture -------------------------------------------------------------------------------

@@ -46,12 +46,33 @@ _LOCK_KEY = int.from_bytes(
 )
 
 
+@dataclass(frozen=True, slots=True)
+class DatasetIssue:
+    """Problema de un dataset alterado, sólo con constantes de este módulo y enteros.
+
+    Nunca lleva un valor del documento: un alias, email, UUID o clave inválidos podrían
+    contener rutas, credenciales o caracteres de control. `actor_index` es la posición en
+    `users` desde 1, la misma numeración que los VU.
+    """
+
+    field: str
+    reason: str
+    actor_index: int | None = None
+    detail: str | None = None
+
+    def __str__(self) -> str:
+        parts = [] if self.actor_index is None else [f"actor_index={self.actor_index}"]
+        parts += [f"field={self.field}", f"reason={self.reason}"]
+        return " ".join(parts + ([] if self.detail is None else [f"detail={self.detail}"]))
+
+
 class Ex10FixtureError(RuntimeError):
     """Error del fixture con un código estable. Nunca lleva tokens, emails ni valores."""
 
-    def __init__(self, code: str):
+    def __init__(self, code: str, issues: tuple[DatasetIssue, ...] = ()):
         self.code = code
-        super().__init__(code)
+        self.issues = issues
+        super().__init__(code if not issues else f"{code}: " + "; ".join(map(str, issues)))
 
 
 class ActorResult(StrEnum):
@@ -142,27 +163,47 @@ class FixtureResult:
 def actor_specs(dataset: ex10_load.LoadDataset | None = None) -> tuple[ActorSpec, ...]:
     """Los 10 actores de `s11-load-v1`, validados antes de cualquier escritura."""
     dataset = ex10_load.load_dataset() if dataset is None else dataset
-    reasons: list[str] = []
+    issues: list[DatasetIssue] = []
     if dataset.sha256 != ex10_load.DATASET_SHA256:
-        reasons.append("dataset-sha256")
+        issues.append(DatasetIssue("sha256", "frozen-sha256-required"))
     users = dataset.payload.get("users")
     if not isinstance(users, list) or len(users) != ex10_load.VIRTUAL_USERS:
         raise Ex10FixtureError("DATASET_USERS")
-    for user in users:
-        label = user.get("alias") if isinstance(user, dict) else None
-        if not isinstance(user, dict) or set(user) != _USER_FIELDS:
-            reasons.append(f"user-fields:{label}")  # campos extra podrían ser PII
+    for index, user in enumerate(users, start=1):
+        if not isinstance(user, dict):
+            issues.append(DatasetIssue("user", "object-required", index))
             continue
-        if not isinstance(label, str) or not _ALIAS.fullmatch(label):
-            reasons.append("user-alias")
-        if user["role"] != UserRole.CITIZEN or user["verified"] is not True:
-            reasons.append(f"user-role-or-verification:{label}")
-    if reasons:
-        raise Ex10FixtureError("DATASET_INVALID:" + ",".join(reasons))
+        if set(user) != _USER_FIELDS:
+            # Campos extra podrían ser PII: sólo se informan los esperados que faltan y
+            # cuántos sobran, nunca sus nombres ni sus valores.
+            missing = "+".join(sorted(_USER_FIELDS - set(user))) or "none"
+            extra = len(set(user) - _USER_FIELDS)
+            issues.append(
+                DatasetIssue(
+                    "fields", "exact-fields-required", index, f"missing:{missing},extra:{extra}"
+                )
+            )
+            continue
+        if not isinstance(user["alias"], str) or not _ALIAS.fullmatch(user["alias"]):
+            issues.append(DatasetIssue("alias", "canonical-alias-required", index))
+        if not _is_canonical_uuid(user["id"]):
+            issues.append(DatasetIssue("id", "canonical-uuid-required", index))
+        if user["role"] != UserRole.CITIZEN:
+            issues.append(DatasetIssue("role", "citizen-required", index))
+        if user["verified"] is not True:
+            issues.append(DatasetIssue("verified", "true-required", index))
+    if issues:
+        raise Ex10FixtureError("DATASET_INVALID", tuple(issues))
     try:
         plan = ex10_load.build_plan(dataset)
     except ex10_load.Ex10Error as exc:
-        raise Ex10FixtureError("DATASET_PLAN") from exc
+        # Las razones del plan pueden terminar en un `request_key` del documento: sólo se
+        # conserva su prefijo constante, y la excepción original no se encadena.
+        raise Ex10FixtureError("DATASET_PLAN", _plan_issues(exc)) from None
+    except (KeyError, TypeError, ValueError, AttributeError) as exc:
+        # Fila de `requests` malformada; un KeyError llevaría el alias crudo.
+        issue = DatasetIssue("requests", "malformed-request", detail=type(exc).__name__)
+        raise Ex10FixtureError("DATASET_PLAN", (issue,)) from None
     specs = tuple(
         ActorSpec(
             alias=items[0].user_alias,
@@ -174,6 +215,30 @@ def actor_specs(dataset: ex10_load.LoadDataset | None = None) -> tuple[ActorSpec
     if len({s.alias for s in specs}) != len(specs) or len({s.user_id for s in specs}) != len(specs):
         raise Ex10FixtureError("DATASET_DUPLICATE_ACTOR")
     return specs
+
+
+def _is_canonical_uuid(value: Any) -> bool:
+    if not isinstance(value, str):
+        return False
+    try:
+        return str(uuid.UUID(value)) == value
+    except ValueError:
+        return False
+
+
+_PLAN_REASON = re.compile(r"[a-z0-9-]+")
+
+
+def _plan_issues(exc: ex10_load.Ex10Error) -> tuple[DatasetIssue, ...]:
+    prefixes: list[str] = []
+    for reason in getattr(exc, "reasons", ()):
+        prefix = str(reason).split(":", 1)[0]
+        prefix = prefix if _PLAN_REASON.fullmatch(prefix) else "unrecognized"
+        if prefix not in prefixes:
+            prefixes.append(prefix)
+    return tuple(
+        DatasetIssue("requests", "plan-rejected", detail=prefix) for prefix in prefixes
+    ) or (DatasetIssue("requests", "plan-rejected"),)
 
 
 # --- Fixture -------------------------------------------------------------------------------
