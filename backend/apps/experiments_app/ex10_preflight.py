@@ -8,7 +8,8 @@ Nunca ejecuta carga, nunca crea `run_id`, nunca escribe evidencia y nunca declar
 preparado: `ready_for_execution` es siempre `false`. Su único HTTP es un `GET` al health y
 su único tráfico Celery, dos probes de control. Todo corre dentro de `SideEffectGuard`,
 que bloquea escrituras en la base, publicación de tareas, escrituras en las raíces de
-evidencia y de objetos, red fuera de los hosts aprobados y subprocesos que no sean `git`.
+evidencia y de objetos, red fuera de los hosts aprobados (Redis, health y el destino
+PostgreSQL S11 declarado) y subprocesos que no sean `git`.
 
 Resultado global: `PASS`, `FAIL` o `INCOMPLETE`, con precedencia de `INCOMPLETE` (una
 comprobación obligatoria que no pudo demostrarse). `NOT_RUN` es sólo un estado interno de
@@ -440,6 +441,15 @@ def _violation(kind: str) -> PreflightViolation:
     return PreflightViolation(kind)
 
 
+def _port_number(value: Any) -> int | None:
+    """El puerto pedido a `getaddrinfo` (psycopg lo pasa como texto); otra cosa, `None`."""
+    if isinstance(value, bytes):
+        value = value.decode("ascii", "replace")
+    if isinstance(value, str):
+        return int(value) if value.isascii() and value.isdecimal() else None
+    return value if type(value) is int else None
+
+
 class SideEffectGuard:
     """Bloquea todo efecto persistente o externo mientras corre el preflight.
 
@@ -447,13 +457,23 @@ class SideEffectGuard:
       señal de guardado o borrado de modelos;
     - Celery: `apply_async`/`delay`/`send_task` (el control del pidbox no pasa por ahí);
     - archivos: escrituras bajo las raíces de evidencia, de objetos y `--source-root`;
-    - red: resolución de nombres fuera de los hosts aprobados (health y Redis);
+    - red: resolución de nombres fuera de los hosts aprobados (health y Redis, por nombre) y
+      del destino PostgreSQL aprobado (host y puerto exactos). Sólo se observa
+      `socket.getaddrinfo`: ni `connect` a una IP literal ni la conexión de libpq pasan por
+      aquí, y nada de lo que devuelve una resolución permitida queda aprobado;
     - subprocesos: sólo `git`.
     """
 
-    def __init__(self, *, protected_roots: tuple[Path, ...], allowed_hosts: frozenset[str]):
+    def __init__(
+        self,
+        *,
+        protected_roots: tuple[Path, ...],
+        allowed_hosts: frozenset[str],
+        database_endpoint: tuple[str, int] | None = None,
+    ):
         self.protected_roots = tuple(os.path.realpath(root) for root in protected_roots)
         self.allowed_hosts = allowed_hosts
+        self.database_endpoint = database_endpoint
         self.violations: list[tuple[str, str | None]] = []
         self.health_requests = 0
         self._stack: ExitStack | None = None
@@ -529,7 +549,8 @@ class SideEffectGuard:
                 raise _violation("filesystem-write")
         elif event == "socket.getaddrinfo" and args:
             host = args[0].decode() if isinstance(args[0], bytes) else args[0]
-            if host not in self.allowed_hosts:
+            port = _port_number(args[1]) if len(args) > 1 else None
+            if host not in self.allowed_hosts and (host, port) != self.database_endpoint:
                 raise _violation("network")
         elif event == "subprocess.Popen" and len(args) >= 2:
             executable, argv = args[0], args[1]
@@ -1893,6 +1914,41 @@ def _allowed_hosts(probes: Probes) -> frozenset[str]:
     return frozenset(host for host in hosts if host)
 
 
+def _approved_database_endpoint(
+    effective: Mapping[str, Any], declared_url: str
+) -> tuple[str, int] | None:
+    """El único destino PostgreSQL que la guarda deja resolver, o `None`.
+
+    psycopg 3.2 resuelve el host con `socket.getaddrinfo` desde Python, y en un proceso nuevo
+    la primera conexión ocurre ya dentro de la guarda. Se aprueban el host y el puerto de la
+    conexión efectiva de Django sólo si son exactamente los de la base S11 declarada: la misma
+    pareja que `isolation_database_connected` contrasta después con la base realmente
+    conectada, así que aprobar la resolución no da la base por buena. No se resuelve nada:
+    ninguna dirección queda aprobada.
+    """
+    host = effective.get("HOST")
+    try:
+        declared = urlsplit(declared_url)
+        declared_port = declared.port or 5432
+        port = int(effective.get("PORT") or 5432)
+    except (TypeError, ValueError):
+        return None
+    # Un socket Unix (`/…`) nunca coincide: un `hostname` de URL no contiene `/`.
+    if not isinstance(host, str) or not host or host != (declared.hostname or ""):
+        return None
+    return (host, port) if port == declared_port else None
+
+
+def _side_effect_guard(options: PreflightOptions, probes: Probes) -> SideEffectGuard:
+    return SideEffectGuard(
+        protected_roots=_protected_roots(options),
+        allowed_hosts=_allowed_hosts(probes),
+        database_endpoint=_approved_database_endpoint(
+            connection.settings_dict, runtime.isolation_config().database_url
+        ),
+    )
+
+
 def run_preflight(options: PreflightOptions, probes: Probes | None = None) -> PreflightReport:
     """Un preflight completo. Uno a la vez por proceso: el segundo se rechaza sin esperar."""
     if not _SHA1.fullmatch(options.expected_git_sha):
@@ -1903,9 +1959,7 @@ def run_preflight(options: PreflightOptions, probes: Probes | None = None) -> Pr
         raise PreflightBusy()
     try:
         probes = probes or Probes()
-        guard = SideEffectGuard(
-            protected_roots=_protected_roots(options), allowed_hosts=_allowed_hosts(probes)
-        )
+        guard = _side_effect_guard(options, probes)
         runner = _Runner(options, probes, guard)
         with guard:
             runner.run()

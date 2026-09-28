@@ -2,7 +2,8 @@
 
 Dobles para Git, health, broker y worker; base de tests real donde el preflight lee.
 Nunca se usa el stack S11, `var/s11-runs`, un proveedor ni un run: no hay carga, ni
-`run_id`, ni POST a `/api/v1/reports/`, ni tareas publicadas.
+`run_id`, ni POST a `/api/v1/reports/`, ni tareas publicadas. Los tests de proceso nuevo
+crean y borran su propia base vacía `ciudadania_s11_fresh_*` en el Postgres de tests.
 """
 
 import copy
@@ -10,6 +11,7 @@ import dataclasses
 import fnmatch
 import http.server
 import io
+import ipaddress
 import json
 import os
 import shutil
@@ -21,7 +23,9 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
+from urllib.parse import urlsplit
 
+import psycopg
 import pytest
 from celery.app.task import Task
 from celery.worker.control import Panel
@@ -30,6 +34,7 @@ from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.db import OperationalError, connection, transaction
 from django.test.utils import CaptureQueriesContext
+from psycopg import sql
 from redis.exceptions import ConnectionError as RedisConnectionError
 
 from apps.admin_app.models import Category
@@ -1461,6 +1466,458 @@ def test_a_full_preflight_writes_nothing_to_evidence_or_objects(ready_stack, iso
     assert report.result is R.PASS
     assert sorted(p.relative_to(isolated.base) for p in isolated.base.rglob("*")) == before
     assert Report.objects.count() == 0
+
+
+# --- Guarda: el destino PostgreSQL aprobado ------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("effective", "declared", "endpoint"),
+    [
+        ({"HOST": "db", "PORT": 5432}, "postgis://u@db:5432/ciudadania_s11_x", ("db", 5432)),
+        ({"HOST": "db", "PORT": "5432"}, "postgis://u:p@db:5432/ciudadania_s11_x", ("db", 5432)),
+        ({"HOST": "db", "PORT": ""}, "postgis://u@db/ciudadania_s11_x", ("db", 5432)),
+        ({"HOST": "127.0.0.1", "PORT": 5432}, "postgis://u@127.0.0.1:5432/x", ("127.0.0.1", 5432)),
+        ({"HOST": "::1", "PORT": 5432}, "postgis://u@[::1]:5432/x", ("::1", 5432)),
+        ({"HOST": "db.", "PORT": 5432}, "postgis://u@db.:5432/x", ("db.", 5432)),
+    ],
+    ids=["hostname", "port-as-text", "default-port", "ipv4", "ipv6", "trailing-dot"],
+)
+def test_the_approved_database_endpoint_is_the_declared_s11_one(effective, declared, endpoint):
+    assert pf._approved_database_endpoint(effective, declared) == endpoint
+
+
+@pytest.mark.parametrize(
+    ("effective", "declared"),
+    [
+        ({"HOST": "localhost", "PORT": 5432}, "postgis://u@db:5432/x"),
+        ({"HOST": "redis", "PORT": 5432}, "postgis://u@db:5432/x"),
+        ({"HOST": "db.evil", "PORT": 5432}, "postgis://u@db:5432/x"),
+        ({"HOST": "evil-db", "PORT": 5432}, "postgis://u@db:5432/x"),
+        ({"HOST": "db-evil", "PORT": 5432}, "postgis://u@db:5432/x"),
+        ({"HOST": "db.example.invalid", "PORT": 5432}, "postgis://u@db:5432/x"),
+        ({"HOST": "DB", "PORT": 5432}, "postgis://u@DB:5432/x"),
+        ({"HOST": "db", "PORT": 5432}, "postgis://u@db.:5432/x"),
+        ({"HOST": "[::1]", "PORT": 5432}, "postgis://u@[::1]:5432/x"),
+        ({"HOST": "db", "PORT": 6543}, "postgis://u@db:5432/x"),
+        ({"HOST": "db", "PORT": 5432}, "postgis://u@db:6543/x"),
+        ({"HOST": "db", "PORT": "x"}, "postgis://u@db:5432/x"),
+        ({"HOST": "db", "PORT": 5432}, "postgis://u@db:abc/x"),
+        ({"HOST": "db", "PORT": 5432}, "postgis://u@[::1/x"),
+        ({"HOST": "db", "PORT": 5432}, ""),
+        ({"HOST": "", "PORT": 5432}, "postgis://u@/x"),
+        ({"HOST": None, "PORT": 5432}, "postgis://u@db:5432/x"),
+        ({"HOST": "/var/run/postgresql", "PORT": 5432}, "postgis://u@/x"),
+        ({}, "postgis://u@db:5432/x"),
+    ],
+    ids=[
+        "localhost",
+        "redis-host",
+        "suffix-domain",
+        "prefix",
+        "suffix",
+        "other-domain",
+        "uppercase",
+        "trailing-dot",
+        "bracketed-ipv6",
+        "effective-port",
+        "declared-port",
+        "invalid-effective-port",
+        "invalid-declared-port",
+        "malformed-url",
+        "no-declared-url",
+        "no-host",
+        "none-host",
+        "unix-socket",
+        "no-settings",
+    ],
+)
+def test_no_database_endpoint_is_approved_outside_the_declared_one(effective, declared):
+    assert pf._approved_database_endpoint(effective, declared) is None
+
+
+@pytest.fixture
+def database_guard(tmp_path):
+    return pf.SideEffectGuard(
+        protected_roots=(tmp_path,),
+        allowed_hosts=frozenset({"redis", "backend"}),
+        database_endpoint=("db", 5432),
+    )
+
+
+def test_the_guard_resolves_the_approved_database_destination(database_guard):
+    with database_guard:
+        for host, port in (("db", "5432"), ("db", b"5432"), ("db", 5432), (b"db", "5432")):
+            database_guard._on_audit("socket.getaddrinfo", (host, port, 0, 1, 6))
+    assert database_guard.violations == []
+
+
+@pytest.mark.parametrize(
+    ("host", "port"),
+    [
+        ("example.com", "443"),
+        ("example.com", "5432"),
+        ("localhost", "5432"),
+        ("127.0.0.1", "5432"),
+        ("db", "6379"),
+        ("db", "5433"),
+        ("db", None),
+        ("db", "postgresql"),
+        ("worker", "5432"),
+        ("ciudadania-s11-db-1", "5432"),
+        ("db.evil", "5432"),
+        ("evil-db", "5432"),
+        ("db-evil", "5432"),
+        ("db.example.invalid", "5432"),
+        ("DB", "5432"),
+        ("db.", "5432"),
+        ("10.0.0.5", "5432"),
+        ("172.18.0.2", "5432"),
+        ("::1", "5432"),
+        ("fe80::1", "5432"),
+        ("[::1]", "5432"),
+        ("", "5432"),
+        (None, "5432"),
+    ],
+)
+def test_every_other_destination_stays_blocked(database_guard, host, port):
+    with database_guard:
+        with pytest.raises(pf.PreflightViolation, match="network"):
+            socket.getaddrinfo(host, port)
+    assert [kind for kind, _ in database_guard.violations] == ["network"]
+
+
+@pytest.mark.parametrize(
+    ("endpoint", "blocked"),
+    [
+        (("127.0.0.1", 5432), ("127.0.0.2", "0x7f000001", "localhost", "::1")),
+        (("::1", 5432), ("[::1]", "0:0:0:0:0:0:0:1", "::2", "127.0.0.1")),
+    ],
+    ids=["ipv4", "ipv6"],
+)
+def test_an_approved_ip_literal_is_matched_exactly(tmp_path, endpoint, blocked):
+    guard = pf.SideEffectGuard(
+        protected_roots=(tmp_path,), allowed_hosts=frozenset(), database_endpoint=endpoint
+    )
+    with guard:
+        guard._on_audit("socket.getaddrinfo", (endpoint[0], "5432", 0, 1, 6))
+        with pytest.raises(pf.PreflightViolation, match="network"):
+            socket.getaddrinfo(endpoint[0], "5433")
+        for host in blocked:
+            with pytest.raises(pf.PreflightViolation, match="network"):
+                socket.getaddrinfo(host, "5432")
+    assert [kind for kind, _ in guard.violations] == ["network"] * (len(blocked) + 1)
+
+
+def test_without_an_approved_database_no_database_host_resolves(guard):
+    assert guard.database_endpoint is None
+    with guard:
+        with pytest.raises(pf.PreflightViolation, match="network"):
+            socket.getaddrinfo("db", "5432")
+
+
+def test_a_resolved_database_address_is_never_approved(tmp_path, test_database):
+    host, port = connection.settings_dict["HOST"], int(connection.settings_dict["PORT"] or 5432)
+    guard = pf.SideEffectGuard(
+        protected_roots=(tmp_path,), allowed_hosts=frozenset(), database_endpoint=(host, port)
+    )
+    with guard:
+        answers = socket.getaddrinfo(host, str(port), type=socket.SOCK_STREAM)
+        addresses = sorted({answer[4][0] for answer in answers})
+        for address in addresses:
+            with pytest.raises(pf.PreflightViolation, match="network"):
+                socket.getaddrinfo(address, str(port))
+    assert addresses and guard.violations == [("network", None)] * len(addresses)
+    assert (guard.allowed_hosts, guard.database_endpoint) == (frozenset(), (host, port))
+
+
+def test_the_preflight_guard_approves_the_declared_database_only(stack, settings):
+    params = connection.settings_dict
+    host, port = params["HOST"], int(params["PORT"] or 5432)
+    settings.S11_DATABASE_URL = f"postgis://ciudadania@{host}:{port}/{DECLARED_DB}"
+    assert pf._side_effect_guard(stack.options, stack.probes).database_endpoint == (host, port)
+    settings.S11_DATABASE_URL = f"postgis://ciudadania@elsewhere-db:{port}/{DECLARED_DB}"
+    assert pf._side_effect_guard(stack.options, stack.probes).database_endpoint is None
+
+
+# --- Primera conexión en un proceso nuevo --------------------------------------------------------
+
+#: Un proceso nuevo: Django sin conexión abierta y la guarda real del preflight. Escribe sus
+#: hechos en un JSON (argv[2]) al terminar, ya sin guarda activa.
+FRESH_PROCESS = r"""
+import json, os, socket, sys
+from pathlib import Path
+
+import django
+
+django.setup()
+from django.conf import settings
+from django.db import DatabaseError, connection
+
+from apps.experiments_app import ex10_preflight as pf
+
+mode, facts_path = sys.argv[1], Path(sys.argv[2])
+database = settings.DATABASES["default"]
+database["NAME"] = os.environ["EX10_FRESH_DB_NAME"]
+if mode == "unresolvable":
+    database["HOST"] = "ex10-unresolvable-db.invalid"
+host, port = database["HOST"], int(database["PORT"] or 5432)
+declared = os.environ.get("EX10_FRESH_DECLARED_DB", database["NAME"])
+netloc = f"[{host}]" if ":" in host else host
+settings.S11_DATABASE_URL = f"postgis://{database['USER']}@{netloc}:{port}/{declared}"
+facts = {"connected_before": connection.connection is not None, "db_resolutions": 0}
+
+
+def watch(event, args):
+    # Cada resolución del destino PostgreSQL con la guarda ya activa, bloqueada o no.
+    if event == "socket.getaddrinfo" and pf._ACTIVE.get() is not None:
+        facts["db_resolutions"] += args[0] == host and pf._port_number(args[1]) == port
+
+
+sys.addaudithook(watch)
+if mode == "cli-unresolvable":
+    # `db` detenido: el DNS de Docker responde EAI_AGAIN. La guarda decide antes, como en C.
+    real_getaddrinfo = socket.getaddrinfo
+
+    def unavailable(name, *args, **kwargs):
+        if name == host:
+            sys.audit("socket.getaddrinfo", name, args[0] if args else None, 0, 0, 0)
+            raise socket.gaierror(socket.EAI_AGAIN, "Temporary failure in name resolution")
+        return real_getaddrinfo(name, *args, **kwargs)
+
+    socket.getaddrinfo = unavailable
+
+if mode.startswith("cli"):
+    from django.core.management import execute_from_command_line
+
+    from apps.experiments_app.management.commands import s11_ex10_preflight as command
+
+    class SilentControl:
+        def probe(self, nonce, timeout):
+            return []
+
+    probes = pf.Probes(
+        health=pf.HttpHealthClient(os.environ["EX10_FRESH_HEALTH_URL"], timeout=5),
+        worker_control=SilentControl(),
+    )
+    command.Command.probes = lambda self: probes
+    run_preflight, side_effect_guard = pf.run_preflight, pf._side_effect_guard
+
+    def recording(options, probes=None):
+        facts["connected_before"] = connection.connection is not None
+        return run_preflight(options, probes)
+
+    def capturing(options, probes):
+        guard = side_effect_guard(options, probes)
+        facts["endpoint_approved"] = guard.database_endpoint is not None
+        facts["host_allowed_by_name"] = host in guard.allowed_hosts
+        return guard
+
+    pf.run_preflight, pf._side_effect_guard = recording, capturing
+    source = os.environ["EX10_FRESH_SOURCE"]
+    argv = ["manage.py", "s11_ex10_preflight", "--expected-git-sha", "0" * 40]
+    try:
+        execute_from_command_line([*argv, "--source-root", source])
+        facts["exit"] = 0
+    except SystemExit as exc:
+        facts["exit"] = exc.code
+else:
+    options = pf.PreflightOptions("0" * 40, Path(os.environ["EX10_FRESH_SOURCE"]))
+    probes = pf.Probes()
+    if mode == "guard-2b2":
+        # El cableado congelado de la 2B-2: sólo los hosts de Redis y health.
+        guard = pf.SideEffectGuard(
+            protected_roots=pf._protected_roots(options), allowed_hosts=pf._allowed_hosts(probes)
+        )
+    else:
+        guard = pf._side_effect_guard(options, probes)
+    facts["endpoint_approved"] = guard.database_endpoint is not None
+    facts["host_allowed_by_name"] = host in guard.allowed_hosts
+    try:
+        with guard:
+            facts["identity"] = pf.real_database_identity()
+    except pf.PreflightViolation as exc:
+        facts["error"] = f"guard-{exc.kind}"
+    except DatabaseError as exc:
+        facts["error"] = type(exc).__name__
+    facts["violations"] = [kind for kind, _ in guard.violations]
+facts["connected_after"] = connection.connection is not None
+facts_path.write_text(json.dumps(facts))
+raise SystemExit(facts.get("exit") or 0)
+"""
+#: Redis en un host distinto del de la base: si lo compartieran (`localhost` en CI), la regla
+#: de Redis, por nombre, ya dejaría resolver la base y el control de la 2B-2 no probaría nada.
+GUARD_ONLY_REDIS = {"REDIS_URL": "redis://redis:6379/11"}
+
+
+def fresh_process(mode, tmp_path, database, **env):
+    from django.conf import settings
+
+    facts, source = tmp_path / f"facts-{mode}.json", tmp_path / "source"
+    source.mkdir(exist_ok=True)
+    completed = subprocess.run(
+        [sys.executable, "-c", FRESH_PROCESS, mode, str(facts)],
+        cwd=settings.BASE_DIR,
+        env={
+            **os.environ,
+            "DJANGO_SETTINGS_MODULE": "config.settings.test",
+            "EX10_FRESH_DB_NAME": database,
+            "EX10_FRESH_SOURCE": str(source),
+            **env,
+        },
+        capture_output=True,
+        text=True,
+        timeout=180,
+    )
+    assert facts.is_file(), completed.stderr[-3000:]
+    return completed, json.loads(facts.read_text())
+
+
+@pytest.fixture
+def test_database(django_db_setup):
+    """La base de tests, sin abrirla aquí. Con una IP literal psycopg no resuelve nada."""
+    try:
+        ipaddress.ip_address(connection.settings_dict["HOST"])
+    except ValueError:
+        return connection.settings_dict["NAME"]
+    pytest.skip("con una IP literal no hay primera resolución que probar")
+
+
+@pytest.fixture
+def s11_database(test_database):
+    """Una base `ciudadania_s11_*` propia y vacía: el aislamiento exige ese prefijo."""
+    params = connection.settings_dict
+    name = f"ciudadania_s11_fresh_{uuid.uuid4().hex[:12]}"
+    with psycopg.connect(
+        host=params["HOST"],
+        port=params["PORT"] or 5432,
+        user=params["USER"],
+        password=params["PASSWORD"],
+        dbname="postgres",
+        autocommit=True,
+    ) as admin:
+        admin.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(name)))
+        try:
+            yield name
+        finally:
+            admin.execute(
+                sql.SQL("DROP DATABASE IF EXISTS {} WITH (FORCE)").format(sql.Identifier(name))
+            )
+
+
+@pytest.fixture
+def fresh_roots(request):
+    base = Path.cwd() / ".s11-test-artifacts" / f"ex10-preflight-fresh-{request.node.name}"
+    shutil.rmtree(base, ignore_errors=True)
+    roots = {name: base / name for name in ("objects", "runs", "backup", "restore")}
+    for path in roots.values():
+        path.mkdir(parents=True)
+    (roots["objects"] / st.OBJECT_ROOT_MARKER).write_text("S11 isolated synthetic objects only\n")
+    redis = urlsplit(os.environ.get("REDIS_URL", "redis://localhost:6379/0"))
+    yield {
+        "S11_EXPERIMENTS_ENABLED": "true",
+        "S11_ENVIRONMENT": "isolated-experiment",
+        "REDIS_URL": f"redis://{redis.hostname}:{redis.port or 6379}/11",
+        "S11_OBJECT_ROOT": str(roots["objects"]),
+        "S11_ARTIFACT_ROOT": str(roots["runs"]),
+        "S11_BACKUP_ROOT": str(roots["backup"]),
+        "S11_RESTORE_ROOT": str(roots["restore"]),
+    }
+    shutil.rmtree(base)
+
+
+def test_a_fresh_process_opens_its_first_connection_through_the_real_guard(tmp_path, test_database):
+    completed, facts = fresh_process("guard", tmp_path, test_database, **GUARD_ONLY_REDIS)
+    assert completed.returncode == 0, completed.stderr[-3000:]
+    assert facts["connected_before"] is False
+    assert (facts["endpoint_approved"], facts["host_allowed_by_name"]) == (True, False)
+    assert facts["db_resolutions"] >= 1  # psycopg resolvió el host ya con la guarda activa
+    assert (facts.get("error"), facts["violations"]) == (None, [])
+    assert facts["identity"] == {"database": True, "user": True, "host": True, "port": True}
+    assert facts["connected_after"] is True
+
+
+def test_the_frozen_2b2_guard_blocks_that_same_first_connection(tmp_path, test_database):
+    # Control: el mismo proceso nuevo con la allowlist de la 2B-2. La condición es real aquí
+    # y la regresión anterior falla con ella.
+    completed, facts = fresh_process("guard-2b2", tmp_path, test_database, **GUARD_ONLY_REDIS)
+    assert completed.returncode == 0, completed.stderr[-3000:]
+    assert facts["connected_before"] is False
+    assert (facts["endpoint_approved"], facts["host_allowed_by_name"]) == (False, False)
+    assert facts["db_resolutions"] >= 1
+    assert (facts["error"], facts["violations"]) == ("guard-network", ["network"])
+    assert facts["connected_after"] is False
+
+
+def test_approving_the_resolution_does_not_approve_another_database(tmp_path, test_database):
+    completed, facts = fresh_process(
+        "guard",
+        tmp_path,
+        test_database,
+        EX10_FRESH_DECLARED_DB="ciudadania_s11_elsewhere",
+        **GUARD_ONLY_REDIS,
+    )
+    assert (facts["endpoint_approved"], facts["violations"]) == (True, [])
+    # La base realmente conectada sigue contrastándose: aquí no es la declarada.
+    assert facts["identity"] == {"database": False, "user": True, "host": True, "port": True}
+
+
+def test_an_approved_host_that_does_not_resolve_is_unavailable_not_blocked(tmp_path, test_database):
+    completed, facts = fresh_process("unresolvable", tmp_path, test_database, **GUARD_ONLY_REDIS)
+    assert completed.returncode == 0, completed.stderr[-3000:]
+    assert facts["endpoint_approved"] is True
+    assert facts["db_resolutions"] >= 1
+    assert (facts["error"], facts["violations"]) == ("OperationalError", [])
+
+
+def json_values(node):
+    if isinstance(node, dict):
+        for value in node.values():
+            yield from json_values(value)
+    elif isinstance(node, list):
+        for value in node:
+            yield from json_values(value)
+    else:
+        yield node
+
+
+@pytest.mark.parametrize("mode", ["cli", "cli-unresolvable"])
+def test_the_cli_in_a_fresh_process_reaches_its_database_through_the_guard(
+    tmp_path, s11_database, fresh_roots, health_server, mode
+):
+    completed, facts = fresh_process(
+        mode, tmp_path, s11_database, EX10_FRESH_HEALTH_URL=health_server.url, **fresh_roots
+    )
+    report = json.loads(completed.stdout)
+    by_name = {check["check"]: check for check in report["checks"]}
+    assert facts["connected_before"] is False
+    # Con Redis en el mismo host que la base (CI) la regla de Redis también lo cubriría.
+    assert facts["endpoint_approved"] is True
+    assert facts["db_resolutions"] >= 1
+    assert [name for name in by_name if name.endswith("_aborted")] == []
+    assert [c["check"] for c in report["checks"] if "guard-" in (c["detail_code"] or "")] == []
+    assert by_name["isolation_guards"]["result"] == "PASS"
+    connected = by_name["isolation_database_connected"]
+    if mode == "cli":
+        assert (connected["result"], connected["observed_sanitized"]["database"]) == ("PASS", True)
+    else:
+        assert (connected["result"], connected["detail_code"]) == (
+            "INCOMPLETE",
+            "database-unavailable",
+        )
+    assert by_name["no_side_effects"]["result"] == "PASS"
+    assert (report["health_requests"], len(health_server.requests)) == (1, 1)
+    # Sin checkout Git ni worker: INCOMPLETE, nunca un FAIL de la guarda.
+    assert (report["result"], completed.returncode, facts["exit"]) == ("INCOMPLETE", 2, 2)
+    # El destino aprobado no llega al output: ni host, ni direcciones, ni puerto, ni DSN.
+    host, port = connection.settings_dict["HOST"], int(connection.settings_dict["PORT"] or 5432)
+    addresses = {answer[4][0] for answer in socket.getaddrinfo(host, port)}
+    values = list(json_values(report))
+    strings = [value for value in values if isinstance(value, str)]
+    assert [value for value in strings if value in {host, str(port), *addresses}] == []
+    assert port not in [value for value in values if type(value) is int]
+    for forbidden in (s11_database, "postgis", f"@{host}", *addresses):
+        assert forbidden not in completed.stdout
 
 
 # --- Git real ------------------------------------------------------------------------------------
