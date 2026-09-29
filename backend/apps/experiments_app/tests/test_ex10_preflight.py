@@ -711,6 +711,94 @@ def test_running_code_must_match_the_source_root(stack):
     assert (check.result, check.observed_sanitized["mismatched"]) == (R.FAIL, 1)
 
 
+EXECUTOR_RUNTIME_SOURCES = (
+    "backend/apps/experiments_app/ex10_executor.py",
+    "backend/apps/experiments_app/ex10_reconcile.py",
+    "backend/apps/experiments_app/management/commands/s11_ex10.py",
+)
+
+
+def running_sources(report):
+    return {
+        s["source"]: s
+        for s in checks(report)["repository_running_source"].observed_sanitized["sources"]
+    }
+
+
+def test_the_executor_runtime_sources_are_matched_against_the_checkout(stack):
+    # (1) Las 3 fuentes runtime del executor, presentes e idénticas: PASS.
+    report = run(stack)
+    check = checks(report)["repository_running_source"]
+    assert check.result is R.PASS and check.detail_code is None
+    assert check.observed_sanitized["compared"] == len(pf.RUNNING_SOURCES) == 10
+    sources = running_sources(report)
+    for relative in EXECUTOR_RUNTIME_SOURCES:
+        assert sources[relative] == {"source": relative, "match": True, "detail_code": None}
+
+
+@pytest.mark.parametrize("relative", EXECUTOR_RUNTIME_SOURCES)
+def test_an_executor_runtime_source_that_differs_fails(stack, relative):
+    # (2, 3, 4) Cualquier byte distinto en el executor, la reconciliación o el comando: FAIL.
+    stack.repo.files[relative] = b"otra revision\n"
+    report = run(stack)
+    check = checks(report)["repository_running_source"]
+    assert (check.result, check.detail_code) == (R.FAIL, "running-source-differs")
+    assert check.observed_sanitized["mismatched"] == 1
+    assert running_sources(report)[relative] == {
+        "source": relative,
+        "match": False,
+        "detail_code": "bytes-differ",
+    }
+    assert report.result is R.FAIL
+
+
+def test_a_missing_runtime_executor_source_fails(stack, settings, tmp_path):
+    # (5) El contenedor no tiene `ex10_executor.py`: nada que comparar, FAIL.
+    running = Path(settings.BASE_DIR)
+    runtime = tmp_path / "runtime"
+    for relative in pf.RUNNING_SOURCES:
+        stack.repo.files[relative] = (running / relative.removeprefix("backend/")).read_bytes()
+        if relative != EXECUTOR_RUNTIME_SOURCES[0]:
+            target = runtime / relative.removeprefix("backend/")
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(stack.repo.files[relative])
+    settings.BASE_DIR = runtime
+    report = run(stack)
+    check = checks(report)["repository_running_source"]
+    assert (check.result, check.observed_sanitized["mismatched"]) == (R.FAIL, 1)
+    assert running_sources(report)[EXECUTOR_RUNTIME_SOURCES[0]]["detail_code"] == "runtime-missing"
+
+
+def test_a_missing_checked_out_executor_source_is_reported(stack):
+    # (6) Sin el blob del checkout nunca hay coincidencia (ruta falsa del repositorio).
+    stack.repo.files[EXECUTOR_RUNTIME_SOURCES[1]] = None
+    report = run(stack)
+    assert result_of(report, "repository_running_source") is R.FAIL
+    assert running_sources(report)[EXECUTOR_RUNTIME_SOURCES[1]]["detail_code"] == "source-missing"
+
+
+def test_running_sources_are_runtime_only_unique_and_deterministic(stack):
+    # (7) Ni tests ni soporte de tests; (8) sin duplicados; (9) orden fijo y reproducible.
+    assert isinstance(pf.RUNNING_SOURCES, tuple)
+    assert not [s for s in pf.RUNNING_SOURCES if "/tests/" in s or not s.endswith(".py")]
+    for test_file in (
+        "backend/apps/experiments_app/tests/test_ex10_executor.py",
+        "backend/apps/experiments_app/tests/ex10_executor_support.py",
+    ):
+        assert test_file not in pf.RUNNING_SOURCES
+    assert len(set(pf.RUNNING_SOURCES)) == len(pf.RUNNING_SOURCES)
+    assert set(EXECUTOR_RUNTIME_SOURCES) <= set(pf.RUNNING_SOURCES)
+    first, second = run(stack), run(stack)
+    listed = [
+        s["source"]
+        for s in checks(first)["repository_running_source"].observed_sanitized["sources"]
+    ]
+    assert listed == list(pf.RUNNING_SOURCES)
+    assert canonical_json_bytes(checks(first)["repository_running_source"].to_json()) == (
+        canonical_json_bytes(checks(second)["repository_running_source"].to_json())
+    )
+
+
 def test_decision_commits_must_be_in_history(stack):
     stack.repo.ancestors = {pf.G0_DECISION_COMMIT}
     check = checks(run(stack))["protocol_decision_commits"]
@@ -2163,6 +2251,27 @@ def test_a_shallow_clone_or_a_foreign_work_tree_is_incomplete(stack, checkout, t
         "repository_source_complete"
     ]
     assert (check.result, check.detail_code) == (R.INCOMPLETE, "source-root-not-toplevel")
+
+
+def test_a_complete_checkout_matches_every_executor_runtime_source(stack, checkout):
+    # (10) El preflight con checkout completo sigue pasando, ahora también por el executor.
+    report = on_checkout(stack, checkout.root)
+    assert report.result is R.PASS
+    sources = running_sources(report)
+    assert all(source["match"] for source in sources.values())
+    assert set(EXECUTOR_RUNTIME_SOURCES) <= set(sources)
+
+
+@pytest.mark.parametrize("relative", EXECUTOR_RUNTIME_SOURCES)
+def test_a_checkout_without_an_executor_source_is_incomplete(stack, checkout, relative):
+    # (6) El checkout calificado no tiene la fuente: vista parcial, INCOMPLETE canónico.
+    git(checkout.root, "rm", "-q", relative)
+    git(checkout.root, "commit", "-q", "-m", "without executor source")
+    report = on_checkout(stack, checkout.root)
+    check = checks(report)["repository_source_complete"]
+    assert (check.result, check.detail_code) == (R.INCOMPLETE, "partial-source-root")
+    assert check.observed_sanitized["missing_required"] == 1
+    assert report.result is R.INCOMPLETE
 
 
 def test_running_code_that_differs_from_a_clean_checkout_fails(stack, checkout):

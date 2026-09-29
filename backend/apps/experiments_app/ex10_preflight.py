@@ -112,7 +112,9 @@ FROZEN_IDENTITY = {
         "sha256": "c6883b59dc861fb07fae730594c929fdd572a9ed71aee6d8b85c87f71ede0acb",
     },
 }
-#: Código que debe coincidir byte a byte entre el proceso y `--source-root`.
+#: Código que debe coincidir byte a byte entre el proceso y `--source-root`. Incluye el
+#: executor oficial (runtime, sin sus tests): el preflight del HEAD que ejecutará EX-10
+#: demuestra también que ese aparato es el del checkout calificado.
 RUNNING_SOURCES = (
     "backend/apps/experiments_app/ex10_load.py",
     "backend/apps/experiments_app/ex10_fixture.py",
@@ -121,6 +123,9 @@ RUNNING_SOURCES = (
     "backend/apps/experiments_app/ex10_worker_probe.py",
     "backend/apps/experiments_app/tasks.py",
     "backend/apps/experiments_app/management/commands/s11_ex10_preflight.py",
+    "backend/apps/experiments_app/ex10_executor.py",
+    "backend/apps/experiments_app/ex10_reconcile.py",
+    "backend/apps/experiments_app/management/commands/s11_ex10.py",
 )
 _SHA1 = re.compile(r"^[0-9a-f]{40}$")
 _RATE = re.compile(r"^[0-9]{1,6}/[a-z]{1,10}$")
@@ -1260,20 +1265,30 @@ class _Runner:
                 None if dirty == 0 else "working-tree-dirty",
             )
         backend = Path(settings.BASE_DIR)
-        mismatched = 0
+        sources = []
         for relative in RUNNING_SOURCES:
             running = backend / relative.removeprefix("backend/")
             try:
                 running_bytes = running.read_bytes()
             except OSError:
                 running_bytes = None
-            if running_bytes is None or repo.read(relative) != running_bytes:
-                mismatched += 1
+            checked_out = repo.read(relative)
+            if running_bytes is None:
+                detail = "runtime-missing"
+            elif checked_out is None:
+                detail = "source-missing"
+            elif checked_out != running_bytes:
+                detail = "bytes-differ"
+            else:
+                detail = None
+            # Sólo el identificador relativo al repo y el resultado: ni bytes ni rutas del host.
+            sources.append({"source": relative, "match": detail is None, "detail_code": detail})
+        mismatched = sum(1 for source in sources if not source["match"])
         self.add(
             "repository_running_source",
             CheckResult.PASS if mismatched == 0 else CheckResult.FAIL,
             {"mismatched": 0},
-            {"compared": len(RUNNING_SOURCES), "mismatched": mismatched},
+            {"compared": len(RUNNING_SOURCES), "mismatched": mismatched, "sources": sources},
             None if mismatched == 0 else "running-source-differs",
         )
         try:
