@@ -1593,6 +1593,9 @@ class CriterionStatus(StrEnum):
     PASS = "PASS"
     FAIL = "FAIL"
     NOT_EVALUABLE = "NOT_EVALUABLE"
+    #: HT1-02/HT1-03 con N = 0: no hay latencia que comparar con el umbral. G0: P50 y P99
+    #: son `NOT_COMPUTABLE` y el criterio no se cumple; nunca es PASS ni un valor inventado.
+    NOT_COMPUTABLE = NOT_COMPUTABLE
 
 
 @dataclass(frozen=True, slots=True)
@@ -1703,8 +1706,15 @@ def latency_set(attempts: Sequence[AttemptRecord]) -> tuple[int, ...]:
 def latency_percentiles(attempts: Sequence[AttemptRecord]) -> PercentileResult:
     durations = latency_set(attempts)
     if not durations:
+        # N = 0: sin valor ni rango. No es una comparación numérica fallida.
         return PercentileResult(
-            durations, None, None, None, None, CriterionStatus.FAIL, CriterionStatus.FAIL
+            durations,
+            None,
+            None,
+            None,
+            None,
+            CriterionStatus.NOT_COMPUTABLE,
+            CriterionStatus.NOT_COMPUTABLE,
         )
     p50_rank = nearest_rank(len(durations), P50)
     p99_rank = nearest_rank(len(durations), P99)
@@ -2176,6 +2186,11 @@ def decide(
     2. `FAIL`: run válido y completamente evaluable con algún criterio fallido.
     3. `PASS`: run válido y completamente evaluable que cumple HT1-01…04 y la
        postcondición de auditoría.
+
+    HT1-02/HT1-03 `NOT_COMPUTABLE` (N = 0) no es un fallo numérico ni invalida el aparato:
+    no entra en `failed_criteria` ni en `not_demonstrable`. Con evidencia coherente N = 0
+    implica HT1-01 FAIL, así que el run válido es FAIL por HT1-01. Nunca es PASS: si ningún
+    otro criterio falla, las entradas son incoherentes y el run no demuestra nada.
     """
     criteria = {
         "HT1-01": str(throughput.status),
@@ -2201,10 +2216,20 @@ def decide(
         )
         if is_failed
     ]
+    not_computable = [
+        label
+        for label, status in (("HT1-02", percentiles.ht1_02), ("HT1-03", percentiles.ht1_03))
+        if status is CriterionStatus.NOT_COMPUTABLE
+    ]
     if invalidity_reasons or not_demonstrable:
         decision = Decision.NOT_DEMONSTRATED
     elif failed:
         decision = Decision.FAIL
+    elif not_computable:
+        not_demonstrable.extend(
+            f"{label}:{CriterionStatus.NOT_COMPUTABLE}" for label in not_computable
+        )
+        decision = Decision.NOT_DEMONSTRATED
     else:
         decision = Decision.PASS
     return DecisionResult(

@@ -1651,17 +1651,113 @@ def test_p99_nearest_rank_keeps_outliers():
     assert (result.p99_rank, result.p99_ns) == (50, 59_000 * MS)
 
 
+def no_201_run(plan):
+    return synthetic_run(plan, responses={i.request_key: ("status", 503, b"") for i in plan.items})
+
+
 def test_no_201_makes_percentiles_not_computable(plan):
-    run = synthetic_run(plan, responses={i.request_key: ("status", 503, b"") for i in plan.items})
-    result = ex10.latency_percentiles(run.attempts)
+    # G0: con N = 0, P50 y P99 son NOT_COMPUTABLE (1, 2) y no hay ningún valor inventado (3).
+    result = ex10.latency_percentiles(no_201_run(plan).attempts)
     assert result.n == 0
-    assert (result.p50_ns, result.p99_ns) == (None, None)
-    assert (result.ht1_02, result.ht1_03) == (Criterion.FAIL, Criterion.FAIL)
-    assert result.to_json()["ht1_02"]["p50_ns"] == "NOT_COMPUTABLE"
-    assert result.to_json()["ht1_03"]["p99_ns"] == "NOT_COMPUTABLE"
-    evaluation = evaluate_complete(plan, run)
+    assert (result.p50_ns, result.p99_ns, result.p50_rank, result.p99_rank) == (None,) * 4
+    assert (result.ht1_02, result.ht1_03) == (Criterion.NOT_COMPUTABLE,) * 2
+    latency = result.to_json()
+    assert latency["ht1_02"] == {
+        "p50_ns": "NOT_COMPUTABLE",
+        "rank": None,
+        "threshold_ns": ex10.P50_THRESHOLD_NS,
+        "status": "NOT_COMPUTABLE",
+    }
+    assert latency["ht1_03"] == {
+        "p99_ns": "NOT_COMPUTABLE",
+        "rank": None,
+        "threshold_ns": ex10.P99_THRESHOLD_NS,
+        "status": "NOT_COMPUTABLE",
+    }
+    assert latency["durations_ns_sorted"] == []
+
+
+def test_a_valid_run_without_201_fails_by_ht1_01_only(plan):
+    # (4, 5) Ni PASS ni un FAIL por un percentil: el FAIL lo da HT1-01 (0 éxitos).
+    evaluation = evaluate_complete(plan, no_201_run(plan))
+    result = evaluation.result
     assert evaluation.decision is constants.Decision.FAIL
-    assert set(evaluation.result.failed_criteria) == {"HT1-01", "HT1-02", "HT1-03"}
+    assert result.failed_criteria == ("HT1-01",)
+    assert (result.invalidity_reasons, result.not_demonstrable) == ((), ())
+    assert result.criteria["HT1-01"] == "FAIL"
+    assert (result.criteria["HT1-02"], result.criteria["HT1-03"]) == ("NOT_COMPUTABLE",) * 2
+
+
+def test_an_invalid_apparatus_without_201_is_not_demonstrated(plan):
+    # (6)
+    run = replace(no_201_run(plan), faults=(ex10.ApparatusFault(ex10.FaultKind.THREAD_DIED, vu=3),))
+    evaluation = evaluate_complete(plan, run)
+    assert evaluation.decision is constants.Decision.NOT_DEMONSTRATED
+    assert "apparatus:thread_died:vu-03" in evaluation.result.invalidity_reasons
+
+
+def test_not_computable_percentiles_never_yield_pass():
+    # (4) Entradas incoherentes (N = 0 con HT1-01 PASS): nunca PASS, tampoco un FAIL inventado.
+    passed = ex10.EvidenceResult(ex10.EvidenceStatus.PASS)
+    result = ex10.decide(
+        invalidity_reasons=(),
+        throughput=ex10.ThroughputResult(Criterion.PASS, 50, 50),
+        percentiles=ex10.latency_percentiles([]),
+        ht1_04=passed,
+        audit=passed,
+    )
+    assert result.decision is constants.Decision.NOT_DEMONSTRATED
+    assert result.failed_criteria == ()
+    assert result.not_demonstrable == ("HT1-02:NOT_COMPUTABLE", "HT1-03:NOT_COMPUTABLE")
+    assert result.invalidity_reasons == ()
+
+
+@pytest.mark.parametrize(
+    ("duration", "status"),
+    [(800 * MS, Criterion.PASS), (800 * MS + 1, Criterion.FAIL)],
+)
+def test_a_single_201_still_computes_both_percentiles(duration, status):
+    # (7) N = 1: rango 1 para P50 y P99, sin NOT_COMPUTABLE.
+    result = percentiles_of([duration])
+    assert (result.p50_rank, result.p99_rank) == (1, 1)
+    assert result.p50_ns == result.p99_ns == duration
+    assert result.ht1_02 is status and result.ht1_03 is Criterion.PASS
+
+
+@pytest.mark.parametrize(
+    ("durations", "p50_rank", "p99_rank"),
+    [([3, 1, 2], 2, 3), ([4, 3, 2, 1], 2, 4), (list(range(1, 101)), 50, 99)],
+)
+def test_more_than_one_201_stays_nearest_rank(durations, p50_rank, p99_rank):
+    # (8)
+    result = percentiles_of([d * MS for d in durations])
+    assert (result.p50_rank, result.p99_rank) == (p50_rank, p99_rank)
+    assert result.p50_ns == sorted(durations)[p50_rank - 1] * MS
+    assert result.p99_ns == sorted(durations)[p99_rank - 1] * MS
+    assert Criterion.NOT_COMPUTABLE not in (result.ht1_02, result.ht1_03)
+
+
+def test_not_computable_serializes_canonically_and_deterministically(plan):
+    # (9) Mismo JSON canónico, mismas versiones de esquema, sin ningún valor numérico nuevo.
+    def payloads():
+        evaluation = evaluate_complete(plan, no_201_run(plan))
+        return evaluation.calculation_payload(), evaluation.decision_payload()
+
+    first, second = payloads(), payloads()
+    assert canonical_json_bytes(first) == canonical_json_bytes(second)
+    calculation, decision = first
+    assert calculation["schema_version"] == ex10.CALCULATION_SCHEMA_VERSION
+    assert decision["schema_version"] == ex10.DECISION_SCHEMA_VERSION
+    assert json.loads(canonical_json_bytes(decision))["criteria"]["HT1-02"] == "NOT_COMPUTABLE"
+    assert calculation["latency"]["n"] == 0
+
+
+def test_every_serialized_criterion_status_still_parses():
+    # (10) Los valores anteriores siguen siendo válidos; el nuevo es aditivo. No existe
+    # ningún artefacto EX-10 persistido que reinterpretar (EX-10 nunca se ejecutó).
+    for value in ("PASS", "FAIL", "NOT_EVALUABLE", "NOT_COMPUTABLE"):
+        assert str(Criterion(value)) == value
+    assert Criterion.NOT_COMPUTABLE == ex10.NOT_COMPUTABLE
 
 
 def test_p50_of_exactly_800_ms_passes():
