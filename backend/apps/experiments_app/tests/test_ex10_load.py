@@ -16,6 +16,7 @@ import pickle
 import re
 import signal
 import socket
+import subprocess
 import sys
 import threading
 import time
@@ -29,6 +30,8 @@ import pytest
 from apps.experiments_app import constants
 from apps.experiments_app import ex10_load as ex10
 from apps.experiments_app.canonical import canonical_json_bytes, sha256_file
+from apps.experiments_app.tests import ex10_signal_child as signal_child
+from apps.experiments_app.tests.ex10_signal_child import run_signal_scenario
 
 Outcome = ex10.AttemptOutcome
 Fault = ex10.FaultKind
@@ -76,20 +79,34 @@ def plan(dataset):
     return ex10.build_plan(dataset)
 
 
-@pytest.fixture(scope="module")
-def tokens(plan):
+def make_tokens(plan):
     return {
         item.user_alias: f"eyJhbGciOiJIUzI1NiJ9.eyJsb2NhbCI6InRlc3QifQ.LOCAL-TEST-{item.user_alias}"
         for item in plan.items
     }
 
 
-@pytest.fixture(scope="module")
-def category_ids(plan):
+def make_category_ids(plan):
     return {
         item.category_slug: str(uuid.uuid5(uuid.NAMESPACE_URL, f"ex10-test:{item.category_slug}"))
         for item in plan.items
     }
+
+
+def make_prepared(dataset, plan):
+    return ex10.prepare_requests(
+        dataset, plan, run_id=RUN_ID, tokens=make_tokens(plan), category_ids=make_category_ids(plan)
+    )
+
+
+@pytest.fixture(scope="module")
+def tokens(plan):
+    return make_tokens(plan)
+
+
+@pytest.fixture(scope="module")
+def category_ids(plan):
+    return make_category_ids(plan)
 
 
 @pytest.fixture(scope="module")
@@ -1038,7 +1055,45 @@ def test_impossible_timing_is_an_apparatus_failure(plan, prepared):
     assert evaluate_complete(plan, run).decision is constants.Decision.NOT_DEMONSTRATED
 
 
-def test_operator_interruption_after_t0_is_not_demonstrated(plan, prepared):
+# --- Interrupciones asíncronas: siempre en un proceso hijo --------------------------------
+#
+# Una interrupción real entregada al proceso de pytest bajo `--cov` puede caer dentro del lock
+# de datos de coverage.py y bloquearlo (COVERAGE_TRACER_INTERRUPT_DEADLOCK). Estos escenarios
+# corren en un hijo sin coverage (`ex10_signal_child`): la misma interrupción real, los mismos
+# hilos, barrera y generador, y las mismas aserciones. El hijo devuelve hechos saneados y el
+# test los vuelve a comprobar aquí.
+
+
+def child_inputs():
+    """Los fixtures `plan` y `prepared`, construidos igual dentro del hijo."""
+    dataset = ex10.load_dataset()
+    plan = ex10.build_plan(dataset)
+    return plan, make_prepared(dataset, plan)
+
+
+def interruption_facts(plan, run, transport, threads=()):
+    """Sólo hechos técnicos: ni tokens, ni cuerpos, ni tracebacks."""
+    calls = Counter(key for key, _ in transport.calls)
+    return {
+        "t0_present": run.t0_ns is not None,
+        "interrupted": run.interrupted,
+        "faults": [[str(f.kind), f.vu, f.request_key, f.detail] for f in run.faults],
+        "barrier_broken": sum(f.kind is Fault.BARRIER_BROKEN for f in run.faults),
+        "attempts": len(run.attempts),
+        "outcomes": [str(a.outcome) for a in run.attempts],
+        "send_counts": [a.send_count for a in run.attempts],
+        "duplicate_sends": sum(1 for n in calls.values() if n > 1),
+        "decision": str(ex10.evaluate_run(plan, run).decision),
+        "operator_interrupted_invalidity": "operator-interrupted"
+        in ex10.apparatus_invalidity(plan, run),
+        "vu_threads": len(threads),
+        "vu_threads_alive": sum(t.is_alive() for t in threads),
+        "python_threads_after": threading.active_count(),
+    }
+
+
+def scenario_interruption_after_t0():
+    plan, prepared = child_inputs()
     in_flight = threading.Event()
 
     def hook(request):
@@ -1050,12 +1105,14 @@ def test_operator_interruption_after_t0_is_not_demonstrated(plan, prepared):
     # `interrupt_main` no hace nada si el proceso heredó SIGINT ignorado (p. ej. `&`).
     previous = signal.signal(signal.SIGINT, signal.default_int_handler)
     started = time.monotonic()
+    transport = FakeTransport(hook=hook)
     try:
-        run = run_generator(plan, prepared, FakeTransport(hook=hook))
+        run = run_generator(plan, prepared, transport)
     finally:
         signal.signal(signal.SIGINT, previous)
+    elapsed = time.monotonic() - started
     # El generador esperó al request en vuelo en lugar de darlo por perdido.
-    assert time.monotonic() - started >= 1
+    assert elapsed >= 1
     assert run.interrupted is True
     assert run.faults == (ex10.ApparatusFault(Fault.OPERATOR_INTERRUPTED, detail="after_t0"),)
     assert run.attempts[0].outcome is Outcome.HTTP_ACCEPTED
@@ -1063,9 +1120,11 @@ def test_operator_interruption_after_t0_is_not_demonstrated(plan, prepared):
     assert all(a.send_count == 0 for a in run.attempts[1:5])
     assert "operator-interrupted" in ex10.apparatus_invalidity(plan, run)
     assert evaluate_complete(plan, run).decision is constants.Decision.NOT_DEMONSTRATED
+    return {**interruption_facts(plan, run, transport), "waited_for_in_flight": elapsed >= 1}
 
 
-def test_a_second_interruption_does_not_discard_the_run(plan, prepared):
+def scenario_second_interruption():
+    plan, prepared = child_inputs()
     in_flight = threading.Event()
 
     def hook(request):
@@ -1077,13 +1136,47 @@ def test_a_second_interruption_does_not_discard_the_run(plan, prepared):
             in_flight.wait(0.5)
 
     previous = signal.signal(signal.SIGINT, signal.default_int_handler)
+    transport = FakeTransport(hook=hook)
     try:
-        run = run_generator(plan, prepared, FakeTransport(hook=hook))
+        run = run_generator(plan, prepared, transport)
     finally:
         signal.signal(signal.SIGINT, previous)
     assert run.interrupted is True
     assert run.faults == (ex10.ApparatusFault(Fault.OPERATOR_INTERRUPTED, detail="after_t0"),)
     assert run.attempts[0].outcome is Outcome.HTTP_ACCEPTED
+    return interruption_facts(plan, run, transport)
+
+
+AFTER_T0_ONLY = [["operator_interrupted", None, None, "after_t0"]]
+
+
+def assert_only_the_post_t0_interruption(facts):
+    """Lo que `assert_interrupted_after_t0_only` exige, sobre los hechos que devuelve el hijo."""
+    assert facts["t0_present"] is True and facts["interrupted"] is True
+    assert facts["faults"] == AFTER_T0_ONLY and facts["barrier_broken"] == 0
+    assert set(facts["outcomes"]) <= {"HTTP_ACCEPTED", "NOT_SENT"}
+    assert facts["send_counts"] == [int(o == "HTTP_ACCEPTED") for o in facts["outcomes"]]
+    assert facts["duplicate_sends"] == 0
+    assert facts["operator_interrupted_invalidity"] is True
+    assert facts["decision"] == "NOT_DEMONSTRATED"
+    assert (facts["attempts"], facts["vu_threads"], facts["vu_threads_alive"]) == (50, 10, 0)
+    assert facts["python_threads_after"] == 1
+
+
+def test_operator_interruption_after_t0_is_not_demonstrated():
+    facts = run_signal_scenario("interruption-after-t0")
+    assert facts["waited_for_in_flight"] is True
+    assert (facts["interrupted"], facts["faults"]) == (True, AFTER_T0_ONLY)
+    assert facts["outcomes"][0] == "HTTP_ACCEPTED"
+    assert facts["outcomes"][1:5] == ["NOT_SENT"] * 4 and facts["send_counts"][1:5] == [0] * 4
+    assert facts["operator_interrupted_invalidity"] is True
+    assert facts["decision"] == "NOT_DEMONSTRATED" and facts["duplicate_sends"] == 0
+
+
+def test_a_second_interruption_does_not_discard_the_run():
+    facts = run_signal_scenario("second-interruption")
+    assert (facts["interrupted"], facts["faults"]) == (True, AFTER_T0_ONLY)
+    assert facts["outcomes"][0] == "HTTP_ACCEPTED" and facts["attempts"] == 50
 
 
 def recorded_threads():
@@ -1114,12 +1207,12 @@ def assert_interrupted_after_t0_only(plan, run, transport, threads):
     assert len(threads) == 10 and not any(thread.is_alive() for thread in threads)
 
 
-@pytest.mark.parametrize("switch_interval", [1.0, None, 1e-6], ids=["long", "default", "short"])
-def test_an_interruption_at_t0_never_breaks_a_released_vu(plan, prepared, switch_interval):
+def scenario_interruption_at_t0(switch_interval):
     # La interrupción más cercana a t0: la primera lectura del reloj, dentro de la acción de
     # la barrera, la dispara y espera a que el hilo principal la atienda. Su `abort` llega
     # con la barrera ya liberada y con VU que aún no despertaron; con un intervalo de cambio
     # largo, los nueve que esperaban. Ninguno es un fallo de la barrera.
+    plan, prepared = child_inputs()
     handled = threading.Event()
     reads = itertools.count()
 
@@ -1147,11 +1240,25 @@ def test_an_interruption_at_t0_never_breaks_a_released_vu(plan, prepared, switch
     assert time.monotonic() - started < 5  # sin esperas de barrera ni de join
     assert handled.is_set()
     assert_interrupted_after_t0_only(plan, run, transport, threads)
-    assert (signal.getsignal(signal.SIGINT), sys.getswitchinterval()) == (previous, interval)
+    restored = (signal.getsignal(signal.SIGINT), sys.getswitchinterval()) == (previous, interval)
+    assert restored
+    return {
+        **interruption_facts(plan, run, transport, threads),
+        "handled": True,
+        "restored": restored,
+    }
 
 
-def test_an_interruption_once_every_vu_left_the_barrier_is_only_the_interruption(plan, prepared):
+@pytest.mark.parametrize("switch_interval", [1.0, None, 1e-6], ids=["long", "default", "short"])
+def test_an_interruption_at_t0_never_breaks_a_released_vu(switch_interval):
+    facts = run_signal_scenario("interruption-at-t0", switch_interval=switch_interval)
+    assert facts["handled"] is True and facts["restored"] is True
+    assert_only_the_post_t0_interruption(facts)
+
+
+def scenario_interruption_after_all_left_the_barrier():
     # Los 10 primeros requests en vuelo a la vez: todos los VU salieron ya de la barrera.
+    plan, prepared = child_inputs()
     first = {plan.for_vu(vu)[0].request_key for vu in plan.vus}
     together = threading.Barrier(10, action=_thread.interrupt_main, timeout=5)
     handled = threading.Event()
@@ -1176,6 +1283,225 @@ def test_an_interruption_once_every_vu_left_the_barrier_is_only_the_interruption
     assert_interrupted_after_t0_only(plan, run, transport, threads)
     by_key = {a.request_key: a for a in run.attempts}
     assert all(by_key[key].outcome is Outcome.HTTP_ACCEPTED for key in first)
+    first_accepted = sorted(i for i, a in enumerate(run.attempts) if a.request_key in first)
+    return {**interruption_facts(plan, run, transport, threads), "first_indices": first_accepted}
+
+
+def test_an_interruption_once_every_vu_left_the_barrier_is_only_the_interruption():
+    facts = run_signal_scenario("interruption-after-all-left-the-barrier")
+    assert_only_the_post_t0_interruption(facts)
+    assert len(facts["first_indices"]) == 10
+    assert all(facts["outcomes"][i] == "HTTP_ACCEPTED" for i in facts["first_indices"])
+
+
+def test_the_signal_child_never_inherits_coverage(monkeypatch):
+    # Con estas variables pytest-cov (`pytest-cov.pth`) trazaría al hijo: se eliminan.
+    for name in (
+        "COV_CORE_SOURCE",
+        "COV_CORE_CONFIG",
+        "COV_CORE_DATAFILE",
+        "COVERAGE_PROCESS_START",
+    ):
+        monkeypatch.setenv(name, "/nonexistent")
+    env = signal_child.child_environment()
+    assert not {k for k in env if k.startswith("COV_CORE_") or k == "COVERAGE_PROCESS_START"}
+    facts = run_signal_scenario("selftest-ok")
+    assert facts == {"python_threads": 1, "coverage_loaded": False, "trace_active": False}
+
+
+@pytest.mark.parametrize(
+    ("scenario", "params", "reason"),
+    [
+        ("selftest-exit", {"code": 7}, "exit:7"),
+        ("selftest-signal", {}, "signal:SIGKILL"),
+        ("selftest-garbage", {}, "stdout-invalid"),
+        ("unknown-scenario", {}, "exit:3"),
+    ],
+    ids=["nonzero-exit", "signal-death", "invalid-stdout", "unknown-scenario"],
+)
+def test_a_child_without_a_valid_result_fails(scenario, params, reason):
+    with pytest.raises(signal_child.ChildFailure) as failure:
+        run_signal_scenario(scenario, **params)
+    assert failure.value.reason == reason
+
+
+def _process_state(status):
+    """La letra de estado de /proc/<pid>/status (R, S, D, Z...), o "unparseable"."""
+    line = next((line for line in status.splitlines() if line.startswith("State:")), "")
+    letter = line.removeprefix("State:").strip()[:1]
+    return letter if letter.isalpha() and letter.isupper() else "unparseable"
+
+
+def _assert_process_gone_or_zombie(pid, proc=Path("/proc"), timeout=5.0, poll=0.010):
+    """El proceso queda recogido (/proc/<pid> desaparece) o zombi dentro de `timeout`.
+
+    Tras killpg(SIGKILL) el kernel entrega la señal y termina al proceso de forma asíncrona
+    respecto de quien recoge al hijo directo: durante unos milisegundos el nieto puede seguir
+    en R/S/D. Por eso se sondea con reloj monotónico hasta el plazo. Sin exists() previo: la
+    lectura de un proceso que desaparece da FileNotFoundError o ProcessLookupError (ESRCH), y
+    eso es recogido; tras desaparecer no se vuelve a mirar (el PID podría reutilizarse).
+    Cualquier otro error de lectura (PermissionError, E/S, decodificación) se propaga.
+    """
+    status_path = proc / str(pid) / "status"
+    deadline = time.monotonic() + timeout
+    while True:
+        try:
+            status = status_path.read_text()
+        except (FileNotFoundError, ProcessLookupError):
+            return
+        state = _process_state(status)
+        if state == "Z":
+            return
+        if time.monotonic() >= deadline:
+            raise AssertionError(f"descendant-did-not-terminate pid={pid} state={state}")
+        time.sleep(poll)
+
+
+class _FakeClock:
+    """time.monotonic/time.sleep deterministas; time.time no debe usarse."""
+
+    def __init__(self, monkeypatch):
+        self.now, self.sleeps = 1000.0, []
+        monkeypatch.setattr(time, "monotonic", lambda: self.now)
+        monkeypatch.setattr(time, "sleep", self.sleep)
+        monkeypatch.setattr(time, "time", self.wall_clock)
+
+    def sleep(self, seconds):
+        self.sleeps.append(seconds)
+        self.now += seconds
+
+    def wall_clock(self):
+        raise AssertionError("el helper no debe usar el reloj de pared")
+
+
+@pytest.fixture
+def proc_reads(tmp_path, monkeypatch):
+    """Cada lectura de /proc/4242/status devuelve el siguiente estado o lanza la excepción."""
+    clock = _FakeClock(monkeypatch)
+    reads = []
+
+    def script(*steps):
+        pending = list(steps)
+
+        def read_text(path, *args, **kwargs):
+            assert path == tmp_path / "4242" / "status"
+            reads.append(path)
+            step = pending.pop(0) if len(pending) > 1 else pending[0]
+            if isinstance(step, BaseException) or (
+                isinstance(step, type) and issubclass(step, BaseException)
+            ):
+                raise step
+            return f"Name:\tpython\nState:\t{step}\nPid:\t4242\n"
+
+        monkeypatch.setattr(Path, "read_text", read_text)
+        return tmp_path
+
+    script.reads, script.clock = reads, clock
+    return script
+
+
+def test_process_check_passes_when_proc_is_absent_from_the_start(tmp_path):
+    _assert_process_gone_or_zombie(4242, proc=tmp_path)
+
+
+def test_process_check_passes_for_an_immediate_zombie(proc_reads):
+    _assert_process_gone_or_zombie(4242, proc=proc_reads("Z (zombie)"))
+    assert len(proc_reads.reads) == 1 and proc_reads.clock.sleeps == []
+
+
+@pytest.mark.parametrize(
+    "steps",
+    [
+        ("R (running)", FileNotFoundError(errno.ENOENT, "gone")),
+        ("R (running)", "R (running)", ProcessLookupError(errno.ESRCH, "gone")),
+        ("R (running)", "Z (zombie)"),
+        ("S (sleeping)", "Z (zombie)"),
+        ("D (disk sleep)", "S (sleeping)", "Z (zombie)"),
+    ],
+    ids=["R-then-gone", "R-then-esrch", "R-then-Z", "S-then-Z", "D-S-then-Z"],
+)
+def test_process_check_waits_for_a_dying_process(proc_reads, steps):
+    _assert_process_gone_or_zombie(4242, proc=proc_reads(*steps))
+    # Se detiene en cuanto desaparece o es zombi: nunca vuelve a leer (PID reutilizable).
+    assert len(proc_reads.reads) == len(steps)
+    assert proc_reads.clock.sleeps == [0.010] * (len(steps) - 1)
+
+
+@pytest.mark.parametrize("error", [FileNotFoundError, ProcessLookupError])
+def test_process_check_passes_when_the_process_vanishes_while_reading(proc_reads, error):
+    # PROCFS_REAP_RACE: el status existía y el kernel recoge el proceso antes de leerlo.
+    _assert_process_gone_or_zombie(4242, proc=proc_reads(error(errno.ESRCH, "gone")))
+
+
+@pytest.mark.parametrize("state", ["R (running)", "S (sleeping)", "D (disk sleep)", "I (idle)"])
+def test_process_check_fails_if_alive_for_the_whole_timeout(proc_reads, state):
+    proc = proc_reads(state)
+    start = proc_reads.clock.now
+    expected = f"descendant-did-not-terminate pid=4242 state={state[0]}"
+    with pytest.raises(AssertionError, match=expected):
+        _assert_process_gone_or_zombie(4242, proc=proc)
+    waited = proc_reads.clock.now - start
+    # Espera el plazo completo y no lo excede en más de un sondeo.
+    assert 5.0 <= waited <= 5.0 + 0.010 + 1e-9
+    assert set(proc_reads.clock.sleeps) == {0.010}
+
+
+def test_process_check_reports_an_unparseable_state_as_a_failure(proc_reads):
+    with pytest.raises(AssertionError, match="state=unparseable"):
+        _assert_process_gone_or_zombie(4242, proc=proc_reads("?? (odd)"), timeout=0.05)
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        PermissionError(errno.EACCES, "denied"),
+        OSError(errno.EIO, "I/O error"),
+        UnicodeDecodeError("utf-8", b"\xff", 0, 1, "invalid start byte"),
+    ],
+    ids=["permission", "eio", "decode"],
+)
+def test_process_check_propagates_any_other_read_error(proc_reads, error):
+    with pytest.raises(type(error)):
+        _assert_process_gone_or_zombie(4242, proc=proc_reads("R (running)", error))
+
+
+def test_process_check_on_a_real_process_fails_while_alive_and_passes_once_reaped():
+    child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
+    try:
+        start = time.monotonic()
+        with pytest.raises(AssertionError, match="descendant-did-not-terminate"):
+            _assert_process_gone_or_zombie(child.pid, timeout=0.2)
+        assert time.monotonic() - start >= 0.2
+    finally:
+        child.kill()
+        child.wait()
+    _assert_process_gone_or_zombie(child.pid)
+
+
+def test_a_hung_child_times_out_as_a_failure_and_leaves_no_process():
+    with pytest.raises(signal_child.ChildFailure) as failure:
+        run_signal_scenario("selftest-hang", timeout=5)
+    assert failure.value.reason == "timeout"
+    # El nieto estaba en el grupo del hijo: murió con él (a lo sumo queda por recoger).
+    match = re.search(r'"grandchild": (\d+)', str(failure.value))
+    assert match, "el hijo no llegó a informar su nieto"
+    _assert_process_gone_or_zombie(int(match.group(1)))
+
+
+def test_child_stderr_reaches_the_test_log_sanitized():
+    with pytest.raises(signal_child.ChildFailure) as failure:
+        run_signal_scenario("selftest-leak")
+    message = str(failure.value)
+    assert failure.value.reason == "exit:1"
+    assert "[REDACTED]" in message and "eyJhbGciOiJIUzI1NiJ9.eyJsZWFrIjoidGVzdCJ9" not in message
+
+
+SIGNAL_SCENARIOS = {
+    "interruption-after-t0": scenario_interruption_after_t0,
+    "second-interruption": scenario_second_interruption,
+    "interruption-at-t0": scenario_interruption_at_t0,
+    "interruption-after-all-left-the-barrier": scenario_interruption_after_all_left_the_barrier,
+}
 
 
 def test_a_failing_barrier_action_leaves_no_t0_and_breaks_the_barrier(plan, prepared):
