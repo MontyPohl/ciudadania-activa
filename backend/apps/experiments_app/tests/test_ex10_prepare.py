@@ -10,6 +10,7 @@ import dataclasses
 import fnmatch
 import hashlib
 import io
+import ipaddress
 import json
 import os
 import shutil
@@ -187,6 +188,29 @@ class Resolver:
         return name in self.alive
 
 
+def elsewhere_host(effective):
+    """Un host declarado que admite la allowlist de aislamiento (loopback) y que nunca es el
+    efectivo. No se contacta: la guarda bloquea antes la resolución del host efectivo."""
+    return next(host for host in ("127.0.0.2", "127.0.0.3") if host != effective)
+
+
+def endpoint_of(params):
+    """Host y puerto de una conexión de Django, nunca credenciales. `PORT` vacío es el 5432,
+    la misma normalización que `ex10_preflight._approved_database_endpoint`."""
+    return params["HOST"], int(params["PORT"] or 5432)
+
+
+def effective_database_endpoint():
+    """El PostgreSQL que usan de verdad estos tests, en Compose (`db`), en CI (`localhost`) o
+    en cualquier otra topología: se lee de la conexión efectiva, sin abrirla."""
+    return endpoint_of(connection.settings_dict)
+
+
+def declared_s11_url(host, port, name):
+    netloc = f"[{host}]" if ":" in host else host
+    return f"postgis://ciudadania@{netloc}:{port}/{name}"
+
+
 @pytest.fixture
 def roots(settings, request):
     base = Path.cwd() / ".s11-test-artifacts" / f"ex10-prepare-{request.node.name}"
@@ -199,7 +223,8 @@ def roots(settings, request):
     source.mkdir()
     settings.S11_EXPERIMENTS_ENABLED = True
     settings.S11_ENVIRONMENT = "isolated-experiment"
-    settings.S11_DATABASE_URL = f"postgis://ciudadania@db:5432/{DECLARED_DB}"
+    # La base S11 declarada vive en el servidor efectivo de los tests: sólo el nombre difiere.
+    settings.S11_DATABASE_URL = declared_s11_url(*effective_database_endpoint(), DECLARED_DB)
     settings.REDIS_URL = REAL_REDIS
     settings.S11_OBJECT_ROOT = base / "objects"
     settings.S11_ARTIFACT_ROOT = evidence["runs"]
@@ -607,6 +632,26 @@ def test_an_unavailable_database_is_incomplete_and_nothing_is_written(stack):
     assert CANARY not in report.to_bytes().decode()
 
 
+@pytest.mark.parametrize(
+    ("params", "endpoint"),
+    [
+        ({"HOST": "db", "PORT": "5432"}, ("db", 5432)),
+        ({"HOST": "localhost", "PORT": 5432}, ("localhost", 5432)),
+        ({"HOST": "127.0.0.1", "PORT": "55432"}, ("127.0.0.1", 55432)),
+        ({"HOST": "::1", "PORT": ""}, ("::1", 5432)),
+        ({"HOST": "postgres.internal", "PORT": None}, ("postgres.internal", 5432)),
+    ],
+    ids=["compose", "ci-localhost", "ipv4-str-port", "ipv6-default-port", "hostname-no-port"],
+)
+def test_the_declared_endpoint_follows_the_effective_one_in_any_topology(params, endpoint):
+    # La URL de los tests la aprueba la guarda real; el host «de otro sitio», nunca.
+    assert endpoint_of(params) == endpoint
+    assert pf._approved_database_endpoint(params, declared_s11_url(*endpoint, "x")) == endpoint
+    elsewhere = declared_s11_url(elsewhere_host(endpoint[0]), endpoint[1], "x")
+    assert elsewhere_host(endpoint[0]) != endpoint[0]
+    assert pf._approved_database_endpoint(params, elsewhere) is None
+
+
 @transactional
 def test_the_first_database_connection_is_allowed_under_the_guard(stack, clean_contenttype_cache):
     # En un proceso nuevo la primera conexión ocurre dentro de la guarda, y psycopg 3.2
@@ -627,11 +672,20 @@ def test_the_first_database_connection_is_allowed_under_the_guard(stack, clean_c
 def test_a_database_host_other_than_the_declared_one_is_blocked(
     stack, settings, clean_contenttype_cache
 ):
-    settings.S11_DATABASE_URL = f"postgis://ciudadania@localhost:5432/{DECLARED_DB}"
+    # Un host declarado inequívocamente distinto del efectivo, en cualquier topología.
+    host, port = effective_database_endpoint()
+    try:
+        ipaddress.ip_address(host)
+    except ValueError:
+        pass
+    else:
+        pytest.skip("con una IP literal psycopg no resuelve nada: no hay resolución que bloquear")
+    settings.S11_DATABASE_URL = declared_s11_url(elsewhere_host(host), port, DECLARED_DB)
     stack.probes.preflight.database_identity = pf.real_database_identity
     connection.close()
     report = prepare(stack)
     names = checks(report)
+    assert "isolation_aborted" in names, not_pass(report)
     assert (names["isolation_aborted"].result, names["isolation_aborted"].detail_code) == (
         R.FAIL,
         "guard-network",

@@ -1969,6 +1969,43 @@ def json_values(node):
         yield node
 
 
+#: `endpoint_facts` tal cual, o como lo publican `api_broker` y `api_result_backend`.
+REDIS_ENDPOINT_SHAPES = (
+    {"scheme", "host", "db", "matches_protocol"},
+    {"scheme", "host", "db", "matches_protocol", "same_as_approved"},
+)
+
+
+def without_redis_endpoint_hosts(node):
+    """El informe sin el `host` de los hechos de endpoint Redis (`endpoint_facts`), que se
+    publican a propósito. Si Redis y la base comparten host (`localhost` en CI), ese valor no
+    es una fuga del destino PostgreSQL aprobado; cualquier otra aparición, sí."""
+    if isinstance(node, dict):
+        if set(node) in REDIS_ENDPOINT_SHAPES and str(node["scheme"]).startswith("redis"):
+            return {key: value for key, value in node.items() if key != "host"}
+        return {key: without_redis_endpoint_hosts(value) for key, value in node.items()}
+    if isinstance(node, list):
+        return [without_redis_endpoint_hosts(value) for value in node]
+    return node
+
+
+def test_only_redis_endpoint_hosts_are_excluded_from_the_leak_scan():
+    # La excepción es exacta: el mismo host fuera de un endpoint Redis sigue contando.
+    redis = {"scheme": "redis", "host": "localhost", "db": 11, "matches_protocol": True}
+    report = {
+        "api_broker": {**redis, "same_as_approved": True},
+        "approved": redis,
+        "isolation_database_connected": {"host": "localhost"},
+        "other": [{"scheme": "postgis", "host": "localhost", "db": 1, "matches_protocol": True}],
+        "extra": {**redis, "port": 5432},
+    }
+    assert [v for v in json_values(without_redis_endpoint_hosts(report)) if v == "localhost"] == [
+        "localhost",
+        "localhost",
+        "localhost",
+    ]
+
+
 @pytest.mark.parametrize("mode", ["cli", "cli-unresolvable"])
 def test_the_cli_in_a_fresh_process_reaches_its_database_through_the_guard(
     tmp_path, s11_database, fresh_roots, health_server, mode
@@ -2000,7 +2037,7 @@ def test_the_cli_in_a_fresh_process_reaches_its_database_through_the_guard(
     # El destino aprobado no llega al output: ni host, ni direcciones, ni puerto, ni DSN.
     host, port = connection.settings_dict["HOST"], int(connection.settings_dict["PORT"] or 5432)
     addresses = {answer[4][0] for answer in socket.getaddrinfo(host, port)}
-    values = list(json_values(report))
+    values = list(json_values(without_redis_endpoint_hosts(report)))
     strings = [value for value in values if isinstance(value, str)]
     assert [value for value in strings if value in {host, str(port), *addresses}] == []
     assert port not in [value for value in values if type(value) is int]
