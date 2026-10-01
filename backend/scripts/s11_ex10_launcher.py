@@ -20,6 +20,11 @@ preflight (raíz exacta, HEAD, árbol limpio, sin sparse ni shallow, sin entrada
 `.env*` no versionados tapados y, si hace falta, un `/etc/gitconfig` temporal con
 exactamente `safe.directory = /s11-full-source`.
 
+La raíz de evidencia de una sesión puede guardar varios runs LOCAL_TEST. El launcher sólo
+valida su estructura (`check_evidence`): START admite runs previos y el executor, dentro de su
+lock, decide con ellos (modo, custodia, primer run válido); las demás acciones exigen que su
+run exista, sin exigir que sea el único. Ningún run se borra, mueve ni oculta.
+
 El ensayo nunca toca la custodia oficial. Exige una sesión fuera del repositorio:
 
     <sesión>/{evidence,backup,restore,objects,output,temporary-secrets}   (todo 0700)
@@ -309,18 +314,62 @@ def write_session(root: Path) -> Session:
     return session
 
 
-def check_evidence(session: Session, action: str, run_id: str | None) -> list[str]:
-    """La raíz de evidencia de la sesión: vacía para START; sólo el run esperado después."""
-    runs = session.path("evidence") / "runs"
-    present = sorted(p.name for p in runs.iterdir()) if runs.is_dir() else []
-    if runs.is_symlink():
-        raise LauncherError("evidence-runs-symlink")
-    if action == "start-local-test":
-        if present:
-            raise LauncherError("session-evidence-not-empty")
-    elif present != [run_id]:
-        raise LauncherError("session-evidence-unexpected-run")
+#: Lo que el EvidenceStore crea en la raíz de evidencia, con su tipo: nada más se admite.
+EVIDENCE_ROOT_ENTRIES = {
+    "runs": stat.S_IFDIR,
+    "finalization-transactions": stat.S_IFDIR,
+    ".s11-custody.lock": stat.S_IFREG,
+}
+
+
+def evidence_runs(session: Session) -> list[str]:
+    """Los runs de la raíz de evidencia de la sesión, validada sólo en su estructura.
+
+    La raíz contiene únicamente lo contractual del EvidenceStore, cada entrada de su tipo y
+    nunca un symlink. Bajo `runs/` sólo hay directorios reales con nombre de run canónico: un
+    archivo, symlink, FIFO, socket o nombre no canónico podría ocultar o suplantar un run, o
+    sacar la operación de la sesión, y se rechaza. Nada se lee de dentro de los runs.
+    """
+    evidence = session.path("evidence")
+    for name in os.listdir(evidence):
+        if EVIDENCE_ROOT_ENTRIES.get(name) != stat.S_IFMT(os.lstat(evidence / name).st_mode):
+            raise LauncherError("evidence-unexpected-entry")
+    runs = evidence / "runs"
+    if not os.path.lexists(runs):
+        return []
+    present = sorted(os.listdir(runs))
+    for name in present:
+        if not _RUN_ID.fullmatch(name) or not stat.S_ISDIR(os.lstat(runs / name).st_mode):
+            raise LauncherError("evidence-unexpected-run-entry")
     return present
+
+
+def check_evidence(session: Session, action: str, run_id: str | None) -> list[str]:
+    """La frontera del launcher sobre la evidencia de la sesión; la semántica es del executor.
+
+    START admite runs previos: `start_run` los explora bajo su lock (modo, custodia, run activo,
+    primer run válido, reconocimientos, run_id reutilizado) y decide. Las demás acciones exigen
+    que su run exista como directorio real directamente bajo `runs/` de esta sesión, sin exigir
+    que sea el único. Nunca se borra, mueve ni oculta un run: la sesión se monta entera.
+    """
+    present = evidence_runs(session)
+    if action != "start-local-test":
+        target = session.path("evidence") / "runs" / str(run_id)
+        if run_id not in present or os.path.realpath(target) != str(target):
+            raise LauncherError("target-run-not-found")
+    return present
+
+
+def evidence_runs_after(
+    session: Session, before: Sequence[str], *, created: str | None
+) -> tuple[list[str] | None, list[str]]:
+    """Tras el command: siguen todos los runs previos y, como mucho, el que START creó."""
+    try:
+        after = evidence_runs(session)
+    except LauncherError:
+        return None, ["evidence-structure-after"]
+    expected = sorted({*before, created}) if created else list(before)
+    return after, [] if after == expected else ["evidence-runs-changed"]
 
 
 # --- Informe de preflight ----------------------------------------------------------------------
@@ -1054,9 +1103,18 @@ def _execute_locked(invocation, spec, session, output, meta) -> dict[str, Any]:
         problems.append("docker-state-after-unavailable")
     elif not meta["docker_after_matches_before"]:
         problems.append("docker-resources-changed")
+    created = None
+    if invocation.action == "start-local-test" and outcome.classification == "COHERENT":
+        created = outcome.run_id
+        if created in meta["evidence_runs_before"]:
+            problems.append("start:run-id-not-new")
+    meta["evidence_runs_after"], changed = evidence_runs_after(
+        session, meta["evidence_runs_before"], created=created
+    )
+    problems += changed
     if problems and classification != "LAUNCHER_FAILURE":
         classification, code = "LAUNCHER_FAILURE", EXIT_LAUNCHER_FAILURE
-    if outcome.run_id and classification == "COHERENT":
+    if outcome.run_id and not problems and classification == "COHERENT":
         meta["rehearsal_run_id"] = outcome.run_id
     return _finish(
         output,

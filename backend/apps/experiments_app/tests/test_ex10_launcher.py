@@ -37,6 +37,7 @@ base = launcher.base
 NOW = datetime(2026, 9, 30, 12, 0, tzinfo=UTC)
 PROJECT = launcher.PROJECT
 RUN_ID = "s11-33b0d2a4-ad98-5b8e-b48d-31701977365f"
+RUN_B = "s11-44c1d2a4-ad98-5b8e-b48d-31701977365f"
 NONCE = "nonce-rehearsal-0001"
 SHA256 = "a" * 64
 
@@ -265,6 +266,9 @@ def invocation(checkout, session, fake, action, **changes):
 
 
 def run_action(checkout, session, fake, action, *, code=0, stdout=None, stderr=b"", **changes):
+    if action == "start-local-test" and code == 0 and stdout is None and fake.on_run is None:
+        # Como el command real: un START coherente crea su run en la evidencia de la sesión.
+        fake.on_run = lambda argv: make_run(session, RUN_ID)
     if fake.result is None:
         out = command_json(OUTPUT[action]) if stdout is None and code == 0 else (stdout or b"")
         fake.result = base.Completed(code, out, stderr)
@@ -273,6 +277,12 @@ def run_action(checkout, session, fake, action, *, code=0, stdout=None, stderr=b
     changes.pop("session_evidence", None)
     summary = launcher.execute(invocation(checkout, session, fake, action, **changes))
     return summary, Path(summary["output_dir"])
+
+
+def make_run(session, run_id=RUN_ID):
+    path = session.root / "evidence" / "runs" / run_id
+    path.mkdir(parents=True, exist_ok=True)
+    return path
 
 
 def meta(output):
@@ -642,17 +652,12 @@ def test_the_override_must_be_the_generated_one(checkout, session):
         launcher.verify_session(session.root, checkout.root, {})
 
 
-def test_start_requires_an_empty_session_evidence_root(checkout, session):
-    (session.root / "evidence" / "runs" / RUN_ID).mkdir(parents=True)
-    summary, output = run_action(checkout, session, FakeDocker(), "start-local-test")
-    assert summary["launcher_exit"] == 3 and summary["problems"] == ["session-evidence-not-empty"]
-
-
-def test_later_actions_require_exactly_the_expected_run(checkout, session):
-    (session.root / "evidence" / "runs" / RUN_ID.replace("33b0", "44c1")).mkdir(parents=True)
+def test_later_actions_require_their_run_in_this_session(checkout, session):
+    # Un run que no existe en la evidencia de esta sesión no se opera (aunque haya otros).
+    make_run(session, RUN_B)
     fake = FakeDocker()
     summary, _ = run_action(checkout, session, fake, "status", session_evidence=True)
-    assert summary["problems"] == ["session-evidence-unexpected-run"] and fake.runs() == []
+    assert summary["problems"] == ["target-run-not-found"] and fake.runs() == []
 
 
 def test_status_creates_no_run_and_no_root(checkout, session):
@@ -997,3 +1002,448 @@ def test_write_session_creates_private_dirs_and_files(checkout):
     with pytest.raises(base.LauncherError):
         launcher.write_session(created.root)
     assert launcher.verify_session(created.root, checkout.root, {}).secrets == created.secrets
+
+
+# --- Sesión con varios runs LOCAL_TEST --------------------------------------------------------
+# El launcher sólo valida la estructura de la evidencia de la sesión: START admite runs previos
+# (el executor decide con ellos dentro de su lock) y las demás acciones exigen su run, no que sea
+# el único. Ningún run se borra, mueve ni oculta; la salida de cada acción es suya.
+
+
+def entries(session):
+    return sorted(os.listdir(session.root / "evidence" / "runs"))
+
+
+def refusal_result(code, reasons):
+    payload = {"reasons": reasons, "refused": True, "terminal": code == 2}
+    stderr = json.dumps(payload, sort_keys=True).encode() + b"\nCommandError: S11_EX10_REFUSED\n"
+    return base.Completed(code, b"", stderr), payload
+
+
+@pytest.mark.parametrize("layout", ["no-runs-dir", "empty-runs-dir", "contractual-root"])
+def test_start_with_an_empty_store_is_launched(checkout, session, layout):
+    # (1) Sin `runs/`, con `runs/` vacío o con los sidecars contractuales del EvidenceStore.
+    evidence = session.root / "evidence"
+    if layout != "no-runs-dir":
+        (evidence / "runs").mkdir()
+    if layout == "contractual-root":
+        (evidence / "finalization-transactions").mkdir()
+        (evidence / ".s11-custody.lock").write_bytes(b"")
+    fake = FakeDocker()
+    summary, output = run_action(checkout, session, fake, "start-local-test")
+    assert summary["classification"] == "COHERENT" and len(fake.runs()) == 1
+    assert meta(output)["evidence_runs_before"] == [] and entries(session) == [RUN_ID]
+    assert meta(output)["evidence_runs_after"] == [RUN_ID]
+
+
+def test_a_target_action_without_its_run_or_run_id_launches_nothing(checkout, session):
+    # (2, 3) Sin el run: rechazo previo; sin `--run-id`: uso.
+    for action in ("rehearsal-started", "abandon-pre-t0", "status"):
+        fake = FakeDocker()
+        summary, _ = run_action(checkout, session, fake, action, session_evidence=True)
+        assert summary["problems"] == ["target-run-not-found"] and fake.runs() == []
+    with pytest.raises(base.UsageError):
+        launcher.validate_invocation(
+            invocation(checkout, session, FakeDocker(), "status", run_id=None)
+        )
+
+
+@pytest.mark.parametrize("prior", [[RUN_B], [RUN_B, "s11-55d2e3b5-be09-5c9f-a59e-42812088476a"]])
+def test_start_with_prior_runs_is_launched_and_leaves_them_in_place(checkout, session, prior):
+    # (4, 5, 21, 28) Con runs previos START se lanza igual; los previos siguen visibles y
+    # nada de ellos cambia: el launcher no los lee, mueve ni oculta (la sesión se monta entera).
+    for run in prior:
+        (make_run(session, run) / "raw").mkdir()
+    before = {run: os.lstat(session.root / "evidence" / "runs" / run) for run in prior}
+    fake = FakeDocker()
+    summary, output = run_action(checkout, session, fake, "start-local-test")
+    assert summary["classification"] == "COHERENT" and summary["rehearsal_run_id"] == RUN_ID
+    assert meta(output)["evidence_runs_before"] == sorted(prior)
+    assert meta(output)["evidence_runs_after"] == sorted([*prior, RUN_ID])
+    (argv,) = fake.runs()
+    assert not any(run in token for token in argv for run in prior)
+    mounts = [argv[i + 1] for i, token in enumerate(argv) if token == "-v"]
+    assert not any("evidence" in mount for mount in mounts)
+    for run, info in before.items():
+        after = os.lstat(session.root / "evidence" / "runs" / run)
+        assert (after.st_ino, after.st_mtime_ns, after.st_ctime_ns) == (
+            info.st_ino, info.st_mtime_ns, info.st_ctime_ns,
+        )  # fmt: skip
+
+
+@pytest.mark.parametrize("action", ["rehearsal-started", "abandon-pre-t0", "status"])
+@pytest.mark.parametrize("target", [RUN_ID, RUN_B])
+def test_target_actions_select_their_run_among_several(checkout, session, action, target):
+    # (6–9, 29, 30) A con B presente y B con A presente: cada acción opera sólo su run.
+    make_run(session, RUN_ID)
+    make_run(session, RUN_B)
+    fake = FakeDocker(web=action != "status")
+    fake.result = base.Completed(0, command_json({**OUTPUT[action], "run_id": target}), b"")
+    summary, output = run_action(checkout, session, fake, action, run_id=target)
+    assert summary["classification"] == "COHERENT" and summary["rehearsal_run_id"] == target
+    (argv,) = fake.runs()
+    assert tail(argv)[tail(argv).index("--run-id") + 1] == target
+    assert entries(session) == sorted([RUN_ID, RUN_B])
+    assert json.loads((output / f"{action}.json").read_text())["run_id"] == target
+
+
+def test_outputs_of_two_runs_are_never_mixed(checkout, session):
+    # (10, 39–41, 44) Directorios de salida y contenedores distintos; la salida de A no
+    # puede traer B.
+    make_run(session, RUN_ID)
+    make_run(session, RUN_B)
+    outputs, containers = [], []
+    for target in (RUN_ID, RUN_B):
+        fake = FakeDocker(web=False)
+        fake.result = base.Completed(0, command_json({**STATUS_OK, "run_id": target}), b"")
+        summary, output = run_action(checkout, session, fake, "status", run_id=target)
+        outputs.append(output)
+        containers.append(meta(output)["container_name"])
+        assert RUN_B not in (output / "status.json").read_text() or target == RUN_B
+    assert len(set(outputs)) == 2 and len(set(containers)) == 2
+    fake = FakeDocker(web=False)
+    fake.result = base.Completed(0, command_json({**STATUS_OK, "run_id": RUN_B}), b"")
+    summary, output = run_action(checkout, session, fake, "status", run_id=RUN_ID)
+    assert summary["launcher_exit"] == 4 and "run-id-differs" in summary["problems"]
+    # La salida incoherente queda sólo en el directorio de esa acción, clasificada como fallo.
+    assert summary["classification"] == "LAUNCHER_FAILURE" and summary["rehearsal_run_id"] == RUN_ID
+    assert output.parent == session.root / "output" and output not in outputs
+
+
+@pytest.mark.parametrize(
+    ("code", "reasons"),
+    [
+        (1, [f"active-run:{RUN_B}"]),
+        (2, [f"binding-run-exists:{RUN_B}"]),
+        (1, [f"not-demonstrated-unacknowledged:{RUN_B}"]),
+        (1, [f"prior-run-unverifiable:{RUN_B}"]),
+        (2, ["run-id-reused"]),
+    ],
+    ids=["active", "official-binding", "official-nd", "unverifiable", "run-id-reused"],
+)
+def test_domain_refusals_of_start_are_propagated_not_reinterpreted(
+    checkout, session, code, reasons
+):
+    # (11–24) El executor rechaza con el run previo: el launcher conserva exit, JSON y stderr
+    # saneado; no es un error de configuración ni un PASS, no queda contenedor ni run nuevo.
+    (make_run(session, RUN_B) / "metadata").mkdir()
+    fake = FakeDocker()
+    fake.result, payload = refusal_result(code, reasons)
+    fake.on_run = lambda argv: None
+    summary, output = run_action(checkout, session, fake, "start-local-test")
+    assert summary["classification"] == "REFUSED" and summary["launcher_exit"] == code
+    assert summary["problems"] == [] and meta(output)["refusal"] == payload
+    assert summary["rehearsal_run_id"] is None and entries(session) == [RUN_B]
+    assert meta(output)["cleanup"]["container_absent"] is True
+    assert "start-local-test.json" not in os.listdir(output)
+
+
+def test_the_launcher_has_no_acknowledgement_or_official_option(checkout, capsys):
+    # (19, 52) Un NOT_DEMONSTRATED oficial no se reconoce desde el launcher del ensayo.
+    for extra in (
+        ["--acknowledge-not-demonstrated", RUN_B],
+        ["--official"],
+        ["--evidence-mode", "OFFICIAL"],
+    ):
+        args = ["start-local-test", "--expected-git-sha", checkout.head, "--session-root", "/x",
+                "--nonce", NONCE, "--preflight-report", "/x", *extra]  # fmt: skip
+        assert launcher.main(args, environ={}) == 3
+
+
+def _fifo(path):
+    os.mkfifo(path)
+
+
+def _socket(path):
+    import socket as socket_module
+    import tempfile
+
+    # AF_UNIX limita la ruta: se crea en un directorio corto y se mueve (el inodo es el mismo).
+    short = Path(tempfile.mkdtemp(prefix="s", dir="/tmp"))
+    sock = socket_module.socket(socket_module.AF_UNIX)
+    try:
+        sock.bind(str(short / "s"))
+    finally:
+        sock.close()
+    os.rename(short / "s", path)
+    short.rmdir()
+
+
+@pytest.mark.parametrize(
+    ("make", "problem"),
+    [
+        (lambda e, o: (e / "runs" / RUN_B).write_bytes(b"x"), "evidence-unexpected-run-entry"),
+        (
+            lambda e, o: (e / "runs" / RUN_B).symlink_to(o, target_is_directory=True),
+            "evidence-unexpected-run-entry",
+        ),
+        (lambda e, o: (e / "runs" / "not-a-run").mkdir(), "evidence-unexpected-run-entry"),
+        (lambda e, o: (e / "runs" / RUN_B.upper()).mkdir(), "evidence-unexpected-run-entry"),
+        (lambda e, o: _fifo(e / "runs" / RUN_B), "evidence-unexpected-run-entry"),
+        (lambda e, o: _socket(e / "runs" / RUN_B), "evidence-unexpected-run-entry"),
+        (lambda e, o: (e / "notes.txt").write_bytes(b"x"), "evidence-unexpected-entry"),
+        (lambda e, o: (e / RUN_B).mkdir(), "evidence-unexpected-entry"),
+        (lambda e, o: (e / ".s11-custody.lock").mkdir(), "evidence-unexpected-entry"),
+        (lambda e, o: (e / "finalization-transactions").symlink_to(o), "evidence-unexpected-entry"),
+    ],
+    ids=[
+        "file",
+        "symlink",
+        "non-canonical",
+        "case",
+        "fifo",
+        "socket",
+        "root-file",
+        "root-run-like",
+        "lock-not-file",
+        "sidecar-symlink",
+    ],  # fmt: skip
+)
+@pytest.mark.parametrize("action", ["start-local-test", "status"])
+def test_unexpected_evidence_entries_launch_nothing(checkout, session, make, problem, action):
+    # (25–27, 34) Lo que podría ocultar, suplantar o sacar un run de la sesión se rechaza antes
+    # de lanzar nada, y no se toca.
+    evidence = session.root / "evidence"
+    (evidence / "runs").mkdir()
+    make_run(session, RUN_ID)
+    other = checkout.home / "other"
+    other.mkdir()
+    make(evidence, other)
+    listing = sorted(os.listdir(evidence)), entries(session)
+    fake = FakeDocker()
+    summary, _ = run_action(checkout, session, fake, action, session_evidence=True)
+    assert summary["launcher_exit"] == 3 and summary["problems"] == [problem]
+    assert fake.runs() == [] and (sorted(os.listdir(evidence)), entries(session)) == listing
+
+
+@pytest.mark.parametrize("runs", ["symlink", "file"])
+def test_a_runs_directory_that_is_not_real_launches_nothing(checkout, session, runs):
+    evidence = session.root / "evidence"
+    if runs == "symlink":
+        (checkout.home / "elsewhere" / RUN_ID).mkdir(parents=True)
+        (evidence / "runs").symlink_to(checkout.home / "elsewhere", target_is_directory=True)
+    else:
+        (evidence / "runs").write_bytes(b"x")
+    for action in ("start-local-test", "status"):
+        fake = FakeDocker()
+        summary, _ = run_action(checkout, session, fake, action, session_evidence=True)
+        assert summary["problems"] == ["evidence-unexpected-entry"] and fake.runs() == []
+
+
+@pytest.mark.parametrize(
+    "run_id",
+    ["../" + RUN_ID, RUN_ID + "/..", RUN_ID[:-1], RUN_ID + "0", "", RUN_ID.upper(), RUN_ID + " "],
+    ids=["traversal", "traversal-suffix", "prefix", "longer", "empty", "case", "space"],
+)
+def test_non_canonical_targets_are_usage_errors(checkout, session, run_id):
+    # (32, 33, 36–38) Un `--run-id` no canónico nunca llega a la evidencia.
+    make_run(session, RUN_ID)
+    with pytest.raises(base.UsageError):
+        launcher.validate_invocation(
+            invocation(checkout, session, FakeDocker(), "status", run_id=run_id)
+        )
+
+
+def test_a_prefix_collision_or_another_session_run_is_not_the_target(checkout, session):
+    # (31, 33, 35) Coincidencia exacta del nombre, sólo en esta sesión.
+    make_run(session, RUN_ID)
+    other = launcher.write_session(checkout.home / "other-session")
+    make_run(other, RUN_B)
+    for target in (RUN_B, RUN_ID[:-4] + "0000"):
+        fake = FakeDocker()
+        summary, _ = run_action(checkout, session, fake, "status", run_id=target)
+        assert summary["problems"] == ["target-run-not-found"] and fake.runs() == []
+
+
+@pytest.mark.parametrize(
+    ("action", "effect", "problem"),
+    [
+        ("start-local-test", "delete-prior", "evidence-runs-changed"),
+        ("start-local-test", "reuse-prior", "start:run-id-not-new"),
+        ("start-local-test", "extra-run", "evidence-runs-changed"),
+        ("status", "create-run", "evidence-runs-changed"),
+        ("abandon-pre-t0", "delete-prior", "evidence-runs-changed"),
+        ("status", "unsafe-entry", "evidence-structure-after"),
+    ],
+)
+def test_the_evidence_after_the_command_must_keep_every_prior_run(
+    checkout, session, action, effect, problem
+):
+    # (14, 21, 28) Ningún run previo desaparece y como mucho aparece el que START creó; si no,
+    # es un fallo del launcher (exit 4), nunca un PASS.
+    make_run(session, RUN_B)
+    if action != "start-local-test":
+        make_run(session, RUN_ID)
+    runs = session.root / "evidence" / "runs"
+    effects = {
+        "delete-prior": lambda argv: os.rmdir(runs / RUN_B),
+        "reuse-prior": lambda argv: None,
+        "extra-run": lambda argv: [make_run(session, RUN_ID), make_run(session, RUN_ID[:-1] + "9")],
+        "create-run": lambda argv: make_run(session, RUN_ID[:-1] + "9"),
+        "unsafe-entry": lambda argv: (runs / "junk").write_bytes(b"x"),
+    }
+    fake = FakeDocker()
+    fake.on_run = effects[effect]
+    output_payload = {**OUTPUT[action], "run_id": RUN_B if effect == "reuse-prior" else RUN_ID}
+    fake.result = base.Completed(0, command_json(output_payload), b"")
+    summary, _ = run_action(checkout, session, fake, action, session_evidence=True)
+    assert summary["launcher_exit"] == 4 and problem in summary["problems"]
+    assert (
+        summary["rehearsal_run_id"] in (None, RUN_ID)
+        and summary["classification"] == "LAUNCHER_FAILURE"
+    )
+
+
+def test_a_multi_run_session_keeps_every_safety_invariant(checkout, session):
+    # (45–54) Con varios runs: ni secretos en argv/salidas, un único montaje del checkout en
+    # sólo lectura, ninguna raíz oficial ni montaje por run, y nada de prune/--rmi.
+    make_run(session, RUN_ID)
+    make_run(session, RUN_B)
+    fake = FakeDocker(web=False)
+    summary, output = run_action(checkout, session, fake, "status")
+    (argv,) = fake.runs()
+    values = list(session.secrets.values())
+    assert not any(v in token for token in argv for v in values)
+    for path in output.iterdir():
+        assert not any(v in path.read_text() for v in values)
+    mounts = [argv[i + 1] for i, token in enumerate(argv) if token == "-v"]
+    assert (
+        all(m.endswith(":ro") for m in mounts) and sum(str(checkout.root) in m for m in mounts) == 1
+    )
+    assert not any("/var/" in m or RUN_B in m for m in mounts)
+    assert not any(tok in ("prune", "--rmi") for call in fake.calls for tok in call)
+
+
+# --- Integración: launcher → management command → prior scan → binding_refusal ---------------
+
+
+@pytest.fixture
+def domain(checkout, monkeypatch):
+    """Una sesión cuya evidencia es una custodia real del executor y un Docker simulado que
+    ejecuta el management command `s11_ex10` en proceso con esa custodia (claves de test)."""
+    import contextlib as contextlib_module
+    import io
+
+    from django.core.management import call_command
+    from django.core.management.base import CommandError
+
+    from apps.experiments_app import ex10_load
+    from apps.experiments_app.evidence import EvidenceStore
+    from apps.experiments_app.management.commands import s11_ex10
+    from apps.experiments_app.tests import ex10_executor_support as support
+
+    # La custodia rechaza /tmp: la sesión vive bajo `.s11-test-artifacts`.
+    parent = support.ARTIFACTS / f"launcher-integration-{os.getpid()}-{next(_TOKENS)}"
+    parent.mkdir(parents=True, mode=0o700)
+    session = launcher.write_session(Path(os.path.realpath(parent)) / "session")
+    store = EvidenceStore(
+        session.root / "evidence",
+        custody_hmac_key=support.HMAC_KEY,
+        publication_verification_key=support.PUBLIC_KEY,
+        rolling_checksums=False,
+    )
+    harness = support.make_harness(
+        f"launcher-integration-{next(_TOKENS)}", ex10_load.load_dataset()
+    )
+    monkeypatch.setattr(s11_ex10.Command, "_store", staticmethod(lambda: store))
+    monkeypatch.setattr(s11_ex10.Command, "probes", lambda self: harness.probes)
+
+    def command(fake):
+        def run(argv):
+            args = tail(argv)[3:]
+            out, err = io.StringIO(), io.StringIO()
+            code, footer = 0, ""
+            with contextlib_module.redirect_stderr(err):
+                try:
+                    call_command("s11_ex10", *args, stdout=out)
+                except CommandError as exc:
+                    code, footer = exc.returncode, f"CommandError: {exc}\n"
+            fake.result = base.Completed(
+                code, out.getvalue().encode(), (err.getvalue() + footer).encode()
+            )
+
+        return run
+
+    def act(action, **changes):
+        fake = FakeDocker(web=action in ("start-local-test", "rehearsal-started"))
+        fake.on_run = command(fake)
+        fake.result = base.Completed(0, b"", b"")
+        if action == "start-local-test":
+            changes.setdefault("nonce", f"nonce-integration-{next(_TOKENS)}")
+        summary = launcher.execute(invocation(checkout, session, fake, action, **changes))
+        return summary, Path(summary["output_dir"])
+
+    yield SimpleNamespace(session=session, store=store, act=act, harness=harness)
+    support.close_harness(harness)
+    import shutil
+
+    shutil.rmtree(parent, ignore_errors=True)
+
+
+def run_tree(store, run_id):
+    """Metadata completa (salvo atime) del árbol de un run, sin seguir symlinks."""
+    base_path = store.root / "runs" / run_id
+    facts = {}
+    for path in [base_path, *sorted(base_path.rglob("*"))]:
+        info = os.lstat(path)
+        fact = (
+            stat.S_IFMT(info.st_mode), stat.S_IMODE(info.st_mode), info.st_uid, info.st_gid,
+            info.st_nlink, info.st_size, info.st_mtime_ns, info.st_ctime_ns, info.st_ino,
+        )  # fmt: skip
+        if stat.S_ISREG(info.st_mode):
+            fact += (hashlib.sha256(path.read_bytes()).hexdigest(),)
+        facts[str(path.relative_to(base_path))] = fact
+    return facts
+
+
+def test_a_second_start_through_the_launcher_sees_the_first_run_and_leaves_it_identical(domain):
+    # (25) RUN A: START → STARTED → status → ABANDONED_PRE_T0; RUN B: START vía el launcher en
+    # la misma custodia, el executor explora A (read-only) y crea B; A queda idéntico.
+    summary, _ = domain.act("start-local-test")
+    assert summary["classification"] == "COHERENT" and summary["status"] == "PREPARED"
+    run_a = summary["rehearsal_run_id"]
+    assert domain.act("rehearsal-started", run_id=run_a)[0]["status"] == "STARTED"
+    assert domain.act("status", run_id=run_a)[0]["status"] == "STARTED"
+    abandon, _ = domain.act("abandon-pre-t0", run_id=run_a)
+    assert abandon["classification"] == "COHERENT" and abandon["status"] == "ABANDONED_PRE_T0"
+    snapshot = run_tree(domain.store, run_a)
+    started, output = domain.act("start-local-test")
+    run_b = started["rehearsal_run_id"]
+    assert started["classification"] == "COHERENT" and started["status"] == "PREPARED"
+    assert run_b != run_a and run_tree(domain.store, run_a) == snapshot
+    assert meta(output)["evidence_runs_before"] == [run_a]
+    assert meta(output)["evidence_runs_after"] == sorted([run_a, run_b])
+    start = ex10_executor.load_existing_state_readonly(domain.store, run_b).payload(
+        ex10_executor.ART_START
+    )
+    assert start["prior_ex10_runs"] == [
+        {"run_id": run_a, "evidence_mode": "LOCAL_TEST", "finalized": True,
+         "decision": "NOT_DEMONSTRATED", "problems": []}
+    ]  # fmt: skip
+    for target, phase in ((run_a, "ABANDONED_PRE_T0"), (run_b, "PREPARED")):
+        assert domain.act("status", run_id=target)[0]["status"] == phase
+    closed, _ = domain.act("abandon-pre-t0", run_id=run_b)
+    assert closed["status"] == "ABANDONED_PRE_T0" and run_tree(domain.store, run_a) == snapshot
+    prior = ex10_executor.prior_ex10_runs(domain.store)
+    assert ex10_executor.binding_refusal(
+        prior, evidence_mode=ex10_executor.OFFICIAL_MODE, acknowledged=()
+    ) == ([], False)
+
+
+def test_an_active_or_corrupt_prior_run_is_refused_by_the_domain_through_the_launcher(domain):
+    # (11–15, 22–24) El launcher deja llegar al executor, que rechaza; no se crea ningún run y
+    # los previos quedan idénticos.
+    run_a = domain.act("start-local-test")[0]["rehearsal_run_id"]
+    snapshot = run_tree(domain.store, run_a)
+    refused, output = domain.act("start-local-test")
+    assert refused["classification"] == "REFUSED" and refused["launcher_exit"] == 1
+    assert meta(output)["refusal"]["reasons"] == [f"active-run:{run_a}"]
+    assert entries(domain.session) == [run_a] and run_tree(domain.store, run_a) == snapshot
+    domain.act("abandon-pre-t0", run_id=run_a)
+    signature = domain.store.root / "runs" / run_a / "metadata" / "artifacts.jsonl.hmac"
+    signature.write_text("0" * 64 + "\n", encoding="ascii")
+    snapshot = run_tree(domain.store, run_a)
+    refused, output = domain.act("start-local-test")
+    assert refused["classification"] == "REFUSED"
+    assert meta(output)["refusal"]["reasons"] == [f"prior-run-unverifiable:{run_a}"]
+    assert entries(domain.session) == [run_a] and run_tree(domain.store, run_a) == snapshot
