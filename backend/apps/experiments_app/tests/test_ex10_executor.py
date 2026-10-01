@@ -9,15 +9,23 @@ Los números entre paréntesis son los ítems de §47, §48 y §53–§57 de la 
 
 from __future__ import annotations
 
+import builtins
+import fcntl
 import io
 import json
 import os
+import shutil
 import signal
 import socket
+import stat
+import tempfile
 import threading
 import time
+from collections.abc import Mapping
+from contextlib import contextmanager
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -29,7 +37,7 @@ from apps.experiments_app import ex10_executor as executor
 from apps.experiments_app import ex10_load as ex10
 from apps.experiments_app import ex10_worker_probe
 from apps.experiments_app.canonical import canonical_json_bytes, sha256_bytes
-from apps.experiments_app.evidence import EvidenceError
+from apps.experiments_app.evidence import EvidenceError, EvidenceStore
 from apps.experiments_app.management.commands import s11_ex10
 from apps.experiments_app.runtime import valid_run_id
 from apps.experiments_app.tests.ex10_executor_support import (
@@ -1886,3 +1894,527 @@ def test_the_cli_refuses_rehearsal_on_an_official_run(h, cli, capsys):
     assert json.loads(capsys.readouterr().err)["reasons"] == [
         "evidence-mode:rehearsal-started-requires-LOCAL_TEST"
     ]
+
+
+# --- status estrictamente read-only -----------------------------------------------------------
+# `status` no crea, repara ni normaliza nada: cada byte y cada campo de metadata (tipo, modo,
+# dueño, tamaño, mtime, ctime, inodo, destino de symlink, SHA-256) del árbol de la custodia,
+# directorios incluidos, queda idéntico. El `WriteSpy` hace fallar cualquier primitiva de
+# escritura mientras corre. Sólo después, como oráculo del schema, se calcula el status anterior
+# a la corrección (que inicializaba el run).
+
+
+def tree(base: Path) -> dict | None:
+    """Metadata completa (salvo atime) de `base` y de todo lo que contiene, sin seguir symlinks."""
+    if not os.path.lexists(base):
+        return None
+    facts, pending = {}, [Path(base)]
+    while pending:
+        path = pending.pop()
+        info = os.lstat(path)
+        fact = {
+            "type": stat.S_IFMT(info.st_mode), "mode": stat.S_IMODE(info.st_mode),
+            "uid": info.st_uid, "gid": info.st_gid, "size": info.st_size, "nlink": info.st_nlink,
+            "mtime": info.st_mtime_ns, "ctime": info.st_ctime_ns, "ino": info.st_ino,
+        }  # fmt: skip
+        if stat.S_ISLNK(info.st_mode):
+            fact["target"] = os.readlink(path)
+        elif stat.S_ISREG(info.st_mode):
+            fact["sha256"] = sha256_bytes(path.read_bytes())
+        elif stat.S_ISDIR(info.st_mode):
+            fact["entries"] = sorted(os.listdir(path))
+            pending.extend(path / name for name in fact["entries"])
+        facts[str(path.relative_to(base))] = fact
+    return facts
+
+
+_OS_WRITES = ("mkdir", "makedirs", "chmod", "fchmod", "lchmod", "chown", "fchown", "lchown",
+              "rename", "renames", "replace", "unlink", "remove", "removedirs", "rmdir",
+              "truncate", "ftruncate", "fsync", "fdatasync", "utime", "link", "symlink", "write",
+              "mkfifo", "mknod")  # fmt: skip
+_PATH_WRITES = ("mkdir", "chmod", "lchmod", "touch", "write_text", "write_bytes", "unlink",
+                "rename", "replace", "rmdir", "symlink_to", "hardlink_to")  # fmt: skip
+_STORE_MUTATIONS = ("initialize_run", "records", "verify", "persist_json", "persist_bytes",
+                    "append_jsonl", "register_existing", "finalize_verification_retention",
+                    "finalize_with_json_artifact", "recover_finalization", "write_checksums",
+                    "write_index_signature", "_append_index", "mutation", "_mutation_lock",
+                    "_atomic_write", "_atomic_replace", "_write_finalized_seal")  # fmt: skip
+_WRITE_FLAGS = os.O_WRONLY | os.O_RDWR | os.O_CREAT | os.O_TRUNC | os.O_APPEND
+
+
+@contextmanager
+def write_spy():
+    """Toda primitiva que escribe, crea, cambia permisos o toma el lock exclusivo falla y queda
+    registrada; las lecturas (`open` sin escritura, `os.open` sin flags de escritura, el
+    `flock` compartido) pasan."""
+    calls: list[str] = []
+
+    def guard(name, original=None, allowed=None):
+        def call(*args, **kwargs):
+            if allowed is not None and allowed(*args, **kwargs):
+                return original(*args, **kwargs)
+            calls.append(name)
+            raise AssertionError(f"status no puede llamar {name}")
+
+        return call
+
+    def read_mode(file, mode="r", *args, **kwargs):
+        return not set(mode) & set("wax+")
+
+    with pytest.MonkeyPatch.context() as mp:
+        for name in _OS_WRITES:
+            if hasattr(os, name):
+                mp.setattr(os, name, guard(f"os.{name}"))
+        reads = lambda path, flags, *args, **kwargs: not flags & _WRITE_FLAGS  # noqa: E731
+        mp.setattr(os, "open", guard("os.open:write", os.open, reads))
+        reading = guard("open:write", io.open, read_mode)
+        mp.setattr(io, "open", reading)
+        mp.setattr(builtins, "open", reading)
+        shared = lambda fd, operation: not operation & fcntl.LOCK_EX  # noqa: E731
+        mp.setattr(fcntl, "flock", guard("fcntl.flock:LOCK_EX", fcntl.flock, shared))
+        mp.setattr(fcntl, "lockf", guard("fcntl.lockf"))
+        for name in ("mkstemp", "mkdtemp", "NamedTemporaryFile", "TemporaryFile"):
+            mp.setattr(tempfile, name, guard(f"tempfile.{name}"))
+        for name in ("copy", "copy2", "copyfile", "copytree", "move", "rmtree"):
+            mp.setattr(shutil, name, guard(f"shutil.{name}"))
+        for name in _PATH_WRITES:
+            if hasattr(Path, name):
+                mp.setattr(Path, name, guard(f"Path.{name}"))
+        for name in _STORE_MUTATIONS:
+            mp.setattr(EvidenceStore, name, guard(f"EvidenceStore.{name}"))
+        for name in ("load_state", "_persist", "_persist_once"):
+            mp.setattr(executor, name, guard(f"executor.{name}"))
+        yield calls
+
+
+def legacy_status(store, run_id):
+    """El `run_status` anterior a la corrección (inicializa el run): oráculo del schema."""
+    if not executor.run_exists(store, run_id):
+        return {"run_id": run_id, "exists": False}
+    state = executor.load_state(store, run_id)
+    decision = state.payload(executor.ART_DECISION)
+    return {
+        "run_id": run_id,
+        "exists": True,
+        "scenario_id": (state.initial_manifest or {}).get("scenario_id"),
+        "phase": str(executor.phase_of(state)) if state.initial_manifest else None,
+        "finalized": state.finalized,
+        "artifacts": sorted(record["artifact_type"] for record in state.records),
+        "decision": decision.get("decision")
+        if isinstance(decision, Mapping) and state.finalized
+        else None,
+        "custody_errors": store.verify(run_id),
+    }
+
+
+def readonly_status(store, run_id, *, times=1):
+    """`times` status bajo el spy; el árbol completo de la custodia no puede cambiar."""
+    base = store.root.parent
+    before = tree(base)
+    with write_spy() as calls:
+        results = [executor.run_status(store, run_id) for _ in range(times)]
+    assert calls == []
+    assert tree(base) == before
+    assert all(result == results[0] for result in results)
+    return results[0]
+
+
+def _reach(h, monkeypatch, phase):
+    """Lleva el run de `h` a `phase` por el camino real de cada fase."""
+    if phase in {"CREATED", "STARTED", "EMITTING", "STOPPED_PRE_T0", "RECONCILING",
+                 "ABANDONED_PRE_T0"}:  # fmt: skip
+        _to_phase(h, monkeypatch, phase)
+    elif phase == "PREPARED":
+        h.start()
+    elif phase == "DRAINING":
+        database, calls = h.probes.database, []
+
+        def dies_once():
+            calls.append(1)
+            if len(calls) == 1:
+                raise SystemExit(137)
+            return database()
+
+        h.set_probes(database=dies_once)
+        h.start()
+        with pytest.raises(SystemExit):
+            h.execute()
+    elif phase == "DECIDED":
+        h.start()
+        h.execute()
+        original, armed = h.store.finalize_with_json_artifact, {"armed": True}
+
+        def dies_once(**kwargs):
+            if armed.pop("armed", False):
+                raise SystemExit(137)
+            return original(**kwargs)
+
+        monkeypatch.setattr(h.store, "finalize_with_json_artifact", dies_once)
+        with pytest.raises(SystemExit):
+            h.finalize()
+    elif phase == "NOT_DEMONSTRATED":
+        h.set_probes(database=lambda: (_ for _ in ()).throw(SystemExit(137)))
+        h.start()
+        with pytest.raises(SystemExit):
+            h.execute()
+        h.set_probes(database=h.backend.database)
+        h.finalize(declare_executor_gone=True)
+    elif phase == "FINALIZED_PASS":
+        h.start()
+        h.execute()
+        h.finalize()
+    elif phase == "FINALIZED_FAIL":
+        h.backend.modes[h.plan.for_vu(4)[3].request_key] = "500"
+        h.start()
+        h.execute()
+        h.finalize()
+    monkeypatch.undo()
+
+
+STATUS_PHASES = ["CREATED", "PREPARED", "STARTED", "EMITTING", "STOPPED_PRE_T0", "DRAINING",
+                 "RECONCILING", "DECIDED", "ABANDONED_PRE_T0", "NOT_DEMONSTRATED",
+                 "FINALIZED_PASS", "FINALIZED_FAIL"]  # fmt: skip
+
+
+@pytest.mark.parametrize("phase", STATUS_PHASES)
+def test_status_is_strictly_read_only_in_every_phase(h, monkeypatch, phase):
+    # (1–12) Fase correcta, mismo schema y mismo resultado que el status anterior, sin tocar
+    # un solo byte ni campo de metadata.
+    _reach(h, monkeypatch, phase)
+    status = readonly_status(h.store, h.run_id)
+    assert status["phase"] == phase and status["exists"] is True
+    assert status["custody_errors"] == []
+    assert status == legacy_status(h.store, h.run_id)
+
+
+def test_the_spy_catches_the_previous_mutating_status(h):
+    # El spy no es vacuo: el status anterior (`initialize_run`: mkdir/chmod) no pasa.
+    h.start()
+    with write_spy() as calls, pytest.raises(AssertionError):
+        legacy_status(h.store, h.run_id)
+    assert calls and calls[0] == "executor.load_state"
+    with write_spy() as calls, pytest.raises(AssertionError):
+        h.store.initialize_run(h.run_id)
+    with write_spy() as calls, pytest.raises(AssertionError):
+        os.chmod(h.store.root, 0o700)
+    assert calls == ["os.chmod"]
+
+
+MISSING = "s11-12345678-1234-5234-8234-123456789012"
+
+
+def test_status_of_a_missing_run_creates_nothing(h):
+    # (13) Ni el run, ni subdirectorios, ni índice, ni lock; `runs/` no cambia su ctime.
+    h.start()
+    runs = h.store.root / "runs"
+    ctime = os.lstat(runs).st_ctime_ns
+    assert readonly_status(h.store, MISSING) == {"run_id": MISSING, "exists": False}
+    assert not os.path.lexists(runs / MISSING) and os.lstat(runs).st_ctime_ns == ctime
+
+
+@pytest.mark.parametrize(
+    "run_id",
+    ["", "../runs", "s11-x", RUN_ID.upper(), RUN_ID + "/..", RUN_ID + "/metadata", "not-a-run-id"],
+)
+def test_status_of_an_invalid_run_id_creates_nothing(h, cli, run_id):
+    # (14) Un `run_id` no canónico no existe, aunque un directorio se llame así.
+    h.start()
+    (h.store.root / "runs" / "not-a-run-id").mkdir()
+    assert readonly_status(h.store, run_id) == {"run_id": run_id, "exists": False}
+    before = tree(h.store.root.parent)
+    with pytest.raises(CommandError) as info:
+        cli("status", "--run-id", run_id)
+    assert info.value.returncode == 3 and str(info.value) == "S11_EX10_USAGE: run-id"
+    assert tree(h.store.root.parent) == before
+
+
+def _index(h):
+    return h.store.root / "runs" / h.run_id / "metadata" / "artifacts.jsonl"
+
+
+def test_status_without_an_index_reports_it_without_recreating_it(h):
+    # (15) Run incompleto: nada indexado y la firma no corresponde; no se recrea el índice.
+    h.start()
+    _index(h).unlink()
+    status = readonly_status(h.store, h.run_id)
+    assert (status["phase"], status["artifacts"]) == (None, [])
+    assert status["custody_errors"] == ["index-signature"]
+    assert not _index(h).exists() and status == legacy_status(h.store, h.run_id)
+
+
+def test_status_with_a_corrupt_index_is_a_sanitized_error(h, cli):
+    # (16) Como antes: un error saneado, nunca una reparación.
+    h.start()
+    with _index(h).open("ab") as index:
+        index.write(b"{not json\n")
+    base = h.store.root.parent
+    before = tree(base)
+    with write_spy() as calls, pytest.raises(ValueError):
+        executor.run_status(h.store, h.run_id)
+    with pytest.raises(CommandError) as info:
+        cli("status", "--run-id", h.run_id)
+    assert info.value.returncode == 3 and str(info.value) == "S11_EX10_ERROR: JSONDecodeError"
+    assert calls == [] and tree(base) == before
+
+
+def _record(h, artifact_type):
+    record = h.state().record(artifact_type)
+    return record, h.store.root / "runs" / h.run_id / record["relative_path"]
+
+
+@pytest.mark.parametrize("damage", ["missing", "sha256", "hmac"])
+def test_status_reports_damaged_custody_without_repairing_it(h, damage):
+    # (17–19) Artefacto ausente, hash o firma del índice alterados: se informa, no se repara.
+    h.start()
+    rehearse(h)
+    record, path = _record(h, executor.ART_PLAN)
+    if damage == "missing":
+        path.unlink()
+    elif damage == "sha256":
+        path.write_bytes(path.read_bytes() + b" ")
+    else:
+        signature = _index(h).with_suffix(".jsonl.hmac")
+        signature.write_text("0" * 64 + "\n", encoding="ascii")
+    status = readonly_status(h.store, h.run_id)
+    expected = {"missing": f"missing:{record['artifact_id']}",
+                "sha256": f"sha256:{record['artifact_id']}", "hmac": "index-signature"}  # fmt: skip
+    assert status["custody_errors"] == [expected[damage]] and status["phase"] == "STARTED"
+    assert (damage == "missing") is not path.exists()
+    assert status == legacy_status(h.store, h.run_id)
+
+
+def test_status_never_follows_a_symlinked_run_or_runs_directory(h):
+    # (20) Un symlink no es un run: no se lee a través de él ni se toca su destino.
+    h.start()
+    runs = h.store.root / "runs"
+    elsewhere = h.store.root.parent / "elsewhere"
+    elsewhere.mkdir()
+    (runs / h.run_id).rename(elsewhere / h.run_id)
+    (runs / h.run_id).symlink_to(elsewhere / h.run_id, target_is_directory=True)
+    assert readonly_status(h.store, h.run_id) == {"run_id": h.run_id, "exists": False}
+    (runs / h.run_id).unlink()
+    (elsewhere / h.run_id).rename(runs / h.run_id)
+    runs.rename(h.store.root / "runs-real")
+    runs.symlink_to(h.store.root / "runs-real", target_is_directory=True)
+    assert readonly_status(h.store, h.run_id) == {"run_id": h.run_id, "exists": False}
+
+
+def test_status_of_a_run_path_that_is_not_a_directory(h):
+    # (21)
+    h.start()
+    (h.store.root / "runs" / MISSING).write_bytes(b"x")
+    assert readonly_status(h.store, MISSING) == {"run_id": MISSING, "exists": False}
+
+
+@pytest.mark.parametrize("created", [False, True], ids=["no-evidence-root", "no-runs-dir"])
+def test_status_never_creates_the_evidence_root_or_runs(created):
+    # (22, 23) Sin raíz de evidencia o sin `runs/`: nada se crea, ni el lock.
+    store = make_store(f"status-roots-{created}")
+    try:
+        if created:
+            store.root.mkdir(mode=0o700)
+        assert readonly_status(store, MISSING) == {"run_id": MISSING, "exists": False}
+        assert store.root.exists() is created and not (store.root / "runs").exists()
+        assert not (store.root / ".s11-custody.lock").exists()
+    finally:
+        remove_store(store)
+
+
+@pytest.mark.parametrize("phase", ["STARTED", "ABANDONED_PRE_T0", "missing"])
+def test_one_hundred_statuses_leave_everything_identical(h, monkeypatch, phase):
+    # (24–26)
+    if phase == "missing":
+        h.start()
+        assert readonly_status(h.store, MISSING, times=100)["exists"] is False
+        return
+    _reach(h, monkeypatch, phase)
+    assert readonly_status(h.store, h.run_id, times=100)["phase"] == phase
+
+
+def _concurrently(count, call):
+    results, errors = [], []
+
+    def worker():
+        try:
+            results.append(call())
+        except BaseException as exc:  # noqa: BLE001 - el test lo informa
+            errors.append(exc)
+
+    threads = [threading.Thread(target=worker) for _ in range(count)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    return results, errors
+
+
+def test_concurrent_statuses_agree_and_leave_everything_identical(h):
+    # (27)
+    h.start()
+    rehearse(h)
+    expected = readonly_status(h.store, h.run_id)
+    base = h.store.root.parent
+    before = tree(base)
+    with write_spy() as calls:
+        results, errors = _concurrently(
+            16, lambda: [executor.run_status(h.store, h.run_id) for _ in range(10)]
+        )
+    assert errors == [] and calls == [] and tree(base) == before
+    assert [status for batch in results for status in batch] == [expected] * 160
+
+
+def test_status_during_a_mutation_is_coherent_or_a_read_race(h):
+    # (28) Mientras otro paso muta, cada status es uno de los estados custodiados o
+    # `status-read-race`; nunca una mezcla. Los lectores dejan un respiro entre lecturas: el
+    # `flock` de Linux no da prioridad al mutador que espera el lock exclusivo.
+    h.start()
+    observed, errors, done = [], [], threading.Event()
+
+    def poll():
+        while not done.is_set():
+            try:
+                observed.append(executor.run_status(h.store, h.run_id))
+            except executor.Ex10Refusal as exc:
+                observed.append(exc.reasons)
+            except BaseException as exc:  # noqa: BLE001 - el test lo informa
+                errors.append(exc)
+            time.sleep(0.002)
+
+    states = [executor.run_status(h.store, h.run_id)]
+    pollers = [threading.Thread(target=poll) for _ in range(4)]
+    for poller in pollers:
+        poller.start()
+    try:
+        rehearse(h)
+        states.append(executor.run_status(h.store, h.run_id))
+        h.finalize(abandon_reason="rehearsal-complete")
+        states.append(executor.run_status(h.store, h.run_id))
+    finally:
+        done.set()
+        for poller in pollers:
+            poller.join()
+    assert errors == [] and observed
+    assert [state["phase"] for state in states] == ["PREPARED", "STARTED", "ABANDONED_PRE_T0"]
+    assert all(state["custody_errors"] == [] for state in states)
+    assert all(status in states or status == ("status-read-race",) for status in observed)
+
+
+def test_a_write_while_reading_the_index_is_a_read_race(h, monkeypatch):
+    # El índice (o su firma, o el sello) cambia durante la lectura: no se compone un estado.
+    h.start()
+    original = executor._read_payloads
+
+    def touched(run_root, records):
+        os.utime(_index(h))
+        return original(run_root, records)
+
+    monkeypatch.setattr(executor, "_read_payloads", touched)
+    rejected = refusal(executor.run_status, h.store, h.run_id)
+    assert rejected.reasons == ("status-read-race",) and not rejected.terminal
+
+
+def test_the_readonly_loader_refuses_a_concurrent_write_by_itself(h, monkeypatch):
+    # El loader es una ruta pública propia: su comprobación no depende de la de `run_status`.
+    h.start()
+    original = executor._read_payloads
+
+    def touched(run_root, records):
+        os.utime(_index(h))
+        return original(run_root, records)
+
+    monkeypatch.setattr(executor, "_read_payloads", touched)
+    rejected = refusal(executor.load_existing_state_readonly, h.store, h.run_id)
+    assert rejected.reasons == ("status-read-race",) and not rejected.terminal
+    monkeypatch.undo()
+    state = executor.load_existing_state_readonly(h.store, h.run_id)
+    assert executor.phase_of(state) is P.PREPARED
+    assert executor.load_existing_state_readonly(h.store, MISSING) is None
+
+
+def test_a_symlinked_custody_lock_is_never_followed(h, cli):
+    # Un lock sustituido por un symlink no se sigue (`O_NOFOLLOW`): error saneado, nada cambia.
+    h.start()
+    lock = h.store.root / ".s11-custody.lock"
+    target = h.store.root.parent / "lock-target"
+    lock.rename(target)
+    lock.symlink_to(target)
+    before = tree(h.store.root.parent)
+    with write_spy() as calls, pytest.raises(OSError):
+        executor.run_status(h.store, h.run_id)
+    with pytest.raises(CommandError) as info:
+        cli("status", "--run-id", h.run_id)
+    assert info.value.returncode == 3 and str(info.value) == "S11_EX10_INTERNAL: OSError"
+    assert calls == [] and tree(h.store.root.parent) == before
+
+
+def test_a_write_while_verifying_is_a_read_race(h, monkeypatch):
+    h.start()
+    original = executor.verify_readonly
+    signature = _index(h).with_suffix(".jsonl.hmac")
+
+    def replaced(store, state):
+        errors = original(store, state)
+        copy = signature.with_name("replaced.tmp")
+        copy.write_bytes(signature.read_bytes())
+        os.replace(copy, signature)
+        return errors
+
+    monkeypatch.setattr(executor, "verify_readonly", replaced)
+    rejected = refusal(executor.run_status, h.store, h.run_id)
+    assert rejected.reasons == ("status-read-race",) and not rejected.terminal
+
+
+def _holding_the_custody_lock(store, release):
+    held = threading.Event()
+
+    def hold():
+        with store.mutation():
+            held.set()
+            release.wait(10)
+
+    thread = threading.Thread(target=hold)
+    thread.start()
+    assert held.wait(10)
+    return thread
+
+
+def test_status_waits_for_a_mutator_and_never_takes_the_lock_exclusively(h, monkeypatch):
+    # Un mutador que retiene el lock más que el plazo deja `status-read-race`, sin tocar nada;
+    # uno breve sólo retrasa la lectura.
+    h.start()
+    expected = readonly_status(h.store, h.run_id)
+    monkeypatch.setattr(executor, "STATUS_LOCK_ATTEMPTS", 3)
+    monkeypatch.setattr(executor, "STATUS_LOCK_PAUSE", 0.01)
+    release = threading.Event()
+    thread = _holding_the_custody_lock(h.store, release)
+    try:
+        before = tree(h.store.root.parent)
+        with write_spy() as calls:
+            rejected = refusal(executor.run_status, h.store, h.run_id)
+        assert rejected.reasons == ("status-read-race",) and not rejected.terminal
+        assert calls == [] and tree(h.store.root.parent) == before
+    finally:
+        release.set()
+        thread.join()
+    monkeypatch.setattr(executor, "STATUS_LOCK_ATTEMPTS", 40)
+    monkeypatch.setattr(executor, "STATUS_LOCK_PAUSE", 0.05)
+    release = threading.Event()
+    thread = _holding_the_custody_lock(h.store, release)
+    threading.Timer(0.2, release.set).start()
+    try:
+        assert executor.run_status(h.store, h.run_id) == expected
+    finally:
+        release.set()
+        thread.join()
+
+
+def test_the_cli_status_is_strictly_read_only(h, cli):
+    # (§20) La CLI imprime el mismo payload sin escribir.
+    h.start()
+    rehearse(h)
+    expected = readonly_status(h.store, h.run_id)
+    base = h.store.root.parent
+    before = tree(base)
+    with write_spy() as calls:
+        printed = cli("status", "--run-id", h.run_id)
+    assert printed == expected and calls == [] and tree(base) == before

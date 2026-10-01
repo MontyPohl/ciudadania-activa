@@ -28,6 +28,7 @@ cada checkpoint.
 
 from __future__ import annotations
 
+import fcntl
 import json
 import os
 import re
@@ -47,9 +48,16 @@ from typing import Any
 from django.conf import settings
 
 from . import ex10_fixture, ex10_load, ex10_preflight, ex10_reconcile, ex10_worker_probe
-from .canonical import canonical_json_bytes, sha256_bytes
+from .canonical import canonical_json_bytes, sha256_bytes, sha256_file
 from .constants import ArtifactKind, Classification, Decision
-from .evidence import EvidenceStore, validate_finalized_state
+from .custody_policy import (
+    CustodyPolicyError,
+    PublicationApproval,
+    validate_custody_index_signature,
+    validate_custody_record_signature,
+    validate_public_approval,
+)
+from .evidence import EvidencePolicyError, EvidenceStore, validate_finalized_state
 from .ex10_load import (
     ApparatusFault,
     AttemptOutcome,
@@ -206,8 +214,19 @@ class RunState:
 
 
 def load_state(store: EvidenceStore, run_id: str) -> RunState:
+    """El estado de un run para los pasos que mutan: inicializa el directorio (`mkdir`/`chmod`).
+
+    `status` nunca lo usa: lee con `load_existing_state_readonly`.
+    """
     run_root = store.initialize_run(run_id)
     records = store.records(run_id)
+    payloads, unreadable = _read_payloads(run_root, records)
+    return RunState(run_id, run_root, records, payloads, unreadable)
+
+
+def _read_payloads(
+    run_root: Path, records: Sequence[Mapping[str, Any]]
+) -> tuple[dict[str, Any], list[str]]:
     payloads: dict[str, Any] = {}
     unreadable: list[str] = []
     for record in records:
@@ -220,7 +239,138 @@ def load_state(store: EvidenceStore, run_id: str) -> RunState:
             payloads[record["artifact_type"]] = _json(path.read_bytes())
         except (OSError, ValueError):
             unreadable.append(record["artifact_type"])
+    return payloads, unreadable
+
+
+# --- Lectura estrictamente read-only (status) ------------------------------------------------
+
+#: Un mutador que retiene el lock de custodia más que esto deja la lectura en `status-read-race`.
+STATUS_LOCK_ATTEMPTS = 40
+STATUS_LOCK_PAUSE = 0.05
+_READ_RACE = "status-read-race"
+_INDEX = Path(ArtifactKind.METADATA.value) / "artifacts.jsonl"
+
+
+@contextmanager
+def _shared_custody_lock(store: EvidenceStore) -> Iterator[None]:
+    """El lock de custodia existente en modo compartido, sin crearlo ni tocar su metadata.
+
+    Se abre en sólo lectura (sin `O_CREAT`, sin seguir symlinks): el `flock` compartido excluye
+    a los mutadores, que lo toman exclusivo, sin escribir nada. Si no existe, la raíz nunca tuvo
+    una mutación; la comparación del índice antes y después cubre ese caso. Un mutador que lo
+    retiene más allá del plazo deja la lectura en `status-read-race`.
+    """
+    try:
+        fd = os.open(store.root / ".s11-custody.lock", os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC)
+    except FileNotFoundError:
+        yield
+        return
+    try:
+        for _ in range(STATUS_LOCK_ATTEMPTS):
+            try:
+                fcntl.flock(fd, fcntl.LOCK_SH | fcntl.LOCK_NB)
+                break
+            except BlockingIOError:
+                time.sleep(STATUS_LOCK_PAUSE)
+        else:
+            raise Ex10Refusal([_READ_RACE], terminal=False)
+        try:
+            yield
+        finally:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+    finally:
+        os.close(fd)
+
+
+def _index_fingerprint(run_root: Path) -> tuple:
+    """Identidad y metadata del índice, su firma y el sello: detecta una escritura concurrente."""
+    facts = []
+    for path in (run_root / _INDEX, (run_root / _INDEX).with_suffix(".jsonl.hmac"),
+                 run_root / ".s11-finalized"):  # fmt: skip
+        try:
+            info = os.lstat(path)
+        except FileNotFoundError:
+            facts.append(None)
+            continue
+        facts.append((info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns))
+    return tuple(facts)
+
+
+def _existing_run_root(store: EvidenceStore, run_id: str) -> Path | None:
+    """El directorio real de un run existente o `None`: ni `runs/` ni el run pueden ser symlinks."""
+    runs = store.root / "runs"
+    if runs.is_symlink() or not run_exists(store, run_id):
+        return None
+    return runs / run_id
+
+
+def load_existing_state_readonly(store: EvidenceStore, run_id: str) -> RunState | None:
+    """El estado de un run existente sin crear, reparar ni normalizar nada; `None` si no existe.
+
+    Nunca `initialize_run`, `mkdir`, `chmod`, escrituras ni el lock exclusivo: el directorio
+    del run debe existir y ser real (no un symlink), y el índice se lee tal cual está. Un índice
+    corrupto propaga su `ValueError`, como `load_state`. Si el índice, su firma o el sello
+    cambian mientras se lee, la lectura se rechaza (`status-read-race`) en lugar de componer
+    un estado que nunca existió.
+    """
+    run_root = _existing_run_root(store, run_id)
+    if run_root is None:
+        return None
+    before = _index_fingerprint(run_root)
+    index = run_root / _INDEX
+    records = (
+        [json.loads(line) for line in index.read_text(encoding="utf-8").splitlines()]
+        if index.exists()
+        else []
+    )
+    payloads, unreadable = _read_payloads(run_root, records)
+    if _index_fingerprint(run_root) != before:
+        raise Ex10Refusal([_READ_RACE], terminal=False)
     return RunState(run_id, run_root, records, payloads, unreadable)
+
+
+def verify_readonly(store: EvidenceStore, state: RunState) -> list[str]:
+    """Las comprobaciones de `EvidenceStore.verify` sin `initialize_run`, con sus mismas primitivas
+    puras de custodia y los mismos códigos de error: firma del índice, SHA-256 y política de cada
+    artefacto, y el sello del run finalizado."""
+    run_root, errors = state.run_root, []
+    index = run_root / _INDEX
+    try:
+        validate_custody_index_signature(
+            index.read_bytes(),
+            index.with_suffix(".jsonl.hmac").read_text(encoding="ascii").strip(),
+            custody_hmac_key=store.custody_hmac_key,
+        )
+    except (CustodyPolicyError, OSError):
+        errors.append("index-signature")
+    for record in state.records:
+        path = run_root / record["relative_path"]
+        if not path.is_file():
+            errors.append(f"missing:{record['artifact_id']}")
+        elif sha256_file(path) != record["sha256"]:
+            errors.append(f"sha256:{record['artifact_id']}")
+        try:
+            validate_custody_record_signature(record, custody_hmac_key=store.custody_hmac_key)
+            approval_payload = record.get("publication_approval")
+            if approval_payload is not None and not isinstance(approval_payload, dict):
+                raise CustodyPolicyError("La aprobación almacenada no es un objeto.")
+            approval = (
+                PublicationApproval(**approval_payload) if approval_payload is not None else None
+            )
+            validate_public_approval(
+                Classification(record["classification"]),
+                approval,
+                expected_artifact_id=record["artifact_id"],
+                expected_content_sha256=record["sha256"],
+                verification_key=store.publication_verification_key,
+            )
+        except (CustodyPolicyError, TypeError, ValueError):
+            errors.append(f"policy:{record['artifact_id']}")
+    try:
+        validate_finalized_state(run_root, state.records, custody_hmac_key=store.custody_hmac_key)
+    except EvidencePolicyError:
+        errors.append("finalized-state")
+    return errors
 
 
 def _json(raw: bytes) -> Any:
@@ -1784,20 +1934,35 @@ def finalize_run(
 
 
 def run_status(store: EvidenceStore, run_id: str) -> dict[str, Any]:
-    """Resumen de sólo lectura: fase y artefactos, sin métricas. No crea nada."""
-    if not run_exists(store, run_id):
-        return {"run_id": run_id, "exists": False}
-    state = load_state(store, run_id)
-    decision = state.payload(ART_DECISION)
-    return {
-        "run_id": run_id,
-        "exists": True,
-        "scenario_id": (state.initial_manifest or {}).get("scenario_id"),
-        "phase": str(phase_of(state)) if state.initial_manifest else None,
-        "finalized": state.finalized,
-        "artifacts": sorted(record["artifact_type"] for record in state.records),
-        "decision": decision.get("decision")
-        if isinstance(decision, Mapping) and state.finalized
-        else None,
-        "custody_errors": store.verify(run_id),
-    }
+    """Resumen estrictamente de sólo lectura: fase y artefactos, sin métricas.
+
+    No crea, repara ni normaliza nada (ni `mkdir` ni `chmod`): ni el run, ni `runs/`, ni la raíz,
+    ni el lock. Lee bajo el lock de custodia compartido y verifica la custodia con
+    `verify_readonly`.
+    """
+    with _shared_custody_lock(store):
+        run_root = _existing_run_root(store, run_id)
+        if run_root is None:
+            return {"run_id": run_id, "exists": False}
+        before = _index_fingerprint(run_root)
+        state = load_existing_state_readonly(store, run_id)
+        if state is None:
+            raise Ex10Refusal([_READ_RACE], terminal=False)
+        decision = state.payload(ART_DECISION)
+        status = {
+            "run_id": run_id,
+            "exists": True,
+            "scenario_id": (state.initial_manifest or {}).get("scenario_id"),
+            "phase": str(phase_of(state)) if state.initial_manifest else None,
+            "finalized": state.finalized,
+            "artifacts": sorted(record["artifact_type"] for record in state.records),
+            "decision": decision.get("decision")
+            if isinstance(decision, Mapping) and state.finalized
+            else None,
+            "custody_errors": verify_readonly(store, state),
+        }
+        # Sin lock (raíz que nunca mutó), la verificación y el sello también deben corresponder
+        # al índice leído.
+        if _index_fingerprint(run_root) != before:
+            raise Ex10Refusal([_READ_RACE], terminal=False)
+    return status
