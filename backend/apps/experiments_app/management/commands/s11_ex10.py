@@ -1,8 +1,10 @@
 """Executor de EX-10 (fase 3A): un subcomando por paso irreversible, nunca uno monolítico.
 
 `start` → `execute` (emisión y drain) → `finalize`, con `status`, `reconcile` (sólo
-lectura) y `drain` (recuperación) aparte. Cada paso comprueba su fase en la evidencia
-custodiada: no hay reintento de intentos, emisión parcial ni reutilización de `run_id`.
+lectura) y `drain` (recuperación) aparte. `rehearsal-started` es el checkpoint exclusivo de
+LOCAL_TEST: PREPARED → STARTED sin emitir, para ensayar el lifecycle antes de t0. Cada paso
+comprueba su fase en la evidencia custodiada: no hay reintento de intentos, emisión parcial
+ni reutilización de `run_id`.
 
 Se ejecuta en un contenedor efímero del backend, dentro de la red Compose, con web y worker
 arriba (salvo `status`). Salida: un JSON por stdout. Un rechazo va por stderr como JSON de
@@ -32,7 +34,9 @@ def _interrupt(number, frame):
 
 
 class Command(BaseCommand):
-    help = "Executor de EX-10: start, execute, drain, reconcile, finalize y status."
+    help = (
+        "Executor de EX-10: start, execute, drain, reconcile, finalize, status y rehearsal-started."
+    )
     requires_system_checks = []
 
     def create_parser(self, prog_name, subcommand, **kwargs):
@@ -76,6 +80,13 @@ class Command(BaseCommand):
             if name == "finalize":
                 step.add_argument("--abandon-reason")
                 step.add_argument("--declare-executor-gone", action="store_true")
+        rehearsal = actions.add_parser(
+            "rehearsal-started", help="Sólo LOCAL_TEST: PREPARED → STARTED, sin emitir."
+        )
+        rehearsal.error = self._usage_error(rehearsal)
+        rehearsal.add_argument("--run-id", required=True)
+        rehearsal.add_argument("--expected-git-sha", required=True)
+        rehearsal.add_argument("--confirm-local-rehearsal", action="store_true", required=True)
         status = actions.add_parser("status")
         status.error = self._usage_error(status)
         status.add_argument("--run-id", required=True)
@@ -85,12 +96,12 @@ class Command(BaseCommand):
         run_id = options.get("run_id")
         if run_id is not None and not valid_run_id(run_id):
             raise CommandError("S11_EX10_USAGE: run-id", returncode=EXIT_ERROR)
-        if action == "execute":
+        if action in {"execute", "rehearsal-started"}:
             # SIGTERM o SIGHUP del launcher se tratan como Ctrl-C: interrupción del operador.
             for number in (signal.SIGTERM, signal.SIGHUP):
                 signal.signal(number, _interrupt)
         try:
-            result = getattr(self, f"_{action}")(options)
+            result = getattr(self, f"_{action.replace('-', '_')}")(options)
         except executor.Ex10Refusal as exc:
             payload = {"refused": True, "terminal": exc.terminal, "reasons": list(exc.reasons)}
             sys.stderr.write(json.dumps(payload, sort_keys=True, ensure_ascii=False) + "\n")
@@ -152,6 +163,14 @@ class Command(BaseCommand):
             git_sha=options["expected_git_sha"],
             abandon_reason=options["abandon_reason"],
             declare_executor_gone=options["declare_executor_gone"],
+            probes=self.probes(),
+        )
+
+    def _rehearsal_started(self, options):
+        return executor.rehearsal_started_run(
+            self._store(),
+            run_id=options["run_id"],
+            git_sha=options["expected_git_sha"],
             probes=self.probes(),
         )
 

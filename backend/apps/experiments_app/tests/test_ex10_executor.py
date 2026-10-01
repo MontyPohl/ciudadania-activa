@@ -1545,3 +1545,344 @@ def test_ten_real_socket_runs_in_a_row(h):
         assert h.finalize()["decision"] == "PASS"
         assert h.backend.accepted == 50 * (index + 1)
         assert vu_threads() == []
+
+
+# --- Fase 3B: checkpoint LOCAL_TEST `rehearsal-started` ---------------------------------------
+
+#: Lo que el checkpoint escribe: el START completo y el marcador de emisión. Nada más.
+STARTED_ARTIFACTS = {
+    executor.ART_MANIFEST_INITIAL,
+    executor.ART_PREFLIGHT,
+    executor.ART_PLAN,
+    executor.ART_START,
+    executor.ART_EMISSION,
+}
+REHEARSAL_RESULT_KEYS = {
+    "run_id", "evidence_mode", "phase", "emission_armed", "t0_published", "tokens_issued",
+    "requests_prepared", "requests_sent",
+}  # fmt: skip
+
+
+def rehearse(h, run_id=None, git_sha=SHA):
+    return executor.rehearsal_started_run(
+        h.store, run_id=run_id or h.run_id, git_sha=git_sha, probes=h.probes
+    )
+
+
+def _forbidden(name, calls):
+    def probe(*args, **kwargs):
+        calls.append(name)
+        raise AssertionError(f"{name} no debe llamarse en rehearsal-started")
+
+    return probe
+
+
+@pytest.fixture
+def no_emission(h, monkeypatch):
+    """Todo lo que sigue al marcador en `execute` revienta si se llama y queda registrado."""
+    calls: list[str] = []
+    after_marker = ("fixture_result", "issue_tokens", "verify_tokens", "category_ids",
+                    "resolve_backend", "transport", "generator")  # fmt: skip
+    h.set_probes(**{name: _forbidden(name, calls) for name in after_marker})
+    monkeypatch.setattr(
+        executor.ex10_load, "prepare_requests", _forbidden("prepare_requests", calls)
+    )
+    monkeypatch.setattr(executor, "_arm_emission", _forbidden("_arm_emission", calls))
+    monkeypatch.setattr(ex10.LoadGenerator, "run", _forbidden("LoadGenerator.run", calls))
+    monkeypatch.setattr(socket, "create_connection", _forbidden("socket.create_connection", calls))
+    return calls
+
+
+def artifact_types(h, run_id=None):
+    return [record["artifact_type"] for record in h.state(run_id).records]
+
+
+def test_local_test_rehearsal_stops_at_started_without_any_emission_step(h, no_emission):
+    # (1, 13–24) PREPARED → STARTED: un único marcador; ni tokens, ni cuerpos, ni transporte,
+    # ni generador, ni armado, ni red, ni filas, ni eventos.
+    h.start()
+    result = rehearse(h)
+    assert result == {
+        "run_id": h.run_id, "evidence_mode": LOCAL, "phase": "STARTED", "emission_armed": False,
+        "t0_published": False, "tokens_issued": 0, "requests_prepared": 0, "requests_sent": 0,
+    }  # fmt: skip
+    assert h.phase() is P.STARTED
+    types = artifact_types(h)
+    assert types.count(executor.ART_EMISSION) == 1 and set(types) == STARTED_ARTIFACTS
+    assert "t0_ns" not in h.payload(executor.ART_EMISSION)
+    assert no_emission == []
+    assert h.tokens == [] and h.backend.connections == 0 and h.backend.accepted == 0
+    assert h.backend.rows == {}
+
+
+def test_rehearsal_refuses_an_official_run_without_writing(h, no_emission):
+    # (2) El modo sale del manifest custodiado: OFFICIAL se rechaza en el dominio, sin escribir.
+    h.start(evidence_mode=OFFICIAL)
+    files = run_files(h.store, h.run_id)
+    rejected = refusal(rehearse, h)
+    assert rejected.terminal
+    assert rejected.reasons == ("evidence-mode:rehearsal-started-requires-LOCAL_TEST",)
+    assert run_files(h.store, h.run_id) == files and h.phase() is P.PREPARED
+    assert no_emission == []
+
+
+def test_rehearsal_rechecks_the_mode_under_the_lock(h, monkeypatch, no_emission):
+    # Entre la comprobación previa y el lock el manifest no puede pasar a OFFICIAL sin rechazo.
+    h.start()
+    original, calls = executor._open_state, {"n": 0}
+
+    def official_inside_lock(store, run_id, git_sha):
+        state = original(store, run_id, git_sha)
+        calls["n"] += 1
+        if calls["n"] >= 3:  # 1: rehearsal, 2: helper fuera del lock, 3: dentro del lock
+            state.payloads[executor.ART_MANIFEST_INITIAL] = {
+                **state.initial_manifest,
+                "experiment_id": executor.EXPERIMENT_IDS[OFFICIAL],
+            }
+        return state
+
+    monkeypatch.setattr(executor, "_open_state", official_inside_lock)
+    files = run_files(h.store, h.run_id)
+    assert refusal(rehearse, h).terminal
+    assert run_files(h.store, h.run_id) == files and h.phase() is P.PREPARED
+
+
+def _created(h, monkeypatch):
+    original = executor._persist
+
+    def dies_at_preflight(store, run_id, artifact_type, payload, **kwargs):
+        if artifact_type == executor.ART_PREFLIGHT:
+            raise SystemExit(137)
+        return original(store, run_id, artifact_type, payload, **kwargs)
+
+    monkeypatch.setattr(executor, "_persist", dies_at_preflight)
+    with pytest.raises(SystemExit):
+        h.start(nonce="nonce-rehearsal-created")
+    monkeypatch.setattr(executor, "_persist", original)
+    (run_id,) = (path.name for path in (h.store.root / "runs").iterdir())
+    h.run_ids.append(run_id)
+
+
+class _DiesOnRun:
+    def run(self):
+        raise SystemExit(137)
+
+
+def _to_phase(h, monkeypatch, phase):
+    if phase == "CREATED":
+        return _created(h, monkeypatch)
+    h.start()
+    if phase == "STARTED":
+        rehearse(h)
+    elif phase == "EMITTING":
+        h.set_probes(generator=lambda plan, prepared, transport: _DiesOnRun())
+        with pytest.raises(SystemExit):
+            h.execute()
+    elif phase == "STOPPED_PRE_T0":
+        h.set_probes(fixture_result=lambda specs: (_ for _ in ()).throw(RuntimeError("x")))
+        h.execute()
+    elif phase == "RECONCILING":
+        h.execute()
+    elif phase == "ABANDONED_PRE_T0":
+        h.finalize(abandon_reason="operator-stop")
+
+
+@pytest.mark.parametrize(
+    "phase", ["CREATED", "STARTED", "EMITTING", "STOPPED_PRE_T0", "RECONCILING", "ABANDONED_PRE_T0"]
+)
+def test_rehearsal_only_accepts_prepared_and_refuses_the_rest_without_writing(
+    h, monkeypatch, phase
+):
+    # (4–7, 10) Sólo PREPARED; un segundo checkpoint sobre STARTED no duplica el marcador.
+    _to_phase(h, monkeypatch, phase)
+    assert str(h.phase()) == phase
+    files = run_files(h.store, h.run_id)
+    rejected = refusal(rehearse, h)
+    assert rejected.terminal
+    assert run_files(h.store, h.run_id) == files and str(h.phase()) == phase
+
+
+def test_rehearsal_refuses_another_head(h, no_emission):
+    # (8) El SHA esperado debe ser el del START.
+    h.start()
+    files = run_files(h.store, h.run_id)
+    rejected = refusal(rehearse, h, git_sha="1" * 40)
+    assert rejected.terminal and rejected.reasons == ("git-sha-differs-from-start",)
+    assert run_files(h.store, h.run_id) == files
+
+
+def test_rehearsal_applies_the_execute_freshness_bound(h, monkeypatch, no_emission):
+    # (9) La misma frontera de frescura que `execute`, y la del preflight completo.
+    now = {"value": FRESH}
+    h.set_probes(
+        now=lambda: now["value"],
+        preflight=lambda options: preflight_report(git_sha=SHA, checked_at=FRESH),
+    )
+    h.start()
+    files = run_files(h.store, h.run_id)
+    now["value"] = FRESH + timedelta(minutes=15) + US
+    rejected = refusal(rehearse, h)
+    assert "preflight:stale" in rejected.reasons
+    assert not rejected.terminal and run_files(h.store, h.run_id) == files
+    # Sin la revalidación del informe, el checkpoint compartido aplica la frontera de execute.
+    with monkeypatch.context() as patch:
+        patch.setattr(executor, "preflight_problems", lambda report, **kwargs: [])
+        assert refusal(rehearse, h).reasons == ("preflight-stale",)
+    assert run_files(h.store, h.run_id) == files
+    now["value"] = FRESH + timedelta(minutes=15)
+    assert rehearse(h)["phase"] == "STARTED"
+
+
+@pytest.mark.parametrize(
+    ("change", "reason"),
+    [
+        ({"git_sha": "1" * 40}, "preflight:git_sha"),
+        ({"result": "FAIL"}, "preflight:result"),
+        ({"result": "INCOMPLETE"}, "preflight:result"),
+        ({"gate": "NOT_READY"}, "preflight:gate"),
+        ({"ready_for_execution": True}, "preflight:ready_for_execution"),
+        ({"methodology_version": "S11A-v9"}, "preflight:methodology_version"),
+    ],
+    ids=["wrong-sha", "fail", "incomplete", "wrong-gate", "ready-true", "methodology"],
+)
+def test_rehearsal_revalidates_the_custodied_preflight(h, monkeypatch, no_emission, change, reason):
+    # (10–12) El preflight custodiado en START se revalida entero, no sólo su edad.
+    h.start()
+    original = executor.load_state
+
+    def altered(store, run_id):
+        state = original(store, run_id)
+        state.payloads[executor.ART_PREFLIGHT] = {
+            **state.payloads[executor.ART_PREFLIGHT],
+            **change,
+        }
+        return state
+
+    monkeypatch.setattr(executor, "load_state", altered)
+    files = run_files(h.store, h.run_id)
+    rejected = refusal(rehearse, h)
+    assert reason in rejected.reasons and not rejected.terminal
+    assert run_files(h.store, h.run_id) == files
+
+
+def test_rehearsal_requires_verified_custody(h, no_emission):
+    h.start()
+    plan_file = next(
+        path for path in (h.store.root / "runs" / h.run_id).rglob(f"{executor.ART_PLAN}.json")
+    )
+    plan_file.chmod(0o600)
+    plan_file.write_bytes(plan_file.read_bytes().replace(b"{", b"{ ", 1))
+    rejected = refusal(rehearse, h)
+    assert any(reason.startswith("custody:") for reason in rejected.reasons)
+    assert executor.ART_EMISSION not in artifact_types(h)
+
+
+def test_execute_and_rehearsal_create_the_marker_through_the_same_function(h, monkeypatch):
+    # (16) Una sola ruta para el marcador: misma función, mismo esquema y mismos campos.
+    original, steps = executor._checkpoint_started, []
+
+    def spy(*args, **kwargs):
+        steps.append(kwargs["step"])
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(executor, "_checkpoint_started", spy)
+    h.start()
+    h.execute()
+    official_marker = h.payload(executor.ART_EMISSION)
+    h.finalize()
+    h.start()
+    rehearse(h)
+    rehearsal_marker = h.payload(executor.ART_EMISSION)
+    assert steps == ["execute", "rehearsal-started"]
+    variable = {"run_id", "recorded_at"}
+    assert set(official_marker) == set(rehearsal_marker)
+    assert {k: v for k, v in official_marker.items() if k not in variable} == {
+        k: v for k, v in rehearsal_marker.items() if k not in variable
+    }
+    assert canonical_json_bytes({**rehearsal_marker, "run_id": "x", "recorded_at": "y"}) == (
+        canonical_json_bytes({**official_marker, "run_id": "x", "recorded_at": "y"})
+    )
+
+
+def test_an_interruption_during_the_checkpoint_keeps_each_path_semantics(h, monkeypatch):
+    # La interrupción se difiere hasta custodiar el marcador: `execute` se detiene antes de t0
+    # (como antes del refactor) y el checkpoint LOCAL_TEST queda en STARTED, su objetivo.
+    original = executor._persist
+
+    def interrupted(store, run_id, artifact_type, payload, **kwargs):
+        record = original(store, run_id, artifact_type, payload, **kwargs)
+        if artifact_type == executor.ART_EMISSION:
+            os.kill(os.getpid(), signal.SIGINT)
+        return record
+
+    monkeypatch.setattr(executor, "_persist", interrupted)
+    h.start()
+    stopped = h.execute()
+    assert stopped["phase"] == "STOPPED_PRE_T0" and h.backend.accepted == 0
+    h.finalize(abandon_reason="operator-stop")
+    h.start()
+    with pytest.raises(KeyboardInterrupt):
+        rehearse(h)
+    assert h.phase() is P.STARTED and artifact_types(h).count(executor.ART_EMISSION) == 1
+
+
+def test_started_rehearsal_is_visible_in_status_and_abandons_before_t0(h, no_emission):
+    # (25–29) status informa STARTED sin escribir; el abandono es el canónico; el LOCAL_TEST
+    # cerrado no entra en el primer run oficial ni impide un START OFFICIAL posterior.
+    h.start()
+    rehearse(h)
+    files = run_files(h.store, h.run_id)
+    assert executor.run_status(h.store, h.run_id)["phase"] == "STARTED"
+    assert run_files(h.store, h.run_id) == files
+    final = h.finalize(abandon_reason="rehearsal-complete")
+    assert final["lifecycle"] == "ABANDONED_PRE_T0"
+    assert final["decision"] == "NOT_DEMONSTRATED" and final["binding"] is False
+    assert executor.run_status(h.store, h.run_id)["phase"] == "ABANDONED_PRE_T0"
+    assert no_emission == []
+    prior = executor.prior_ex10_runs(h.store)
+    assert [(run.evidence_mode, run.finalized, run.problems) for run in prior] == [
+        (LOCAL, True, ())
+    ]
+    assert executor.binding_refusal(prior, evidence_mode=OFFICIAL, acknowledged=()) == ([], False)
+    assert h.start(evidence_mode=OFFICIAL)["phase"] == "PREPARED"
+
+
+def test_the_cli_rehearsal_started_step(h, cli, capsys):
+    # (3, 30) Confirmación propia obligatoria, salida JSON saneada y sin opciones de emisión.
+    run_id = cli(*start_args("nonce-cli-rehearsal-1"))["run_id"]
+    base = ("rehearsal-started", "--run-id", run_id, "--expected-git-sha", SHA)
+    confirm = "--confirm-local-rehearsal"
+    for extra in ((), ("--confirm-emission", confirm), ("--evidence-mode", LOCAL, confirm),
+                  ("--official", confirm), ("--request-count", "50", confirm)):  # fmt: skip
+        with pytest.raises(CommandError) as info:
+            cli(*base, *extra)
+        assert info.value.returncode == 3
+    assert executor.ART_EMISSION not in artifact_types(h, run_id)
+    result = cli(*base, "--confirm-local-rehearsal")
+    assert set(result) == REHEARSAL_RESULT_KEYS and result["phase"] == "STARTED"
+    assert cli("status", "--run-id", run_id)["phase"] == "STARTED"
+    capsys.readouterr()
+    with pytest.raises(CommandError) as info:
+        cli(*base, "--confirm-local-rehearsal")
+    assert info.value.returncode == 2
+    assert json.loads(capsys.readouterr().err) == {
+        "refused": True, "terminal": True,
+        "reasons": ["phase:STARTED:rehearsal-started-not-allowed"],
+    }  # fmt: skip
+    final = cli("finalize", "--run-id", run_id, "--expected-git-sha", SHA,
+                "--abandon-reason", "rehearsal-complete")  # fmt: skip
+    assert final["lifecycle"] == "ABANDONED_PRE_T0"
+
+
+def test_the_cli_refuses_rehearsal_on_an_official_run(h, cli, capsys):
+    official = [*start_args("nonce-cli-rehearsal-2")]
+    official[official.index("--evidence-mode") + 1] = OFFICIAL
+    started = cli(*official)
+    capsys.readouterr()
+    with pytest.raises(CommandError) as info:
+        cli("rehearsal-started", "--run-id", started["run_id"], "--expected-git-sha", SHA,
+            "--confirm-local-rehearsal")  # fmt: skip
+    assert info.value.returncode == 2
+    assert json.loads(capsys.readouterr().err)["reasons"] == [
+        "evidence-mode:rehearsal-started-requires-LOCAL_TEST"
+    ]

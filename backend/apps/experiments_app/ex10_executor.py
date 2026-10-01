@@ -138,7 +138,8 @@ class Phase(StrEnum):
     CREATED = "CREATED"
     #: START completo: se puede emitir o abandonar.
     PREPARED = "PREPARED"
-    #: Marcador de emisión sin armar: preparando tokens y cuerpos. Nada se envió todavía.
+    #: Marcador de emisión sin armar: preparando tokens y cuerpos, o detenido ahí por el
+    #: checkpoint LOCAL_TEST `rehearsal-started`. Nada se envió todavía.
     STARTED = "STARTED"
     #: Armado sin resultado: la barrera pudo liberarse (t0) o el proceso murió emitiendo.
     EMITTING = "EMITTING"
@@ -162,6 +163,8 @@ TERMINAL_PHASES = frozenset(
 #: Transiciones permitidas por paso. Cualquier otra se rechaza sin tocar nada.
 ALLOWED = {
     "execute": frozenset({Phase.PREPARED}),
+    #: Sólo LOCAL_TEST: el marcador de emisión y nada más (ensayo del lifecycle antes de t0).
+    "rehearsal-started": frozenset({Phase.PREPARED}),
     "drain": frozenset({Phase.DRAINING}),
     "reconcile": frozenset({Phase.RECONCILING, Phase.DECIDED}),
     "finalize": frozenset({Phase.RECONCILING, Phase.DECIDED}),
@@ -277,7 +280,7 @@ def _require_phase(state: RunState, step: str) -> Phase:
     if phase not in ALLOWED[step]:
         # Una emisión ya intentada no se repite nunca: no hay reenvío ni emisión parcial. Y un
         # run que no está en PREPARED ya no llegará a estarlo.
-        terminal = step == "execute"
+        terminal = step in {"execute", "rehearsal-started"}
         raise Ex10Refusal([f"phase:{phase}:{step}-not-allowed"], terminal=terminal)
     return phase
 
@@ -891,28 +894,17 @@ def execute_run(
     probes = probes or ExecutorProbes()
     dataset = probes.dataset()
     plan = ex10_load.build_plan(dataset)
-    state = _open_state(store, run_id, git_sha)
-    _require_phase(state, "execute")
-    problems, config_before, ready = _pre_emission_problems(state, probes, dataset)
-    if problems:
-        raise Ex10Refusal(problems, terminal=False)
-    boot_id = probes.boot_id()
     try:
-        with _checkpoint(store):
-            state = _open_state(store, run_id, git_sha)
-            _require_phase(state, "execute")
-            marker = _event(
-                "s11c3-ex10-emission-v1",
-                run_id=run_id,
-                recorded_at=probes.now(),
-                boot_id=boot_id,
-                config_before=config_before.to_json(),
-                ready_state={"state": ready.get("state"), "overall": ready.get("overall")},
-            )
-            _persist(
-                store, run_id, ART_EMISSION, marker, source="s11_ex10.execute", dataset=dataset
-            )
-    except KeyboardInterrupt:
+        _checkpoint_started(
+            store,
+            run_id=run_id,
+            git_sha=git_sha,
+            probes=probes,
+            dataset=dataset,
+            step="execute",
+            source="s11_ex10.execute",
+        )
+    except _InterruptedAtStarted:
         # Diferida hasta custodiar el marcador: no hubo barrera, es una detención antes de t0.
         return _stop_pre_t0(store, run_id, git_sha, ["operator-interrupted"], probes, dataset)
 
@@ -1001,6 +993,111 @@ def execute_run(
         "apparatus_faults": len(run.faults),
         "raw_rejected": bool(findings),
         "drain": {key: drain[key] for key in ("outcome", "polls", "uninspected_polls")},
+    }
+
+
+class _InterruptedAtStarted(Exception):
+    """Una interrupción diferida que se entregó al cerrar el checkpoint de STARTED."""
+
+
+def _checkpoint_started(
+    store: EvidenceStore,
+    *,
+    run_id: str,
+    git_sha: str,
+    probes: ExecutorProbes,
+    dataset: LoadDataset,
+    step: str,
+    source: str,
+    require_mode: str | None = None,
+) -> None:
+    """PREPARED → STARTED: las comprobaciones previas a la emisión y el marcador custodiado.
+
+    La única ruta que crea el marcador de emisión. La usan `execute` (que después prepara
+    tokens y cuerpos, arma y emite) y el checkpoint LOCAL_TEST `rehearsal-started` (que se
+    detiene aquí). Con `require_mode`, el modo del manifest se exige fuera y dentro del lock.
+    Una interrupción durante el checkpoint se entrega al cerrarlo, con el marcador ya
+    custodiado, como `_InterruptedAtStarted`.
+    """
+    state = _open_state(store, run_id, git_sha)
+    _require_mode(state, require_mode, step)
+    _require_phase(state, step)
+    problems, config_before, ready = _pre_emission_problems(state, probes, dataset)
+    if problems:
+        raise Ex10Refusal(problems, terminal=False)
+    boot_id = probes.boot_id()
+    try:
+        with _checkpoint(store):
+            state = _open_state(store, run_id, git_sha)
+            _require_mode(state, require_mode, step)
+            _require_phase(state, step)
+            marker = _event(
+                "s11c3-ex10-emission-v1",
+                run_id=run_id,
+                recorded_at=probes.now(),
+                boot_id=boot_id,
+                config_before=config_before.to_json(),
+                ready_state={"state": ready.get("state"), "overall": ready.get("overall")},
+            )
+            _persist(store, run_id, ART_EMISSION, marker, source=source, dataset=dataset)
+    except KeyboardInterrupt:
+        raise _InterruptedAtStarted from None
+
+
+def _require_mode(state: RunState, mode: str | None, step: str) -> None:
+    if mode is not None and _evidence_mode(state.initial_manifest) != mode:
+        raise Ex10Refusal([f"evidence-mode:{step}-requires-{mode}"], terminal=True)
+
+
+def rehearsal_started_run(
+    store: EvidenceStore,
+    *,
+    run_id: str,
+    git_sha: str,
+    probes: ExecutorProbes | None = None,
+) -> dict[str, Any]:
+    """LOCAL_TEST: PREPARED → STARTED y se detiene. Un ensayo del lifecycle, nunca de carga.
+
+    El modo sale del manifest custodiado: un run OFFICIAL se rechaza de forma definitiva y
+    sin escribir. Además de las comprobaciones de `execute`, el preflight custodiado en START
+    debe seguir siendo un PASS completo, reciente y del mismo HEAD, y la custodia del run
+    debe verificar.
+    Crea el marcador de emisión por la misma ruta que `execute` y vuelve: no emite ni
+    verifica tokens, no prepara cuerpos, no crea transporte ni generador, no arma la emisión
+    y no abre la barrera. Desde STARTED sólo queda el abandono antes de t0.
+    """
+    probes = probes or ExecutorProbes()
+    dataset = probes.dataset()
+    state = _open_state(store, run_id, git_sha)
+    _require_mode(state, LOCAL_TEST_MODE, "rehearsal-started")
+    _require_phase(state, "rehearsal-started")
+    problems = preflight_problems(state.payload(ART_PREFLIGHT), git_sha=git_sha, now=probes.now())
+    problems.extend(f"custody:{error}" for error in store.verify(run_id))
+    if problems:
+        raise Ex10Refusal(problems, terminal=False)
+    try:
+        _checkpoint_started(
+            store,
+            run_id=run_id,
+            git_sha=git_sha,
+            probes=probes,
+            dataset=dataset,
+            step="rehearsal-started",
+            source="s11_ex10.rehearsal-started",
+            require_mode=LOCAL_TEST_MODE,
+        )
+    except _InterruptedAtStarted:
+        # El marcador ya está custodiado: el run queda en STARTED, que es el objetivo.
+        raise KeyboardInterrupt from None
+    return {
+        "run_id": run_id,
+        "evidence_mode": LOCAL_TEST_MODE,
+        "phase": str(Phase.STARTED),
+        "emission_armed": False,
+        "t0_published": False,
+        "tokens_issued": 0,
+        "requests_prepared": 0,
+        "requests_sent": 0,
     }
 
 
