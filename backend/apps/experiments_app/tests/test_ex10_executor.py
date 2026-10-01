@@ -2418,3 +2418,405 @@ def test_the_cli_status_is_strictly_read_only(h, cli):
     with write_spy() as calls:
         printed = cli("status", "--run-id", h.run_id)
     assert printed == expected and calls == [] and tree(base) == before
+
+
+# --- Exploración de runs previos estrictamente read-only --------------------------------------
+# START explora los runs previos bajo su propio lock exclusivo, sin `initialize_run`, `mkdir`
+# ni `chmod`, y sin pedir un segundo lock. Fuera de START, `prior_ex10_runs` lee bajo un único
+# lock compartido. Cada run previo queda idéntico byte a byte y en toda su metadata.
+
+
+def scanned(store, *, times=1):
+    """`prior_ex10_runs` (`times` veces) bajo el spy; el árbol completo de la custodia no cambia."""
+    base = store.root.parent
+    before = tree(base)
+    with write_spy() as calls:
+        results = [executor.prior_ex10_runs(store) for _ in range(times)]
+    assert calls == [] and tree(base) == before
+    assert all(result == results[0] for result in results)
+    return results[0]
+
+
+def _no_nested_lock(store):
+    raise AssertionError("START no puede pedir otro lock de custodia")
+
+
+def start_keeping(h, keep, **kwargs):
+    """START (o su rechazo) con su exploración bajo el spy y sin lock anidado: cada ruta de
+    `keep` (runs previos) queda idéntica."""
+    before = {path: tree(path) for path in keep}
+    original, calls = executor._prior_ex10_runs_under_caller_lock, []
+
+    def spied(store):
+        with write_spy() as blocked:
+            try:
+                return original(store)
+            finally:
+                calls.extend(blocked)
+
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(executor, "_prior_ex10_runs_under_caller_lock", spied)
+        mp.setattr(executor, "_shared_custody_lock", _no_nested_lock)
+        try:
+            result = h.start(**kwargs)
+        except executor.Ex10Refusal as exc:
+            result = exc
+    assert calls == []
+    assert {path: tree(path) for path in keep} == before
+    return result
+
+
+def run_path(h, run_id):
+    return h.store.root / "runs" / run_id
+
+
+def _closed(h, mode, how, **kwargs):
+    """Un run cerrado de `mode`: abandonado antes de t0, o PASS/FAIL por emisión real."""
+    run_id = h.start(evidence_mode=mode, **kwargs)["run_id"]
+    if how == "abandoned":
+        h.finalize(abandon_reason="operator-stop")
+        return run_id
+    if how == "fail":
+        h.backend.modes[h.plan.for_vu(4)[3].request_key] = "500"
+    h.execute()
+    h.finalize()
+    h.backend.modes.clear()
+    return run_id
+
+
+@pytest.mark.parametrize("layout", ["no-evidence-root", "no-runs-dir", "empty-runs-dir"])
+def test_prior_scan_of_an_empty_root_creates_nothing(layout):
+    # (1–4) Sin raíz, sin `runs/` o con `runs/` vacío: vacío, sin crear nada ni el lock.
+    store = make_store(f"prior-{layout}")
+    try:
+        if layout != "no-evidence-root":
+            store.root.mkdir(mode=0o700)
+        if layout == "empty-runs-dir":
+            (store.root / "runs").mkdir(mode=0o700)
+        assert scanned(store) == []
+        with write_spy() as calls:
+            assert executor._prior_ex10_runs_under_caller_lock(store) == []
+        assert calls == []
+        assert store.root.exists() is (layout != "no-evidence-root")
+        assert (store.root / "runs").exists() is (layout == "empty-runs-dir")
+        assert not (store.root / ".s11-custody.lock").exists()
+    finally:
+        remove_store(store)
+
+
+def test_closed_local_tests_never_bind_an_official_start(h):
+    # (5, 6, 8, 9, 33) Un LOCAL_TEST abandonado y uno terminal de diagnóstico (PASS local)
+    # se ven, verificados, y no impiden el primer START OFFICIAL; ninguno cambia.
+    abandoned = _closed(h, LOCAL, "abandoned")
+    diagnostic = _closed(h, LOCAL, "pass")
+    prior = scanned(h.store, times=3)
+    seen = {(r.run_id, r.evidence_mode, r.finalized, r.decision, r.problems) for r in prior}
+    assert seen == {(abandoned, LOCAL, True, "NOT_DEMONSTRATED", ()),
+                    (diagnostic, LOCAL, True, "PASS", ())}  # fmt: skip
+    assert executor.binding_refusal(prior, evidence_mode=OFFICIAL, acknowledged=()) == ([], False)
+    keep = [run_path(h, abandoned), run_path(h, diagnostic)]
+    assert start_keeping(h, keep, evidence_mode=OFFICIAL)["phase"] == "PREPARED"
+
+
+def test_an_active_local_test_blocks_any_start_without_touching_it(h):
+    # (7) Un LOCAL_TEST abierto impide cualquier START en la misma custodia.
+    active = h.start()["run_id"]
+    for mode in (LOCAL, OFFICIAL):
+        rejected = start_keeping(h, [run_path(h, active)], evidence_mode=mode)
+        assert rejected.reasons == (f"active-run:{active}",) and not rejected.terminal
+
+
+@pytest.mark.parametrize("how", ["pass", "fail"])
+def test_an_official_pass_or_fail_blocks_definitively_without_touching_it(h, how):
+    # (10, 11, 34, 35) El primer run oficial PASS/FAIL es el resultado: ninguno oficial más.
+    binding = _closed(h, OFFICIAL, how)
+    prior = scanned(h.store)
+    assert [(r.evidence_mode, r.decision, r.problems) for r in prior] == [
+        (OFFICIAL, how.upper(), ())
+    ]
+    rejected = start_keeping(h, [run_path(h, binding)], evidence_mode=OFFICIAL)
+    assert rejected.reasons == (f"binding-run-exists:{binding}",) and rejected.terminal
+    assert start_keeping(h, [run_path(h, binding)], evidence_mode=LOCAL)["phase"] == "PREPARED"
+
+
+def test_official_not_demonstrated_runs_need_each_exact_acknowledgement(h):
+    # (12–15, 36, 37) Cada NOT_DEMONSTRATED oficial se reconoce por su run_id: ni automático,
+    # ni comodín, ni uno por otro; un reconocimiento desconocido se rechaza.
+    first = _closed(h, OFFICIAL, "abandoned")
+    second = _closed(h, OFFICIAL, "abandoned", acknowledged_not_demonstrated=[first])
+    keep = [run_path(h, first), run_path(h, second)]
+    pending = {f"not-demonstrated-unacknowledged:{run}" for run in (first, second)}
+    cases = [
+        ((), pending),
+        ((first,), {f"not-demonstrated-unacknowledged:{second}"}),
+        ((second,), {f"not-demonstrated-unacknowledged:{first}"}),
+        (("*",), pending | {"acknowledged-unknown:*"}),
+        ((MISSING,), pending | {f"acknowledged-unknown:{MISSING}"}),
+        ((first, second, MISSING), {f"acknowledged-unknown:{MISSING}"}),
+    ]
+    for acknowledged, reasons in cases:
+        rejected = start_keeping(
+            h, keep, evidence_mode=OFFICIAL, acknowledged_not_demonstrated=list(acknowledged)
+        )
+        assert set(rejected.reasons) == reasons and not rejected.terminal
+    started = start_keeping(
+        h, keep, evidence_mode=OFFICIAL, acknowledged_not_demonstrated=[first, second]
+    )
+    assert started["phase"] == "PREPARED"
+
+
+def _official_open(h, monkeypatch, phase):
+    probes = h.probes
+    h.start(evidence_mode=OFFICIAL)
+    if phase == "STARTED":
+        monkeypatch.setattr(
+            executor, "_arm_emission", lambda *a, **k: (_ for _ in ()).throw(SystemExit(137))
+        )
+    elif phase == "EMITTING":
+        h.set_probes(generator=lambda plan, prepared, transport: _DiesOnRun())
+    elif phase == "DRAINING":
+        h.set_probes(database=lambda: (_ for _ in ()).throw(SystemExit(137)))
+    if phase != "PREPARED":
+        with pytest.raises(SystemExit):
+            h.execute()
+    monkeypatch.undo()
+    h.probes = probes
+    return h.run_id
+
+
+@pytest.mark.parametrize("phase", ["PREPARED", "STARTED", "EMITTING", "DRAINING"])
+def test_an_open_official_run_blocks_without_touching_it(h, monkeypatch, phase):
+    # (16) Un run oficial abierto en cualquier fase impide otro START.
+    active = _official_open(h, monkeypatch, phase)
+    assert str(executor.phase_of(executor.load_existing_state_readonly(h.store, active))) == phase
+    for mode in (LOCAL, OFFICIAL):
+        rejected = start_keeping(h, [run_path(h, active)], evidence_mode=mode)
+        assert rejected.reasons == (f"active-run:{active}",)
+
+
+def _damage(h, run_id, damage):
+    """Deja un rastro previo inverificable; devuelve las rutas que el START no debe tocar."""
+    root = run_path(h, run_id)
+    index = root / "metadata" / "artifacts.jsonl"
+    plan = root / h.state(run_id).record(executor.ART_PLAN)["relative_path"]
+    elsewhere = h.store.root.parent / "elsewhere"
+    if damage == "tampered-artifact":
+        raw = next((root / "raw").rglob("*.json"))
+        raw.write_bytes(raw.read_bytes() + b" ")
+    elif damage == "metadata-removed":
+        shutil.rmtree(root / "metadata" / "EX-10")
+    elif damage == "corrupt-index":
+        with index.open("ab") as handle:
+            handle.write(b"{not json\n")
+    elif damage == "invalid-hmac":
+        index.with_suffix(".jsonl.hmac").write_text("0" * 64 + "\n", encoding="ascii")
+    elif damage == "missing-artifact":
+        plan.unlink()
+    elif damage == "symlinked-run":
+        elsewhere.mkdir()
+        root.rename(elsewhere / run_id)
+        root.symlink_to(elsewhere / run_id, target_is_directory=True)
+        return [root, elsewhere]
+    elif damage == "symlinked-index":
+        elsewhere.mkdir()
+        index.rename(elsewhere / "artifacts.jsonl")
+        index.symlink_to(elsewhere / "artifacts.jsonl")
+        return [root, elsewhere]
+    return [root]
+
+
+DAMAGES = ["tampered-artifact", "metadata-removed", "corrupt-index", "invalid-hmac",
+           "missing-artifact", "symlinked-run", "symlinked-index"]  # fmt: skip
+
+
+@pytest.mark.parametrize("damage", DAMAGES)
+@pytest.mark.parametrize("mode", [LOCAL, OFFICIAL])
+def test_an_unverifiable_prior_trace_blocks_without_being_repaired(h, mode, damage):
+    # (17–23, 38) Un rastro previo que no se puede verificar bloquea cualquier START, de
+    # cualquier modo; no se repara, no se sigue un symlink y no desaparece.
+    prior = _closed(h, mode, "pass")
+    keep = _damage(h, prior, damage)
+    found = scanned(h.store)
+    assert [run.run_id for run in found] == [prior] and found[0].problems
+    for evidence_mode in (LOCAL, OFFICIAL):
+        rejected = start_keeping(h, keep, evidence_mode=evidence_mode)
+        assert rejected.reasons == (f"prior-run-unverifiable:{prior}",)
+
+
+def test_a_run_path_that_is_not_a_directory_blocks(h):
+    # (24) Una ruta con nombre de run que no es un directorio no se interpreta: bloquea.
+    (h.store.root / "runs").mkdir(parents=True, mode=0o700)
+    (h.store.root / "runs" / MISSING).write_bytes(b"x")
+    assert [(r.run_id, r.problems) for r in scanned(h.store)] == [
+        (MISSING, ("run-directory-invalid",))
+    ]
+    rejected = start_keeping(h, [h.store.root / "runs" / MISSING])
+    assert rejected.reasons == (f"prior-run-unverifiable:{MISSING}",)
+
+
+def test_a_reused_run_id_is_refused_without_touching_the_existing_run(h):
+    # (25) El mismo run_id se rechaza sin inicializar (ni `chmod`) el directorio existente.
+    moment = datetime(2026, 9, 28, 12, 0, tzinfo=UTC)
+    h.set_probes(
+        now=lambda: moment,
+        preflight=lambda options: preflight_report(git_sha=SHA, checked_at=moment),
+    )
+    first = _closed(h, LOCAL, "abandoned", nonce="nonce-fixed-0001")
+    rejected = start_keeping(h, [run_path(h, first)], nonce="nonce-fixed-0001")
+    assert rejected.reasons == ("run-id-reused",) and rejected.terminal
+    # Un rastro sin índice (un START que murió al crear el directorio) también cuenta.
+    other = start_keeping(h, [run_path(h, first)], nonce="nonce-fixed-0002")["run_id"]
+    h.finalize(other, abandon_reason="operator-stop")
+    shutil.rmtree(run_path(h, other))
+    run_path(h, other).mkdir()
+    rejected = start_keeping(h, [run_path(h, first), run_path(h, other)], nonce="nonce-fixed-0002")
+    assert rejected.reasons == ("run-id-reused",) and rejected.terminal
+
+
+def _flock_calls(monkeypatch):
+    calls = []
+    original = fcntl.flock
+
+    def counting(fd, operation):
+        calls.append(operation)
+        return original(fd, operation)
+
+    monkeypatch.setattr(fcntl, "flock", counting)
+    return calls
+
+
+def test_start_scans_under_its_own_lock_without_nesting_or_deadlock(h, monkeypatch):
+    # (26, 27) START ya tiene el lock exclusivo: la exploración no pide otro (ni compartido)
+    # y termina; dentro de `store.mutation()` el lector no llama a `flock`.
+    prior = [_closed(h, LOCAL, "abandoned") for _ in range(3)]
+    flocks = _flock_calls(monkeypatch)
+    done = {}
+    thread = threading.Thread(
+        target=lambda: done.update(result=start_keeping(h, [run_path(h, r) for r in prior]))
+    )
+    thread.start()
+    thread.join(30)
+    assert not thread.is_alive() and done["result"]["phase"] == "PREPARED"
+    assert not any(operation & fcntl.LOCK_SH for operation in flocks)
+    flocks.clear()
+    with h.store.mutation():
+        before = len(flocks)
+        assert [r.run_id for r in executor._prior_ex10_runs_under_caller_lock(h.store)] == sorted(
+            [*prior, h.run_id]
+        )
+        assert len(flocks) == before
+
+
+def test_the_public_scan_takes_one_shared_lock_for_all_runs(h, monkeypatch):
+    # (28, 31) Fuera de START: un único `LOCK_SH` para toda la exploración, no uno por run.
+    for _ in range(4):
+        _closed(h, LOCAL, "abandoned")
+    flocks = _flock_calls(monkeypatch)
+    assert len(scanned(h.store)) == 4
+    assert [op for op in flocks if op & fcntl.LOCK_SH] == [fcntl.LOCK_SH | fcntl.LOCK_NB]
+
+
+def test_a_held_mutation_lock_makes_the_scan_a_read_race_and_start_wait(h, monkeypatch):
+    # (29) Con el lock exclusivo de otro: la exploración pública es `status-read-race` sin
+    # tocar nada, y START espera al lock (canónico) y después explora sin cambiar el previo.
+    prior = _closed(h, LOCAL, "abandoned")
+    monkeypatch.setattr(executor, "STATUS_LOCK_ATTEMPTS", 3)
+    monkeypatch.setattr(executor, "STATUS_LOCK_PAUSE", 0.01)
+    release = threading.Event()
+    holder = _holding_the_custody_lock(h.store, release)
+    try:
+        before = tree(h.store.root.parent)
+        with write_spy() as calls:
+            rejected = refusal(executor.prior_ex10_runs, h.store)
+        assert rejected.reasons == ("status-read-race",) and not rejected.terminal
+        assert calls == [] and tree(h.store.root.parent) == before
+        done = {}
+        starter = threading.Thread(
+            target=lambda: done.update(result=start_keeping(h, [run_path(h, prior)]))
+        )
+        starter.start()
+        starter.join(0.3)
+        assert starter.is_alive() and not done
+    finally:
+        release.set()
+        holder.join()
+    starter.join(30)
+    assert done["result"]["phase"] == "PREPARED"
+
+
+def test_concurrent_public_scans_agree_and_change_nothing(h):
+    # (30)
+    for _ in range(2):
+        _closed(h, LOCAL, "abandoned")
+    expected = scanned(h.store)
+    base = h.store.root.parent
+    before = tree(base)
+    with write_spy() as calls:
+        results, errors = _concurrently(
+            8, lambda: [executor.prior_ex10_runs(h.store) for _ in range(5)]
+        )
+    assert errors == [] and calls == [] and tree(base) == before
+    assert [scan for batch in results for scan in batch] == [expected] * 40
+
+
+def test_the_public_scan_refuses_a_concurrent_write(h, monkeypatch):
+    # Un índice que cambia durante la exploración (sin lock) no compone un estado.
+    prior = _closed(h, LOCAL, "abandoned")
+    original = executor._prior_ex10_runs_under_caller_lock
+
+    def touched(store):
+        os.utime(run_path(h, prior) / "metadata" / "artifacts.jsonl")
+        return original(store)
+
+    monkeypatch.setattr(executor, "_prior_ex10_runs_under_caller_lock", touched)
+    rejected = refusal(executor.prior_ex10_runs, h.store)
+    assert rejected.reasons == ("status-read-race",) and not rejected.terminal
+
+
+def test_the_start_record_keeps_the_prior_scan_schema(h):
+    # (18) El START custodia la exploración con el mismo schema de siempre.
+    prior = _closed(h, LOCAL, "abandoned")
+    h.start(evidence_mode=OFFICIAL)
+    start = executor.load_existing_state_readonly(h.store, h.run_id).payload(executor.ART_START)
+    assert start["prior_ex10_runs"] == [{
+        "run_id": prior, "evidence_mode": LOCAL, "finalized": True,
+        "decision": "NOT_DEMONSTRATED", "problems": [],
+    }]  # fmt: skip
+
+
+def test_the_readonly_loader_outside_start_takes_the_shared_lock(h, monkeypatch):
+    # (28) Fuera de START el loader lee bajo el lock compartido: un `LOCK_SH`, y con el
+    # exclusivo de otro, `status-read-race` sin tocar nada.
+    h.start()
+    flocks = _flock_calls(monkeypatch)
+    assert executor.load_existing_state_readonly(h.store, h.run_id) is not None
+    assert [op for op in flocks if op & fcntl.LOCK_SH] == [fcntl.LOCK_SH | fcntl.LOCK_NB]
+    monkeypatch.setattr(executor, "STATUS_LOCK_ATTEMPTS", 3)
+    monkeypatch.setattr(executor, "STATUS_LOCK_PAUSE", 0.01)
+    release = threading.Event()
+    holder = _holding_the_custody_lock(h.store, release)
+    try:
+        before = tree(h.store.root.parent)
+        with write_spy() as calls:
+            rejected = refusal(executor.load_existing_state_readonly, h.store, h.run_id)
+        assert rejected.reasons == ("status-read-race",) and not rejected.terminal
+        assert calls == [] and tree(h.store.root.parent) == before
+    finally:
+        release.set()
+        holder.join()
+
+
+def test_a_symlinked_index_is_never_read_through(h):
+    # (23) El índice (o `metadata/`) a través de un symlink no se lee: status da un error
+    # saneado y la exploración lo deja como ilegible, que bloquea; nada cambia.
+    prior = _closed(h, LOCAL, "abandoned")
+    keep = _damage(h, prior, "symlinked-index")
+    base = h.store.root.parent
+    before = tree(base)
+    with write_spy() as calls, pytest.raises(OSError):
+        executor.run_status(h.store, prior)
+    with pytest.raises(OSError):
+        executor._read_existing_state_under_caller_lock(h.store, prior)
+    assert calls == [] and tree(base) == before
+    assert [(r.run_id, r.problems) for r in scanned(h.store)] == [(prior, ("records-unreadable",))]
+    assert start_keeping(h, keep).reasons == (f"prior-run-unverifiable:{prior}",)

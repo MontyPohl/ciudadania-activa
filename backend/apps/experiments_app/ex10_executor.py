@@ -289,7 +289,7 @@ def _index_fingerprint(run_root: Path) -> tuple:
                  run_root / ".s11-finalized"):  # fmt: skip
         try:
             info = os.lstat(path)
-        except FileNotFoundError:
+        except (FileNotFoundError, NotADirectoryError):
             facts.append(None)
             continue
         facts.append((info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns))
@@ -304,29 +304,49 @@ def _existing_run_root(store: EvidenceStore, run_id: str) -> Path | None:
     return runs / run_id
 
 
-def load_existing_state_readonly(store: EvidenceStore, run_id: str) -> RunState | None:
-    """El estado de un run existente sin crear, reparar ni normalizar nada; `None` si no existe.
+def _read_existing_state_under_caller_lock(store: EvidenceStore, run_id: str) -> RunState | None:
+    """El estado de un run existente tal cual está en disco; `None` si no existe.
 
-    Nunca `initialize_run`, `mkdir`, `chmod`, escrituras ni el lock exclusivo: el directorio
-    del run debe existir y ser real (no un symlink), y el índice se lee tal cual está. Un índice
-    corrupto propaga su `ValueError`, como `load_state`. Si el índice, su firma o el sello
-    cambian mientras se lee, la lectura se rechaza (`status-read-race`) en lugar de componer
-    un estado que nunca existió.
+    No toma ningún lock: el caller garantiza la consistencia con el lock de custodia que ya
+    tiene (exclusivo en START, compartido en `status` y `load_existing_state_readonly`). Volver
+    a pedirlo aquí con otro descriptor bloquearía al propio START.
+
+    Nunca `initialize_run`, `mkdir`, `chmod` ni escrituras. El run, `runs/`, `metadata/` y el
+    índice deben ser reales: un symlink no se sigue (`OSError`). Un índice corrupto propaga su
+    `ValueError`, como `load_state`.
     """
     run_root = _existing_run_root(store, run_id)
     if run_root is None:
         return None
-    before = _index_fingerprint(run_root)
     index = run_root / _INDEX
+    if index.parent.is_symlink() or index.is_symlink():
+        raise OSError("índice de custodia a través de un symlink")
     records = (
         [json.loads(line) for line in index.read_text(encoding="utf-8").splitlines()]
         if index.exists()
         else []
     )
     payloads, unreadable = _read_payloads(run_root, records)
-    if _index_fingerprint(run_root) != before:
-        raise Ex10Refusal([_READ_RACE], terminal=False)
     return RunState(run_id, run_root, records, payloads, unreadable)
+
+
+def load_existing_state_readonly(store: EvidenceStore, run_id: str) -> RunState | None:
+    """El estado de un run existente sin crear, reparar ni normalizar nada; `None` si no existe.
+
+    Lee bajo el lock de custodia compartido (`_shared_custody_lock`). Si el índice, su firma o
+    el sello cambian mientras se lee, la lectura se rechaza (`status-read-race`) en lugar de
+    componer un estado que nunca existió. Bajo el lock exclusivo de un paso que muta se usa
+    `_read_existing_state_under_caller_lock`.
+    """
+    with _shared_custody_lock(store):
+        run_root = _existing_run_root(store, run_id)
+        if run_root is None:
+            return None
+        before = _index_fingerprint(run_root)
+        state = _read_existing_state_under_caller_lock(store, run_id)
+        if state is None or _index_fingerprint(run_root) != before:
+            raise Ex10Refusal([_READ_RACE], terminal=False)
+        return state
 
 
 def verify_readonly(store: EvidenceStore, state: RunState) -> list[str]:
@@ -335,17 +355,25 @@ def verify_readonly(store: EvidenceStore, state: RunState) -> list[str]:
     artefacto, y el sello del run finalizado."""
     run_root, errors = state.run_root, []
     index = run_root / _INDEX
+    signature = index.with_suffix(".jsonl.hmac")
     try:
+        if index.parent.is_symlink() or index.is_symlink() or signature.is_symlink():
+            raise OSError("firma del índice a través de un symlink")
         validate_custody_index_signature(
             index.read_bytes(),
-            index.with_suffix(".jsonl.hmac").read_text(encoding="ascii").strip(),
+            signature.read_text(encoding="ascii").strip(),
             custody_hmac_key=store.custody_hmac_key,
         )
     except (CustodyPolicyError, OSError):
         errors.append("index-signature")
     for record in state.records:
         path = run_root / record["relative_path"]
-        if not path.is_file():
+        # Un artefacto que es un symlink, o que resuelve fuera del run, no está custodiado.
+        if (
+            path.is_symlink()
+            or run_root.resolve() not in path.resolve().parents
+            or not path.is_file()
+        ):
             errors.append(f"missing:{record['artifact_id']}")
         elif sha256_file(path) != record["sha256"]:
             errors.append(f"sha256:{record['artifact_id']}")
@@ -463,30 +491,46 @@ class PriorRun:
         }
 
 
-def prior_ex10_runs(store: EvidenceStore) -> list[PriorRun]:
-    """Todos los runs de EX-10 de la raíz, verificados. Nunca se ignora uno ilegible."""
+def _prior_ex10_runs_under_caller_lock(store: EvidenceStore) -> list[PriorRun]:
+    """Todos los runs de EX-10 de la raíz, verificados. Nunca se ignora uno ilegible.
+
+    Estrictamente de sólo lectura (ni `initialize_run`, ni `mkdir`, ni `chmod`, ni el lock) y
+    sin lock propio: START la llama con el lock exclusivo de custodia ya tomado, y
+    `prior_ex10_runs` con el compartido. Un rastro que no se puede verificar (índice corrupto o
+    ausente, firma inválida, artefacto faltante, symlinks) queda como run con problemas, que
+    bloquea un START nuevo: nunca se repara ni desaparece.
+    """
     runs_dir = store.root / "runs"
-    if not runs_dir.is_dir():
+    if not os.path.lexists(runs_dir):
         return []
+    if runs_dir.is_symlink() or not runs_dir.is_dir():
+        return [PriorRun("runs", None, False, None, ("runs-directory-invalid",))]
     found = []
     for child in sorted(runs_dir.iterdir()):
+        real_directory = child.is_dir() and not child.is_symlink()
+        # Una ruta con nombre de run que no es un directorio real no se interpreta: bloquea.
+        if not real_directory and valid_run_id(child.name):
+            found.append(PriorRun(child.name, None, False, None, ("run-directory-invalid",)))
+            continue
         # Cualquier rastro de EX-10 cuenta: borrar `metadata/` no esconde un run previo.
         if not any(os.path.lexists(child / kind.value / SCENARIO_ID) for kind in ArtifactKind):
             continue
-        if child.is_symlink() or not child.is_dir() or not valid_run_id(child.name):
+        if not real_directory or not valid_run_id(child.name):
             found.append(PriorRun(child.name, None, False, None, ("run-directory-invalid",)))
             continue
         problems: list[str] = []
         try:
-            state = load_state(store, child.name)
+            state = _read_existing_state_under_caller_lock(store, child.name)
         except (OSError, ValueError):
+            state = None
+        if state is None:
             found.append(PriorRun(child.name, None, False, None, ("records-unreadable",)))
             continue
         manifest = state.initial_manifest
         mode = None if manifest is None else _evidence_mode(manifest)
         if manifest is None or manifest.get("scenario_id") != SCENARIO_ID or mode is None:
             problems.append("initial-manifest")
-        problems.extend(f"custody:{error}" for error in store.verify(child.name))
+        problems.extend(f"custody:{error}" for error in verify_readonly(store, state))
         problems.extend(f"unreadable:{name}" for name in state.unreadable)
         decision_payload = state.payload(ART_DECISION)
         decision = (
@@ -496,6 +540,27 @@ def prior_ex10_runs(store: EvidenceStore) -> list[PriorRun]:
             problems.append("finalized-without-ex10-decision")
         found.append(PriorRun(child.name, mode, state.finalized, decision, tuple(problems)))
     return found
+
+
+def _prior_scan_fingerprint(store: EvidenceStore) -> tuple:
+    runs_dir = store.root / "runs"
+    if runs_dir.is_symlink() or not runs_dir.is_dir():
+        return (os.path.lexists(runs_dir),)
+    return tuple((child.name, _index_fingerprint(child)) for child in sorted(runs_dir.iterdir()))
+
+
+def prior_ex10_runs(store: EvidenceStore) -> list[PriorRun]:
+    """Los runs previos de EX-10, fuera de START: estrictamente de sólo lectura y coherente.
+
+    Un único lock de custodia compartido para toda la exploración (no uno por run) y la
+    comparación de los índices antes y después: un cambio concurrente es `status-read-race`.
+    """
+    with _shared_custody_lock(store):
+        before = _prior_scan_fingerprint(store)
+        found = _prior_ex10_runs_under_caller_lock(store)
+        if _prior_scan_fingerprint(store) != before:
+            raise Ex10Refusal([_READ_RACE], terminal=False)
+        return found
 
 
 def binding_refusal(
@@ -910,7 +975,8 @@ def start_run(
         raise Ex10Refusal(problems, terminal=False)
     preflight_sha = sha256_bytes(canonical_json_bytes(report))
     with _checkpoint(store):
-        prior = prior_ex10_runs(store)
+        # Ya bajo el lock exclusivo: la exploración de sólo lectura no pide otro lock.
+        prior = _prior_ex10_runs_under_caller_lock(store)
         reasons, terminal = binding_refusal(
             prior, evidence_mode=evidence_mode, acknowledged=acknowledged_not_demonstrated
         )
@@ -939,7 +1005,8 @@ def start_run(
             supplied_git_clean=True,
         )
         run_id = manifest.run_id
-        if store.records(run_id):
+        # Cualquier rastro del mismo run_id, sin crear ni normalizar su directorio.
+        if os.path.lexists(store.root / "runs" / run_id):
             raise Ex10Refusal(["run-id-reused"], terminal=True)
         initial = store.persist_json(
             run_id=run_id,
@@ -1945,7 +2012,7 @@ def run_status(store: EvidenceStore, run_id: str) -> dict[str, Any]:
         if run_root is None:
             return {"run_id": run_id, "exists": False}
         before = _index_fingerprint(run_root)
-        state = load_existing_state_readonly(store, run_id)
+        state = _read_existing_state_under_caller_lock(store, run_id)
         if state is None:
             raise Ex10Refusal([_READ_RACE], terminal=False)
         decision = state.payload(ART_DECISION)
