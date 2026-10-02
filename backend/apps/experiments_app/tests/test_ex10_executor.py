@@ -2820,3 +2820,276 @@ def test_a_symlinked_index_is_never_read_through(h):
     assert calls == [] and tree(base) == before
     assert [(r.run_id, r.problems) for r in scanned(h.store)] == [(prior, ("records-unreadable",))]
     assert start_keeping(h, keep).reasons == (f"prior-run-unverifiable:{prior}",)
+
+
+# --- reconcile estrictamente read-only --------------------------------------------------------
+# La reconciliación provisional lee el run con el loader read-only (lock compartido breve),
+# verifica la custodia con `verify_readonly` y lee la base en una transacción READ ONLY: ningún
+# byte ni campo de metadata cambia (ctime incluido), nada se publica ni se guarda.
+
+
+def legacy_reconcile(store, run_id, git_sha, probes):
+    """El `reconcile_run` anterior (abre el run con `load_state`): oráculo de la salida."""
+    state = executor._open_state(store, run_id, git_sha)
+    executor._require_phase(state, "reconcile")
+    assessment = executor.assess(
+        state, probes=probes, dataset=probes.dataset(), custody_errors=store.verify(run_id)
+    )
+    result = assessment.evaluation.result
+    return {
+        "run_id": run_id,
+        "provisional": True,
+        "decision": str(result.decision),
+        "criteria": dict(result.criteria),
+        "invalidity_reasons": list(result.invalidity_reasons),
+        "not_demonstrable": list(result.not_demonstrable),
+        "failed_criteria": list(result.failed_criteria),
+    }
+
+
+@contextmanager
+def no_side_effects():
+    """Además del `write_spy`: ninguna tarea Celery, escritura de storage ni guardado de modelo."""
+    from celery import Celery
+    from celery.app.task import Task
+    from django.core.files.storage import Storage
+    from django.db.models.signals import post_delete, post_save, pre_delete, pre_save
+
+    events: list[str] = []
+
+    def blocked(name):
+        def call(*args, **kwargs):
+            events.append(name)
+            raise AssertionError(f"reconcile no puede llamar {name}")
+
+        return call
+
+    def saved(sender, **kwargs):
+        events.append(f"model:{sender.__name__}")
+
+    signals = (pre_save, post_save, pre_delete, post_delete)
+    with write_spy() as calls, pytest.MonkeyPatch.context() as mp:
+        mp.setattr(Task, "apply_async", blocked("celery.apply_async"))
+        mp.setattr(Celery, "send_task", blocked("celery.send_task"))
+        mp.setattr(Storage, "save", blocked("storage.save"))
+        for signal_ in signals:
+            signal_.connect(saved, weak=False, dispatch_uid="reconcile-spy")
+        try:
+            yield calls, events
+        finally:
+            for signal_ in signals:
+                signal_.disconnect(dispatch_uid="reconcile-spy")
+
+
+def readonly_reconcile(h, run_id=None, *, times=1):
+    base_dir = h.store.root.parent
+    before = tree(base_dir)
+    with no_side_effects() as (calls, events):
+        results = [h.reconcile(run_id) for _ in range(times)]
+    assert calls == [] and events == []
+    assert tree(base_dir) == before
+    assert all(result == results[0] for result in results)
+    return results[0]
+
+
+def _reconciling(h, how="pass"):
+    if how == "fail":
+        h.backend.modes[h.plan.for_vu(4)[3].request_key] = "500"
+    h.start()
+    h.execute()
+    h.backend.modes.clear()
+    return h.run_id
+
+
+@pytest.mark.parametrize("how", ["pass", "fail", "decided"])
+def test_reconcile_is_strictly_read_only_and_matches_the_previous_path(h, monkeypatch, how):
+    # (1–4, 14–16, 20) Misma salida que el camino anterior; ni un byte ni un ctime cambian.
+    if how == "decided":
+        _reach(h, monkeypatch, "DECIDED")
+    else:
+        _reconciling(h, how)
+    result = readonly_reconcile(h)
+    assert result["provisional"] is True
+    assert result["decision"] == {"pass": "PASS", "fail": "FAIL", "decided": "PASS"}[how]
+    assert result == legacy_reconcile(h.store, h.run_id, SHA, h.probes)
+
+
+def test_the_previous_reconcile_path_touched_ctime_and_the_new_one_does_not(h):
+    # (control negativo) El camino anterior (`load_state`) cambia el ctime de directorios del
+    # run sin tocar bytes; el nuevo, nada.
+    _reconciling(h)
+    base_dir = h.store.root.parent
+    before = tree(base_dir)
+    legacy_reconcile(h.store, h.run_id, SHA, h.probes)
+    after = tree(base_dir)
+    changed = {path: [k for k in before[path] if before[path][k] != after[path][k]]
+               for path in before if before[path] != after[path]}  # fmt: skip
+    assert changed and all(set(fields) == {"ctime"} for fields in changed.values())
+    assert all(before[path]["type"] == stat.S_IFDIR for path in changed)
+    readonly_reconcile(h)
+
+
+def test_one_hundred_reconciliations_change_nothing(h):
+    # (5)
+    _reconciling(h)
+    assert readonly_reconcile(h, times=100)["decision"] == "PASS"
+
+
+def test_concurrent_reconciliations_agree_and_change_nothing(h):
+    # (6)
+    _reconciling(h)
+    expected = readonly_reconcile(h)
+    base_dir = h.store.root.parent
+    before = tree(base_dir)
+    with write_spy() as calls:
+        results, errors = _concurrently(4, lambda: [h.reconcile() for _ in range(3)])
+    assert errors == [] and calls == [] and tree(base_dir) == before
+    assert [r for batch in results for r in batch] == [expected] * 12
+
+
+@pytest.mark.parametrize("where", ["index", "stream"])
+def test_a_write_during_reconciliation_is_a_read_race(h, monkeypatch, where):
+    # (7) El índice o un stream cambian mientras se reconcilia: no se mezcla, se rechaza.
+    _reconciling(h)
+    run_root = run_path(h, h.run_id)
+    target = (run_root / "metadata" / "artifacts.jsonl" if where == "index"
+              else run_root / "logs" / "EX-10" / "http.jsonl")  # fmt: skip
+    original = executor.assess
+
+    def touched(*args, **kwargs):
+        os.utime(target)
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(executor, "assess", touched)
+    rejected = refusal(h.reconcile)
+    assert rejected.reasons == ("reconcile-read-race",) and not rejected.terminal
+
+
+def test_a_held_mutation_lock_makes_reconcile_a_read_race_without_writing(h, monkeypatch):
+    _reconciling(h)
+    monkeypatch.setattr(executor, "STATUS_LOCK_ATTEMPTS", 3)
+    monkeypatch.setattr(executor, "STATUS_LOCK_PAUSE", 0.01)
+    release = threading.Event()
+    holder = _holding_the_custody_lock(h.store, release)
+    try:
+        before = tree(h.store.root.parent)
+        with write_spy() as calls:
+            rejected = refusal(h.reconcile)
+        assert rejected.reasons == ("reconcile-read-race",) and not rejected.terminal
+        assert calls == [] and tree(h.store.root.parent) == before
+    finally:
+        release.set()
+        holder.join()
+
+
+@pytest.mark.parametrize("run_id", [MISSING, "s11-x", "../runs"])
+def test_reconcile_of_a_missing_run_creates_nothing(h, run_id):
+    # (8)
+    _reconciling(h)
+    before = tree(h.store.root.parent)
+    with write_spy() as calls:
+        rejected = refusal(h.reconcile, run_id)
+    assert rejected.reasons == ("run-not-found",) and rejected.terminal
+    assert calls == [] and tree(h.store.root.parent) == before
+
+
+@pytest.mark.parametrize(
+    "phase",
+    ["CREATED", "PREPARED", "STARTED", "EMITTING", "STOPPED_PRE_T0", "DRAINING",
+     "ABANDONED_PRE_T0", "NOT_DEMONSTRATED", "FINALIZED_PASS", "FINALIZED_FAIL"],
+)  # fmt: skip
+def test_reconcile_in_another_phase_is_refused_without_writing(h, monkeypatch, phase):
+    # (10) Las fases permitidas siguen siendo RECONCILING y DECIDED.
+    _reach(h, monkeypatch, phase)
+    before = tree(h.store.root.parent)
+    with write_spy() as calls, pytest.raises(executor.Ex10ExecutorError):
+        h.reconcile()
+    assert calls == [] and tree(h.store.root.parent) == before
+
+
+@pytest.mark.parametrize(
+    "damage", ["tampered-artifact", "invalid-hmac", "missing-artifact", "corrupt-index",
+               "metadata-removed", "symlinked-index", "symlinked-run"],
+)  # fmt: skip
+def test_reconcile_of_corrupt_evidence_never_repairs_and_never_passes(h, damage):
+    # (9–11) Un rechazo saneado o un NOT_DEMONSTRATED provisional; nunca PASS ni reparación.
+    run_id = _reconciling(h)
+    _damage(h, run_id, damage)
+    base_dir = h.store.root.parent
+    before = tree(base_dir)
+    with write_spy() as calls:
+        try:
+            result = h.reconcile()
+        except (executor.Ex10ExecutorError, ValueError, OSError):
+            result = None
+    assert calls == [] and tree(base_dir) == before
+    assert result is None or result["decision"] == "NOT_DEMONSTRATED"
+
+
+@pytest.mark.parametrize("missing", ["database", "telemetry", "broker"])
+def test_reconcile_without_db_telemetry_or_broker_is_not_demonstrated(h, missing):
+    # (12, 13) Una fuente no disponible: NOT_DEMONSTRATED provisional, sin mutar nada.
+    _reconciling(h)
+    if missing == "database":
+        h.set_probes(database=lambda: (_ for _ in ()).throw(DatabaseError("down")))
+    elif missing == "broker":
+        h.set_probes(broker_dynamic=lambda: (_ for _ in ()).throw(ConnectionError("down")))
+    else:
+        stream = run_path(h, h.run_id) / "logs" / "EX-10" / "http.jsonl"
+        stream.rename(stream.with_name("http.jsonl.unavailable"))
+    assert readonly_reconcile(h)["decision"] == "NOT_DEMONSTRATED"
+
+
+@pytest.mark.django_db
+def test_the_database_snapshot_only_reads_inside_a_read_only_transaction():
+    # (9, 14) La lectura de la base de reconcile: sólo SELECT dentro de `READ ONLY`.
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+
+    from apps.experiments_app import ex10_reconcile
+
+    with CaptureQueriesContext(connection) as queries:
+        ex10_reconcile.snapshot_database()
+    statements = [q["sql"].lstrip().split()[0].upper() for q in queries.captured_queries]
+    assert "SET" in statements
+    assert set(statements) <= {"SET", "SELECT", "SAVEPOINT", "RELEASE", "ROLLBACK"}
+
+
+def test_the_cli_reconcile_is_strictly_read_only(h, cli, capsys):
+    # (17–19) La CLI imprime el JSON canónico de la reconciliación, sin escribir nada.
+    _reconciling(h)
+    expected = readonly_reconcile(h)
+    base_dir = h.store.root.parent
+    before = tree(base_dir)
+    capsys.readouterr()
+    with write_spy() as calls:
+        printed = cli("reconcile", "--run-id", h.run_id, "--expected-git-sha", SHA)
+    assert printed == expected and calls == [] and tree(base_dir) == before
+    assert capsys.readouterr().err == ""
+
+
+def test_reconcile_never_follows_a_symlinked_run(h):
+    # Un run que es un symlink no es un run: `run-not-found`, sin leer a través de él.
+    run_id = _reconciling(h)
+    _damage(h, run_id, "symlinked-run")
+    before = tree(h.store.root.parent)
+    with write_spy() as calls:
+        rejected = refusal(h.reconcile)
+    assert rejected.reasons == ("run-not-found",) and rejected.terminal
+    assert calls == [] and tree(h.store.root.parent) == before
+
+
+def test_reconcile_reports_a_missing_non_json_artifact_as_custody(h):
+    # Un artefacto custodiado que falta (y que no es un payload JSON) llega a la custodia:
+    # NOT_DEMONSTRATED provisional con `custody:missing:`; nunca se repara.
+    run_id = _reconciling(h)
+    record = h.store.persist_bytes(
+        run_id=run_id, scenario_id="EX-10", artifact_type="ex10-test-note",
+        kind=executor.ArtifactKind.LOG, classification=executor.Classification.INTERNAL,
+        filename="note.txt", content=b"note", mime_type="text/plain", source="test",
+    )  # fmt: skip
+    (run_path(h, run_id) / record.relative_path).unlink()
+    result = readonly_reconcile(h)
+    assert result["decision"] == "NOT_DEMONSTRATED"
+    assert f"custody:missing:{record.artifact_id}" in result["invalidity_reasons"]
+    assert not (run_path(h, run_id) / record.relative_path).exists()

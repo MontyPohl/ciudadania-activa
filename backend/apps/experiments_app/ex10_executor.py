@@ -1753,17 +1753,59 @@ def assess(
     )
 
 
+_RECONCILE_RACE = "reconcile-read-race"
+
+
+def _reconcile_fingerprint(run_root: Path) -> tuple:
+    """Lo que lee la reconciliación: índice, firma, sello y los streams del run."""
+    facts = list(_index_fingerprint(run_root))
+    for name in STREAMS:
+        path = run_root / "logs" / SCENARIO_ID / f"{name}.jsonl"
+        try:
+            info = os.lstat(path)
+        except (FileNotFoundError, NotADirectoryError):
+            facts.append(None)
+            continue
+        facts.append((info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns))
+    return tuple(facts)
+
+
 def reconcile_run(
     store: EvidenceStore, *, run_id: str, git_sha: str, probes: ExecutorProbes | None = None
 ) -> dict[str, Any]:
-    """Sólo lectura y repetible: la decisión que resultaría, sin custodiarla."""
+    """Sólo lectura y repetible: la decisión que resultaría, sin custodiarla.
+
+    Estrictamente de sólo lectura: nunca `load_state`, `initialize_run`, `records()` ni
+    `verify()` (que normalizan permisos), ni ninguna escritura. Lee el run bajo el lock de
+    custodia compartido (breve, sólo la lectura del estado) y verifica la custodia con
+    `verify_readonly`. La base se lee en una transacción `READ ONLY` y el broker sin tocarlo.
+    Si el índice, su firma, el sello o los streams cambian mientras se reconcilia, el
+    resultado se descarta (`reconcile-read-race`) en vez de mezclar dos estados.
+    """
     probes = probes or ExecutorProbes()
     dataset = probes.dataset()
-    state = _open_state(store, run_id, git_sha)
+    run_root = _existing_run_root(store, run_id)
+    if run_root is None:
+        raise Ex10Refusal(["run-not-found"], terminal=True)
+    before = _reconcile_fingerprint(run_root)
+    try:
+        state = load_existing_state_readonly(store, run_id)
+    except Ex10Refusal as exc:
+        if exc.reasons == (_READ_RACE,):
+            raise Ex10Refusal([_RECONCILE_RACE], terminal=False) from None
+        raise
+    if state is None:
+        raise Ex10Refusal([_RECONCILE_RACE], terminal=False)
+    _require_open_run(state)
+    if state.initial_manifest.get("git_sha") != git_sha:
+        raise Ex10Refusal(["git-sha-differs-from-start"], terminal=True)
     _require_phase(state, "reconcile")
     if not state.has(ART_RAW):
         raise Ex10Refusal(["raw-missing"], terminal=False)
-    assessment = assess(state, probes=probes, dataset=dataset, custody_errors=store.verify(run_id))
+    custody_errors = verify_readonly(store, state)
+    assessment = assess(state, probes=probes, dataset=dataset, custody_errors=custody_errors)
+    if _reconcile_fingerprint(run_root) != before:
+        raise Ex10Refusal([_RECONCILE_RACE], terminal=False)
     result = assessment.evaluation.result
     return {
         "run_id": run_id,
