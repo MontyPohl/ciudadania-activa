@@ -162,15 +162,22 @@ ACTIONS: Mapping[str, ActionSpec] = {
     "abandon-official-pre-t0": ActionSpec(
         "finalize", "--confirm-official-abandon-pre-t0", 300.0, False, True
     ),
+    "declare-executor-gone": ActionSpec(
+        "finalize", "--confirm-declare-executor-gone", 900.0, False, True
+    ),
     "cleanup-stack": ActionSpec(None, "--confirm-cleanup", 300.0, False, True),
 }
+#: Fases en las que el launcher declara caído al executor (el dominio también admite DRAINING,
+#: que aquí se recupera con `drain`): un subconjunto, nunca una ampliación.
+EXECUTOR_GONE_PHASES = frozenset({"STARTED", "EMITTING"})
+#: Estados de contenedor en los que el executor puede seguir vivo.
+ACTIVE_CONTAINER_STATES = frozenset({"running", "created", "restarting", "paused"})
 CONTAINER_ACTIONS = frozenset(a for a, s in ACTIONS.items() if s.subcommand is not None)
 #: Palabras que nunca aparecen en el comando del contenedor.
 _FORBIDDEN_WORDS = (
     "local_test",
     "local-test",
     "rehearsal",
-    "declare-executor-gone",
     "retry",
     "resume",
     "provider",
@@ -387,6 +394,16 @@ def load_session(root: Path, repo_root: Path) -> dict[str, Any]:
                 raise SessionTampered()
             if _output_hashes(path) != entry.get("output_sha256"):
                 raise SessionTampered()
+    for record in manifest.get("in_flight", []):
+        if (
+            not isinstance(record, dict)
+            or set(record) != {"action", "container_name", "output_dir", "started_at", "after_seq"}
+            or record["action"] not in ACTIONS
+            or not ACTIONS[record["action"]].mutating
+            or not isinstance(record["after_seq"], int)
+            or not 0 <= record["after_seq"] <= len(manifest.get("history", []))
+        ):
+            raise SessionTampered()
     # El run y el preflight ligados son los del START coherente del historial, nunca otros.
     starts = _coherent(manifest, "start-official")
     bound = starts[-1]["run_id"] if starts else None
@@ -445,7 +462,12 @@ def derive_state(manifest: Mapping[str, Any]) -> dict[str, Any]:
     history = list(manifest.get("history", []))
     run_id = manifest.get("official_run_id")
     phase, uncertain, blocked = None, False, False
-    for entry in history:
+    in_flight = list(manifest.get("in_flight", []))
+    pending = {record["after_seq"] for record in in_flight}
+    for position, entry in enumerate(history):
+        if position in pending:
+            # Un launcher que murió con la acción en curso: su resultado es incierto.
+            uncertain = True
         if entry.get("session_blocking"):
             blocked = True
         reported = entry.get("phase")
@@ -456,7 +478,10 @@ def derive_state(manifest: Mapping[str, Any]) -> dict[str, Any]:
             "APPARATUS_ABORT",
         }:
             uncertain = True
+    if any(record["after_seq"] >= len(history) for record in in_flight):
+        uncertain = True
     invoked = {e["action"] for e in history if e["classification"] != "VALIDATION_FAILED"}
+    invoked |= {record["action"] for record in in_flight}
     allowed: list[str] = ["inspect"]
     if blocked:
         pass
@@ -482,6 +507,13 @@ def derive_state(manifest: Mapping[str, Any]) -> dict[str, Any]:
             allowed.append("finalize")
         elif phase in TERMINAL_PHASES:
             allowed.append("cleanup-stack")
+        # Regla propia, fuera de la cadena: sólo sus fases, tras un `execute` y una sola vez.
+        if (
+            phase in EXECUTOR_GONE_PHASES
+            and "execute-official" in invoked
+            and "declare-executor-gone" not in invoked
+        ):
+            allowed.append("declare-executor-gone")
     return {
         "known_phase": phase,
         "uncertain": uncertain,
@@ -517,6 +549,8 @@ def container_command(
         command.append("--confirm-emission")
     if action == "abandon-official-pre-t0":
         command += ["--abandon-reason", ABANDON_REASON]
+    if action == "declare-executor-gone":
+        command.append("--declare-executor-gone")
     return command
 
 
@@ -657,6 +691,7 @@ def _tail_ok(action: str, tail: Sequence[str]) -> bool:
     extra = {
         "execute-official": ["--confirm-emission"],
         "abandon-official-pre-t0": ["--abandon-reason", ABANDON_REASON],
+        "declare-executor-gone": ["--declare-executor-gone"],
     }.get(action, [])
     return common and rest[4:] == extra
 
@@ -820,6 +855,7 @@ _OUTPUT_KEYS = {
     },
     "finalize": _FINAL_KEYS,
     "abandon-official-pre-t0": _FINAL_KEYS,
+    "declare-executor-gone": _FINAL_KEYS,
 }
 _DRAIN_REQUIRED = {
     "schema_version",
@@ -909,6 +945,18 @@ def action_problems(
                 problems.append("abandon:not-pre-t0")
             if payload.get("binding") is not False:
                 problems.append("abandon:binding")
+        elif action == "declare-executor-gone":
+            # El dominio cierra un executor caído en STARTED/EMITTING como NOT_DEMONSTRATED.
+            reasons = payload.get("reasons")
+            if lifecycle != "NOT_DEMONSTRATED" or decision != "NOT_DEMONSTRATED":
+                problems.append("executor-gone:lifecycle")
+            if payload.get("binding") is not False:
+                problems.append("executor-gone:binding")
+            if not isinstance(reasons, list) or not any(
+                r in {"emission-interrupted:before-arming", "emission-interrupted:raw-missing"}
+                for r in reasons
+            ):
+                problems.append("executor-gone:reasons")
         else:
             expected = {
                 "PASS": "FINALIZED_PASS",
@@ -1247,7 +1295,9 @@ def _preconditions(spec: ActionSpec, state) -> dict[str, Any]:
         "backend_running": count("backend"),
         "worker_running": count("worker"),
         "beat_running": count("beat"),
-        "oneoff_containers": sum(1 for c in state.containers if c.oneoff),
+        "oneoff_containers": sum(
+            1 for c in state.containers if c.oneoff and c.state in ACTIVE_CONTAINER_STATES
+        ),
     }
     if not infra:
         raise LauncherError("db-redis-not-healthy")
@@ -1302,6 +1352,9 @@ def _act(invocation, manifest, spec, output, meta, entry) -> Outcome:
     meta["docker"] = base.verify_docker(target, runner)
     before = base.docker_state(target, runner)
     base.write_file(output, "docker-before.txt", before.text().encode())
+    if action == "declare-executor-gone":
+        # Primero el contenedor exacto de `execute`: su liveness es la razón específica.
+        meta["executor_container"] = _executor_container_state(manifest, before)
     meta["preconditions"] = _preconditions(ACTIONS[action], before)
     evidence_before = evidence_snapshot(repo)
     base.write_file(output, "evidence-before.json", base.canonical_bytes(evidence_before))
@@ -1325,6 +1378,19 @@ def _act(invocation, manifest, spec, output, meta, entry) -> Outcome:
         masks=facts.masked_files,
     )
     meta["container_name"] = container
+    if ACTIONS[action].mutating:
+        # Antes de lanzar: si el launcher muere, la sesión sabe qué contenedor quedó en curso.
+        manifest.setdefault("in_flight", []).append(
+            {
+                "action": action,
+                "container_name": container,
+                "output_dir": str(output.relative_to(invocation.session_root)),
+                "started_at": meta["started_at"],
+                "after_seq": len(manifest["history"]),
+            }
+        )
+        manifest["state"] = derive_state(manifest)
+        write_session(invocation.session_root, manifest)
     completed = aborted = None
     try:
         completed = runner.run(argv, timeout=invocation.timeout or ACTIONS[action].timeout)
@@ -1404,6 +1470,29 @@ def _act(invocation, manifest, spec, output, meta, entry) -> Outcome:
     return outcome
 
 
+def _executor_container_state(manifest: Mapping[str, Any], state) -> dict[str, Any]:
+    """El contenedor exacto del `execute` de la sesión (por nombre exacto, nunca parcial) no
+    puede seguir vivo: el launcher no lo mata; esa limpieza es otra decisión del operador."""
+    names = [
+        e.get("container_name")
+        for e in manifest["history"]
+        if e["action"] == "execute-official" and e.get("container_name")
+    ]
+    names += [
+        r["container_name"]
+        for r in manifest.get("in_flight", [])
+        if r["action"] == "execute-official"
+    ]
+    if not names:
+        raise LauncherError("executor-container-unknown")
+    name = names[-1]
+    found = [c for c in state.containers if c.name == name]
+    current = found[0].state if found else "absent"
+    if current in ACTIVE_CONTAINER_STATES:
+        raise LauncherError("executor-still-active")
+    return {"name": name, "state": current}
+
+
 def _attached_preflight(invocation: Invocation, manifest: Mapping[str, Any]) -> bytes:
     starts = _coherent(manifest, "start-official")
     if not starts:
@@ -1465,8 +1554,15 @@ def _record(invocation, manifest, output, meta, entry, outcome: Outcome) -> dict
             "problems": sorted(set(outcome.problems)),
             "output_dir": str(output.relative_to(invocation.session_root)),
             "output_sha256": _output_hashes(output),
+            "container_name": meta.get("container_name"),
         }
     )
+    relative = entry["output_dir"]
+    manifest["in_flight"] = [
+        r for r in manifest.get("in_flight", []) if r["output_dir"] != relative
+    ]
+    if not manifest["in_flight"]:
+        del manifest["in_flight"]
     if outcome.classification == "COHERENT":
         entry["phase"], entry["decision"] = outcome.phase, outcome.decision
         if action == "start-official":

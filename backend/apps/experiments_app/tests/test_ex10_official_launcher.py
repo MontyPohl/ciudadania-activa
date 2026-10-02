@@ -666,6 +666,7 @@ def test_the_source_anchor_and_source_lists_are_reported_by_the_go_no_go_package
         "reconcile",
         "finalize",
         "abandon-official-pre-t0",
+        "declare-executor-gone",
         "cleanup-stack",
     ],  # fmt: skip
 )
@@ -1291,6 +1292,9 @@ def domain(monkeypatch):
                     call_command("s11_ex10", *args, stdout=out)
                 except CommandError as exc:
                     code, footer = exc.returncode, f"CommandError: {exc}\n"
+                except SystemExit:
+                    # El executor muere dentro del contenedor: para el launcher, un abort.
+                    raise base.Aborted("interrupted") from None
             fake.result = base.Completed(
                 code, out.getvalue().encode(), (err.getvalue() + footer).encode()
             )  # noqa: E501
@@ -1312,7 +1316,9 @@ def domain(monkeypatch):
         return official.execute(invocation(repo, session_root or root, fake, action, **values))
 
     official.execute(invocation(repo, root, FakeDocker(), "initialize-session"))
-    yield SimpleNamespace(repo=repo, store=store, go=go, root=root, harness=harness)
+    yield SimpleNamespace(
+        repo=repo, store=store, go=go, root=root, harness=harness, monkeypatch=monkeypatch
+    )
     support.close_harness(harness)
     shutil.rmtree(parent, ignore_errors=True)
 
@@ -1365,3 +1371,278 @@ def test_signal_handlers_map_sigterm_and_sighup_to_an_interrupt():
     assert official.base._interrupt is not None
     with pytest.raises(KeyboardInterrupt):
         official.base._interrupt(signal.SIGTERM, None)
+
+
+# --- Cierre oficial de un executor caído (declare-executor-gone) -------------------------------
+
+GONE_OK = {
+    **FINAL_OK, "decision": "NOT_DEMONSTRATED", "lifecycle": "NOT_DEMONSTRATED",
+    "binding": False, "reasons": ["emission-interrupted:raw-missing"],
+    "manifest_status": "INVALID",
+}  # fmt: skip
+OUTPUT["declare-executor-gone"] = GONE_OK
+
+
+def crashed(checkout, root, phase, *, leave=None):
+    """START, un `execute` que muere (abort) y un `status` que lee `phase`."""
+    act(checkout, root, "start-official")
+    fake = FakeDocker()
+    fake.abort = "interrupted"
+    act(checkout, root, "execute-official", fake=fake)
+    act(checkout, root, "status", stdout=command_json(status_payload(phase)))
+    return manifest(root)["history"][1]["container_name"]
+
+
+def docker_with(name=None, state=None):
+    fake = FakeDocker()
+    if name is not None:
+        fake.containers.append(container(name, state, "backend", oneoff=True))
+    return fake
+
+
+@pytest.mark.parametrize("phase", ["STARTED", "EMITTING"])
+@pytest.mark.parametrize("left", [None, "exited", "dead"])
+def test_a_dead_executor_in_started_or_emitting_can_be_declared_gone(
+    checkout, session, phase, left
+):
+    # (1, 2, 25, 29, 30) Sólo un comando, el exacto; el dominio decide (NOT_DEMONSTRATED).
+    name = crashed(checkout, session, phase)
+    assert "declare-executor-gone" in manifest(session)["state"]["next_allowed_actions"]
+    fake = docker_with(name if left else None, left)
+    summary, fake = act(checkout, session, "declare-executor-gone", fake=fake)
+    assert summary["classification"] == "COHERENT"
+    (argv,) = fake.runs()
+    assert tail(argv)[3:] == ["finalize", "--run-id", RUN_ID, "--expected-git-sha",
+                              checkout.head, "--declare-executor-gone"]  # fmt: skip
+    mounts = [argv[i + 1] for i, token in enumerate(argv) if token == "-v"]
+    assert mounts == [f"{checkout.root}:/s11-full-source:ro"]
+    state = manifest(session)["state"]
+    assert state["known_phase"] == "NOT_DEMONSTRATED"
+    assert state["next_allowed_actions"] == ["cleanup-stack", "inspect", "status"]
+    entry = manifest(session)["history"][-1]
+    output = session / entry["output_dir"]
+    assert json.loads((output / "launcher-meta.json").read_text())["executor_container"] == {
+        "name": name, "state": left or "absent",
+    }  # fmt: skip
+
+
+@pytest.mark.parametrize("state", sorted(official.ACTIVE_CONTAINER_STATES))
+def test_a_still_active_executor_container_is_refused(checkout, session, state):
+    # (3, 4) running/created/restarting/paused: el launcher no lo mata ni sigue.
+    name = crashed(checkout, session, "STARTED")
+    summary, fake = act(checkout, session, "declare-executor-gone", fake=docker_with(name, state))
+    assert summary["classification"] == "VALIDATION_FAILED" and fake.runs() == []
+    assert summary["problems"] == ["executor-still-active"]
+    assert not [c for c in fake.calls if c[:3] == ["docker", "rm", "-f"]]
+
+
+def test_a_container_with_a_similar_name_is_not_the_executor(checkout, session):
+    # Nunca por nombre parcial.
+    name = crashed(checkout, session, "STARTED")
+    fake = docker_with(name + "-x", "exited")
+    assert (
+        act(checkout, session, "declare-executor-gone", fake=fake)[0]["classification"]
+        == "COHERENT"
+    )
+
+
+@pytest.mark.parametrize("phase", ["PREPARED", "DRAINING", "RECONCILING", "STOPPED_PRE_T0"])
+def test_declare_executor_gone_is_refused_outside_started_or_emitting(checkout, session, phase):
+    # (5–7) Ni PREPARED, ni DRAINING (para eso está `drain`), ni otras fases.
+    crashed(checkout, session, phase)
+    summary, fake = act(checkout, session, "declare-executor-gone")
+    assert summary["problems"] == ["action-not-allowed-now:declare-executor-gone"]
+    assert fake.runs() == []
+
+
+def test_declare_executor_gone_needs_an_executed_bound_run(checkout, session):
+    # (10) Sin run ligado o sin `execute`: no hay executor que declarar caído.
+    summary, fake = act(checkout, session, "declare-executor-gone")
+    assert summary["problems"] == ["action-not-allowed-now:declare-executor-gone"]
+    act(checkout, session, "start-official")
+    act(checkout, session, "status", stdout=command_json(status_payload("PREPARED")))
+    summary, fake = act(checkout, session, "declare-executor-gone")
+    assert summary["problems"] == ["action-not-allowed-now:declare-executor-gone"]
+
+
+def test_declare_executor_gone_needs_its_own_confirmation_and_no_run_id(checkout):
+    # (8, 9, 11) Sin su confirmación, con la de otra acción, con `--run-id` o eligiendo un
+    # resultado: error de uso antes de tocar nada.
+    args = ["declare-executor-gone", "--expected-git-sha", checkout.head, "--session-root", "/x"]
+    assert official.parse_args([*args, "--confirm-declare-executor-gone"]).confirmed is True
+    with pytest.raises(base.UsageError):
+        official.validate_invocation(official.Invocation(
+            action="declare-executor-gone", expected_git_sha=checkout.head,
+            repo_root=checkout.root, session_root=Path("/x"), environ={}, confirmed=False,
+        ))  # fmt: skip
+    confirm = "--confirm-declare-executor-gone"
+    extras = (
+        ["--confirm-finalization"],
+        ["--confirm-emission"],
+        ["--confirm-drain"],
+        [confirm, "--run-id", RUN_ID],
+        [confirm, "--decision", "NOT_DEMONSTRATED"],
+        [confirm, "--abandon-reason", "operator-stop"],
+    )
+    for extra in extras:
+        with pytest.raises(base.UsageError):
+            official.parse_args([*args, *extra])
+
+
+def test_declare_executor_gone_refuses_another_head_or_a_dirty_tree(checkout, session):
+    # (12, 13)
+    crashed(checkout, session, "STARTED")
+    summary, fake = act(checkout, session, "declare-executor-gone", expected_git_sha="e" * 40)
+    assert summary["problems"] == ["session-other-head"] and fake.runs() == []
+    (checkout.root / "infra" / "docker-compose.yml").write_text("dirty\n")
+    summary, fake = act(checkout, session, "declare-executor-gone")
+    assert summary["classification"] == "VALIDATION_FAILED" and fake.runs() == []
+
+
+@pytest.mark.parametrize("what", ["history", "execute-output"])
+def test_declare_executor_gone_refuses_a_tampered_session(checkout, session, what):
+    # (14, 15)
+    crashed(checkout, session, "STARTED")
+    data = manifest(session)
+    if what == "history":
+        data["history"][1]["container_name"] = "something-else"
+        official.write_session(session, data)
+    else:
+        output = session / data["history"][1]["output_dir"]
+        (output / "launcher-meta.json").write_text("{}")
+    fake = FakeDocker()
+    with pytest.raises(official.SessionTampered):
+        act(checkout, session, "declare-executor-gone", fake=fake)
+    assert fake.calls == []
+
+
+@pytest.mark.parametrize(
+    ("payload", "problem"),
+    [
+        ({**GONE_OK, "run_id": OTHER_RUN}, "run-id-differs"),
+        ({**GONE_OK, "decision": "PASS", "lifecycle": "FINALIZED_PASS"}, "executor-gone:lifecycle"),
+        ({**GONE_OK, "binding": True}, "executor-gone:binding"),
+        ({**GONE_OK, "reasons": ["operator-chose"]}, "executor-gone:reasons"),
+        ({**GONE_OK, "extra": 1}, "payload-keys"),
+    ],
+)
+def test_an_incoherent_declare_output_does_not_advance_the_session(
+    checkout, session, payload, problem
+):
+    # (16–18) La sesión no avanza: queda incierta, sólo `status`/`inspect`.
+    crashed(checkout, session, "EMITTING")
+    summary, _ = act(checkout, session, "declare-executor-gone", stdout=command_json(payload))
+    assert summary["launcher_exit"] == 4 and problem in summary["problems"]
+    state = manifest(session)["state"]
+    assert state["known_phase"] == "EMITTING" and state["next_allowed_actions"] == [
+        "inspect",
+        "status",
+    ]
+
+
+def test_a_refused_declare_keeps_its_exit_code(checkout, session):
+    crashed(checkout, session, "STARTED")
+    summary, _ = act(checkout, session, "declare-executor-gone", code=2,
+                     stderr=refusal(2, ["run-finalized"]))  # fmt: skip
+    assert summary["classification"] == "REFUSED" and summary["launcher_exit"] == 2
+    # Una sola declaración por sesión, aunque el dominio la rechace.
+    summary, fake = act(checkout, session, "declare-executor-gone")
+    assert summary["problems"] == ["action-not-allowed-now:declare-executor-gone"]
+    assert fake.runs() == []
+
+
+@pytest.mark.parametrize("kind", ["timeout", "interrupted"])
+def test_declare_executor_gone_aborts_without_retry(checkout, session, kind):
+    # (19, 20, 22) APPARATUS_ABORT: un único intento; sólo `status`/`inspect` después.
+    crashed(checkout, session, "STARTED")
+    fake = FakeDocker()
+    fake.abort = kind
+    summary, fake = act(checkout, session, "declare-executor-gone", fake=fake)
+    assert summary["classification"] == "APPARATUS_ABORT" and len(fake.runs()) == 1
+    assert manifest(session)["state"]["next_allowed_actions"] == ["inspect", "status"]
+
+
+def test_declare_executor_gone_runs_once_and_never_chains(checkout, session):
+    # (21, 23) Una vez cerrado, nunca otra declaración, ni `execute`, `drain` o `finalize`.
+    crashed(checkout, session, "EMITTING")
+    _, fake = act(checkout, session, "declare-executor-gone")
+    assert len(fake.runs()) == 1
+    for action in ("declare-executor-gone", "execute-official", "drain", "finalize"):
+        summary, fake = act(checkout, session, action)
+        assert summary["problems"] == [f"action-not-allowed-now:{action}"] and fake.runs() == []
+
+
+def test_declare_executor_gone_keeps_secrets_out_of_argv_and_outputs(checkout, session):
+    # (24, 26)
+    crashed(checkout, session, "STARTED")
+    _, fake = act(checkout, session, "declare-executor-gone")
+    values = list(checkout.keys.values())
+    assert not any(v in token for call in fake.calls for token in call for v in values)
+    assert not any(word in token.lower() for token in tail(fake.runs()[0])
+                   for word in ("local_test", "local-test", "rehearsal"))  # fmt: skip
+    for path in session.rglob("*"):
+        if path.is_file():
+            assert not any(v in path.read_text(errors="replace") for v in values)
+
+
+def test_a_launcher_that_died_during_execute_leaves_an_in_flight_record(checkout, session):
+    # El registro previo al lanzamiento conserva el contenedor exacto de `execute`: si el
+    # launcher muere, la sesión queda incierta y la declaración usa ese nombre.
+    act(checkout, session, "start-official")
+    fake = FakeDocker()
+
+    def launcher_dies(argv):
+        raise KeyboardInterrupt  # el proceso del launcher muere sin registrar el resultado
+
+    fake.on_run = launcher_dies
+    fake.result = base.Completed(0, b"", b"")
+    with pytest.raises(KeyboardInterrupt):
+        official.execute(invocation(checkout, session, fake, "execute-official"))
+    data = manifest(session)
+    (record,) = data["in_flight"]
+    assert record["action"] == "execute-official" and record["container_name"].startswith(
+        f"{PROJECT}-execute-official-"
+    )
+    assert data["state"]["uncertain"] and data["state"]["next_allowed_actions"] == [
+        "inspect",
+        "status",
+    ]
+    act(checkout, session, "status", stdout=command_json(status_payload("EMITTING")))
+    assert "declare-executor-gone" in manifest(session)["state"]["next_allowed_actions"]
+    summary, _ = act(checkout, session, "declare-executor-gone",
+                     fake=docker_with(record["container_name"], "running"))  # fmt: skip
+    assert summary["problems"] == ["executor-still-active"]
+    summary, _ = act(checkout, session, "declare-executor-gone")
+    assert summary["classification"] == "COHERENT"
+
+
+@pytest.mark.parametrize("phase", ["STARTED", "EMITTING"])
+def test_declare_executor_gone_through_the_real_executor(domain, phase):
+    # (27–29) El executor muere de verdad en STARTED o EMITTING; la declaración la cierra el
+    # dominio como NOT_DEMONSTRATED, no vinculante, con su custodia completa.
+    from apps.experiments_app import ex10_executor as executor
+
+    assert domain.go("start-official")["classification"] == "COHERENT"
+    if phase == "STARTED":
+        domain.monkeypatch.setattr(
+            executor, "_arm_emission", lambda *a, **k: (_ for _ in ()).throw(SystemExit(137))
+        )
+    else:
+        from apps.experiments_app.tests.test_ex10_executor import _DiesOnRun
+
+        domain.harness.set_probes(generator=lambda plan, prepared, transport: _DiesOnRun())
+    assert domain.go("execute-official")["classification"] == "APPARATUS_ABORT"
+    status = domain.go("status")
+    assert status["state"]["known_phase"] == phase
+    closed = domain.go("declare-executor-gone")
+    assert closed["classification"] == "COHERENT", closed["problems"]
+    assert closed["state"]["known_phase"] == "NOT_DEMONSTRATED"
+    output = domain.root / manifest(domain.root)["history"][-1]["output_dir"]
+    payload = json.loads((output / "declare-executor-gone.json").read_text())
+    assert payload["binding"] is False and payload["custody_errors"] == []
+    expected = {"STARTED": "emission-interrupted:before-arming",
+                "EMITTING": "emission-interrupted:raw-missing"}[phase]  # fmt: skip
+    assert expected in payload["reasons"]
+    assert (
+        executor.run_status(domain.store, closed["official_run_id"])["phase"] == "NOT_DEMONSTRATED"
+    )
