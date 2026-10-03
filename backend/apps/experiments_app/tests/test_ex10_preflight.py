@@ -730,7 +730,7 @@ def test_the_executor_runtime_sources_are_matched_against_the_checkout(stack):
     report = run(stack)
     check = checks(report)["repository_running_source"]
     assert check.result is R.PASS and check.detail_code is None
-    assert check.observed_sanitized["compared"] == len(pf.RUNNING_SOURCES) == 10
+    assert check.observed_sanitized["compared"] == len(pf.RUNNING_SOURCES) == 11
     sources = running_sources(report)
     for relative in EXECUTOR_RUNTIME_SOURCES:
         assert sources[relative] == {"source": relative, "match": True, "detail_code": None}
@@ -788,6 +788,8 @@ def test_running_sources_are_runtime_only_unique_and_deterministic(stack):
         assert test_file not in pf.RUNNING_SOURCES
     assert len(set(pf.RUNNING_SOURCES)) == len(pf.RUNNING_SOURCES)
     assert set(EXECUTOR_RUNTIME_SOURCES) <= set(pf.RUNNING_SOURCES)
+    # El storage aislado escribe las imágenes durante la emisión: su código se compara también.
+    assert pf.RUNNING_SOURCES[-1] == "backend/apps/experiments_app/local_storage.py"
     first, second = run(stack), run(stack)
     listed = [
         s["source"]

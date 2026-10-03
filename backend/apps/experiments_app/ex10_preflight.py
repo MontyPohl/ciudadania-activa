@@ -117,7 +117,8 @@ FROZEN_IDENTITY = {
 }
 #: Código que debe coincidir byte a byte entre el proceso y `--source-root`. Incluye el
 #: executor oficial (runtime, sin sus tests): el preflight del HEAD que ejecutará EX-10
-#: demuestra también que ese aparato es el del checkout calificado.
+#: demuestra también que ese aparato es el del checkout calificado. `local_storage.py` guarda
+#: las imágenes de los reportes en la raíz aislada durante la emisión (backend).
 RUNNING_SOURCES = (
     "backend/apps/experiments_app/ex10_load.py",
     "backend/apps/experiments_app/ex10_fixture.py",
@@ -129,6 +130,7 @@ RUNNING_SOURCES = (
     "backend/apps/experiments_app/ex10_executor.py",
     "backend/apps/experiments_app/ex10_reconcile.py",
     "backend/apps/experiments_app/management/commands/s11_ex10.py",
+    "backend/apps/experiments_app/local_storage.py",
 )
 _SHA1 = re.compile(r"^[0-9a-f]{40}$")
 _RATE = re.compile(r"^[0-9]{1,6}/[a-z]{1,10}$")
