@@ -4199,6 +4199,64 @@ S11-C3: OPEN
 S11-C: OPEN
 ```
 
+### Run oficial 1 de EX-10 (03/10/2026)
+
+- **Revisión ejecutada:** `3bc3a37aa90abffd3b020eb0f9a7d92157cc545f`. Antes de ejecutar se dejó una
+  copia del bundle fuera del host, verificada y atestada por el operador.
+- **Run:** `s11-0ff9a5d1-2309-5f40-b4a7-dabad703e43a`, modo `OFFICIAL`, en una sesión oficial con un
+  stack aislado.
+- **Preflight y START:** preflight fresco `PASS` 64/64 y START dentro de su ventana de frescura.
+- **Emisión:** 50/50 intentos únicos, 0 duplicados y 0 reintentos.
+  - 50 respuestas HTTP 201 completas dentro de la ventana.
+  - 50 tareas de clasificación recibidas y exitosas.
+  - 0 llamadas a proveedores (adapter fake).
+  - Drain `COMPLETE`.
+- **Reconciliación y decisión:** HT1-01, HT1-02, HT1-03, HT1-04 y la postcondición de auditoría
+  dieron `PASS`, sin criterios fallidos.
+  - El run quedó **`NOT_DEMONSTRATED`** por la invalidez del aparato `broker:dynamic-residual`.
+  - La causa fue la regla de broker vacío del `READY_STATE` aplicada después del run, sobre los
+    residuos esperados de una ejecución correcta (claves de resultado de Celery, de throttle y de
+    caché).
+- **Finalización:** sellado como `NOT_DEMONSTRATED` con `binding=false` y custodia sin errores.
+  - No consume el primer run válido.
+  - El próximo START oficial exige reconocerlo
+    (`--acknowledge-not-demonstrated s11-0ff9a5d1-2309-5f40-b4a7-dabad703e43a`).
+- **Cierre:** el stack oficial se retiró con `cleanup-stack`. Se conservan la evidencia, el storage,
+  los volúmenes y las imágenes.
+- **No reinterpretación:** el resultado es definitivo y no se recalcula con ninguna semántica
+  posterior.
+- **Siguiente paso:** la Decisión G0-A2 define la semántica post-run del broker, sólo para runs
+  futuros.
+
+### Decisión G0-A2 — semántica post-run del broker de EX-10 (03/10/2026)
+
+- **Estado:** `APPROVED / CLOSED`. Es un addendum de G0 y G0-A1 y entra en vigor con el commit
+  documental que lo incorpora.
+- **Texto completo:** `docs/runbooks/S11_EX10_G0_A2_POST_RUN_BROKER_SEMANTICS.md`.
+- **Alcance:** sólo runs iniciados después del commit técnico que incorpore G0-A2 a la identidad del
+  protocolo (`G0_A2_DECISION_COMMIT`).
+- **Sin efecto retroactivo:** el run 1 sigue siendo `NOT_DEMONSTRATED`.
+- **Pre-run:** sin cambios. `READY_STATE` sigue exigiendo un broker sin colas, `unacked`, claves de
+  resultado ni de throttle.
+- **Post-run:** el broker se evalúa por quiescencia y coherencia.
+  - El trabajo pendiente invalida: colas, `unacked`, mensajes de tarea, fallos, reintentos,
+    desconocidas no adjudicadas e inclasificables.
+  - No invalidan por sí solos los residuos esperados: claves de resultado de los task IDs del run,
+    claves de throttle de los diez actores, bindings estáticos y la caché adjudicada por igualdad
+    exacta con `cache.make_key("public-reports:v1:generation")`.
+- **Prohibido:** borrar claves, manipular TTL o esperar expiraciones para cambiar un veredicto.
+- **Versiones:** `s11-ex10-v1`, `S11A-v1.1` y los schemas persistidos no cambian.
+- **Defectos técnicos abiertos, separados de la decisión:**
+  - la reescritura del marcador del object root durante la emisión;
+  - el comentario obsoleto de `READ_ONLY_ACTIONS` en el launcher oficial.
+
+```text
+EX-10 run oficial 1: NOT_DEMONSTRATED (binding=false) · evidencia preservada
+G0: APPROVED / CLOSED · G0-A1: APPROVED / CLOSED · G0-A2: APPROVED / CLOSED
+P02/P03 v9: CURRENT / VIGENTE · fuentes atestadas sin cambios
+Siguiente: commit técnico de G0-A2 (requiere autorización) y nuevo run oficial con ACK
+```
+
 ### Pruebas realizadas
 
 - Gate inicial: rama `main`, HEAD exacto y working tree limpio.
