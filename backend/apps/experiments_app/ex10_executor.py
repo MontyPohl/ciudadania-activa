@@ -37,6 +37,7 @@ import signal
 import socket
 import threading
 import time
+import uuid
 from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -761,7 +762,12 @@ def inspect_ready_state(dataset: LoadDataset) -> dict[str, Any]:
 
 
 def broker_dynamic() -> int:
-    """Claves dinámicas y mensajes de tarea en el broker (0 tras un drain completo)."""
+    """Semántica histórica (runs sin G0-A2): claves dinámicas y mensajes de tarea del broker.
+
+    Aplica al estado post-run la regla de broker vacío del `READY_STATE`; un run correcto deja
+    residuos esperados (resultados, throttle), así que esta lectura sólo decide la evidencia de
+    runs cuya identidad no registra G0-A2. Los nuevos usan `post_run_broker`.
+    """
     from . import ex10_prepare
 
     environment = ex10_prepare.readonly_environment()
@@ -770,6 +776,95 @@ def broker_dynamic() -> int:
     finally:
         ex10_prepare._close(environment.redis)
     return snapshot.dynamic + snapshot.task_messages + len(snapshot.unclassifiable)
+
+
+_TASK_ID = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+
+
+def post_run_broker(plan: LoadPlan) -> ex10_reconcile.PostRunBroker:
+    """G0-A2: el broker tras el run, con el cliente de sólo lectura y sin leer valores.
+
+    Clasifica cada clave por nombre exacto: colas y entregas (`broker_keys`), resultados de
+    Celery por su prefijo con el task ID como sufijo, throttle por el prefijo de la cache y
+    el resto como desconocidas. El throttle esperado y la caché adjudicada se derivan con la
+    API de cache real, nunca escritos a mano.
+    """
+    from fnmatch import fnmatchcase
+
+    from django.core.cache import cache
+
+    from apps.map_app.cache import GENERATION_KEY
+
+    from . import ex10_prepare, ex10_state
+
+    environment = ex10_prepare.readonly_environment()
+    redis = environment.redis
+    try:
+        snapshot = ex10_preflight.classify_broker(redis)
+        keys = ex10_state.broker_keys()
+        result_prefixes = tuple(p[:-1] for p in keys.result_patterns or () if p.endswith("*"))
+        throttle_prefix = cache.make_key("throttle_")
+        mutex, pidbox, events = keys.worker_ephemeral
+        queues = set(keys.queues)
+        queue_keys = unacked = unacked_index = malformed = 0
+        result_ids: list[str] = []
+        throttle: list[str] = []
+        unknown: list[str] = []
+        for raw in redis.scan_iter(match="*", count=500):
+            key = raw.decode("utf-8", "replace") if isinstance(raw, bytes) else str(raw)
+            prefix = next((p for p in result_prefixes if key.startswith(p)), None)
+            if key in queues:
+                queue_keys += 1
+            elif key == keys.unacked:
+                unacked += 1
+            elif key == keys.unacked_index:
+                unacked_index += 1
+            elif prefix is not None:
+                task_id = key[len(prefix) :]
+                if _TASK_ID.fullmatch(task_id):
+                    result_ids.append(task_id)
+                else:
+                    malformed += 1
+            elif key.startswith(throttle_prefix):
+                throttle.append(key)
+            elif (
+                fnmatchcase(key, keys.static_bindings)
+                or key == mutex
+                or fnmatchcase(key, pidbox)
+                or fnmatchcase(key, events)
+            ):
+                continue
+            else:
+                unknown.append(key)
+    finally:
+        ex10_prepare._close(redis)
+    expected_throttle = {
+        cache.make_key(ex10_state.throttle_key(str(uuid.UUID(item.dataset_user_id))))
+        for item in plan.items
+    }
+    return ex10_reconcile.PostRunBroker(
+        queue_keys=queue_keys,
+        unacked=unacked,
+        unacked_index=unacked_index,
+        task_messages=snapshot.task_messages,
+        unclassifiable=tuple(snapshot.unclassifiable),
+        result_task_ids=tuple(sorted(result_ids)),
+        malformed_result_keys=malformed,
+        throttle_keys=tuple(sorted(throttle)),
+        expected_throttle_keys=tuple(sorted(expected_throttle)),
+        unknown_keys=tuple(sorted(unknown)),
+        expected_cache_key=cache.make_key(GENERATION_KEY),
+    )
+
+
+def follows_g0_a2(initial_manifest: Mapping[str, Any] | None) -> bool:
+    """Si la identidad custodiada del run registra G0-A2. La de un run anterior, no (G0-A2)."""
+    configuration = (initial_manifest or {}).get("configuration")
+    protocol = configuration.get("protocol") if isinstance(configuration, Mapping) else None
+    return (
+        isinstance(protocol, Mapping)
+        and protocol.get("decision_addendum_a2_commit") == ex10_load.G0_A2_DECISION_COMMIT
+    )
 
 
 def resolve_backend() -> tuple[str, int]:
@@ -815,6 +910,7 @@ class ExecutorProbes:
     generator: Callable[..., ex10_load.LoadGenerator] = ex10_load.LoadGenerator
     database: Callable[[], ex10_reconcile.DatabaseSnapshot] = ex10_reconcile.snapshot_database
     broker_dynamic: Callable[[], int] = broker_dynamic
+    post_run_broker: Callable[[LoadPlan], ex10_reconcile.PostRunBroker] = post_run_broker
     now: Callable[[], datetime] = _now
     monotonic_ns: Callable[[], int] = time.monotonic_ns
     wall_ns: Callable[[], int] = time.time_ns
@@ -1700,10 +1796,16 @@ def assess(
     except Exception as exc:  # noqa: BLE001
         database = None
         probe_errors.append(f"probe:database:{type(exc).__name__}")
+    # La semántica del broker la fija la identidad custodiada del run, no el HEAD (G0-A2).
+    g0_a2 = follows_g0_a2(state.initial_manifest)
+    dynamic: int | None = None
+    residue: ex10_reconcile.PostRunBroker | None = None
     try:
-        dynamic: int | None = probes.broker_dynamic()
+        if g0_a2:
+            residue = probes.post_run_broker(plan)
+        else:
+            dynamic = probes.broker_dynamic()
     except Exception as exc:  # noqa: BLE001
-        dynamic = None
         probe_errors.append(f"probe:broker:{type(exc).__name__}")
     emission = state.payload(ART_EMISSION) or {}
     drain = state.payload(ART_DRAIN)
@@ -1720,6 +1822,8 @@ def assess(
         config_before=before,
         config_after=after,
         broker_dynamic=dynamic,
+        post_run_broker=residue,
+        g0_a2=g0_a2,
     )
     invalidity = [
         *reconciliation.environment_invalidity,

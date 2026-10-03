@@ -39,6 +39,9 @@ con las aclaraciones operativas de transporte y clasificación:
   contractual o no; un 201 truncado es un fallo de transporte y no entra
   (`latency_set`).
 
+La Decisión G0-A2 (03/10/2026, `G0_A2_DECISION_COMMIT`) fija la semántica post-run del
+broker para los runs cuya identidad la registra; el `READY_STATE` previo no cambia.
+
 Los tokens, los bytes de imagen y las coordenadas sólo existen en memoria, dentro de
 `PreparedRequest`. Ningún payload serializable los contiene.
 """
@@ -86,6 +89,9 @@ DECISION_COMMIT = "1693d0ae562bfe777c496b616c9f8c8d5fa8a591"
 #: Commit documental del addendum G0-A1 (27/09/2026). Forma parte de la identidad del
 #: protocolo junto con el de G0: el addendum no reemplaza a G0 (G0-A1).
 G0_A1_DECISION_COMMIT = "db7fe6649213a8d26f4ee60d36a797ee54f80322"
+#: Commit documental del addendum G0-A2 (03/10/2026): semántica post-run del broker. Sólo rige
+#: runs cuya identidad lo registra; los anteriores conservan la semántica histórica (G0-A2).
+G0_A2_DECISION_COMMIT = "2bab6cabe4108e1eddbb319c3f859ed75c914004"
 
 DATASET_ID = "s11-load-v1"
 DATASET_SEED = 20260921
@@ -262,6 +268,7 @@ def protocol_identity() -> dict[str, Any]:
         "decision_reference": DECISION_REFERENCE,
         "decision_commit": DECISION_COMMIT,
         "decision_addendum_commit": G0_A1_DECISION_COMMIT,
+        "decision_addendum_a2_commit": G0_A2_DECISION_COMMIT,
         "dataset": {"id": DATASET_ID, "seed": DATASET_SEED, "sha256": DATASET_SHA256},
         "load": {
             "virtual_users": VIRTUAL_USERS,

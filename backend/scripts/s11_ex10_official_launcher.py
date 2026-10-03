@@ -201,9 +201,13 @@ _PHASES = frozenset(
     }
 )
 _DECISIONS = frozenset({"PASS", "FAIL", "NOT_DEMONSTRATED"})
-#: Estrictamente de sólo lectura en el dominio: la evidencia entera debe quedar idéntica.
-#: `reconcile` no escribe contenido, pero abre el run con `load_state` (que normaliza permisos
-#: y cambia el ctime de sus directorios): sólo puede tocar el run de la sesión, nunca otro.
+#: `status` es estrictamente de sólo lectura en el dominio: la evidencia entera queda idéntica.
+#: `inspect` ni siquiera lanza un contenedor (sólo host). Desde `856c899`, `reconcile` también es
+#: estrictamente de sólo lectura sobre la evidencia (`load_existing_state_readonly` bajo el lock
+#: compartido, sin `load_state` ni normalización de permisos: ni contenido ni ctime cambian),
+#: pero sigue en la cadena de acciones porque registra la decisión provisional que `finalize`
+#: debe reproducir. Toda acción, también éstas, añade su salida al registro de la sesión del
+#: operador, que no es evidencia.
 READ_ONLY_ACTIONS = frozenset({"status"})
 
 
@@ -1324,6 +1328,9 @@ def _act(invocation, manifest, spec, output, meta, entry) -> Outcome:
         raise LauncherError(f"action-not-allowed-now:{action}")
     run_id = manifest["official_run_id"]
     if action == "start-official":
+        # Sólo los run_id públicos reconocidos: la sesión registra qué NOT_DEMONSTRATED se
+        # aceptó para este START (la salida queda encadenada en el historial).
+        meta["acknowledged_not_demonstrated"] = sorted(invocation.acknowledged)
         raw = _private_file(invocation.preflight_report, "preflight-report-unsafe")
         problems = preflight_report_problems(
             raw, git_sha=invocation.expected_git_sha, now=invocation.clock()

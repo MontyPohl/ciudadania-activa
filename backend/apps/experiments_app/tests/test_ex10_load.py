@@ -381,16 +381,20 @@ def test_any_other_protocol_value_is_rejected(key, value):
 
 G0_COMMIT = "1693d0ae562bfe777c496b616c9f8c8d5fa8a591"
 G0_A1_COMMIT = "db7fe6649213a8d26f4ee60d36a797ee54f80322"
+G0_A2_COMMIT = "2bab6cabe4108e1eddbb319c3f859ed75c914004"
 
 
-def test_identity_records_g0_and_g0_a1_as_two_distinct_commits():
+def test_identity_records_g0_g0_a1_and_g0_a2_as_three_distinct_commits():
     identity = ex10.protocol_identity()
     assert ex10.DECISION_COMMIT == G0_COMMIT
     assert ex10.G0_A1_DECISION_COMMIT == G0_A1_COMMIT
-    assert (identity["decision_commit"], identity["decision_addendum_commit"]) == (
-        G0_COMMIT,
-        G0_A1_COMMIT,
-    )
+    assert ex10.G0_A2_DECISION_COMMIT == G0_A2_COMMIT
+    assert (
+        identity["decision_commit"],
+        identity["decision_addendum_commit"],
+        identity["decision_addendum_a2_commit"],
+    ) == (G0_COMMIT, G0_A1_COMMIT, G0_A2_COMMIT)
+    assert len({G0_COMMIT, G0_A1_COMMIT, G0_A2_COMMIT}) == 3
 
 
 @pytest.mark.parametrize(
@@ -403,12 +407,32 @@ def test_identity_records_g0_and_g0_a1_as_two_distinct_commits():
         ({"decision_addendum_commit": G0_COMMIT}, ["protocol-identity:decision_addendum_commit"]),
         ({"decision_addendum_commit": None}, ["protocol-identity:decision_addendum_commit"]),
         (
+            {"drop": "decision_addendum_a2_commit"},
+            ["protocol-identity:decision_addendum_a2_commit"],
+        ),
+        (
+            {"decision_addendum_a2_commit": G0_A1_COMMIT},
+            ["protocol-identity:decision_addendum_a2_commit"],
+        ),
+        (
+            {"decision_addendum_a2_commit": None},
+            ["protocol-identity:decision_addendum_a2_commit"],
+        ),
+        (
+            {"decision_addendum_a2_commit": G0_A2_COMMIT[:7]},
+            ["protocol-identity:decision_addendum_a2_commit"],
+        ),
+        (
+            {"decision_addendum_a2_commit": [G0_A2_COMMIT]},
+            ["protocol-identity:decision_addendum_a2_commit"],
+        ),
+        (
             {"decision_addendum_commit": "0" * 40},
             ["protocol-identity:decision_addendum_commit"],
         ),
     ],
 )
-def test_identity_rejects_a_missing_or_wrong_g0_or_g0_a1_commit(change, reasons):
+def test_identity_rejects_a_missing_or_wrong_g0_g0_a1_or_g0_a2_commit(change, reasons):
     candidate = dict(ex10.protocol_identity())
     if "drop" in change:
         candidate.pop(change["drop"])
@@ -435,7 +459,12 @@ def test_identity_rejects_extra_fields_that_try_to_replace_the_commits(extra):
     # En lugar de los campos correctos, se rechazan los dos ausentes y el extra.
     replaced = {k: v for k, v in base.items() if not k.startswith("decision_")}
     replaced["decision_reference"] = base["decision_reference"]
-    expected = ("decision_commit", "decision_addendum_commit", *extra)
+    expected = (
+        "decision_commit",
+        "decision_addendum_commit",
+        "decision_addendum_a2_commit",
+        *extra,
+    )
     assert ex10.verify_protocol_identity({**replaced, **extra}) == sorted(
         f"protocol-identity:{key}" for key in expected
     )
@@ -446,11 +475,13 @@ def test_documentary_commits_stay_outside_the_plan_hash(dataset, plan, monkeypat
     # `PLAN_SHA256`, que sólo deriva de `s11-load-v1` bajo `s11-ex10-v1`.
     serialized = plan.to_json()
     text = canonical_json_bytes(serialized).decode()
-    assert G0_COMMIT not in text and G0_A1_COMMIT not in text
+    assert G0_COMMIT not in text and G0_A1_COMMIT not in text and G0_A2_COMMIT not in text
     assert not any(key.startswith("decision") for key in serialized)
     monkeypatch.setattr(ex10, "DECISION_COMMIT", "1" * 40)
     monkeypatch.setattr(ex10, "G0_A1_DECISION_COMMIT", "2" * 40)
+    monkeypatch.setattr(ex10, "G0_A2_DECISION_COMMIT", "3" * 40)
     assert ex10.protocol_identity()["decision_addendum_commit"] == "2" * 40
+    assert ex10.protocol_identity()["decision_addendum_a2_commit"] == "3" * 40
     assert ex10.build_plan(dataset).sha256 == plan.sha256 == ex10.PLAN_SHA256
     assert ex10.PLAN_SHA256 == "2b50aa48cfa975029ab38a4c0e17430f67469b185fce5aaed89414728e6934d7"
 

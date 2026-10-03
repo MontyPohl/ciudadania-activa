@@ -224,6 +224,27 @@ def expected_config(**changes) -> rec.ConfigObservation:
     )
 
 
+QUIET_CACHE_KEY = "s11-test:1:public-reports:v1:generation"
+
+
+def quiet_broker(**changes) -> rec.PostRunBroker:
+    """Broker post-run sin residuos ni trabajo pendiente (G0-A2); `changes` lo altera."""
+    values = {
+        "queue_keys": 0,
+        "unacked": 0,
+        "unacked_index": 0,
+        "task_messages": 0,
+        "unclassifiable": (),
+        "result_task_ids": (),
+        "malformed_result_keys": 0,
+        "throttle_keys": (),
+        "expected_throttle_keys": (),
+        "unknown_keys": (),
+        "expected_cache_key": QUIET_CACHE_KEY,
+    }
+    return rec.PostRunBroker(**{**values, **changes})
+
+
 @dataclass
 class Scenario:
     """Todo lo que la reconciliación lee, coherente por defecto (un PASS)."""
@@ -236,6 +257,9 @@ class Scenario:
     before: rec.ConfigObservation | None
     after: rec.ConfigObservation | None
     broker_dynamic: int | None = 0
+    #: G0-A2: el broker post-run de un run cuya identidad registra el addendum.
+    post_run_broker: rec.PostRunBroker | None = None
+    g0_a2: bool = False
 
     def reconcile(self) -> rec.Reconciliation:
         return rec.reconcile(
@@ -247,6 +271,8 @@ class Scenario:
             config_before=self.before,
             config_after=self.after,
             broker_dynamic=self.broker_dynamic,
+            post_run_broker=self.post_run_broker,
+            g0_a2=self.g0_a2,
         )
 
     def evaluate(self) -> ex10.Ex10Evaluation:
@@ -643,6 +669,7 @@ def make_probes(backend: Backend, dataset, clock: FakeClock, tokens: list, **cha
         resolve_backend=lambda: backend.address,
         database=backend.database,
         broker_dynamic=lambda: 0,
+        post_run_broker=lambda plan: quiet_broker(),
         monotonic_ns=clock,
         sleep=clock.sleep,
         boot_id=lambda: BOOT_ID,

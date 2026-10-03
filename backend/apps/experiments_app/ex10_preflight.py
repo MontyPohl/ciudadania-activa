@@ -81,9 +81,10 @@ MAX_BROKER_KEYS = 10_000
 MAX_CONTROL_MESSAGES = 10
 REDIS_TIMEOUT_SECONDS = 2.0
 
-#: Referencias congeladas de G0 y G0-A1, independientes de `ex10_load`.
+#: Referencias congeladas de G0, G0-A1 y G0-A2, independientes de `ex10_load`.
 G0_DECISION_COMMIT = "1693d0ae562bfe777c496b616c9f8c8d5fa8a591"
 G0_A1_DECISION_COMMIT = "db7fe6649213a8d26f4ee60d36a797ee54f80322"
+G0_A2_DECISION_COMMIT = "2bab6cabe4108e1eddbb319c3f859ed75c914004"
 EXPECTED_IDENTITY_KEYS = frozenset(
     {
         "protocol_id",
@@ -92,6 +93,7 @@ EXPECTED_IDENTITY_KEYS = frozenset(
         "decision_reference",
         "decision_commit",
         "decision_addendum_commit",
+        "decision_addendum_a2_commit",
         "dataset",
         "load",
         "request",
@@ -106,6 +108,7 @@ FROZEN_IDENTITY = {
     "scenario_id": "EX-10",
     "decision_commit": G0_DECISION_COMMIT,
     "decision_addendum_commit": G0_A1_DECISION_COMMIT,
+    "decision_addendum_a2_commit": G0_A2_DECISION_COMMIT,
     "dataset": {
         "id": "s11-load-v1",
         "seed": 20260921,
@@ -1294,15 +1297,17 @@ class _Runner:
         try:
             g0 = repo.is_ancestor(G0_DECISION_COMMIT)
             g0_a1 = repo.is_ancestor(G0_A1_DECISION_COMMIT)
+            g0_a2 = repo.is_ancestor(G0_A2_DECISION_COMMIT)
         except RepositoryUnavailable as exc:
             self.add("protocol_decision_commits", CheckResult.INCOMPLETE, detail=exc.code)
             return
+        ok = g0 and g0_a1 and g0_a2
         self.add(
             "protocol_decision_commits",
-            CheckResult.PASS if g0 and g0_a1 else CheckResult.FAIL,
-            {"g0_in_history": True, "g0_a1_in_history": True},
-            {"g0_in_history": g0, "g0_a1_in_history": g0_a1},
-            None if g0 and g0_a1 else "decision-commit-not-in-history",
+            CheckResult.PASS if ok else CheckResult.FAIL,
+            {"g0_in_history": True, "g0_a1_in_history": True, "g0_a2_in_history": True},
+            {"g0_in_history": g0, "g0_a1_in_history": g0_a1, "g0_a2_in_history": g0_a2},
+            None if ok else "decision-commit-not-in-history",
         )
 
     def protocol(self) -> None:
@@ -1319,7 +1324,7 @@ class _Runner:
         self.add(
             "protocol_identity",
             CheckResult.FAIL if problems else CheckResult.PASS,
-            {"fields": len(EXPECTED_IDENTITY_KEYS), "g0": True, "g0_a1": True},
+            {"fields": len(EXPECTED_IDENTITY_KEYS), "g0": True, "g0_a1": True, "g0_a2": True},
             {"mismatches": len(problems)},
             ",".join(problems) or None,
         )

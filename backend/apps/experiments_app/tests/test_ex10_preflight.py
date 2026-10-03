@@ -805,6 +805,33 @@ def test_decision_commits_must_be_in_history(stack):
     assert check.result is R.FAIL and check.observed_sanitized["g0_a1_in_history"] is False
 
 
+def test_the_g0_a2_decision_commit_must_be_in_history(stack):
+    # G0-A2 forma parte de la identidad de los runs futuros: su commit debe estar en la historia.
+    stack.repo.ancestors = {pf.G0_DECISION_COMMIT, pf.G0_A1_DECISION_COMMIT}
+    check = checks(run(stack))["protocol_decision_commits"]
+    assert check.result is R.FAIL and check.detail_code == "decision-commit-not-in-history"
+    assert check.observed_sanitized == {
+        "g0_in_history": True,
+        "g0_a1_in_history": True,
+        "g0_a2_in_history": False,
+    }
+    stack.repo.ancestors = {
+        pf.G0_DECISION_COMMIT,
+        pf.G0_A1_DECISION_COMMIT,
+        pf.G0_A2_DECISION_COMMIT,
+    }
+    assert checks(run(stack))["protocol_decision_commits"].result is R.PASS
+
+
+def test_the_frozen_identity_includes_g0_a2():
+    assert pf.G0_A2_DECISION_COMMIT == "2bab6cabe4108e1eddbb319c3f859ed75c914004"
+    assert pf.FROZEN_IDENTITY["decision_addendum_a2_commit"] == pf.G0_A2_DECISION_COMMIT
+    assert "decision_addendum_a2_commit" in pf.EXPECTED_IDENTITY_KEYS
+    assert len(pf.EXPECTED_IDENTITY_KEYS) == 13
+    assert pf.G0_A2_DECISION_COMMIT == ex10_load.G0_A2_DECISION_COMMIT
+    assert set(ex10_load.protocol_identity()) == pf.EXPECTED_IDENTITY_KEYS
+
+
 @pytest.mark.parametrize(
     ("mutate", "detail"),
     [
@@ -2090,6 +2117,7 @@ def checkout(tmp_path, monkeypatch):
     # Los commits de G0 de este historial sintético.
     monkeypatch.setattr(pf, "G0_DECISION_COMMIT", first)
     monkeypatch.setattr(pf, "G0_A1_DECISION_COMMIT", first)
+    monkeypatch.setattr(pf, "G0_A2_DECISION_COMMIT", first)
     return SimpleNamespace(root=root, first=first, head=git(root, "rev-parse", "HEAD"))
 
 

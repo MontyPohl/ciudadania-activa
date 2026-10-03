@@ -13,6 +13,10 @@ hecho (`()`, `0`). La única correlación entre un request y su `Report` es el `
 201: el dominio no guarda el `X-S11-Request-ID`.
 
 Nunca compara el fin de la tarea con el fin del HTTP: HT1-04 es estructural (G0).
+
+El broker post-run se juzga con la semántica de la identidad del run: la histórica (broker
+vacío, `broker:dynamic-residual`) o la de G0-A2 (quiescencia: el trabajo pendiente invalida y
+los residuos esperados de un run correcto no), sin reinterpretar nunca un run anterior.
 """
 
 from __future__ import annotations
@@ -378,8 +382,18 @@ def reconcile(
     config_before: ConfigObservation | None,
     config_after: ConfigObservation | None,
     broker_dynamic: int | None,
+    post_run_broker: PostRunBroker | None = None,
+    g0_a2: bool = False,
 ) -> Reconciliation:
-    """Compone la evidencia de G0 sin tocar nada. Función pura sobre datos ya leídos."""
+    """Compone la evidencia de G0 sin tocar nada. Función pura sobre datos ya leídos.
+
+    El broker post-run se evalúa con la semántica de la identidad del run: G0-A2
+    (`g0_a2`, sobre `post_run_broker`) o la histórica (`broker_dynamic`), nunca otra.
+    """
+    if g0_a2:
+        broker_quiet = None if post_run_broker is None else post_run_broker.quiescent
+    else:
+        broker_quiet = None if broker_dynamic is None else broker_dynamic == 0
     by_key = plan.by_key()
     alias_by_user = {item.dataset_user_id: item.user_alias for item in plan.items}
     invalidity: list[str] = [*http.problems, *celery.problems]
@@ -495,7 +509,7 @@ def reconcile(
                 ai_classification_models=None if row is None else row.classification_models,
                 final_status=None if row is None else row.status,
                 ai_classified_audit_rows=None if row is None else row.classified_audit_rows,
-                task_in_broker=False if broker_dynamic == 0 else None,
+                task_in_broker=False if broker_quiet else None,
                 enqueue_failure_logged=None,
             )
         config, config_problems = async_config(config_before, config_after)
@@ -503,9 +517,15 @@ def reconcile(
         events = tuple(celery_evidence(e) for e in celery.events if e.get("event") in CELERY_EVENTS)
         async_evidence = Ht104Evidence(config=config, events=events, facts=facts)
 
-    if broker_dynamic is None:
+    if g0_a2:
+        if post_run_broker is None:
+            invalidity.append("broker:not-inspected")
+        else:
+            invalidity.extend(post_run_broker_problems(post_run_broker, celery))
+    elif broker_dynamic is None:
         invalidity.append("broker:not-inspected")
     elif broker_dynamic:
+        # Semántica histórica (runs sin G0-A2): la regla de broker vacío del READY_STATE.
         invalidity.append("broker:dynamic-residual")
     accepted_keys = {a.request_key for a in accepted}
 
@@ -527,6 +547,104 @@ def reconcile(
         attributed_reports=attributed,
         diagnostics=diagnostics,
     )
+
+
+# --- Broker post-run (G0-A2) ----------------------------------------------------------------
+
+#: Códigos post-run de G0-A2, en el orden en que se informan. `broker:not-inspected` se
+#: conserva; `broker:dynamic-residual` queda sólo para la semántica histórica.
+POST_RUN_BROKER_CODES = (
+    "broker:queues-not-empty",
+    "broker:unacked",
+    "broker:pending-task-messages",
+    "broker:unexpected-result-key",
+    "broker:task-failure",
+    "broker:task-retry",
+    "broker:unexpected-throttle-key",
+    "broker:unknown-residual",
+    "broker:inclassifiable-residual",
+)
+
+
+@dataclass(frozen=True, slots=True)
+class PostRunBroker:
+    """El broker tras el run, sólo con nombres de clave y conteos: nunca valores (G0-A2).
+
+    Lo construye el probe del executor con el cliente de sólo lectura. Las claves esperadas
+    (throttle de los diez actores, caché de la aplicación) las deriva con la API de cache
+    real; aquí sólo se comparan por igualdad exacta, nunca por sufijo o prefijo.
+    """
+
+    #: Colas y colas de prioridad de Kombu presentes (una lista existe sólo con mensajes).
+    queue_keys: int
+    unacked: int
+    unacked_index: int
+    #: Mensajes de tarea en el control plane, según el clasificador comprometido.
+    task_messages: int
+    #: Lo que el clasificador comprometido no pudo clasificar.
+    unclassifiable: tuple[str, ...]
+    #: Task IDs de las claves de resultado bien formadas.
+    result_task_ids: tuple[str, ...]
+    #: Claves con prefijo de resultado y sufijo que no es un task ID.
+    malformed_result_keys: int
+    #: Claves con el prefijo de throttle de la cache, de cualquier scope.
+    throttle_keys: tuple[str, ...]
+    expected_throttle_keys: tuple[str, ...]
+    #: Claves de ninguna clase conocida (incluida, si existe, la caché adjudicada).
+    unknown_keys: tuple[str, ...]
+    expected_cache_key: str
+
+    @property
+    def quiescent(self) -> bool:
+        """Sin trabajo pendiente en el broker: ni colas, ni entregas, ni mensajes de tarea."""
+        return not (self.queue_keys or self.unacked or self.unacked_index or self.task_messages)
+
+
+def post_run_broker_problems(broker: PostRunBroker, celery: Stream) -> list[str]:
+    """Invalidez post-run del broker según G0-A2 (función pura, sin valores ni escrituras).
+
+    El trabajo pendiente invalida. Los residuos esperados de un run correcto no: claves de
+    resultado de tareas del run cuyo resultado la telemetría reconcilia (presentes, en parte
+    o expiradas), throttle de los diez actores, bindings estáticos, control plane sin
+    mensajes y la caché adjudicada. Un fallo o un reintento que la telemetría sí registra no
+    es invalidez: lo decide HT1-04 (G0); aquí sólo cuenta el residuo que no reconcilia.
+    """
+    problems: set[str] = set()
+    if broker.queue_keys:
+        problems.add("broker:queues-not-empty")
+    if broker.unacked or broker.unacked_index:
+        problems.add("broker:unacked")
+    if broker.task_messages:
+        problems.add("broker:pending-task-messages")
+    if broker.unclassifiable or broker.malformed_result_keys:
+        problems.add("broker:inclassifiable-residual")
+    if any(key != broker.expected_cache_key for key in broker.unknown_keys):
+        problems.add("broker:unknown-residual")
+    expected_throttle = set(broker.expected_throttle_keys)
+    if any(key not in expected_throttle for key in broker.throttle_keys):
+        problems.add("broker:unexpected-throttle-key")
+
+    events = [e for e in celery.events or () if e.get("event") in CELERY_EVENTS]
+    run_tasks = {e["task_id"] for e in events if _text(e.get("task_id"))}
+    terminal = {e["task_id"] for e in events if _text(e.get("task_id")) and is_terminal_event(e)}
+    for task_id in broker.result_task_ids:
+        if task_id not in run_tasks:
+            # De otro run, de una tarea desconocida o sin telemetría legible que la atribuya.
+            problems.add("broker:unexpected-result-key")
+        elif task_id not in terminal:
+            # El broker guarda un desenlace que la telemetría del run no reconcilia.
+            problems.add("broker:task-failure")
+    retried = {
+        e["task_id"]
+        for e in events
+        if e.get("event") == "celery.finished"
+        and e.get("celery_state") in NON_TERMINAL_CELERY_STATES
+        and _text(e.get("task_id"))
+    }
+    if retried - terminal:
+        # Un reintento sin desenlace: trabajo que sigue pendiente después del drain.
+        problems.add("broker:task-retry")
+    return [code for code in POST_RUN_BROKER_CODES if code in problems]
 
 
 # --- Registro canónico por intento ----------------------------------------------------------

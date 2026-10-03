@@ -739,6 +739,76 @@ def test_start_passes_only_exact_acknowledgements(checkout, session):
             )
 
 
+#: El run oficial 1 (NOT_DEMONSTRATED, `binding=false`): el próximo START oficial lo reconoce.
+HISTORICAL_RUN_1 = "s11-0ff9a5d1-2309-5f40-b4a7-dabad703e43a"
+
+
+def test_start_forwards_and_records_the_exact_acknowledgement_of_run_1(checkout, session):
+    # G0-A2: el reconocimiento es explícito, por run_id exacto, y la sesión lo registra.
+    summary, fake = act(checkout, session, "start-official", acknowledged=(HISTORICAL_RUN_1,))
+    assert summary["classification"] == "COHERENT"
+    assert tail(fake.runs()[0])[-2:] == ["--acknowledge-not-demonstrated", HISTORICAL_RUN_1]
+    meta_path = Path(summary["output_dir"]) / "launcher-meta.json"
+    meta = json.loads(meta_path.read_text())
+    assert meta["acknowledged_not_demonstrated"] == [HISTORICAL_RUN_1]
+    entry = manifest(session)["history"][-1]
+    assert (
+        entry["output_sha256"]["launcher-meta.json"]
+        == hashlib.sha256(meta_path.read_bytes()).hexdigest()
+    )
+
+
+def test_start_without_acknowledgement_records_none(checkout, session):
+    summary, fake = act(checkout, session, "start-official")
+    assert "--acknowledge-not-demonstrated" not in tail(fake.runs()[0])
+    meta = json.loads((Path(summary["output_dir"]) / "launcher-meta.json").read_text())
+    assert meta["acknowledged_not_demonstrated"] == []
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        "",
+        "*",
+        "s11-*",
+        "../" + HISTORICAL_RUN_1,
+        HISTORICAL_RUN_1 + "/..",
+        HISTORICAL_RUN_1.upper(),
+        HISTORICAL_RUN_1 + " ",
+        HISTORICAL_RUN_1[:-1],
+    ],
+    ids=[
+        "empty",
+        "wildcard",
+        "prefix-wildcard",
+        "path-up",
+        "path-suffix",
+        "upper",
+        "space",
+        "short",
+    ],
+)
+def test_malformed_acknowledgements_are_rejected_before_anything_runs(checkout, session, bad):
+    with pytest.raises(base.UsageError):
+        official.validate_invocation(
+            invocation(checkout, session, FakeDocker(), "start-official", acknowledged=(bad,))
+        )
+
+
+@pytest.mark.parametrize(
+    "action",
+    [a for a in official.ACTIONS if a != "start-official"],
+)
+def test_the_acknowledgement_belongs_only_to_start_official(checkout, session, action):
+    # La confirmación propia de cada acción está dada: el rechazo es por el reconocimiento.
+    good = invocation(checkout, session, FakeDocker(), action)
+    official.validate_invocation(good)
+    with pytest.raises(base.UsageError):
+        official.validate_invocation(
+            invocation(checkout, session, FakeDocker(), action, acknowledged=(HISTORICAL_RUN_1,))
+        )
+
+
 @pytest.mark.parametrize(
     ("code", "reasons"),
     [

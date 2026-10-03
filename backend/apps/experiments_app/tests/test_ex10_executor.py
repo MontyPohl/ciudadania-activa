@@ -1153,7 +1153,7 @@ def test_any_inspection_failure_at_finalize_is_not_demonstrated_not_a_crash(h):
     def broken():
         raise RuntimeError("postgres://user:secret@db/x")
 
-    h.set_probes(database=broken, broker_dynamic=broken)
+    h.set_probes(database=broken, broker_dynamic=broken, post_run_broker=lambda plan: broken())
     final = h.finalize()
     assert final["decision"] == "NOT_DEMONSTRATED"
     assert {"probe:database:RuntimeError", "probe:broker:RuntimeError"} <= set(final["reasons"])
@@ -3033,7 +3033,11 @@ def test_reconcile_without_db_telemetry_or_broker_is_not_demonstrated(h, missing
     if missing == "database":
         h.set_probes(database=lambda: (_ for _ in ()).throw(DatabaseError("down")))
     elif missing == "broker":
-        h.set_probes(broker_dynamic=lambda: (_ for _ in ()).throw(ConnectionError("down")))
+        down = ConnectionError("down")
+        h.set_probes(
+            broker_dynamic=lambda: (_ for _ in ()).throw(down),
+            post_run_broker=lambda plan: (_ for _ in ()).throw(down),
+        )
     else:
         stream = run_path(h, h.run_id) / "logs" / "EX-10" / "http.jsonl"
         stream.rename(stream.with_name("http.jsonl.unavailable"))
