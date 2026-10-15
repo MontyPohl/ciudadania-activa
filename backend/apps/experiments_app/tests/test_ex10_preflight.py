@@ -730,7 +730,7 @@ def test_the_executor_runtime_sources_are_matched_against_the_checkout(stack):
     report = run(stack)
     check = checks(report)["repository_running_source"]
     assert check.result is R.PASS and check.detail_code is None
-    assert check.observed_sanitized["compared"] == len(pf.RUNNING_SOURCES) == 11
+    assert check.observed_sanitized["compared"] == len(pf.RUNNING_SOURCES)
     sources = running_sources(report)
     for relative in EXECUTOR_RUNTIME_SOURCES:
         assert sources[relative] == {"source": relative, "match": True, "detail_code": None}

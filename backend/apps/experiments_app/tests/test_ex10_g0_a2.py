@@ -16,6 +16,7 @@ from apps.experiments_app import ex10_load as ex10
 from apps.experiments_app import ex10_preflight, ex10_prepare, ex10_state
 from apps.experiments_app import ex10_reconcile as rec
 from apps.experiments_app.constants import Decision
+from apps.experiments_app.tests import test_ex10_executor as native_executor_tests
 from apps.experiments_app.tests.ex10_executor_support import (
     QUIET_CACHE_KEY,
     close_harness,
@@ -423,11 +424,30 @@ def h(request, dataset):
     close_harness(harness)
 
 
+@pytest.fixture
+def v2_empty_native_host():
+    with native_executor_tests.v2_native_host_material(history=()) as host:
+        yield host
+
+
+@pytest.fixture
+def native_h(h, v2_empty_native_host, dataset, monkeypatch):
+    yield from native_executor_tests.native_h.__wrapped__(
+        h, v2_empty_native_host, dataset, monkeypatch
+    )
+
+
+@pytest.fixture
+def native_history_h(native_h, dataset, monkeypatch):
+    yield from native_executor_tests.native_history_h.__wrapped__(native_h, dataset, monkeypatch)
+
+
 def _forbidden(*_args, **_kwargs):
     raise AssertionError("probe de la otra semántica")
 
 
-def test_a_future_run_uses_the_post_run_probe_and_never_the_historical_counter(h):
+def test_a_future_run_uses_the_post_run_probe_and_never_the_historical_counter(native_h):
+    h = native_h
     seen = []
     h.set_probes(
         broker_dynamic=_forbidden, post_run_broker=lambda p: seen.append(p) or quiet_broker()
@@ -446,7 +466,8 @@ def test_a_future_run_uses_the_post_run_probe_and_never_the_historical_counter(h
     assert len(seen) == 2 and all(p.sha256 == ex10.PLAN_SHA256 for p in seen)
 
 
-def test_pending_work_in_a_future_run_is_not_demonstrated(h):
+def test_pending_work_in_a_future_run_is_not_demonstrated(native_h):
+    h = native_h
     h.set_probes(broker_dynamic=_forbidden, post_run_broker=lambda p: quiet_broker(unacked=1))
     h.start(evidence_mode=OFFICIAL)
     h.execute()
@@ -455,7 +476,9 @@ def test_pending_work_in_a_future_run_is_not_demonstrated(h):
     assert final["reasons"] == ["broker:unacked"]
 
 
-def test_a_broken_post_run_probe_is_not_inspected(h):
+def test_a_broken_post_run_probe_is_not_inspected(native_h):
+    h = native_h
+
     def broken(plan):
         raise ConnectionError("down")
 
@@ -470,11 +493,14 @@ def test_a_broken_post_run_probe_is_not_inspected(h):
 def test_a_run_started_with_the_historical_identity_keeps_the_historical_semantics(h, monkeypatch):
     # No retroactividad: un run sin G0-A2 en su identidad custodiada se juzga con la regla
     # histórica aunque el HEAD que lo finaliza ya incluya G0-A2.
+    # Component science on genuine LOCAL custodied artifacts: Native admission
+    # rejects a new OFFICIAL OPEN with an obsolete protocol identity. Existing
+    # historical OFFICIAL imports are covered by their read-only B3 regressions.
     current = ex10.protocol_identity
     historical = {k: v for k, v in current().items() if k != "decision_addendum_a2_commit"}
     with monkeypatch.context() as patch:
         patch.setattr(ex10, "protocol_identity", lambda: dict(historical))
-        h.start(evidence_mode=OFFICIAL)
+        h.start(evidence_mode=executor.LOCAL_TEST_MODE)
     protocol = h.payload(executor.ART_MANIFEST_INITIAL)["configuration"]["protocol"]
     assert "decision_addendum_a2_commit" not in protocol
     assert "decision_addendum_a2_commit" in ex10.protocol_identity()
@@ -628,7 +654,8 @@ def test_replace_keeps_the_dataclass_frozen(tasks):
     assert replace(broker, queue_keys=1).queue_keys == 1
 
 
-def test_only_an_official_not_demonstrated_run_can_be_acknowledged(h):
+def test_only_an_official_not_demonstrated_run_can_be_acknowledged(native_history_h):
+    h = native_history_h
     # El ACK exacto existe y no se debilita: un ND de LOCAL_TEST no es reconocible como oficial.
     h.set_probes(issue_tokens=lambda result: (_ for _ in ()).throw(KeyboardInterrupt))
     h.start(evidence_mode=executor.LOCAL_TEST_MODE)

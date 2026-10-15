@@ -62,8 +62,12 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         actions = parser.add_subparsers(dest="action", required=True)
+        # Fixed W06 OS entrypoint, never a general RPC/action/provider selector.
+        bridge = actions.add_parser("bridge", help="Canal OS interno aprobado.")
+        bridge.error = self._usage_error(bridge)
         start = actions.add_parser("start", help="Preflight en proceso y run_id nuevo.")
         start.error = self._usage_error(start)
+        start.add_argument("--operational-context-stdin", action="store_true")
         start.add_argument("--expected-git-sha", required=True)
         start.add_argument("--source-root", required=True)
         start.add_argument("--nonce", required=True)
@@ -73,6 +77,7 @@ class Command(BaseCommand):
         for name in ("execute", "drain", "reconcile", "finalize"):
             step = actions.add_parser(name)
             step.error = self._usage_error(step)
+            step.add_argument("--operational-context-stdin", action="store_true")
             step.add_argument("--run-id", required=True)
             step.add_argument("--expected-git-sha", required=True)
             if name == "execute":
@@ -100,13 +105,54 @@ class Command(BaseCommand):
             # SIGTERM o SIGHUP del launcher se tratan como Ctrl-C: interrupción del operador.
             for number in (signal.SIGTERM, signal.SIGHUP):
                 signal.signal(number, _interrupt)
+        bridge_refusal = None
         try:
+            if action == "bridge":
+                code = executor.run_native_bridge()
+                if type(code) is int and code == EXIT_TERMINAL:
+                    bridge_refusal = CommandError(
+                        "S11_EX10_NATIVE_WORKER_REFUSED", returncode=EXIT_TERMINAL
+                    )
+                    raise bridge_refusal
+                if code != 0:
+                    raise CommandError("S11_EX10_NATIVE_WORKER_FAILED", returncode=EXIT_ERROR)
+                return
+            if options.get("operational_context_stdin"):
+                if action == "start" and options["evidence_mode"] == executor.LOCAL_TEST_MODE:
+                    raise executor.Ex10Refusal(["local-test-official-context"], terminal=True)
+                context = self.operational_context(options)
+                if (
+                    type(context) is not executor.ExecutorOperationalContext
+                    or context.action != action
+                ):
+                    raise executor.Ex10Refusal(["operational-context-required"], terminal=True)
+                options["_operational_context"] = context
             result = getattr(self, f"_{action.replace('-', '_')}")(options)
+            if options.get("_operational_context") is not None:
+                options["_operational_context"].persist_public_result(self._store(), result)
         except executor.Ex10Refusal as exc:
+            context = options.get("_operational_context")
+            if (
+                type(context) is executor.ExecutorOperationalContext
+                and action == "finalize"
+                and options.get("declare_executor_gone") is True
+                and exc.terminal is True
+                and exc.reasons == ("run-finalized",)
+            ):
+                try:
+                    context.persist_terminal_refusal(exc, declare_executor_gone=True)
+                except Exception:
+                    raise CommandError(
+                        "S11_EX10_NATIVE_REFUSAL_UNQUALIFIED", returncode=EXIT_ERROR
+                    ) from None
             payload = {"refused": True, "terminal": exc.terminal, "reasons": list(exc.reasons)}
             sys.stderr.write(json.dumps(payload, sort_keys=True, ensure_ascii=False) + "\n")
             code = EXIT_TERMINAL if exc.terminal else EXIT_REFUSED
             raise CommandError("S11_EX10_REFUSED", returncode=code) from None
+        except CommandError as exc:
+            if exc is bridge_refusal and bridge_refusal is not None:
+                raise
+            raise CommandError("S11_EX10_INTERNAL: CommandError", returncode=EXIT_ERROR) from None
         except KeyboardInterrupt:
             # Tras un checkpoint: la fase custodiada dice qué queda (`status`).
             raise CommandError("S11_EX10_INTERRUPTED: see status", returncode=EXIT_ERROR) from None
@@ -118,7 +164,24 @@ class Command(BaseCommand):
             raise CommandError(
                 f"S11_EX10_INTERNAL: {type(exc).__name__}", returncode=EXIT_ERROR
             ) from None
-        self.stdout.write(json.dumps(result, sort_keys=True, ensure_ascii=False))
+        if options.get("_operational_context") is None:
+            self.stdout.write(json.dumps(result, sort_keys=True, ensure_ascii=False))
+
+    def operational_context(self, options):
+        """Fixed approved OS bootstrap; missing provision denies before probing."""
+        try:
+            native = executor.ExecutorNativeBootstrap()
+            return native.build(
+                options=options,
+                store=self._store(),
+                probes=self.probes() or executor.ExecutorProbes(),
+            )
+        except executor.ExecutorBridgeError as error:
+            if error.code == "NATIVE_BOOTSTRAP_REQUIRED":
+                raise executor.Ex10Refusal(
+                    ["operational-context-bootstrap-required"], terminal=True
+                ) from None
+            raise
 
     def _start(self, options):
         return executor.start_run(
@@ -130,6 +193,7 @@ class Command(BaseCommand):
             timezone=settings.TIME_ZONE,
             acknowledged_not_demonstrated=options["acknowledge_not_demonstrated"],
             probes=self.probes(),
+            operational_context=options.get("_operational_context"),
         )
 
     def _execute(self, options):
@@ -138,6 +202,7 @@ class Command(BaseCommand):
             run_id=options["run_id"],
             git_sha=options["expected_git_sha"],
             probes=self.probes(),
+            operational_context=options.get("_operational_context"),
         )
 
     def _drain(self, options):
@@ -146,6 +211,7 @@ class Command(BaseCommand):
             run_id=options["run_id"],
             git_sha=options["expected_git_sha"],
             probes=self.probes() or executor.ExecutorProbes(),
+            operational_context=options.get("_operational_context"),
         )
 
     def _reconcile(self, options):
@@ -154,6 +220,7 @@ class Command(BaseCommand):
             run_id=options["run_id"],
             git_sha=options["expected_git_sha"],
             probes=self.probes(),
+            operational_context=options.get("_operational_context"),
         )
 
     def _finalize(self, options):
@@ -164,6 +231,7 @@ class Command(BaseCommand):
             abandon_reason=options["abandon_reason"],
             declare_executor_gone=options["declare_executor_gone"],
             probes=self.probes(),
+            operational_context=options.get("_operational_context"),
         )
 
     def _rehearsal_started(self, options):

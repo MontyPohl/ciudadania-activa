@@ -927,7 +927,8 @@ def test_missing_telemetry_is_never_a_settled_drain(h):
 # --- §53 Primer run válido (94–100) -----------------------------------------------------------
 
 
-def test_the_first_start_is_allowed(h):
+def test_the_first_start_is_allowed(native_h):
+    h = native_h
     # (94)
     assert h.start(evidence_mode=OFFICIAL)["phase"] == "PREPARED"
     start = h.payload(executor.ART_START)
@@ -935,7 +936,8 @@ def test_the_first_start_is_allowed(h):
 
 
 @pytest.mark.parametrize(("mode", "decision"), [(None, "PASS"), ("500", "FAIL")])
-def test_an_official_pass_or_fail_binds_ex10(h, mode, decision):
+def test_an_official_pass_or_fail_binds_ex10(native_history_h, mode, decision):
+    h = native_history_h
     # (96, 97) Ni un run oficial más, ni reconociendo el anterior.
     if mode:
         h.backend.modes[h.plan.items[0].request_key] = mode
@@ -943,40 +945,45 @@ def test_an_official_pass_or_fail_binds_ex10(h, mode, decision):
     h.execute()
     final = h.finalize()
     assert (final["decision"], final["binding"]) == (decision, True)
-    rejected = refusal(h.start, evidence_mode=OFFICIAL, acknowledged_not_demonstrated=[h.run_id])
-    assert rejected.terminal
-    assert f"binding-run-exists:{h.run_id}" in rejected.reasons
+    reasons, terminal = native_binding_rejection(h, acknowledged=[h.run_id])
+    assert terminal
+    assert f"binding-run-exists:{h.run_id}" in reasons
     assert len(list((h.store.root / "runs").iterdir())) == 1
 
 
-def test_a_not_demonstrated_run_needs_an_explicit_acknowledgement(h):
+@pytest.mark.parametrize("case", ["missing", "unknown", "exact"])
+def test_a_not_demonstrated_run_needs_an_explicit_acknowledgement(native_history_h, case):
+    h = native_history_h
     # (95) Nunca automáticamente: el operador reconoce el run_id NOT_DEMONSTRATED.
     h.set_probes(issue_tokens=lambda result: (_ for _ in ()).throw(KeyboardInterrupt))
     h.start(evidence_mode=OFFICIAL)
     h.execute()
     h.finalize(abandon_reason="pre-t0-stop")
     previous = h.run_id
-    rejected = refusal(h.start, evidence_mode=OFFICIAL)
-    assert rejected.reasons == (f"not-demonstrated-unacknowledged:{previous}",)
-    assert not rejected.terminal
-    unknown = "s11-99999999-9999-5999-8999-999999999999"
-    rejected = refusal(
-        h.start, evidence_mode=OFFICIAL, acknowledged_not_demonstrated=[previous, unknown]
-    )
-    assert rejected.reasons == (f"acknowledged-unknown:{unknown}",)
-    h.start(evidence_mode=OFFICIAL, acknowledged_not_demonstrated=[previous])
-    assert h.run_id != previous
-    assert h.payload(executor.ART_START)["acknowledged_not_demonstrated"] == [previous]
+    if case == "missing":
+        reasons, terminal = native_binding_rejection(h)
+        assert reasons == [f"not-demonstrated-unacknowledged:{previous}"]
+        assert not terminal
+    elif case == "unknown":
+        unknown = "s11-99999999-9999-5999-8999-999999999999"
+        reasons, terminal = native_binding_rejection(h, acknowledged=[previous, unknown])
+        assert reasons == [f"acknowledged-unknown:{unknown}"] and not terminal
+    else:
+        h.start(evidence_mode=OFFICIAL, acknowledged_not_demonstrated=[previous])
+        assert h.run_id != previous
+        assert h.payload(executor.ART_START)["acknowledged_not_demonstrated"] == [previous]
 
 
-def test_an_active_run_blocks_any_other_start(h):
+def test_an_active_run_blocks_any_other_start(native_history_h):
+    h = native_history_h
     # (99) Dos runs activos, nunca; tampoco uno oficial junto a uno de test.
     h.start(evidence_mode=LOCAL)
     for mode in (LOCAL, OFFICIAL):
         assert refusal(h.start, evidence_mode=mode).reasons == (f"active-run:{h.run_id}",)
 
 
-def test_an_unverifiable_prior_run_blocks_the_start(h):
+def test_an_unverifiable_prior_run_blocks_the_start(native_history_h):
+    h = native_history_h
     h.start()
     h.execute()
     h.finalize()
@@ -986,7 +993,8 @@ def test_an_unverifiable_prior_run_blocks_the_start(h):
     assert rejected.reasons == (f"prior-run-unverifiable:{h.run_id}",)
 
 
-def test_a_prior_run_cannot_be_hidden_by_removing_its_metadata(h):
+def test_a_prior_run_cannot_be_hidden_by_removing_its_metadata(native_history_h):
+    h = native_history_h
     # §41: cualquier rastro de EX-10 en la custodia cuenta como run previo.
     h.start(evidence_mode=OFFICIAL)
     h.execute()
@@ -994,8 +1002,12 @@ def test_a_prior_run_cannot_be_hidden_by_removing_its_metadata(h):
     import shutil
 
     shutil.rmtree(h.state().run_root / "metadata" / "EX-10")
-    rejected = refusal(h.start, evidence_mode=OFFICIAL)
-    assert rejected.reasons == (f"prior-run-unverifiable:{h.run_id}",)
+    found = executor.prior_ex10_runs(h.store)
+    reasons, terminal = executor.binding_refusal(found, evidence_mode=OFFICIAL, acknowledged=())
+    assert reasons == [f"prior-run-unverifiable:{h.run_id}"] and not terminal
+    native_damaged_custody_rejection(
+        h, prior=h.run_id, damage="metadata-removed", keep=[run_path(h, h.run_id)]
+    )
 
 
 def test_a_run_id_is_never_reused(h):
@@ -1609,6 +1621,10 @@ def test_local_test_rehearsal_stops_at_started_without_any_emission_step(h, no_e
     # (1, 13–24) PREPARED → STARTED: un único marcador; ni tokens, ni cuerpos, ni transporte,
     # ni generador, ni armado, ni red, ni filas, ni eventos.
     h.start()
+    assert (
+        h.payload(executor.ART_MANIFEST_INITIAL)["experiment_id"] == executor.EXPERIMENT_IDS[LOCAL]
+    )
+    assert executor.EXPERIMENT_IDS[LOCAL] != executor.EXPERIMENT_IDS[OFFICIAL]
     result = rehearse(h)
     assert result == {
         "run_id": h.run_id, "evidence_mode": LOCAL, "phase": "STARTED", "emission_armed": False,
@@ -1623,7 +1639,8 @@ def test_local_test_rehearsal_stops_at_started_without_any_emission_step(h, no_e
     assert h.backend.rows == {}
 
 
-def test_rehearsal_refuses_an_official_run_without_writing(h, no_emission):
+def test_rehearsal_refuses_an_official_run_without_writing(native_history_h, no_emission):
+    h = native_history_h
     # (2) El modo sale del manifest custodiado: OFFICIAL se rechaza en el dominio, sin escribir.
     h.start(evidence_mode=OFFICIAL)
     files = run_files(h.store, h.run_id)
@@ -1834,7 +1851,10 @@ def test_an_interruption_during_the_checkpoint_keeps_each_path_semantics(h, monk
     assert h.phase() is P.STARTED and artifact_types(h).count(executor.ART_EMISSION) == 1
 
 
-def test_started_rehearsal_is_visible_in_status_and_abandons_before_t0(h, no_emission):
+def test_started_rehearsal_is_visible_in_status_and_abandons_before_t0(
+    native_history_h, no_emission
+):
+    h = native_history_h
     # (25–29) status informa STARTED sin escribir; el abandono es el canónico; el LOCAL_TEST
     # cerrado no entra en el primer run oficial ni impide un START OFFICIAL posterior.
     h.start()
@@ -1882,10 +1902,9 @@ def test_the_cli_rehearsal_started_step(h, cli, capsys):
     assert final["lifecycle"] == "ABANDONED_PRE_T0"
 
 
-def test_the_cli_refuses_rehearsal_on_an_official_run(h, cli, capsys):
-    official = [*start_args("nonce-cli-rehearsal-2")]
-    official[official.index("--evidence-mode") + 1] = OFFICIAL
-    started = cli(*official)
+def test_the_cli_refuses_rehearsal_on_an_official_run(native_history_h, cli, capsys):
+    h = native_history_h
+    started = h.start(evidence_mode=OFFICIAL)
     capsys.readouterr()
     with pytest.raises(CommandError) as info:
         cli("rehearsal-started", "--run-id", started["run_id"], "--expected-git-sha", SHA,
@@ -2504,7 +2523,8 @@ def test_prior_scan_of_an_empty_root_creates_nothing(layout):
         remove_store(store)
 
 
-def test_closed_local_tests_never_bind_an_official_start(h):
+def test_closed_local_tests_never_bind_an_official_start(native_history_h):
+    h = native_history_h
     # (5, 6, 8, 9, 33) Un LOCAL_TEST abandonado y uno terminal de diagnóstico (PASS local)
     # se ven, verificados, y no impiden el primer START OFFICIAL; ninguno cambia.
     abandoned = _closed(h, LOCAL, "abandoned")
@@ -2518,7 +2538,8 @@ def test_closed_local_tests_never_bind_an_official_start(h):
     assert start_keeping(h, keep, evidence_mode=OFFICIAL)["phase"] == "PREPARED"
 
 
-def test_an_active_local_test_blocks_any_start_without_touching_it(h):
+def test_an_active_local_test_blocks_any_start_without_touching_it(native_history_h):
+    h = native_history_h
     # (7) Un LOCAL_TEST abierto impide cualquier START en la misma custodia.
     active = h.start()["run_id"]
     for mode in (LOCAL, OFFICIAL):
@@ -2527,71 +2548,78 @@ def test_an_active_local_test_blocks_any_start_without_touching_it(h):
 
 
 @pytest.mark.parametrize("how", ["pass", "fail"])
-def test_an_official_pass_or_fail_blocks_definitively_without_touching_it(h, how):
+def test_an_official_pass_or_fail_blocks_definitively_without_touching_it(native_history_h, how):
+    h = native_history_h
     # (10, 11, 34, 35) El primer run oficial PASS/FAIL es el resultado: ninguno oficial más.
     binding = _closed(h, OFFICIAL, how)
     prior = scanned(h.store)
     assert [(r.evidence_mode, r.decision, r.problems) for r in prior] == [
         (OFFICIAL, how.upper(), ())
     ]
-    rejected = start_keeping(h, [run_path(h, binding)], evidence_mode=OFFICIAL)
-    assert rejected.reasons == (f"binding-run-exists:{binding}",) and rejected.terminal
+    reasons, terminal = native_binding_rejection(h, keep=[run_path(h, binding)])
+    assert reasons == [f"binding-run-exists:{binding}"] and terminal
     assert start_keeping(h, [run_path(h, binding)], evidence_mode=LOCAL)["phase"] == "PREPARED"
 
 
-def test_official_not_demonstrated_runs_need_each_exact_acknowledgement(h):
+@pytest.mark.parametrize(
+    "case", ["none", "first", "second", "wildcard", "unknown", "extra", "exact"]
+)
+def test_official_not_demonstrated_runs_need_each_exact_acknowledgement(native_history_h, case):
+    h = native_history_h
     # (12–15, 36, 37) Cada NOT_DEMONSTRATED oficial se reconoce por su run_id: ni automático,
     # ni comodín, ni uno por otro; un reconocimiento desconocido se rechaza.
     first = _closed(h, OFFICIAL, "abandoned")
     second = _closed(h, OFFICIAL, "abandoned", acknowledged_not_demonstrated=[first])
     keep = [run_path(h, first), run_path(h, second)]
     pending = {f"not-demonstrated-unacknowledged:{run}" for run in (first, second)}
-    cases = [
-        ((), pending),
-        ((first,), {f"not-demonstrated-unacknowledged:{second}"}),
-        ((second,), {f"not-demonstrated-unacknowledged:{first}"}),
-        (("*",), pending | {"acknowledged-unknown:*"}),
-        ((MISSING,), pending | {f"acknowledged-unknown:{MISSING}"}),
-        ((first, second, MISSING), {f"acknowledged-unknown:{MISSING}"}),
-    ]
-    for acknowledged, reasons in cases:
-        rejected = start_keeping(
-            h, keep, evidence_mode=OFFICIAL, acknowledged_not_demonstrated=list(acknowledged)
+    cases = {
+        "none": ((), pending),
+        "first": ((first,), {f"not-demonstrated-unacknowledged:{second}"}),
+        "second": ((second,), {f"not-demonstrated-unacknowledged:{first}"}),
+        "wildcard": (("*",), pending | {"acknowledged-unknown:*"}),
+        "unknown": ((MISSING,), pending | {f"acknowledged-unknown:{MISSING}"}),
+        "extra": ((first, second, MISSING), {f"acknowledged-unknown:{MISSING}"}),
+    }
+    if case == "exact":
+        started = start_keeping(
+            h, keep, evidence_mode=OFFICIAL, acknowledged_not_demonstrated=[first, second]
         )
-        assert set(rejected.reasons) == reasons and not rejected.terminal
-    started = start_keeping(
-        h, keep, evidence_mode=OFFICIAL, acknowledged_not_demonstrated=[first, second]
-    )
-    assert started["phase"] == "PREPARED"
+        assert started["phase"] == "PREPARED"
+    else:
+        acknowledged, expected = cases[case]
+        reasons, terminal = native_binding_rejection(h, acknowledged=acknowledged, keep=keep)
+        assert set(reasons) == expected and not terminal
 
 
 def _official_open(h, monkeypatch, phase):
     probes = h.probes
     h.start(evidence_mode=OFFICIAL)
-    if phase == "STARTED":
-        monkeypatch.setattr(
-            executor, "_arm_emission", lambda *a, **k: (_ for _ in ()).throw(SystemExit(137))
-        )
-    elif phase == "EMITTING":
-        h.set_probes(generator=lambda plan, prepared, transport: _DiesOnRun())
-    elif phase == "DRAINING":
-        h.set_probes(database=lambda: (_ for _ in ()).throw(SystemExit(137)))
-    if phase != "PREPARED":
-        with pytest.raises(SystemExit):
-            h.execute()
-    monkeypatch.undo()
+    with monkeypatch.context() as crash_patch:
+        if phase == "STARTED":
+            crash_patch.setattr(
+                executor, "_arm_emission", lambda *a, **k: (_ for _ in ()).throw(SystemExit(137))
+            )
+        elif phase == "EMITTING":
+            h.set_probes(generator=lambda plan, prepared, transport: _DiesOnRun())
+        elif phase == "DRAINING":
+            h.set_probes(database=lambda: (_ for _ in ()).throw(SystemExit(137)))
+        if phase != "PREPARED":
+            with pytest.raises(SystemExit):
+                h.execute()
     h.probes = probes
     return h.run_id
 
 
 @pytest.mark.parametrize("phase", ["PREPARED", "STARTED", "EMITTING", "DRAINING"])
-def test_an_open_official_run_blocks_without_touching_it(h, monkeypatch, phase):
+def test_an_open_official_run_blocks_without_touching_it(native_history_h, monkeypatch, phase):
+    h = native_history_h
     # (16) Un run oficial abierto en cualquier fase impide otro START.
     active = _official_open(h, monkeypatch, phase)
     assert str(executor.phase_of(executor.load_existing_state_readonly(h.store, active))) == phase
-    for mode in (LOCAL, OFFICIAL):
-        rejected = start_keeping(h, [run_path(h, active)], evidence_mode=mode)
-        assert rejected.reasons == (f"active-run:{active}",)
+    rejected = start_keeping(h, [run_path(h, active)], evidence_mode=LOCAL)
+    assert rejected.reasons == (f"active-run:{active}",)
+    reasons, terminal = native_binding_rejection(h, keep=[run_path(h, active)])
+    assert reasons == [f"active-run:{active}"] and not terminal
 
 
 def _damage(h, run_id, damage):
@@ -2631,7 +2659,8 @@ DAMAGES = ["tampered-artifact", "metadata-removed", "corrupt-index", "invalid-hm
 
 @pytest.mark.parametrize("damage", DAMAGES)
 @pytest.mark.parametrize("mode", [LOCAL, OFFICIAL])
-def test_an_unverifiable_prior_trace_blocks_without_being_repaired(h, mode, damage):
+def test_an_unverifiable_prior_trace_blocks_without_being_repaired(native_history_h, mode, damage):
+    h = native_history_h
     # (17–23, 38) Un rastro previo que no se puede verificar bloquea cualquier START, de
     # cualquier modo; no se repara, no se sigue un symlink y no desaparece.
     prior = _closed(h, mode, "pass")
@@ -2639,8 +2668,15 @@ def test_an_unverifiable_prior_trace_blocks_without_being_repaired(h, mode, dama
     found = scanned(h.store)
     assert [run.run_id for run in found] == [prior] and found[0].problems
     for evidence_mode in (LOCAL, OFFICIAL):
-        rejected = start_keeping(h, keep, evidence_mode=evidence_mode)
-        assert rejected.reasons == (f"prior-run-unverifiable:{prior}",)
+        reasons, terminal = executor.binding_refusal(
+            found, evidence_mode=evidence_mode, acknowledged=()
+        )
+        assert reasons == [f"prior-run-unverifiable:{prior}"] and not terminal
+        if mode == OFFICIAL and evidence_mode == OFFICIAL:
+            native_damaged_custody_rejection(h, prior=prior, damage=damage, keep=keep)
+        else:
+            rejected = start_keeping(h, keep, evidence_mode=evidence_mode)
+            assert rejected.reasons == (f"prior-run-unverifiable:{prior}",)
 
 
 def test_a_run_path_that_is_not_a_directory_blocks(h):
@@ -2773,7 +2809,8 @@ def test_the_public_scan_refuses_a_concurrent_write(h, monkeypatch):
     assert rejected.reasons == ("status-read-race",) and not rejected.terminal
 
 
-def test_the_start_record_keeps_the_prior_scan_schema(h):
+def test_the_start_record_keeps_the_prior_scan_schema(native_history_h):
+    h = native_history_h
     # (18) El START custodia la exploración con el mismo schema de siempre.
     prior = _closed(h, LOCAL, "abandoned")
     h.start(evidence_mode=OFFICIAL)
@@ -3097,3 +3134,4969 @@ def test_reconcile_reports_a_missing_non_json_artifact_as_custody(h):
     assert result["decision"] == "NOT_DEMONSTRATED"
     assert f"custody:missing:{record.artifact_id}" in result["invalidity_reasons"]
     assert not (run_path(h, run_id) / record.relative_path).exists()
+
+
+def test_v2_direct_official_without_bridge_refused_before_preflight_or_run_write(h):
+    before = {
+        str(p.relative_to(h.store.root)): sha256_bytes(p.read_bytes())
+        for p in h.store.root.rglob("*")
+        if p.is_file()
+    }
+    calls = []
+    original = h.probes.preflight
+
+    def observed(options):
+        calls.append("preflight")
+        return original(options)
+
+    h.probes.preflight = observed
+    with pytest.raises(executor.Ex10Refusal) as error:
+        h.start(evidence_mode=OFFICIAL)
+    assert error.value.terminal
+    assert "operational-context-required" in error.value.reasons
+    assert calls == []
+    assert before == {
+        str(p.relative_to(h.store.root)): sha256_bytes(p.read_bytes())
+        for p in h.store.root.rglob("*")
+        if p.is_file()
+    }
+
+
+@pytest.mark.parametrize("microseconds", [0, 1, 999999])
+def test_v2_pure_proposal_uses_original_six_field_uuid5_and_frozen_timestamp(
+    plan, microseconds, monkeypatch
+):
+    instant = datetime(2026, 10, 5, 19, 0, 0, microseconds, tzinfo=UTC)
+    nonce = "1" * 64
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("pure proposal performed IO or sampled the clock")
+
+    monkeypatch.setattr(executor, "create_manifest", forbidden)
+    monkeypatch.setattr(executor, "_now", forbidden)
+    value = executor.propose_run(started_at=instant, git_sha=SHA, nonce=nonce)
+    from apps.experiments_app.manifest import make_run_id
+
+    expected = make_run_id(
+        started_at=instant,
+        git_sha=SHA,
+        dataset_id=ex10.DATASET_ID,
+        scenario_id=ex10.SCENARIO_ID,
+        seed=ex10.DATASET_SEED,
+        execution_nonce=nonce,
+    )
+    assert value["run_id"] == expected
+    assert value["started_at"] == instant.isoformat(timespec="microseconds").replace("+00:00", "Z")
+    assert len(value) == 8 and value["identity_digest"] == sha256_bytes(
+        canonical_json_bytes({k: v for k, v in value.items() if k != "identity_digest"})
+    )
+    assert executor.propose_run(started_at=instant, git_sha=SHA, nonce=nonce) == value
+    from apps.experiments_app import ex10_bridge_protocol as wire
+
+    assert wire.qualify_run_identity(value) == value
+
+
+@contextmanager
+def v2_native_host_material(*, history=("ND",), evidence_root=None):
+    """Reuse frozen actual B1/B2/B3/B4 CAS fixtures; no fabricated host verdict."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "w08_native_host_fixture", Path(__file__).with_name("test_ex10_operational_context.py")
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    session = module.native_session.__wrapped__(evidence_root=evidence_root)
+    rig = pairs = None
+    try:
+        native = next(session)
+        rig = module.native_start_rig.__wrapped__(native)
+        # Select only the initial synthetic B3 history at fixture construction.
+        # The frozen native fixture and all production validators stay intact.
+        original = module.cf.rig.__wrapped__
+        module.cf.rig.__wrapped__ = lambda request: original(SimpleNamespace(param=history))
+        try:
+            opening = next(rig)
+        finally:
+            module.cf.rig.__wrapped__ = original
+        pairs = module.pair.__wrapped__()
+        pair = next(pairs)
+        source = module.native_sources.__wrapped__(opening, pair)
+        yield SimpleNamespace(module=module, native=native, rig=opening, source=source)
+    finally:
+        for generator in (pairs, rig, session):
+            if generator is not None:
+                generator.close()
+
+
+@pytest.mark.parametrize("fixture_number", range(3))
+def test_v2_native_preflight_store_closes_its_descriptors_after_fixture_scope(
+    dataset, fixture_number
+):
+    import errno
+
+    with v2_native_host_material(history=()) as fixture:
+        rig = v2_native_start_setup(fixture, dataset)
+        binding = rig.broker.sources.registry.bindings["preflight"]
+        store = binding.store
+        reference = json.loads(binding.reference)
+        descriptor = store.fd
+        assert store.read(reference["path"]) == rig.context.preflight
+        assert stat.S_ISDIR(os.fstat(descriptor).st_mode)
+        rig.context.channel.close()
+        rig.host.close()
+    # Releasing the whole fixture must release its retained filesystem lease.
+    # Repetition detects leaked leases across independent fixture lifetimes.
+    with pytest.raises(OSError) as error:
+        os.fstat(descriptor)
+    assert error.value.errno == errno.EBADF
+
+
+@pytest.fixture
+def v2_native_host():
+    with v2_native_host_material() as host:
+        yield host
+
+
+@pytest.fixture
+def v2_empty_native_host():
+    with v2_native_host_material(history=()) as host:
+        yield host
+
+
+@pytest.fixture
+def native_h(h, v2_empty_native_host, dataset, monkeypatch):
+    """Scientific regressions on actual native 9/5-frame admission and empty B3.
+
+    OS/stack providers are explicit synthetic fixtures. Finalize prepares a real
+    seal only; this harness does not claim host publication or slot retirement.
+    It cannot make a second START and never supplies a fake authority verdict.
+    """
+    old_store, old_backend_store = h.store, h.backend.store
+    started = v2_native_start_setup(v2_empty_native_host, dataset, client_proofs=True)
+    h.probes = replace(h.probes, fingerprint=started.probes.fingerprint)
+    h.store = h.backend.store = started.store
+    h.native_started = started
+
+    def start(**kwargs):
+        assert not h.run_ids, "this scientific harness admits exactly one START"
+        assert kwargs.pop("evidence_mode", OFFICIAL) == OFFICIAL
+        assert not kwargs, "unsupported native scientific test options"
+        v2_client_proof_start_setup(started, monkeypatch)
+        result, errors, responses = v2_run_native_host(started, lambda: v2_start_call(started))
+        assert not errors and len(responses) == 1
+        h.run_ids.append(result["run_id"])
+        return result
+
+    def step(action, operation, run_id=None, **kwargs):
+        assert run_id is None or run_id == h.run_id
+
+        def make_guard(current):
+            def guarded(**kw):
+                if kw.get("phase") == "BARRIER":
+                    # Test-only HOST publication follows the actual ARMED artifact.
+                    # Current full native GOV and independently signed B3/B4 heads
+                    # remain necessary; no PF refresh, extra RPC or boolean verdict.
+                    source, a = single.broker.sources, single.fixture.rig.a
+                    accepted = source.read_authority()
+                    challenge = single.context.host_challenge.to_dict()["challenge"]
+                    record = single.context.reservation
+                    directory = single.store.root / ".s11-operational" / proof.exchange_id
+                    for role, raw in (
+                        ("emission-material", accepted.canonical_material),
+                        (
+                            "emission-head",
+                            canonical_json_bytes(source.publisher.transport.head_b3(challenge)),
+                        ),
+                        (
+                            "emission-coordination",
+                            canonical_json_bytes(a.transport.head(challenge)),
+                        ),
+                        (
+                            "emission-receipt",
+                            a.journal.receipt_store.read(
+                                record["reservation_receipt_reference"]["path"]
+                            ),
+                        ),
+                    ):
+                        fd = os.open(
+                            directory / (role + ".json"),
+                            os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                            0o600,
+                        )
+                        try:
+                            assert os.write(fd, raw) == len(raw)
+                            os.fsync(fd)
+                        finally:
+                            os.close(fd)
+                return current(**kw)
+
+            return guarded
+
+        if action == "finalize":
+
+            def prepare(*, context, store, run_id, result):
+                assert context is single.context and store is h.store
+                assert run_id == h.run_id == result["run_id"]
+                state = executor.load_existing_state_readonly(store, run_id)
+                assert state is not None and state.finalized
+                executor.validate_finalized_state(
+                    state.run_root, state.records, custody_hmac_key=store.custody_hmac_key
+                )
+                source = single.broker.sources
+                actual = source.read_authority()
+                assert (
+                    single.fixture.module.op.history.find_run(actual, run_id)["lifecycle_state"]
+                    == "OPEN"
+                )
+                assert (
+                    single.fixture.rig.a.journal.read()["latest"][
+                        context.reservation["reservation_id"]
+                    ]["state"]
+                    == "COMMITTED"
+                )
+
+        single = v2_native_single_setup(
+            h.native_started,
+            action=action,
+            client_proofs=True,
+            guard_factory=make_guard,
+            terminal_preparer=prepare if action == "finalize" else None,
+        )
+        proof, _ = v2_client_proof_single_setup(single, monkeypatch)
+        result, responses = v2_run_single_host(
+            single,
+            lambda: operation(
+                h.store,
+                run_id=h.run_id,
+                git_sha=SHA,
+                probes=h.probes,
+                operational_context=single.context,
+                **kwargs,
+            ),
+        )
+        assert len(responses) == 1
+        return result
+
+    monkeypatch.setattr(h, "start", start)
+    monkeypatch.setattr(
+        h, "execute", lambda run_id=None: step("execute", executor.execute_run, run_id)
+    )
+    monkeypatch.setattr(
+        h, "drain", lambda run_id=None: step("drain", executor.run_drain_step, run_id)
+    )
+    monkeypatch.setattr(
+        h, "reconcile", lambda run_id=None: step("reconcile", executor.reconcile_run, run_id)
+    )
+    monkeypatch.setattr(
+        h,
+        "finalize",
+        lambda run_id=None, **kw: step("finalize", executor.finalize_run, run_id, **kw),
+    )
+    try:
+        yield h
+    finally:
+        started.context.channel.close()
+        started.host.close()
+        h.store, h.backend.store = old_store, old_backend_store
+
+
+def _v2_client_proof_original_bindings(*, store, channel, fixture, source, clock):
+    """Construct actual copied-proof providers before context captures identity."""
+    a, mod = fixture.rig.a, fixture.module
+    snapshot = source.read_authority()
+    receipts = mod.op.history._receipts(snapshot.material["state"])
+    proof = executor.ExecutorHostProofs(
+        root=str(store.root),
+        exchange_id=channel.exchange_id,
+        b3_pins=[a.f.pin.record],
+        genesis_digest=sha256_bytes(canonical_json_bytes(receipts[0])),
+        genesis_binding=receipts[0]["genesis"],
+        clock=clock,
+    )
+    errors = []
+
+    def traced_commit(**arguments):
+        import traceback
+
+        try:
+            return proof.verify_commit(**arguments)
+        except Exception as error:
+            errors.append(
+                {
+                    "type": type(error).__name__,
+                    "code": getattr(error, "code", None),
+                    "locations": [
+                        (f.name, f.lineno) for f in traceback.extract_tb(error.__traceback__)
+                    ],
+                }
+            )
+            raise
+
+    return SimpleNamespace(
+        proof=proof,
+        guard=proof.current,
+        prior_reader=proof.common_prior,
+        prior_verifier=proof.verify_common,
+        verify_commit=traced_commit,
+        proof_errors=errors,
+    )
+
+
+def v2_native_start_setup(
+    v2_native_host,
+    dataset,
+    *,
+    preflight_age=0,
+    execution_nonce="d" * 64,
+    acknowledgments=None,
+    client_proofs=False,
+    guard_factory=None,
+    channel_guard_factory=None,
+):
+    """Real client and host use one exact internally produced private PF file."""
+    import uuid
+
+    from apps.experiments_app import ex10_bridge_protocol as client_wire
+
+    fixture = v2_native_host
+    x, rig, mod = fixture.source, fixture.rig, fixture.module
+    a, native = rig.a, rig.n
+    raw = mod.wire.parse_request_bytes(rig.raw).to_dict()
+    fixed = {
+        k: raw[k]
+        for k in (
+            "exchange_id",
+            "authority_id",
+            "authority_epoch",
+            "authorization_reference",
+            "session_id",
+            "session_header_sha256",
+            "runtime_profile_sha256",
+            "source_revision",
+            "project",
+        )
+    }
+    fixed.update(
+        bridge_key_id=a.bridge_pin.key_id,
+        bridge_key_epoch=a.bridge_pin.key_epoch,
+        container_identity_digest=native.options["process"].identity_digest,
+        deployment_verification_sha256=native.options["process"].deployment_verification_sha256,
+    )
+    original_budget = 120 if client_proofs else 30
+    channel_guard = None if channel_guard_factory is None else channel_guard_factory()
+    assert channel_guard is None or callable(channel_guard)
+    channel = executor.ExecutorBridgeChannel(
+        read_fd=x.executor.read_fd,
+        write_fd=x.executor.write_fd,
+        exchange="START",
+        exchange_id=x.host.exchange_id,
+        budget=original_budget,
+        process_guard=channel_guard,
+    )
+    x.executor.close()
+    store = make_store("v2-native-" + uuid.uuid4().hex)
+    store.root = Path(native.value["host_roots"]["evidence"]["path"])
+    required = rig.sample["context"].preflight_required_checks
+    # Keep the synthetic host's source qualification exactly explicit. These
+    # existing fixtures use a supplied imported/frozen apparatus fingerprint.
+    fingerprint = rig.sample["context"].executor_fingerprint
+    report = preflight_report(
+        git_sha=fixed["source_revision"], checked_at=a.now() - timedelta(seconds=preflight_age)
+    )
+    probes = executor.ExecutorProbes(
+        preflight=lambda options: report,
+        dataset=lambda: dataset,
+        provider=lambda: [],
+        sources=lambda root: [],
+        fingerprint=lambda: fingerprint,
+        now=a.now,
+    )
+    prior_view = []
+    material = mod.op.history._verified(x.source.read_authority())["state"]
+    for item in mod.op.history.list_official_runs(x.source.read_authority()):
+        prior_view.append(
+            executor.PriorRun(
+                item["run_id"], OFFICIAL, item["lifecycle_state"] == "TERMINAL", item["result"], ()
+            )
+        )
+
+    def admit(**kw):
+        assert (
+            kw["context"].holder.public_key().public_bytes_raw()
+            == a.holder.public_key().public_bytes_raw()
+        )
+        assert kw["context"].owner == (os.getpid(), threading.get_ident())
+        assert kw["action"] == "start"
+        native.qualifier.qualify()
+
+    def guard(**kw):
+        native.qualifier.qualify()
+        assert kw["context"].owner == (os.getpid(), threading.get_ident())
+        assert kw["run_id"] is None or kw["run_id"] == kw["context"].proposal["run_id"]
+
+    def prior(**kw):
+        snapshot = x.source.read_authority()
+        assert (
+            mod.op.history._verified(snapshot)["state"]["official_runs"]
+            == material["official_runs"]
+        )
+        if kw.get("common") is not None:
+            assert kw["common"] == tuple(prior_view)
+
+    def commit(**kw):
+        result = kw["response"].to_dict()["result"]
+        state = a.journal.read()
+        record = state["latest"][result["reservation"]["reservation_id"]]
+        assert record == result["reservation"] and record["state"] == "COMMITTED"
+        receipt = mod.op.sql.parse_canonical(
+            a.journal.receipt_store.read(record["reservation_receipt_reference"]["path"])
+        )
+        expected = {k: v for k, v in receipt.items() if k not in ("issued_at", "signature")}
+        mod.wire.verify_reservation_receipt(
+            mod.op.sql.canonical_bytes(receipt),
+            expected_context=mod.wire.ReceiptContext(mod.op.sql.canonical_bytes(expected), a.now()),
+            witness_pin=a.journal.floor.pins[0],
+        )
+        assert receipt["transition"] == "COMMIT_OPEN" and receipt["state"] == "COMMITTED"
+        assert receipt["reservation_digest"] == record["reservation_digest"]
+        snapshot = x.source.read_authority()
+        assert (
+            mod.op.history.current_revision(snapshot)["revision"]
+            == record["expected_next_revision"]
+        )
+        # Full B3 replay includes byte/authentication verification in the actual
+        # fixture trust store; native GOV was qualified by publisher before CAS.
+        assert any(
+            r["run_id"] == record["run_id"]
+            for r in mod.op.history._verified(snapshot)["state"]["official_runs"]
+        )
+
+    bindings = None
+    current_guard, common_reader, common_verifier, commit_verifier = (
+        guard,
+        lambda **kw: tuple(prior_view),
+        prior,
+        commit,
+    )
+    if client_proofs:
+        bindings = _v2_client_proof_original_bindings(
+            store=store,
+            channel=channel,
+            fixture=fixture,
+            source=x.source,
+            clock=a.now,
+        )
+        current_guard, common_reader, common_verifier, commit_verifier = (
+            bindings.guard,
+            bindings.prior_reader,
+            bindings.prior_verifier,
+            bindings.verify_commit,
+        )
+    if guard_factory is not None:
+        current_guard = guard_factory(current_guard)
+        assert callable(current_guard)
+        if bindings is not None:
+            bindings.guard = current_guard
+    context = executor.ExecutorOperationalContext(
+        action="start",
+        channel=channel,
+        bridge_pin=client_wire.PublicKeyPin(
+            a.bridge_pin.key_id, a.bridge_pin.key_epoch, a.bridge_pin.public_key
+        ),
+        witness_pin=client_wire.PublicKeyPin(
+            a.journal.floor.pins[0].key_id,
+            a.journal.floor.pins[0].key_epoch,
+            a.journal.floor.pins[0].public_key,
+        ),
+        holder_key=a.holder,
+        expected_challenge=fixed,
+        request_payload={
+            k: v
+            for k, v in raw["payload"].items()
+            if k not in ("run_identity", "preflight_reference")
+        },
+        evidence_root=str(store.root),
+        host_evidence_root=str(store.root),
+        staging_name="application-preflight." + str(uuid.uuid4()) + ".json",
+        authority_revision=raw["authority_revision"],
+        host_root_binding_sha256=rig.host_policy.root_binding,
+        native_admitter=admit,
+        current_guard=current_guard,
+        common_prior_reader=common_reader,
+        common_prior_verifier=common_verifier,
+        commit_verifier=commit_verifier,
+        terminal_preparer=lambda **kw: None,
+        clock=a.now,
+    )
+    context.prepare_start(
+        store,
+        probes=probes,
+        git_sha=fixed["source_revision"],
+        source_root=Path(native.value["source_host_root"]),
+        nonce=execution_nonce,
+    )
+    reference = {
+        "path": str(store.root / context._cfg()["staging_name"]),
+        "sha256": sha256_bytes(context.preflight),
+        "schema_version": report["schema_version"],
+    }
+    preflight_store = mod.op.durable.PrivateStore(str(store.root), mod.h.identity(store.root))
+    # The coordination fixture owns this lease until all consumers have stopped.
+    a.stores["w08-preflight-" + str(uuid.uuid4())] = preflight_store
+    binding = mod.op.HostArtifactBinding(
+        "preflight",
+        mod.op.sql.canonical_bytes(reference),
+        preflight_store,
+    )
+    registry_bindings = [b for name, b in x.source.registry.bindings.items() if name != "preflight"]
+    x.source.registry = mod.op.HostArtifactRegistry(tuple(registry_bindings + [binding]))
+    x.host.deadline = time.monotonic() + original_budget
+    broker = mod.op.NativeBridgeBroker(
+        journal=a.journal,
+        session_qualifier=native.qualifier,
+        signer=a.bridge,
+        host_sources=x.source,
+        holder_admitter=lambda **kw: a.holder.public_key(),
+    )
+    return SimpleNamespace(
+        context=context,
+        client_proof_bindings=bindings,
+        store=store,
+        probes=probes,
+        broker=broker,
+        host=x.host,
+        fixture=fixture,
+        temporary_store=store.root.parent,
+        required=required,
+        approved_acknowledgments=(
+            tuple(p.run_id for p in prior_view if p.decision == "NOT_DEMONSTRATED")
+            if acknowledgments is None
+            else tuple(acknowledgments)
+        ),
+    )
+
+
+def test_v2_actual_executor_start_nine_frames_native_cas_and_exact_four_artifacts(
+    v2_native_host, dataset
+):
+    rig = v2_native_start_setup(v2_native_host, dataset)
+    errors = []
+    responses = []
+
+    def host():
+        try:
+            responses.append(rig.broker.serve_start(rig.host))
+        except BaseException as error:
+            errors.append(error)
+            rig.host.close()
+
+    thread = threading.Thread(target=host)
+    thread.start()
+    try:
+        context = rig.context
+        result = executor.start_run(
+            rig.store,
+            git_sha=context.proposal["git_sha"],
+            source_root=Path(v2_native_host.native.value["source_host_root"]),
+            nonce=context.proposal["execution_nonce"],
+            evidence_mode=OFFICIAL,
+            timezone="UTC",
+            acknowledged_not_demonstrated=[
+                p.run_id
+                for p in context.prior_reader(context=context)
+                if p.decision == "NOT_DEMONSTRATED"
+            ],
+            probes=rig.probes,
+            operational_context=context,
+        )
+        assert result["run_id"] == context.proposal["run_id"]
+        assert context.finished and context.consumed and context.scientific_finished
+        assert rig.host.position == context.channel.position == 9
+        records = rig.store.records(result["run_id"])
+        assert {r["artifact_type"] for r in records} == {
+            executor.ART_MANIFEST_INITIAL,
+            executor.ART_START,
+            executor.ART_PREFLIGHT,
+            executor.ART_PLAN,
+        }
+        state = executor.load_existing_state_readonly(rig.store, result["run_id"])
+        assert (
+            state.payload(executor.ART_MANIFEST_INITIAL)["started_at"]
+            == context.proposal["started_at"]
+        )
+        assert canonical_json_bytes(state.payload(executor.ART_PREFLIGHT)) == context.preflight
+        assert v2_native_host.rig.a.transport.calls.count("RESERVE") == 1
+        assert v2_native_host.source.source.publisher.transport.calls.count("B3_CAS") == 1
+    finally:
+        rig.context.channel.close()
+        rig.host.close()
+        thread.join(timeout=5)
+    assert not thread.is_alive()
+    assert not errors, [type(e).__name__ + ":" + str(e) for e in errors]
+    assert len(responses) == 1
+
+
+@pytest.mark.parametrize("proof", [True, False, {}, SimpleNamespace(verified=True)])
+def test_v2_boolean_or_untyped_official_proof_denied_before_any_probe(h, proof):
+    h.set_probes(
+        preflight=lambda options: pytest.fail("preflight after untyped context"),
+        dataset=lambda: pytest.fail("dataset after untyped context"),
+    )
+    before = sorted(str(p.relative_to(h.store.root.parent)) for p in h.store.root.parent.rglob("*"))
+    error = refusal(h.start, evidence_mode=OFFICIAL, operational_context=proof)
+    assert error.reasons == ("operational-context-required",) and error.terminal
+    assert (
+        sorted(str(p.relative_to(h.store.root.parent)) for p in h.store.root.parent.rglob("*"))
+        == before
+    )
+
+
+@pytest.mark.parametrize("proof", [True, {}, SimpleNamespace(verified=True)])
+def test_v2_local_test_cannot_accept_any_official_context(h, proof):
+    h.set_probes(preflight=lambda options: pytest.fail("LOCAL_TEST consumed context"))
+    error = refusal(h.start, operational_context=proof)
+    assert error.reasons == ("local-test-official-context",)
+    assert not (h.store.root / "runs").exists()
+
+
+def test_v2_cli_selector_requires_independent_bootstrap_and_never_echoes_input(cli, h, capsys):
+    with pytest.raises(CommandError) as error:
+        cli(
+            "start",
+            "--expected-git-sha",
+            SHA,
+            "--source-root",
+            "/nonexistent",
+            "--nonce",
+            "a" * 64,
+            "--evidence-mode",
+            OFFICIAL,
+            "--confirm-new-run",
+            "--operational-context-stdin",
+        )
+    assert error.value.returncode == 2
+    assert "operational-context-bootstrap-required" in capsys.readouterr().err
+    assert not (h.store.root / "runs").exists()
+
+
+def test_v2_cli_local_selector_denied_before_bootstrap(cli, h, monkeypatch):
+    monkeypatch.setattr(
+        s11_ex10.Command, "operational_context", lambda *args: pytest.fail("LOCAL_TEST bootstrap")
+    )
+    with pytest.raises(CommandError) as error:
+        cli(*start_args("nonce-selector-01"), "--operational-context-stdin")
+    assert error.value.returncode == 2
+    assert not (h.store.root / "runs").exists()
+
+
+def v2_run_native_host(rig, operation):
+    """Finish or fail the actual owned host exchange once; never restart/retry."""
+    errors = []
+    rig.host_errors = errors
+    responses = []
+
+    def host():
+        try:
+            responses.append(rig.broker.serve_start(rig.host))
+        except BaseException as error:
+            errors.append(error)
+            rig.host.close()
+
+    thread = threading.Thread(target=host)
+    thread.start()
+    try:
+        return operation(), errors, responses
+    finally:
+        rig.context.channel.close()
+        # Deliver genuine client EOF before closing the host's retained FDs.
+        thread.join(timeout=5)
+        if thread.is_alive():
+            rig.host.close()
+            thread.join(timeout=5)
+        else:
+            rig.host.close()
+        assert not thread.is_alive()
+
+
+def v2_start_call(rig):
+    context = rig.context
+    return executor.start_run(
+        rig.store,
+        git_sha=context.proposal["git_sha"],
+        source_root=Path(rig.fixture.native.value["source_host_root"]),
+        nonce=context.proposal["execution_nonce"],
+        evidence_mode=OFFICIAL,
+        timezone="UTC",
+        acknowledged_not_demonstrated=rig.approved_acknowledgments,
+        probes=rig.probes,
+        operational_context=context,
+    )
+
+
+def test_v2_current_process_guard_never_accepts_boolean(v2_native_host, dataset):
+    rig = v2_native_start_setup(v2_native_host, dataset)
+    rig.context.admit = lambda **kw: True
+    try:
+        with pytest.raises(executor.ExecutorBridgeError, match="PROCESS_ADMISSION_REQUIRED"):
+            v2_start_call(rig)
+        assert rig.fixture.rig.a.transport.calls.count("RESERVE") == 0
+        assert not (rig.store.root / "runs").exists()
+    finally:
+        rig.context.channel.close()
+
+
+def test_v2_local_run_omitted_from_common_view_blocks_before_delivery(v2_native_host, dataset):
+    rig = v2_native_start_setup(v2_native_host, dataset)
+    local = executor.start_run(
+        rig.store,
+        git_sha=rig.context.proposal["git_sha"],
+        source_root=Path(rig.fixture.native.value["source_host_root"]),
+        nonce="local-omitted-001",
+        evidence_mode=LOCAL,
+        timezone="UTC",
+        probes=rig.probes,
+    )
+    before = run_files(rig.store, local["run_id"])
+
+    def operation():
+        with pytest.raises(executor.Ex10Refusal) as refusal:
+            v2_start_call(rig)
+        assert refusal.value.reasons == ("active-run:" + local["run_id"],)
+
+    v2_run_native_host(rig, operation)
+    assert run_files(rig.store, local["run_id"]) == before
+    assert not list(rig.store.root.glob("delivery-claim.*.json"))
+    assert rig.fixture.source.source.publisher.transport.calls.count("B3_CAS") == 0
+
+
+def test_v2_pf_can_expire_after_grant_without_refresh_or_run_write(
+    v2_native_host, dataset, monkeypatch
+):
+    rig = v2_native_start_setup(v2_native_host, dataset, preflight_age=880)
+    original = rig.context.consume_delivery
+    calls = []
+
+    def stale(store):
+        checked = executor.wire._time(json.loads(rig.context.preflight)["checked_at"])
+        rig.context.clock = lambda: checked + timedelta(seconds=901)
+        calls.append("after-valid-reserve")
+        return original(store)
+
+    monkeypatch.setattr(rig.context, "consume_delivery", stale)
+
+    def operation():
+        with pytest.raises(executor.ExecutorBridgeError, match="PREFLIGHT_EXPIRED_OR_CHANGED"):
+            v2_start_call(rig)
+
+    v2_run_native_host(rig, operation)
+    assert calls == ["after-valid-reserve"]
+    assert not (rig.store.root / "runs").exists()
+    assert not list(rig.store.root.glob("delivery-claim.*.json"))
+    assert rig.fixture.rig.a.transport.calls.count("RESERVE") == 1
+    assert rig.fixture.source.source.publisher.transport.calls.count("B3_CAS") == 0
+
+
+def test_v2_lost_reserve_response_is_uncertain_and_never_creates_run(
+    v2_native_host, dataset, monkeypatch
+):
+    rig = v2_native_start_setup(v2_native_host, dataset)
+    frame = rig.broker._frame
+
+    def close_response(channel, kind, body):
+        if kind == "RPC_RESPONSE" and channel.position == 4:
+            channel.close()
+            return
+        return frame(channel, kind, body)
+
+    monkeypatch.setattr(rig.broker, "_frame", close_response)
+
+    def operation():
+        with pytest.raises(executor.ExecutorBridgeError, match="UNCERTAIN_PUBLICATION"):
+            v2_start_call(rig)
+
+    v2_run_native_host(rig, operation)
+    assert rig.context.channel.dispatched
+    assert not (rig.store.root / "runs").exists()
+    assert rig.fixture.rig.a.transport.calls.count("RESERVE") == 1
+    assert rig.fixture.source.source.publisher.transport.calls.count("B3_CAS") == 0
+
+
+def test_v2_commit_requires_independent_witness_and_full_authority_qualification(
+    v2_native_host, dataset
+):
+    rig = v2_native_start_setup(v2_native_host, dataset)
+    rig.context.verify_commit = lambda **kw: True
+
+    def operation():
+        with pytest.raises(executor.ExecutorBridgeError, match="UNCERTAIN_PUBLICATION"):
+            v2_start_call(rig)
+
+    v2_run_native_host(rig, operation)
+    assert rig.context.consumed and not rig.context.finished
+    assert rig.fixture.source.source.publisher.transport.calls.count("B3_CAS") == 1
+    assert len(list((rig.store.root / "runs").iterdir())) == 1
+    assert len(rig.store.records(rig.context.proposal["run_id"])) == 4
+
+
+def test_v2_terminal_cannot_publish_before_seal_even_with_typed_start_context(
+    v2_native_host, dataset
+):
+    rig = v2_native_start_setup(v2_native_host, dataset)
+    publishes = []
+    rig.context.prepare_terminal = lambda **kw: publishes.append(kw)
+    try:
+        with pytest.raises(executor.ExecutorBridgeError, match="TERMINAL_PUBLICATION_DENIED"):
+            rig.context.prepare_sealed_terminal(
+                rig.store,
+                run_id=rig.context.proposal["run_id"],
+                result={"run_id": rig.context.proposal["run_id"]},
+            )
+        assert not publishes
+        assert not (rig.store.root / "runs").exists()
+    finally:
+        rig.context.channel.close()
+
+
+def test_v2_running_sources_cover_shared_imports_and_preserve_old_local_storage():
+    from apps.experiments_app import ex10_preflight as pf
+
+    root = Path(executor.__file__).resolve().parents[3]
+    required = {
+        "ex10_bridge_protocol.py",
+        "ex10_open_evidence.py",
+        "ex10_runtime_profile.py",
+        "ex10_session_v2.py",
+        "ex10_deployment_envelope.py",
+        "canonical.py",
+        "constants.py",
+        "manifest.py",
+        "evidence.py",
+        "custody_policy.py",
+        "redaction.py",
+        "runtime.py",
+        "custody.py",
+        "isolation.py",
+    }
+    inventory = set(pf.RUNNING_SOURCES)
+    assert {"backend/apps/experiments_app/" + name for name in required} <= inventory
+    assert "backend/apps/experiments_app/local_storage.py" in inventory
+    assert not any(
+        "ex10_" + name + ".py" in " ".join(inventory)
+        for name in (
+            "operational_context",
+            "authority_sqlite",
+            "authority_backend",
+            "authority_witness",
+            "witness_service",
+            "start_coordination",
+            "history_authority",
+            "governance_certificate",
+        )
+    )
+    for path in inventory:
+        assert (root / path).is_file()
+
+
+def v2_native_single_setup(
+    started,
+    *,
+    action,
+    client_proofs=False,
+    guard_factory=None,
+    terminal_preparer=None,
+):
+    """Fresh actual pipes/context and native full GOV replay; no second PF/START."""
+    import uuid
+
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+    from apps.experiments_app import ex10_bridge_protocol as client_wire
+
+    fixture, mod = started.fixture, started.fixture.module
+    old = fixture.source.source
+    a, native = fixture.rig.a, fixture.native
+    snapshot = old.read_authority()
+    head = mod.op.history.current_revision(snapshot)
+    historical = dict(old.histories(snapshot=snapshot, journal=a.journal).contexts)
+    for reference, qualifier in old.catalog.items():
+        assert reference not in historical or historical[reference] is qualifier
+        historical[reference] = qualifier
+    floor = old.publisher.floor
+    path = floor._path(head["revision"])
+    receipt_raw = floor.store.read(path)
+    current_binding = mod.op.HostArtifactBinding(
+        "base_receipt",
+        mod.op.sql.canonical_bytes(
+            {
+                "path": path,
+                "sha256": sha256_bytes(receipt_raw),
+                "schema_version": mod.op.sql.parse_canonical(receipt_raw)["witness_schema_version"],
+            }
+        ),
+        floor.store,
+    )
+    bindings = tuple(
+        binding for name, binding in old.registry.bindings.items() if name != "base_receipt"
+    ) + (current_binding,)
+    source = mod.op.NativeHostSources(
+        session_qualifier=old.sessions,
+        registry=mod.op.HostArtifactRegistry(bindings),
+        policy=old.policy,
+        authority_reader=old.reader,
+        historical_contexts=lambda **kw: mod.op.NativeGovernanceHistory(tuple(historical.items())),
+        artifact_store=old.artifacts,
+        certificate_store=old.certificates,
+        publisher=old.publisher,
+        executor_fingerprint=old.fingerprint,
+        signer=old.signer,
+        bridge_pin=old.pin,
+    )
+    traces = []
+    approve_single = source.approve_single
+
+    def traced_single(**kw):
+        import traceback
+
+        try:
+            return approve_single(**kw)
+        except Exception as error:
+            traces.append(
+                {
+                    "type": type(error).__name__,
+                    "code": getattr(error, "code", None),
+                    "locations": [
+                        (frame.name, frame.lineno)
+                        for frame in traceback.extract_tb(error.__traceback__)
+                    ],
+                }
+            )
+            raise
+
+    source.approve_single = traced_single
+    source.verify_registry(canonical_binding=a.journal.binding, journal=a.journal)
+    a.journal.sources = source
+    snapshot = source.read_authority()
+    revision = mod.op.history.current_revision(snapshot)["revision"]
+    record = a.journal.read()["latest"][started.context.reservation["reservation_id"]]
+    exchange = str(uuid.uuid4())
+    hr, ew = os.pipe()
+    er, hw = os.pipe()
+    original_budget = 120 if client_proofs else 30
+    host = mod.op.PipeFrameChannel(
+        read_fd=hr, write_fd=hw, exchange="SINGLE_RPC", exchange_id=exchange, budget=original_budget
+    )
+    client = executor.ExecutorBridgeChannel(
+        read_fd=er, write_fd=ew, exchange="SINGLE_RPC", exchange_id=exchange, budget=original_budget
+    )
+    for fd in (hr, hw, er, ew):
+        os.close(fd)
+    holder = Ed25519PrivateKey.generate()
+    fixed = {**started.context._cfg()["expected_challenge"], "exchange_id": exchange}
+
+    def admit(**kw):
+        assert kw["action"] == action
+        assert (
+            kw["context"].holder.public_key().public_bytes_raw()
+            == holder.public_key().public_bytes_raw()
+        )
+        native.qualifier.qualify()
+
+    def guard(**kw):
+        native.qualifier.qualify()
+        actual = a.journal.read()["latest"][record["reservation_id"]]
+        assert actual == record and actual["state"] == "COMMITTED"
+        head = mod.op.history.current_revision(source.read_authority())
+        assert head["revision"] == revision
+        assert kw["run_id"] is None or kw["run_id"] == record["run_id"]
+
+    def authority(**kw):
+        accepted = source.read_authority()
+        assert mod.op.history.current_revision(accepted)["revision"] == revision
+        assert kw["reserve_response"].to_dict()["result"]["reservation"] == record
+
+    bindings = None
+    current_guard, common_verifier = guard, authority
+    if client_proofs:
+        bindings = _v2_client_proof_original_bindings(
+            store=started.store,
+            channel=client,
+            fixture=fixture,
+            source=source,
+            clock=a.now,
+        )
+        current_guard, common_verifier = bindings.guard, bindings.prior_verifier
+    if guard_factory is not None:
+        current_guard = guard_factory(current_guard)
+        assert callable(current_guard)
+        if bindings is not None:
+            bindings.guard = current_guard
+    if terminal_preparer is None:
+
+        def terminal_preparer(**kw):
+            pytest.fail("unexpected terminal")
+
+    context = executor.ExecutorOperationalContext(
+        action=action,
+        channel=client,
+        bridge_pin=client_wire.PublicKeyPin(
+            a.bridge_pin.key_id, a.bridge_pin.key_epoch, a.bridge_pin.public_key
+        ),
+        witness_pin=client_wire.PublicKeyPin(
+            a.journal.floor.pins[0].key_id,
+            a.journal.floor.pins[0].key_epoch,
+            a.journal.floor.pins[0].public_key,
+        ),
+        holder_key=holder,
+        expected_challenge=fixed,
+        request_payload={
+            "reservation_id": record["reservation_id"],
+            "original_request_id": record["request_id"],
+        },
+        evidence_root=str(started.store.root),
+        host_evidence_root=str(started.store.root),
+        staging_name=None,
+        authority_revision=revision,
+        host_root_binding_sha256=old.policy.root_binding,
+        expected_reservation=record,
+        native_admitter=admit,
+        current_guard=current_guard,
+        common_prior_reader=lambda **kw: (),
+        common_prior_verifier=common_verifier,
+        commit_verifier=lambda **kw: pytest.fail("nonSTART commit"),
+        terminal_preparer=terminal_preparer,
+        clock=a.now,
+    )
+    broker = mod.op.NativeBridgeBroker(
+        journal=a.journal,
+        session_qualifier=native.qualifier,
+        signer=a.bridge,
+        host_sources=source,
+        holder_admitter=lambda **kw: holder.public_key(),
+    )
+    return SimpleNamespace(
+        context=context,
+        client_proof_bindings=bindings,
+        host=host,
+        broker=broker,
+        store=started.store,
+        fixture=fixture,
+        traces=traces,
+    )
+
+
+def v2_run_single_host(rig, operation):
+    errors = []
+    responses = []
+
+    def host():
+        try:
+            responses.append(rig.broker.serve_single(rig.host))
+        except BaseException as error:
+            import traceback
+
+            errors.append(error)
+            rig.traces.append(
+                {
+                    "host_type": type(error).__name__,
+                    "code": getattr(error, "code", None),
+                    "locations": [
+                        (f.name, f.lineno) for f in traceback.extract_tb(error.__traceback__)
+                    ],
+                }
+            )
+            rig.host.close()
+
+    thread = threading.Thread(target=host)
+    thread.start()
+    try:
+        result = operation()
+    except Exception as error:
+        error.add_note("Synthetic host provider diagnostic (no values): " + repr(rig.traces))
+        raise
+    finally:
+        rig.context.channel.close()
+        thread.join(timeout=5)
+        if thread.is_alive():
+            rig.host.close()
+            thread.join(timeout=5)
+        else:
+            rig.host.close()
+        assert not thread.is_alive()
+    assert not errors, [type(e).__name__ + ":" + str(e) for e in errors]
+    return result, responses
+
+
+def test_v2_cli_public_result_guard_failure_is_sanitized_after_native_start(
+    v2_native_host, dataset, monkeypatch
+):
+    denied = []
+
+    def make_guard(guard):
+        def deny_result(**kw):
+            if kw.get("phase") == "PUBLIC_RESULT":
+                assert kw["context"].finished and kw["context"].scientific_finished
+                denied.append("PUBLIC_RESULT")
+                raise OSError("private-result-path-and-secret")
+            return guard(**kw)
+
+        return deny_result
+
+    rig = v2_native_start_setup(v2_native_host, dataset, guard_factory=make_guard)
+    monkeypatch.setattr(s11_ex10.Command, "operational_context", lambda self, options: rig.context)
+    monkeypatch.setattr(s11_ex10.Command, "_store", staticmethod(lambda: rig.store))
+    monkeypatch.setattr(s11_ex10.Command, "probes", lambda self: rig.probes)
+    output = io.StringIO()
+
+    def operation():
+        with pytest.raises(CommandError) as error:
+            call_command(
+                "s11_ex10",
+                "start",
+                "--expected-git-sha",
+                rig.context.proposal["git_sha"],
+                "--source-root",
+                v2_native_host.native.value["source_host_root"],
+                "--nonce",
+                rig.context.proposal["execution_nonce"],
+                "--evidence-mode",
+                OFFICIAL,
+                "--confirm-new-run",
+                "--operational-context-stdin",
+                *[
+                    part
+                    for prior in rig.context.prior_reader(context=rig.context)
+                    if prior.decision == "NOT_DEMONSTRATED"
+                    for part in ("--acknowledge-not-demonstrated", prior.run_id)
+                ],
+                stdout=output,
+            )
+        assert error.value.returncode == 3
+        assert "private-result" not in str(error.value)
+
+    v2_run_native_host(rig, operation)
+    assert not output.getvalue() and denied == ["PUBLIC_RESULT"]
+    assert rig.fixture.source.source.publisher.transport.calls.count("B3_CAS") == 1
+
+
+@pytest.mark.parametrize("stop", ["tokens", "interrupt"])
+def test_v2_execute_stop_before_t0_completes_five_frames_and_public_result(
+    v2_native_host, dataset, h, stop
+):
+    started = v2_native_start_setup(v2_native_host, dataset)
+    result, errors, responses = v2_run_native_host(started, lambda: v2_start_call(started))
+    assert not errors and len(responses) == 1
+    rig = v2_native_single_setup(started, action="execute")
+    h.store = rig.store
+    if stop == "tokens":
+
+        def tokens(_):
+            raise RuntimeError("private-token-provider-error")
+    else:
+
+        def tokens(_):
+            raise KeyboardInterrupt
+
+    probes = replace(
+        h.probes,
+        now=v2_native_host.rig.a.now,
+        fingerprint=lambda: started.fixture.rig.sample["context"].executor_fingerprint,
+        issue_tokens=tokens,
+        preflight=lambda options: pytest.fail("nonSTART refreshed PF"),
+    )
+
+    def operation():
+        result = executor.execute_run(
+            rig.store,
+            run_id=started.context.proposal["run_id"],
+            git_sha=started.context.proposal["git_sha"],
+            probes=probes,
+            operational_context=rig.context,
+        )
+        assert result["phase"] == "STOPPED_PRE_T0"
+        assert rig.context.scientific_finished and rig.context.finished
+        rig.context.persist_public_result(rig.store, result)
+        return result
+
+    actual, replies = v2_run_single_host(rig, operation)
+    assert len(replies) == 1 and rig.host.position == rig.context.channel.position == 5
+    assert (
+        json.loads(
+            (
+                rig.store.root / ("executor-result." + rig.context.channel.exchange_id + ".json")
+            ).read_bytes()
+        )
+        == actual
+    )
+    assert h.backend.accepted == 0
+    assert v2_native_host.rig.a.transport.calls.count("RESERVE") == 1
+    assert v2_native_host.source.source.publisher.transport.calls.count("B3_CAS") == 1
+
+
+def test_v2_wrong_store_binding_denied_before_any_probe(v2_native_host, dataset, h):
+    rig = v2_native_start_setup(v2_native_host, dataset)
+    probes = replace(
+        rig.probes, dataset=lambda: pytest.fail("wrong bound root reached dataset probe")
+    )
+    try:
+        with pytest.raises(executor.ExecutorBridgeError, match="ROOT_BINDING_INVALID"):
+            executor.start_run(
+                h.store,
+                git_sha=rig.context.proposal["git_sha"],
+                source_root=Path(v2_native_host.native.value["source_host_root"]),
+                nonce=rig.context.proposal["execution_nonce"],
+                evidence_mode=OFFICIAL,
+                timezone="UTC",
+                probes=probes,
+                operational_context=rig.context,
+            )
+        assert rig.fixture.rig.a.transport.calls.count("RESERVE") == 0
+    finally:
+        rig.context.channel.close()
+
+
+@pytest.mark.parametrize("failure", ["signed-uncertain", "wrong-signature", "wrong-request"])
+def test_v2_post_reserve_unqualified_response_is_uncertain(
+    v2_native_host, dataset, monkeypatch, failure
+):
+    rig = v2_native_start_setup(v2_native_host, dataset)
+    frame = rig.broker._frame
+    observed = []
+    mod = rig.fixture.module
+
+    def substitute(channel, kind, body):
+        if kind == "RPC_RESPONSE" and channel.position == 4:
+            changed = json.loads(canonical_json_bytes(body))
+            if failure == "signed-uncertain":
+                changed.update(
+                    status="UNCERTAIN",
+                    uncertain=True,
+                    error_class="WITNESS_RESULT_UNKNOWN",
+                    result=None,
+                )
+            elif failure == "wrong-signature":
+                changed["signature"] = "0" * 128
+            else:
+                changed["request_id"] = "11111111-1111-4111-8111-111111111111"
+            if failure != "wrong-signature":
+                changed = mod.wire.parse_response_bytes(
+                    mod.builder.signed_response(changed, rig.fixture.rig.a.bridge)
+                ).to_dict()
+            # It is a genuine response to a DURABLY successful reservation.
+            assert rig.fixture.rig.a.transport.calls.count("RESERVE") == 1
+            observed.append(failure)
+            return frame(channel, kind, changed)
+        return frame(channel, kind, body)
+
+    monkeypatch.setattr(rig.broker, "_frame", substitute)
+
+    def operation():
+        with pytest.raises(executor.ExecutorBridgeError, match="UNCERTAIN_PUBLICATION"):
+            v2_start_call(rig)
+
+    v2_run_native_host(rig, operation)
+    assert observed == [failure]
+    assert rig.context.channel.dispatched and not rig.context.consumed
+    assert not (rig.store.root / "runs").exists()
+    assert not list(rig.store.root.glob("delivery-claim.*.json"))
+    assert rig.fixture.source.source.publisher.transport.calls.count("B3_CAS") == 0
+    assert rig.fixture.rig.a.transport.calls.count("RESERVE") == 1
+
+
+def v2_actual_client_proofs(rig):
+    """Materialize existing real signed B3 proofs, without a Python host verifier."""
+    mod = rig.fixture.module
+    source = rig.fixture.source.source
+    rig.broker._begin(rig.host)
+    rig.broker._challenge(rig.host, source.sessions.qualify())
+    rig.context._challenge()
+    snapshot = source.read_authority()
+    material = snapshot.material
+    receipts = mod.op.history._receipts(material["state"])
+    proof = executor.ExecutorHostProofs(
+        root=str(rig.store.root),
+        exchange_id=rig.context.channel.exchange_id,
+        b3_pins=[rig.fixture.rig.a.f.pin.record],
+        genesis_digest=sha256_bytes(canonical_json_bytes(receipts[0])),
+        genesis_binding=receipts[0]["genesis"],
+        clock=rig.fixture.rig.a.now,
+    )
+    directory = rig.store.root / ".s11-operational" / proof.exchange_id
+    directory.parent.mkdir(mode=0o700)
+    directory.mkdir(mode=0o700)
+    head = source.publisher.transport.head_b3(rig.context.host_challenge.to_dict()["challenge"])
+    for role, raw in (
+        ("base-material", snapshot.canonical_material),
+        ("base-head", canonical_json_bytes(head)),
+    ):
+        path = directory / (role + ".json")
+        path.write_bytes(raw)
+        path.chmod(0o600)
+    return proof, snapshot, directory
+
+
+def test_v2_client_copied_b3_projection_and_common_dto_match_frozen_native(v2_native_host, dataset):
+    rig = v2_native_start_setup(v2_native_host, dataset)
+    try:
+        proof, snapshot, _ = v2_actual_client_proofs(rig)
+        state = snapshot.material["state"]
+        for row in state["history_revisions"]:
+            revision = row["revision"]
+            assert proof._projection(
+                state, revision
+            ) == rig.fixture.module.op.sql.logical_projection(state, revision)
+        actual, head = proof.history("base", rig.context)
+        assert actual == state
+        assert (
+            head["revision"] == rig.fixture.module.op.history.current_revision(snapshot)["revision"]
+        )
+        assert proof.common_prior(context=rig.context) == rig.context.prior_reader(
+            context=rig.context
+        )
+        proof.verify_common(context=rig.context, common=proof.common_prior(context=rig.context))
+        assert rig.fixture.rig.a.transport.calls.count("RESERVE") == 0
+    finally:
+        rig.context.channel.close()
+        rig.host.close()
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        "deleted-run",
+        "changed-verdict",
+        "head-signature",
+        "head-challenge",
+        "head-expired",
+        "wrong-owner-mode",
+        "symlink",
+        "extra-row-field",
+    ],
+)
+def test_v2_client_actual_signed_history_cannot_be_forged_or_truncated(
+    v2_native_host, dataset, change
+):
+    rig = v2_native_start_setup(v2_native_host, dataset)
+    try:
+        proof, snapshot, directory = v2_actual_client_proofs(rig)
+        state_path = directory / "base-material.json"
+        head_path = directory / "base-head.json"
+        material = snapshot.material
+        head = json.loads(head_path.read_bytes())
+        if change == "deleted-run":
+            material["state"]["official_runs"] = []
+        elif change == "changed-verdict":
+            material["state"]["official_runs"][0]["result"] = "PASS"
+        elif change == "extra-row-field":
+            material["state"]["metadata"][0]["self_approved"] = True
+        elif change == "head-signature":
+            head["signature"] = "0" * 128
+        elif change == "head-challenge":
+            head["challenge"] = "0" * 64
+        elif change == "head-expired":
+            rig.context.clock = lambda: executor.wire._time(head["expires_at"])
+        elif change == "wrong-owner-mode":
+            state_path.chmod(0o644)
+        else:
+            retained = directory / "retained-original.json"
+            state_path.rename(retained)
+            state_path.symlink_to(retained)
+        if change in ("deleted-run", "changed-verdict", "extra-row-field"):
+            state_path.write_bytes(canonical_json_bytes(material))
+        if change in ("head-signature", "head-challenge"):
+            head_path.write_bytes(canonical_json_bytes(head))
+        with pytest.raises(
+            (
+                executor.ExecutorBridgeError,
+                executor.wire.BridgeProtocolError,
+                executor.profile_codec.RuntimeProfileError,
+            )
+        ):
+            proof.history("base", rig.context)
+        assert rig.fixture.rig.a.transport.calls.count("RESERVE") == 0
+    finally:
+        rig.context.channel.close()
+        rig.host.close()
+
+
+def test_v2_client_rejects_unsigned_rows_beyond_signed_revision(v2_native_host, dataset):
+    rig = v2_native_start_setup(v2_native_host, dataset)
+    try:
+        proof, snapshot, directory = v2_actual_client_proofs(rig)
+        material = snapshot.material
+        old = material["state"]["official_runs"][0]
+        future = dict(
+            old,
+            run_version=old["run_version"] + 1,
+            previous_run_version=old["run_version"],
+            introduced_revision=max(r["revision"] for r in material["state"]["history_revisions"])
+            + 1,
+            result="PASS",
+            binding=True,
+            ack_required=False,
+            validity_classification="VALID_BINDING",
+        )
+        material["state"]["official_runs"].append(future)
+        (directory / "base-material.json").write_bytes(canonical_json_bytes(material))
+        with pytest.raises(executor.ExecutorBridgeError, match="HOST_HISTORY_INVALID"):
+            proof.common_prior(context=rig.context)
+        assert rig.fixture.rig.a.transport.calls.count("RESERVE") == 0
+    finally:
+        rig.context.channel.close()
+        rig.host.close()
+
+
+@pytest.mark.parametrize(
+    "field", ["descriptor", "descriptor_reference", "bootstrap_core", "bootstrap_manifest"]
+)
+def test_v2_client_rejects_unbound_bootstrap(v2_native_host, dataset, field):
+    rig = v2_native_start_setup(v2_native_host, dataset)
+    try:
+        proof, snapshot, directory = v2_actual_client_proofs(rig)
+        material = snapshot.material
+        material[field] = {}
+        (directory / "base-material.json").write_bytes(canonical_json_bytes(material))
+        with pytest.raises(executor.ExecutorBridgeError, match="HOST_HISTORY_INVALID"):
+            proof.history("base", rig.context)
+        assert rig.fixture.rig.a.transport.calls.count("RESERVE") == 0
+    finally:
+        rig.context.channel.close()
+        rig.host.close()
+
+
+def test_v2_client_revalidates_directory_permissions_after_read(
+    v2_native_host, dataset, monkeypatch
+):
+    rig = v2_native_start_setup(v2_native_host, dataset)
+    try:
+        proof, _, directory = v2_actual_client_proofs(rig)
+        real_read = executor.os.read
+        changed = []
+
+        def alter_permissions(fd, count):
+            data = real_read(fd, count)
+            if data and not changed:
+                directory.parent.chmod(0o755)
+                changed.append(True)
+            return data
+
+        monkeypatch.setattr(executor.os, "read", alter_permissions)
+        with pytest.raises(executor.ExecutorBridgeError, match="HOST_PROOF_CHANGED"):
+            proof.read("base-material")
+        assert changed == [True]
+    finally:
+        directory.parent.chmod(0o700)
+        rig.context.channel.close()
+        rig.host.close()
+
+
+def v2_client_proof_start_setup(
+    rig, monkeypatch, *, omit_commit_material=False, receipt_change=None, b3_reference_change=None
+):
+    """Full real host qualification publishes existing INTERNAL proof outputs."""
+    source = rig.fixture.source.source
+    a, mod = rig.fixture.rig.a, rig.fixture.module
+    bindings = rig.client_proof_bindings
+    assert bindings is not None
+    proof = bindings.proof
+    assert rig.context.guard is bindings.guard
+    assert rig.context.prior_reader is bindings.prior_reader
+    assert rig.context.prior_verifier is bindings.prior_verifier
+    assert rig.context.verify_commit is bindings.verify_commit
+    assert rig.context.channel.budget == 120
+    rig.proof_errors = bindings.proof_errors
+    directory = rig.store.root / ".s11-operational" / proof.exchange_id
+    directory.parent.mkdir(mode=0o700, exist_ok=True)
+    directory.mkdir(mode=0o700)
+    frame = rig.broker._frame
+    challenge = []
+    copied = []
+
+    def write(role, raw):
+        path = directory / (role + ".json")
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+        try:
+            assert os.write(fd, raw) == len(raw)
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+        copied.append(role)
+
+    def publish(channel, kind, body):
+        prefix = None
+        if kind == "HOST_CHALLENGE":
+            challenge.append(body["challenge"])
+            prefix = "base"
+        elif kind == "RPC_RESPONSE" and channel.position == 8 and body["status"] == "OK":
+            prefix = "commit"
+        if prefix is not None:
+            accepted = source.read_authority()
+            if prefix != "commit" or not omit_commit_material:
+                write(prefix + "-material", accepted.canonical_material)
+            write(
+                prefix + "-head",
+                canonical_json_bytes(source.publisher.transport.head_b3(challenge[0])),
+            )
+            if prefix == "commit":
+                record = body["result"]["reservation"]
+                write(
+                    "commit-receipt",
+                    a.journal.receipt_store.read(record["reservation_receipt_reference"]["path"]),
+                )
+                # Actual B4 witness head, challenge-bound, independently signed.
+                write("commit-coordination", canonical_json_bytes(a.transport.head(challenge[0])))
+                if receipt_change is not None:
+                    # Both envelopes remain validly signed with actual synthetic
+                    # fixture keys; the independently bound receipt fact is wrong.
+                    body = json.loads(canonical_json_bytes(body))
+                    receipt_path = directory / "commit-receipt.json"
+                    receipt = json.loads(receipt_path.read_bytes())
+                    receipt[receipt_change] = (
+                        receipt[receipt_change] + 1
+                        if receipt_change == "fencing_token"
+                        else "0" * 64
+                    )
+                    message = executor.wire.parse_reservation_receipt_bytes(
+                        canonical_json_bytes(receipt)
+                    )
+                    receipt["signature"] = a.remote.b4_signer.sign(
+                        executor.wire.signing_preimage(message)
+                    ).hex()
+                    raw_receipt = canonical_json_bytes(receipt)
+                    receipt_path.write_bytes(raw_receipt)
+                    changed_record = body["result"]["reservation"]
+                    changed_record["reservation_receipt_reference"]["sha256"] = sha256_bytes(
+                        raw_receipt
+                    )
+                    changed_record["record_digest"] = executor.wire.reservation_record_digest(
+                        executor.wire.parse_reservation_bytes(canonical_json_bytes(changed_record))
+                    )
+                    coordination_path = directory / "commit-coordination.json"
+                    coordination = json.loads(coordination_path.read_bytes())
+                    coordination["receipt_digest"] = sha256_bytes(raw_receipt)
+                    message = executor.wire.parse_coordination_head_bytes(
+                        canonical_json_bytes(coordination)
+                    )
+                    coordination["signature"] = a.remote.b4_signer.sign(
+                        executor.wire.signing_preimage(message)
+                    ).hex()
+                    coordination_path.write_bytes(canonical_json_bytes(coordination))
+                    body = mod.wire.parse_response_bytes(
+                        mod.builder.signed_response(body, a.bridge)
+                    ).to_dict()
+                if b3_reference_change is not None:
+                    body = json.loads(canonical_json_bytes(body))
+                    reference = body["result"]["open_witness"]["receipt_reference"]
+                    reference[b3_reference_change] = (
+                        "e" * 64 if b3_reference_change == "sha256" else "s11-foreign-b3-receipt-v1"
+                    )
+                    body["result"]["reservation"]["open_witness_reference"] = json.loads(
+                        canonical_json_bytes(body["result"]["open_witness"])
+                    )
+                    body["witness_head"] = json.loads(
+                        canonical_json_bytes(body["result"]["open_witness"])
+                    )
+                    changed_record = body["result"]["reservation"]
+                    changed_record["record_digest"] = executor.wire.reservation_record_digest(
+                        executor.wire.parse_reservation_bytes(canonical_json_bytes(changed_record))
+                    )
+                    body = mod.wire.parse_response_bytes(
+                        mod.builder.signed_response(body, a.bridge)
+                    ).to_dict()
+        return frame(channel, kind, body)
+
+    monkeypatch.setattr(rig.broker, "_frame", publish)
+    return proof, copied
+
+
+@pytest.mark.parametrize("missing", [False, True])
+def test_v2_native_nine_frames_use_copied_proofs_and_preserve_postcommit_uncertainty(
+    v2_native_host, dataset, monkeypatch, missing
+):
+    rig = v2_native_start_setup(v2_native_host, dataset, client_proofs=True)
+    _, copied = v2_client_proof_start_setup(rig, monkeypatch, omit_commit_material=missing)
+
+    def operation():
+        if missing:
+            with pytest.raises(executor.ExecutorBridgeError, match="UNCERTAIN_PUBLICATION"):
+                v2_start_call(rig)
+        else:
+            try:
+                result = v2_start_call(rig)
+            except executor.ExecutorBridgeError as error:
+                error.add_note(json.dumps(rig.proof_errors, sort_keys=True))
+                raise
+            assert result["run_id"] == rig.context.proposal["run_id"]
+            assert rig.context.finished and rig.context.channel.position == 9
+
+    _, errors, responses = v2_run_native_host(rig, operation)
+    assert errors == [] and len(responses) == 1
+    assert rig.fixture.rig.a.transport.calls.count("RESERVE") == 1
+    assert rig.fixture.source.source.publisher.transport.calls.count("B3_CAS") == 1
+    assert rig.fixture.rig.a.transport.calls.count("COMMIT_OPEN") == 1
+    assert "base-material" in copied and "commit-receipt" in copied
+    assert ("commit-material" in copied) is (not missing)
+    if missing:
+        assert rig.context.channel.dispatched and not rig.context.finished
+        state = executor.load_existing_state_readonly(rig.store, rig.context.proposal["run_id"])
+        assert state is not None
+        assert len(state.records) == 4
+
+
+def test_v2_client_rejects_detached_root_pin_lineage(v2_native_host, dataset):
+    rig = v2_native_start_setup(v2_native_host, dataset)
+    try:
+        original, snapshot, _ = v2_actual_client_proofs(rig)
+        pin = json.loads(original.pins)[0]
+        pin["transport_identity_reference"]["path"] += ".substituted"
+        proof = executor.ExecutorHostProofs(
+            root=original.root,
+            exchange_id=original.exchange_id,
+            b3_pins=[pin],
+            genesis_digest=original.genesis_digest,
+            genesis_binding=json.loads(original.genesis_binding),
+            clock=original.clock,
+        )
+        assert snapshot.material["descriptor"]["trust_root_reference"]["sha256"] != sha256_bytes(
+            canonical_json_bytes(pin)
+        )
+        with pytest.raises(executor.ExecutorBridgeError, match="HOST_HISTORY_INVALID"):
+            proof.history("base", rig.context)
+        assert rig.fixture.rig.a.transport.calls.count("RESERVE") == 0
+    finally:
+        rig.context.channel.close()
+        rig.host.close()
+
+
+def test_v2_client_pin_constructor_requires_nfc(v2_native_host, dataset):
+    rig = v2_native_start_setup(v2_native_host, dataset)
+    try:
+        original, _, _ = v2_actual_client_proofs(rig)
+        pin = json.loads(original.pins)[0]
+        pin["approval_reference"]["path"] += "e\u0301"
+        with pytest.raises(executor.ExecutorBridgeError, match="HOST_HISTORY_INVALID"):
+            executor.ExecutorHostProofs(
+                root=original.root,
+                exchange_id=original.exchange_id,
+                b3_pins=[pin],
+                genesis_digest=original.genesis_digest,
+                genesis_binding=json.loads(original.genesis_binding),
+                clock=original.clock,
+            )
+    finally:
+        rig.context.channel.close()
+        rig.host.close()
+
+
+@pytest.mark.parametrize("field", ["fencing_token", "open_witness_digest"])
+def test_v2_client_commit_receipt_binds_independent_facts(
+    v2_native_host, dataset, monkeypatch, field
+):
+    rig = v2_native_start_setup(v2_native_host, dataset, client_proofs=True)
+    _, copied = v2_client_proof_start_setup(rig, monkeypatch, receipt_change=field)
+
+    def operation():
+        with pytest.raises(executor.ExecutorBridgeError):
+            v2_start_call(rig)
+
+    _, errors, responses = v2_run_native_host(rig, operation)
+    assert errors == [] and len(responses) == 1
+    assert "commit-receipt" in copied
+    assert rig.fixture.rig.a.transport.calls.count("RESERVE") == 1
+    assert rig.fixture.source.source.publisher.transport.calls.count("B3_CAS") == 1
+    assert rig.fixture.rig.a.transport.calls.count("COMMIT_OPEN") == 1
+    assert rig.context.channel.dispatched and not rig.context.finished
+
+
+def test_v2_reserve_receipt_hash_is_bound_before_any_initial_write(
+    v2_native_host, dataset, monkeypatch
+):
+    rig = v2_native_start_setup(v2_native_host, dataset)
+    frame = rig.broker._frame
+    observed = []
+
+    def substitute(channel, kind, body):
+        if kind == "RPC_RESPONSE" and channel.position == 4 and body["status"] == "OK":
+            body = json.loads(canonical_json_bytes(body))
+            receipt = body["result"]["reservation_receipt"]
+            receipt["sequence"] += 7
+            message = executor.wire.parse_reservation_receipt_bytes(canonical_json_bytes(receipt))
+            receipt["signature"] = rig.fixture.rig.a.remote.b4_signer.sign(
+                executor.wire.signing_preimage(message)
+            ).hex()
+            assert (
+                sha256_bytes(canonical_json_bytes(receipt))
+                != body["result"]["reservation"]["reservation_receipt_reference"]["sha256"]
+            )
+            body = rig.fixture.module.wire.parse_response_bytes(
+                rig.fixture.module.builder.signed_response(body, rig.fixture.rig.a.bridge)
+            ).to_dict()
+            observed.append(True)
+        return frame(channel, kind, body)
+
+    monkeypatch.setattr(rig.broker, "_frame", substitute)
+
+    def operation():
+        with pytest.raises(executor.ExecutorBridgeError):
+            v2_start_call(rig)
+
+    v2_run_native_host(rig, operation)
+    assert observed == [True]
+    assert rig.fixture.rig.a.transport.calls.count("RESERVE") == 1
+    assert rig.fixture.source.source.publisher.transport.calls.count("B3_CAS") == 0
+    assert rig.fixture.rig.a.transport.calls.count("COMMIT_OPEN") == 0
+    assert not (rig.store.root / "runs").exists()
+    assert not list(rig.store.root.glob("delivery-claim.*.json"))
+
+
+def v2_client_proof_single_setup(rig, monkeypatch):
+    """Actual host qualifies current B3/GOV/floors and copies existing signed outputs."""
+    source = rig.broker.sources
+    a = rig.fixture.rig.a
+    bindings = rig.client_proof_bindings
+    assert bindings is not None
+    proof = bindings.proof
+    assert rig.context.guard is bindings.guard
+    assert rig.context.prior_verifier is bindings.prior_verifier
+    assert rig.context.channel.budget == 120
+    directory = rig.store.root / ".s11-operational" / proof.exchange_id
+    directory.parent.mkdir(mode=0o700, exist_ok=True)
+    directory.mkdir(mode=0o700)
+    frame = rig.broker._frame
+    copied = []
+
+    def publish(channel, kind, body):
+        if kind == "HOST_CHALLENGE":
+            accepted = source.read_authority()
+            record = rig.context.reservation
+            roles = (
+                ("action-material", accepted.canonical_material),
+                (
+                    "action-head",
+                    canonical_json_bytes(source.publisher.transport.head_b3(body["challenge"])),
+                ),
+                ("action-coordination", canonical_json_bytes(a.transport.head(body["challenge"]))),
+                (
+                    "action-receipt",
+                    a.journal.receipt_store.read(record["reservation_receipt_reference"]["path"]),
+                ),
+            )
+            for role, raw in roles:
+                path = directory / (role + ".json")
+                fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+                try:
+                    assert os.write(fd, raw) == len(raw)
+                    os.fsync(fd)
+                finally:
+                    os.close(fd)
+                copied.append(role)
+        return frame(channel, kind, body)
+
+    monkeypatch.setattr(rig.broker, "_frame", publish)
+    return proof, copied
+
+
+def test_v2_native_five_frames_use_copied_current_proofs_before_any_scientific_effect(
+    v2_native_host, dataset, monkeypatch, h
+):
+    started = v2_native_start_setup(v2_native_host, dataset)
+    _, errors, responses = v2_run_native_host(started, lambda: v2_start_call(started))
+    assert not errors and len(responses) == 1
+    single = v2_native_single_setup(started, action="execute", client_proofs=True)
+    _, copied = v2_client_proof_single_setup(single, monkeypatch)
+    emitted = []
+
+    def stop(_dataset):
+        emitted.append("token-stage")
+        raise RuntimeError("synthetic token issuance failed before t0")
+
+    h.store = single.store
+    probes = replace(
+        h.probes,
+        now=started.fixture.rig.a.now,
+        fingerprint=lambda: started.fixture.rig.sample["context"].executor_fingerprint,
+        issue_tokens=stop,
+        preflight=lambda options: pytest.fail("nonSTART refreshed PF"),
+    )
+    result, responses = v2_run_single_host(
+        single,
+        lambda: executor.execute_run(
+            single.store,
+            run_id=single.context.proposal["run_id"],
+            git_sha=single.context.proposal["git_sha"],
+            probes=probes,
+            operational_context=single.context,
+        ),
+    )
+    assert result["phase"] == "STOPPED_PRE_T0" and len(responses) == 1
+    assert single.context.channel.position == 5 and single.context.scientific_finished
+    assert emitted == ["token-stage"]
+    assert h.backend.accepted == 0
+    assert set(copied) == {
+        "action-material",
+        "action-head",
+        "action-coordination",
+        "action-receipt",
+    }
+    assert started.fixture.rig.a.transport.calls.count("RESERVE") == 1
+    assert started.fixture.rig.a.transport.calls.count("COMMIT_OPEN") == 1
+    assert started.fixture.source.source.publisher.transport.calls.count("B3_CAS") == 1
+
+
+def v2_publish_actual_authority_uncertainty(single):
+    """Existing B3 INTERNAL primitive, actual SQLite/witness/floor, no scientific traffic."""
+    import uuid
+
+    a, mod, source = single.fixture.rig.a, single.fixture.module, single.broker.sources
+    before = source.read_authority()
+    revision = mod.op.history.current_revision(before)["revision"] + 1
+    event = a.f.event(
+        "AUTHORITY_UNCERTAIN",
+        sequence=len(before.material["state"]["authority_events"]) + 1,
+        run=None,
+        revision=revision,
+    )
+    event["occurred_at"] = executor._utc(a.now())
+    operation = str(uuid.uuid4())
+    candidate_path = a.stores["candidate"].root + "/action-floor-uncertainty.json"
+    old_reader = a.sources.intent_reader
+    a.sources.intent_reader = lambda path: (
+        a.stores["candidate"].read(path) if path == candidate_path else old_reader(path)
+    )
+    with mod.op.durable.HeldWriter(
+        a.stores["lock"], "global.lock", mod.h.identity(a.lock)
+    ) as writer:
+        adapter = mod.op.durable.AuthorityBackend(
+            ledger_store=source.publisher.ledger,
+            ledger_name=source.publisher.name,
+            ledger_identity=source.publisher.identity,
+            candidate_store=source.publisher.candidates,
+            floor=source.publisher.floor,
+            writer=writer,
+            transport=source.publisher.transport,
+            signer_pin=source.publisher.pin,
+            clock_health=source.publisher.health,
+        )
+        arguments = a.f.publication_args(adapter, "UNCERTAINTY")
+        arguments.update(
+            operation_id=operation,
+            occurred_at=event["occurred_at"],
+            evidence_reference_id=event["evidence_reference_id"],
+            candidate_payload_path=candidate_path,
+        )
+        arguments["capability"].update(operation_id=operation, expected_revision=revision)
+        published = mod.op.history._append_uncertain_state(before, None, event, **arguments)
+    floor = source.publisher.floor
+    path = floor._path(revision)
+    raw = floor.store.read(path)
+    binding = mod.op.HostArtifactBinding(
+        "base_receipt",
+        canonical_json_bytes(
+            {
+                "path": path,
+                "sha256": sha256_bytes(raw),
+                "schema_version": json.loads(raw)["witness_schema_version"],
+            }
+        ),
+        floor.store,
+    )
+    source.registry = mod.op.HostArtifactRegistry(
+        tuple(b for name, b in source.registry.bindings.items() if name != "base_receipt")
+        + (binding,)
+    )
+    assert published.authority_uncertainty
+    return revision
+
+
+def test_v2_action_rpc_newer_signed_head_rejects_old_still_fresh_proofs(
+    v2_native_host, dataset, monkeypatch, h
+):
+    started = v2_native_start_setup(v2_native_host, dataset)
+    _, errors, responses = v2_run_native_host(started, lambda: v2_start_call(started))
+    assert not errors and len(responses) == 1
+    single = v2_native_single_setup(started, action="execute", client_proofs=True)
+    proof, _ = v2_client_proof_single_setup(single, monkeypatch)
+    source = single.broker.sources
+    dispatch = source.dispatch_single
+    advanced = []
+    actual_responses = []
+    frame = single.broker._frame
+
+    def advance_before_actual_read(**arguments):
+        import traceback
+
+        try:
+            advanced.append(v2_publish_actual_authority_uncertainty(single))
+            return dispatch(**arguments)
+        except Exception as error:
+            single.traces.append(
+                {
+                    "type": type(error).__name__,
+                    "code": getattr(error, "code", None),
+                    "locations": [
+                        (f.name, f.lineno) for f in traceback.extract_tb(error.__traceback__)
+                    ],
+                }
+            )
+            raise
+
+    def observe_response(channel, kind, body):
+        if kind == "RPC_RESPONSE":
+            actual_responses.append(body)
+        return frame(channel, kind, body)
+
+    # W02 READ responses retain request before/after revision. Deliberately
+    # inject a bridge-signed stale-revision envelope containing the real newer
+    # B3 head, so the backend must enforce the head's independent floor too.
+    normal_response = single.broker._normal_response
+
+    def stale_revision_envelope(authenticated, **arguments):
+        arguments["after"] = arguments["before"]
+        return normal_response(authenticated, **arguments)
+
+    monkeypatch.setattr(single.broker, "_normal_response", stale_revision_envelope)
+    monkeypatch.setattr(source, "dispatch_single", advance_before_actual_read)
+    monkeypatch.setattr(single.broker, "_frame", observe_response)
+    emitted = []
+
+    def stop(_dataset):
+        emitted.append("token-stage")
+        raise RuntimeError("synthetic stop before t0")
+
+    h.store = single.store
+    probes = replace(
+        h.probes,
+        now=started.fixture.rig.a.now,
+        fingerprint=lambda: started.fixture.rig.sample["context"].executor_fingerprint,
+        issue_tokens=stop,
+        preflight=lambda options: pytest.fail("nonSTART refreshed PF"),
+    )
+    with pytest.raises(executor.ExecutorBridgeError):
+        v2_run_single_host(
+            single,
+            lambda: executor.execute_run(
+                single.store,
+                run_id=single.context.proposal["run_id"],
+                git_sha=single.context.proposal["git_sha"],
+                probes=probes,
+                operational_context=single.context,
+            ),
+        )
+    assert advanced == [2] and len(actual_responses) == 1, single.traces
+    assert actual_responses[0]["witness_head"]["revision"] == 2
+    assert actual_responses[0]["result"]["reservation"] == single.context.reservation
+    head, _ = proof.read("action-head")
+    assert head["revision"] == 1 and single.context._now() < executor.wire._time(head["expires_at"])
+    assert emitted == [] and h.backend.accepted == 0
+    assert started.fixture.rig.a.transport.calls.count("RESERVE") == 1
+    assert started.fixture.rig.a.transport.calls.count("COMMIT_OPEN") == 1
+    assert started.fixture.source.source.publisher.transport.calls.count("B3_CAS") == 2
+
+
+@pytest.mark.parametrize(
+    "field",
+    ["open_ledger", "open_witness", "receipt_sha", "receipt_schema", "base_ledger", "base_witness"],
+)
+def test_v2_committed_receipt_rejects_different_b3_checkpoint(
+    v2_native_host, dataset, monkeypatch, field
+):
+    started = v2_native_start_setup(v2_native_host, dataset, client_proofs=True)
+    proof, _ = v2_client_proof_start_setup(started, monkeypatch)
+    _, errors, responses = v2_run_native_host(started, lambda: v2_start_call(started))
+    assert not errors and len(responses) == 1
+    a = started.fixture.rig.a
+    snapshot = started.fixture.source.source.read_authority()
+    record = json.loads(canonical_json_bytes(started.context.reservation))
+    if field.startswith("open_"):
+        record["open_witness_reference"][field[5:] + "_digest"] = "e" * 64
+    elif field == "receipt_sha":
+        record["open_witness_reference"]["receipt_reference"]["sha256"] = "e" * 64
+    elif field == "receipt_schema":
+        record["open_witness_reference"]["receipt_reference"]["schema_version"] = (
+            "s11-foreign-witness-v1"
+        )
+    else:
+        record["previous_" + field[5:] + "_digest"] = "e" * 64
+    record["reservation_digest"] = executor.wire.reservation_digest(
+        executor.wire.parse_reservation_bytes(canonical_json_bytes(record))
+    )
+    receipt, _ = proof.read("commit-receipt")
+    receipt.update(
+        reservation_digest=record["reservation_digest"],
+        base_authority_witness_digest=record["previous_witness_digest"],
+        open_witness_digest=record["open_witness_reference"]["witness_digest"],
+    )
+    message = executor.wire.parse_reservation_receipt_bytes(canonical_json_bytes(receipt))
+    receipt["signature"] = a.remote.b4_signer.sign(executor.wire.signing_preimage(message)).hex()
+    raw = canonical_json_bytes(receipt)
+    record["reservation_receipt_reference"]["sha256"] = sha256_bytes(raw)
+    record["record_digest"] = executor.wire.reservation_record_digest(
+        executor.wire.parse_reservation_bytes(canonical_json_bytes(record))
+    )
+    record = executor.wire.qualify_reservation(canonical_json_bytes(record)).to_dict()
+    (Path(proof.root) / ".s11-operational" / proof.exchange_id / "commit-receipt.json").write_bytes(
+        raw
+    )
+    with pytest.raises(executor.ExecutorBridgeError, match="OWNERSHIP_REQUIRED"):
+        proof._committed_receipt(
+            "commit", started.context, state=snapshot.material["state"], record=record
+        )
+    assert a.transport.calls.count("RESERVE") == 1
+    assert a.transport.calls.count("COMMIT_OPEN") == 1
+    assert started.fixture.source.source.publisher.transport.calls.count("B3_CAS") == 1
+
+
+def test_v2_native_stdio_transfer_closes_actual_os_endpoints_before_worker_continues(h):
+    import subprocess
+    import sys
+
+    output = h.store.root / "native-fd-disposition.json"
+    output.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    code = """
+import os,json,time,sys,environ
+from pathlib import Path
+environ.Env.read_env = classmethod(lambda cls,*args,**kwargs: None)
+import django
+django.setup()
+from apps.experiments_app import ex10_executor as e
+channel=e.ExecutorBridgeChannel(read_fd=0,write_fd=1,exchange="SINGLE_RPC",exchange_id="11111111-2222-4333-8444-555555555555")
+e._native_transfer_stdio(channel)
+closed=[]
+for fd in (0,1):
+    try:os.fstat(fd)
+    except OSError:closed.append(fd)
+channel.close()
+p=Path(sys.argv[1]);p.write_text(json.dumps(closed));p.chmod(0o600)
+time.sleep(1)
+"""
+    with subprocess.Popen(
+        [sys.executable, "-B", "-c", code, str(output)],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        close_fds=True,
+        env={**os.environ, "DJANGO_SETTINGS_MODULE": "config.settings.test"},
+    ) as process:
+        import select
+
+        process.stdin.close()
+        process.stdin = None
+        assert select.select([process.stdout], [], [], 30)[0]
+        assert process.stdout.read(1) == b"" and process.poll() is None
+        stdout, stderr = process.communicate(timeout=30)
+    assert process.returncode == 0 and stdout == b"" and stderr == b"", {
+        "child_exception_class": stderr.decode(errors="replace").splitlines()[-1].split(":")[0]
+        if stderr
+        else None
+    }
+    assert json.loads(output.read_text()) == [0, 1]
+
+
+@pytest.mark.parametrize("field", ["sha256", "schema_version"])
+def test_v2_native_nine_commit_checks_exact_b3_receipt_reference(
+    v2_native_host, dataset, monkeypatch, field
+):
+    rig = v2_native_start_setup(v2_native_host, dataset, client_proofs=True)
+    _, copied = v2_client_proof_start_setup(rig, monkeypatch, b3_reference_change=field)
+
+    def operation():
+        with pytest.raises(executor.ExecutorBridgeError, match="UNCERTAIN_PUBLICATION"):
+            v2_start_call(rig)
+
+    _, errors, responses = v2_run_native_host(rig, operation)
+    assert not errors and len(responses) == 1 and "commit-material" in copied
+    assert rig.context.commit_dispatched and not rig.context.finished
+    assert rig.fixture.source.source.publisher.transport.calls.count("B3_CAS") == 1
+    assert rig.fixture.rig.a.transport.calls.count("RESERVE") == 1
+    assert rig.fixture.rig.a.transport.calls.count("COMMIT_OPEN") == 1
+
+
+@pytest.fixture
+def v2_attached_b5_fixture(monkeypatch):
+    """Actual frozen B5 qualifier/bytes and real copied source files; no OS admission claim."""
+    import importlib.util
+
+    module_path = Path(__file__).with_name("test_ex10_deployment_envelope.py")
+    spec = importlib.util.spec_from_file_location("w08_attached_b5_native_fixture", module_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    generator = module.rig.__wrapped__()
+    rig = next(generator)
+    try:
+        rig.clock[0] = datetime.now(UTC)
+        initial_pf = json.loads(Path(rig.pf_ref["path"]).read_bytes())
+        initial_pf["checked_at"] = module.b5._utc(rig.clock[0])
+        initial_pf_raw = canonical_json_bytes(initial_pf)
+        Path(rig.pf_ref["path"]).write_bytes(initial_pf_raw)
+        rig.pf_ref["sha256"] = sha256_bytes(initial_pf_raw)
+        source = Path(executor.__file__).resolve().parents[3]
+        vector = {}
+        for name in executor.EXECUTOR_SOURCES:
+            raw = (source / name).read_bytes()
+            path = rig.repo / name
+            path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+            path.write_bytes(raw)
+            path.chmod(0o644)
+            vector[name] = sha256_bytes(raw)
+        options = dict(rig.options)
+        options["running_sources"] = {
+            name: vector[name] for name in executor.ex10_preflight.RUNNING_SOURCES
+        }
+        allowed = {
+            c["container_id"] for c in rig.containers if c["service"] in ("backend", "worker")
+        }
+
+        def reader(*, container_id, relative_path):
+            assert container_id in allowed and relative_path in options["running_sources"]
+            return (rig.repo / relative_path).read_bytes()
+
+        options["running_source_reader"] = reader
+        options["path_context"] = {
+            **options["path_context"],
+            "running_sources": sorted(set(vector) | set(options["host_operational_sources"])),
+        }
+        qualifier = module.b5.EnvelopeQualifier(**options)
+        envelope = qualifier.build()
+        assert envelope.to_dict()["result"] == "PASS", [
+            {"check": row["check"], "code": row["detail_code"]}
+            for row in envelope.to_dict()["checks"]
+            if row["result"] != "PASS"
+        ]
+        assert qualifier.qualify(envelope._bytes)._bytes == envelope._bytes
+        assert envelope.to_dict()["result"] == "PASS"
+        yield SimpleNamespace(
+            raw=envelope._bytes,
+            value=envelope.to_dict(),
+            profile=executor.profile_codec.parse_runtime_profile_bytes(canonical_json_bytes(rig.p)),
+            header=rig.header,
+            cfg={
+                "profile_sha256": rig.header["runtime_profile_sha256"],
+                "header_sha256": sha256_bytes(
+                    executor.session_codec.canonical_session_header_bytes(rig.header)
+                ),
+                "source_hashes": vector,
+            },
+            preflight=Path(rig.pf_ref["path"]).read_bytes(),
+            now=rig.clock[0],
+        )
+    finally:
+        generator.close()
+
+
+def test_v2_attached_b5_current_view_is_distinct_from_stable_descriptor(v2_attached_b5_fixture):
+    rig = v2_attached_b5_fixture
+    assert (
+        rig.value["historical_authority_view_reference"]
+        != rig.profile.to_dict()["historical_lifecycle_authority_reference"]
+    )
+    assert (
+        executor._native_envelope_bindings(
+            rig.raw,
+            profile=rig.profile,
+            header=rig.header,
+            cfg=rig.cfg,
+            preflight=rig.preflight,
+            now=rig.now,
+            fresh_required=True,
+        )
+        == rig.value
+    )
+
+
+@pytest.mark.parametrize("action", ["drain", "reconcile", "finalize"])
+def test_v2_attached_b5_expiry_does_not_require_a_new_start_pf(v2_attached_b5_fixture, action):
+    rig = v2_attached_b5_fixture
+    before = sha256_bytes(rig.raw), sha256_bytes(rig.preflight)
+    value = executor._native_envelope_bindings(
+        rig.raw,
+        profile=rig.profile,
+        header=rig.header,
+        cfg={**rig.cfg, "action": action},
+        preflight=rig.preflight,
+        now=rig.now + timedelta(hours=1),
+        fresh_required=False,
+    )
+    assert value == rig.value and before == (sha256_bytes(rig.raw), sha256_bytes(rig.preflight))
+
+
+@pytest.mark.parametrize("action", ["start", "execute"])
+def test_v2_attached_b5_fresh_start_execute_required(v2_attached_b5_fixture, action):
+    rig = v2_attached_b5_fixture
+    with pytest.raises(executor.ExecutorBridgeError, match="DEPLOYMENT_REQUIRED"):
+        executor._native_envelope_bindings(
+            rig.raw,
+            profile=rig.profile,
+            header=rig.header,
+            cfg={**rig.cfg, "action": action},
+            preflight=rig.preflight,
+            now=rig.now + timedelta(hours=1),
+            fresh_required=True,
+        )
+
+
+@pytest.mark.parametrize("fresh", [True, False])
+def test_v2_attached_b5_future_denied_in_every_phase(v2_attached_b5_fixture, fresh):
+    rig = v2_attached_b5_fixture
+    with pytest.raises(executor.ExecutorBridgeError, match="DEPLOYMENT_REQUIRED"):
+        executor._native_envelope_bindings(
+            rig.raw,
+            profile=rig.profile,
+            header=rig.header,
+            cfg=rig.cfg,
+            preflight=rig.preflight,
+            now=rig.now - timedelta(seconds=1),
+            fresh_required=fresh,
+        )
+
+
+@pytest.mark.parametrize("change", ["source", "preflight", "header"])
+def test_v2_attached_b5_poststart_still_binds_immutable_bytes(v2_attached_b5_fixture, change):
+    rig = v2_attached_b5_fixture
+    cfg, preflight = dict(rig.cfg), rig.preflight
+    if change == "source":
+        cfg["source_hashes"] = {
+            **cfg["source_hashes"],
+            executor.ex10_preflight.RUNNING_SOURCES[0]: "f" * 64,
+        }
+    elif change == "header":
+        cfg["header_sha256"] = "f" * 64
+    else:
+        preflight += b" "
+    with pytest.raises(executor.ExecutorBridgeError, match="DEPLOYMENT_REQUIRED|PREFLIGHT_CHANGED"):
+        executor._native_envelope_bindings(
+            rig.raw,
+            profile=rig.profile,
+            header=rig.header,
+            cfg=cfg,
+            preflight=preflight,
+            now=rig.now + timedelta(hours=1),
+            fresh_required=False,
+        )
+
+
+@pytest.mark.parametrize(
+    "change", [None, "container", "initial", "envelope", "source", "profile", "header"]
+)
+def test_v2_native_process_commitment_binds_independent_inputs(v2_attached_b5_fixture, change):
+    """Observer preimage unit test; does not claim OS or challenge admission."""
+    rig = v2_attached_b5_fixture
+    cfg, initial, raw, cid = dict(rig.cfg), b"initial-public-bootstrap\n", rig.raw, "a" * 64
+    base = executor._native_process_identity(
+        cfg=cfg, profile=rig.profile, container_id=cid, initial=initial, envelope=raw
+    )
+    if change == "container":
+        cid = "b" * 64
+    elif change == "initial":
+        initial += b" "
+    elif change == "envelope":
+        raw += b" "
+    elif change == "source":
+        cfg["source_hashes"] = {**cfg["source_hashes"], next(iter(cfg["source_hashes"])): "e" * 64}
+    elif change == "profile":
+        cfg["profile_sha256"] = "e" * 64
+    elif change == "header":
+        cfg["header_sha256"] = "e" * 64
+    value = executor._native_process_identity(
+        cfg=cfg, profile=rig.profile, container_id=cid, initial=initial, envelope=raw
+    )
+    p = rig.profile.to_dict()
+    independent = sha256_bytes(
+        canonical_json_bytes(
+            {
+                "container_id": cid,
+                "runtime_profile_sha256": cfg["profile_sha256"],
+                "session_header_sha256": cfg["header_sha256"],
+                "project": p["project"],
+                "source_revision": p["source_revision"],
+                "source_hashes": cfg["source_hashes"],
+                "native_bootstrap_sha256": sha256_bytes(initial),
+            }
+        )
+    )
+    assert value == {
+        "container_id": cid,
+        "identity_digest": independent,
+        "deployment_verification_sha256": sha256_bytes(
+            canonical_json_bytes(
+                {
+                    "container_identity_digest": independent,
+                    "operational_envelope_sha256": sha256_bytes(raw),
+                }
+            )
+        ),
+    }
+    if change is not None:
+        assert value["deployment_verification_sha256"] != base["deployment_verification_sha256"]
+        assert (value["identity_digest"] == base["identity_digest"]) is (change == "envelope")
+
+
+@pytest.mark.parametrize(
+    "forbidden", [None, "operational_envelope_reference", "run_identity", "preflight_reference"]
+)
+def test_v2_native_start_initial_payload_has_no_future_artifact_cycle(
+    v2_attached_b5_fixture, forbidden
+):
+    rig = v2_attached_b5_fixture
+    known = {
+        name: {"synthetic-public-input": name}
+        for name in (
+            "acknowledgments",
+            "deployment_verification_reference",
+            "descriptor_reference",
+            "expected_head",
+            "profile_reference",
+            "session_reference",
+        )
+    }
+    cfg = {
+        **rig.cfg,
+        "action": "start",
+        "exchange_id": "11111111-2222-4333-8444-555555555555",
+        "request_payload": known,
+    }
+    initial = canonical_json_bytes(cfg)
+    if forbidden is not None:
+        cfg["request_payload"] = {**known, forbidden: {"sha256": "f" * 64}}
+        with pytest.raises(executor.ExecutorBridgeError, match="NATIVE_BOOTSTRAP_REQUIRED"):
+            executor._native_prepared_payload(cfg=cfg, profile=rig.profile, envelope=rig.raw)
+    else:
+        result = executor._native_prepared_payload(cfg=cfg, profile=rig.profile, envelope=rig.raw)
+        assert result["operational_envelope_reference"] == {
+            "path": rig.profile.to_dict()["host_roots"]["evidence"]["path"]
+            + "/.s11-operational/"
+            + cfg["exchange_id"]
+            + "/envelope.json",
+            "sha256": sha256_bytes(rig.raw),
+            "schema_version": executor.deployment_envelope.SCHEMA_VERSION,
+        }
+        assert canonical_json_bytes(cfg) == initial and result.keys() == known.keys() | {
+            "operational_envelope_reference"
+        }
+
+
+def v2_authorized_current_fixture(v2_native_host, dataset, monkeypatch):
+    started = v2_native_start_setup(v2_native_host, dataset, client_proofs=True)
+    v2_client_proof_start_setup(started, monkeypatch)
+    _, errors, responses = v2_run_native_host(started, lambda: v2_start_call(started))
+    assert not errors and len(responses) == 1
+    single = v2_native_single_setup(started, action="execute", client_proofs=True)
+    proof, _ = v2_client_proof_single_setup(single, monkeypatch)
+
+    def authorize():
+        single.context.authorize_step(
+            single.store,
+            run_id=single.context.proposal["run_id"],
+            action="execute",
+            git_sha=single.context.proposal["git_sha"],
+            phase="PREPARED",
+        )
+
+    _, responses = v2_run_single_host(single, authorize)
+    assert len(responses) == 1 and single.context.finished and single.context.step_authorized
+    return single, proof
+
+
+def test_v2_current_head_cannot_expire_during_later_qualification(
+    v2_native_host, dataset, monkeypatch
+):
+    single, proof = v2_authorized_current_fixture(v2_native_host, dataset, monkeypatch)
+    now = [single.context._now()]
+    single.context.clock = lambda: now[0]
+    coordination = proof.coordination
+
+    def delayed(*args, **kw):
+        result = coordination(*args, **kw)
+        now[0] += timedelta(seconds=31)
+        return result
+
+    monkeypatch.setattr(proof, "coordination", delayed)
+    with pytest.raises(executor.ExecutorBridgeError, match="HOST_HISTORY_STALE|OWNERSHIP_REQUIRED"):
+        proof.current(
+            context=single.context,
+            action="execute",
+            run_id=single.context.proposal["run_id"],
+            phase="PREPARED",
+        )
+    assert not single.context.scientific_finished
+
+
+def test_v2_native_b5_rechecked_after_current_proof_before_barrier_latch(
+    v2_native_host, dataset, monkeypatch, v2_attached_b5_fixture
+):
+    """Isolated timing boundary with real typed action/proof; no OS/BARRIER qualification claim."""
+    single, proof = v2_authorized_current_fixture(v2_native_host, dataset, monkeypatch)
+    rig = v2_attached_b5_fixture
+    now = [rig.now]
+    calls = []
+
+    def read_and_advance(**kw):
+        # Genuine current proof, without synthesizing an ARMED/emission claim.
+        proof.current(**{**kw, "phase": "PREPARED"})
+        calls.append(kw["phase"])
+        now[0] += timedelta(seconds=901)
+
+    def envelope(raw):
+        return executor._native_envelope_bindings(
+            raw,
+            profile=rig.profile,
+            header=rig.header,
+            cfg=rig.cfg,
+            preflight=rig.preflight,
+            now=now[0],
+            fresh_required=True,
+        )
+
+    # This existing test isolates the final expiry ordering, not OS/preparation.
+    monkeypatch.setattr(executor, "_native_wait_emission", lambda **kw: lambda: None)
+    apparatus = SimpleNamespace(
+        cfg={"action": "execute", "exchange_id": single.context.channel.exchange_id},
+        preparation_deadline=time.monotonic() + 900,
+        check_os=lambda: None,
+        context=single.context,
+        proof=SimpleNamespace(current=read_and_advance),
+        _envelope=envelope,
+        envelope_bytes=rig.raw,
+        emission_admitted=False,
+    )
+    with pytest.raises(executor.ExecutorBridgeError, match="DEPLOYMENT_REQUIRED"):
+        executor.ExecutorNativeBootstrap.current(
+            apparatus,
+            context=single.context,
+            action="execute",
+            run_id=single.context.proposal["run_id"],
+            phase="BARRIER",
+        )
+    assert calls == ["BARRIER"] and not apparatus.emission_admitted
+
+
+def test_v2_native_barrier_latch_never_accepts_unqualified_early_return():
+    calls = []
+    apparatus = SimpleNamespace(
+        context=None,
+        proof=SimpleNamespace(current=lambda **kw: calls.append(kw)),
+        emission_admitted=False,
+    )
+    with pytest.raises(executor.ExecutorBridgeError, match="OWNERSHIP_REQUIRED"):
+        executor.ExecutorNativeBootstrap.current(
+            apparatus, context=None, action="execute", run_id=None, phase="BARRIER"
+        )
+    assert not calls and not apparatus.emission_admitted
+
+
+@pytest.mark.parametrize("dispatched", [False, True])
+def test_v2_relay_both_eof_share_first_io_deadline(monkeypatch, dispatched):
+    """Actual private pipes; no delayed second-leg deadline after outer EOF."""
+    allfds = []
+    channels = []
+
+    def channel(role):
+        read_fd, other_write = os.pipe()
+        other_read, write_fd = os.pipe()
+        allfds.extend((read_fd, other_write, other_read, write_fd))
+        value = executor.ExecutorBridgeChannel(
+            read_fd=read_fd,
+            write_fd=write_fd,
+            role=role,
+            exchange="SINGLE_RPC",
+            exchange_id="11111111-2222-4333-8444-555555555555",
+        )
+        channels.append(value)
+        return value
+
+    outer, inner = channel("EXECUTOR"), channel("HOST")
+    now = [1000.0]
+    monkeypatch.setattr(executor.time, "monotonic", lambda: now[0])
+    try:
+        executor._native_share_relay_deadline(outer, inner)
+        assert outer.deadline == inner.deadline == 1120.0
+        now[0] = 1119.0
+        inner._activate()
+        if dispatched:
+            inner.mark_dispatched()
+        outer.close()
+        now[0] = 1120.0
+        with pytest.raises(
+            executor.ExecutorBridgeError,
+            match="UNCERTAIN_PUBLICATION" if dispatched else "EXCHANGE_EXPIRED",
+        ):
+            inner.finish()
+    finally:
+        for value in channels:
+            value.close()
+        for fd in allfds:
+            os.close(fd)
+
+
+@pytest.mark.parametrize("action", ["start", "drain"])
+def test_v2_native_preparation_waits_for_all_roles_before_frame_budget(monkeypatch, action):
+    now = [0.0]
+    available = set()
+    cfg = {
+        "action": action,
+        "exchange_id": "11111111-2222-4333-8444-555555555555",
+        "staging_name": "application-preflight.11111111-2222-4333-8444-555555555555.json",
+    }
+    base = "/s11-evidence/.s11-operational/" + cfg["exchange_id"]
+    ticks = []
+
+    def sleep(_seconds):
+        now[0] += 200
+        available.add("/s11-evidence/" + cfg["staging_name"])
+        if now[0] >= 800:
+            available.update((base + "/process.json", base + "/envelope.json"))
+
+    monkeypatch.setattr(executor.time, "monotonic", lambda: now[0])
+    monkeypatch.setattr(executor.time, "sleep", sleep)
+    monkeypatch.setattr(Path, "exists", lambda path: str(path) in available)
+    executor._native_wait_prepared(
+        cfg=cfg, deadline=900, guard=lambda: ticks.append(now[0]), alive=lambda: True
+    )
+    assert now[0] == 800 and ticks == [0, 200, 400, 600, 800]
+    now[0] = 900
+    with pytest.raises(executor.ExecutorBridgeError, match="START_NOT_PREPARED"):
+        executor._native_wait_prepared(
+            cfg=cfg, deadline=900, guard=lambda: None, alive=lambda: True
+        )
+
+
+def test_v2_native_preparation_never_respawns_a_dead_worker(monkeypatch):
+    monkeypatch.setattr(executor.time, "monotonic", lambda: 0)
+    monkeypatch.setattr(executor.time, "sleep", lambda seconds: pytest.fail("dead worker waited"))
+    with pytest.raises(executor.ExecutorBridgeError, match="START_NOT_PREPARED"):
+        executor._native_wait_prepared(
+            cfg={"action": "drain", "exchange_id": "11111111-2222-4333-8444-555555555555"},
+            deadline=900,
+            guard=lambda: None,
+            alive=lambda: False,
+        )
+
+
+def test_v2_barrier_current_heads_still_fresh_after_final_b5_read(
+    v2_native_host, dataset, monkeypatch, v2_attached_b5_fixture
+):
+    """Final clock boundary with genuine signed heads; no OS/emission claim."""
+    single, proof = v2_authorized_current_fixture(v2_native_host, dataset, monkeypatch)
+    rig, now = v2_attached_b5_fixture, [single.context._now()]
+    single.context.clock = lambda: now[0]
+    current = proof.current
+
+    def qualified(**kw):
+        return current(**{**kw, "phase": "PREPARED"})
+
+    monkeypatch.setattr(proof, "current", qualified)
+
+    def envelope(raw):
+        result = executor._native_envelope_bindings(
+            raw,
+            profile=rig.profile,
+            header=rig.header,
+            cfg=rig.cfg,
+            preflight=rig.preflight,
+            now=rig.now,
+            fresh_required=True,
+        )
+        now[0] += timedelta(seconds=31)
+        return result
+
+    # This existing test isolates the final expiry ordering, not OS/preparation.
+    monkeypatch.setattr(executor, "_native_wait_emission", lambda **kw: lambda: None)
+    apparatus = SimpleNamespace(
+        cfg={"action": "execute", "exchange_id": single.context.channel.exchange_id},
+        preparation_deadline=time.monotonic() + 900,
+        check_os=lambda: None,
+        context=single.context,
+        proof=proof,
+        _envelope=envelope,
+        envelope_bytes=rig.raw,
+        emission_admitted=False,
+    )
+    with pytest.raises(executor.ExecutorBridgeError, match="HOST_HISTORY_STALE"):
+        executor.ExecutorNativeBootstrap.current(
+            apparatus,
+            context=single.context,
+            action="execute",
+            run_id=single.context.proposal["run_id"],
+            phase="BARRIER",
+        )
+    assert not apparatus.emission_admitted
+
+
+def test_v2_barrier_b5_and_signed_heads_use_one_final_clock(
+    v2_native_host, dataset, monkeypatch, v2_attached_b5_fixture
+):
+    """Isolated expiry-order unit with genuine heads; no raw B5/OS admission claim."""
+    single, proof = v2_authorized_current_fixture(v2_native_host, dataset, monkeypatch)
+    rig, now = v2_attached_b5_fixture, [single.context._now()]
+    single.context.clock = lambda: now[0]
+    current = proof.current
+    monkeypatch.setattr(proof, "current", lambda **kw: current(**{**kw, "phase": "PREPARED"}))
+
+    def envelope(raw):
+        result = executor._native_envelope_bindings(
+            raw,
+            profile=rig.profile,
+            header=rig.header,
+            cfg=rig.cfg,
+            preflight=rig.preflight,
+            now=rig.now,
+            fresh_required=True,
+        )
+        # Only this temporal unit projects the qualified time window to its
+        # final second. Product callers retain exactly the original B5 bytes.
+        result = {**result, "expires_at": executor._utc(now[0] + timedelta(seconds=1))}
+        now[0] += timedelta(seconds=2)
+        return result
+
+    # This existing test isolates the final expiry ordering, not OS/preparation.
+    monkeypatch.setattr(executor, "_native_wait_emission", lambda **kw: lambda: None)
+    apparatus = SimpleNamespace(
+        cfg={"action": "execute", "exchange_id": single.context.channel.exchange_id},
+        preparation_deadline=time.monotonic() + 900,
+        check_os=lambda: None,
+        context=single.context,
+        proof=proof,
+        _envelope=envelope,
+        envelope_bytes=rig.raw,
+        emission_admitted=False,
+    )
+    with pytest.raises(executor.ExecutorBridgeError, match="DEPLOYMENT_REQUIRED"):
+        executor.ExecutorNativeBootstrap.current(
+            apparatus,
+            context=single.context,
+            action="execute",
+            run_id=single.context.proposal["run_id"],
+            phase="BARRIER",
+        )
+    assert not apparatus.emission_admitted
+
+
+@pytest.mark.parametrize(
+    "change", [None, "rw", "root", "source", "target", "regular", "zero-device"]
+)
+def test_v2_native_dev_null_mask_uses_actual_device_fd(v2_attached_b5_fixture, monkeypatch, change):
+    rig = v2_attached_b5_fixture
+    mask = {
+        "relative_path": ".env",
+        "kind": "dev_null_file",
+        "source_path": "/dev/null",
+        "read_only": True,
+    }
+    mounts = {"/s11-full-source/.env": ("/null", frozenset({"ro", "nosuid"}))}
+    original = executor.profile_codec._walk
+    actual = "/dev/null"
+    if change == "rw":
+        mounts["/s11-full-source/.env"] = ("/null", frozenset({"rw"}))
+    elif change == "root":
+        mounts["/s11-full-source/.env"] = ("/other", frozenset({"ro"}))
+    elif change == "source":
+        mask["source_path"] = "/dev/zero"
+    elif change == "target":
+        mask["relative_path"] = "alternate"
+    elif change == "regular":
+        actual = rig.profile.to_dict()["override_path"]
+    elif change == "zero-device":
+        actual = "/dev/zero"
+
+    def walk(target, kind):
+        assert target == "/s11-full-source/.env" and kind == "dev_null"
+        return original(actual, kind)
+
+    monkeypatch.setattr(executor.profile_codec, "_walk", walk)
+    if change is None:
+        assert executor._native_dev_null_mask(mask, mounts) is None
+    else:
+        with pytest.raises(executor.ExecutorBridgeError, match="ROOT_BINDING_INVALID"):
+            executor._native_dev_null_mask(mask, mounts)
+
+
+def test_v2_finalize_only_prepares_seal_leaves_common_terminal_publication_to_host(
+    v2_native_host, dataset, monkeypatch
+):
+    started = v2_native_start_setup(v2_native_host, dataset, client_proofs=True)
+    v2_client_proof_start_setup(started, monkeypatch)
+    _, errors, responses = v2_run_native_host(started, lambda: v2_start_call(started))
+    assert not errors and len(responses) == 1
+    single = v2_native_single_setup(started, action="finalize", client_proofs=True)
+    v2_client_proof_single_setup(single, monkeypatch)
+    source, a = single.broker.sources, single.fixture.rig.a
+    revision = single.fixture.module.op.history.current_revision(source.read_authority())[
+        "revision"
+    ]
+    prepared = []
+
+    def prepare(*, context, store, run_id, result):
+        assert context is single.context and store is single.store and run_id == result["run_id"]
+        state = executor.load_existing_state_readonly(store, run_id)
+        assert state is not None and state.finalized
+        executor.validate_finalized_state(
+            state.run_root, state.records, custody_hmac_key=store.custody_hmac_key
+        )
+        assert (
+            single.fixture.module.op.history.current_revision(source.read_authority())["revision"]
+            == revision
+        )
+        assert (
+            a.journal.read()["latest"][context.reservation["reservation_id"]]["state"]
+            == "COMMITTED"
+        )
+        prepared.append(result["decision"])
+
+    single.context.prepare_terminal = prepare
+    result, responses = v2_run_single_host(
+        single,
+        lambda: executor.finalize_run(
+            single.store,
+            run_id=single.context.proposal["run_id"],
+            git_sha=single.context.proposal["git_sha"],
+            abandon_reason="synthetic-pre-t0-stop",
+            probes=started.probes,
+            operational_context=single.context,
+        ),
+    )
+    assert len(responses) == 1 and prepared == ["NOT_DEMONSTRATED"]
+    assert (
+        executor.phase_of(executor.load_existing_state_readonly(single.store, result["run_id"]))
+        == P.ABANDONED_PRE_T0
+    )
+    assert not result["binding"]
+    assert single.context.terminal_prepared and single.context.scientific_finished
+    assert not hasattr(single.context, "terminal_published")
+    single.context.persist_public_result(single.store, result)
+    output = single.store.root / ("executor-result." + single.context.channel.exchange_id + ".json")
+    assert json.loads(output.read_bytes()) == result
+    assert (
+        single.fixture.module.op.history.current_revision(source.read_authority())["revision"]
+        == revision
+    )
+    assert (
+        a.journal.read()["latest"][single.context.reservation["reservation_id"]]["state"]
+        == "COMMITTED"
+    )
+    assert a.transport.calls.count("COMMIT_OPEN") == 1 and a.transport.calls.count("RETIRE") == 0
+
+
+@pytest.mark.parametrize("change", ["run_id", "git_sha"])
+def test_v2_single_wrong_run_identity_rejected_before_any_control_frame(
+    v2_native_host, dataset, monkeypatch, change
+):
+    started = v2_native_start_setup(v2_native_host, dataset, client_proofs=True)
+    v2_client_proof_start_setup(started, monkeypatch)
+    _, errors, responses = v2_run_native_host(started, lambda: v2_start_call(started))
+    assert not errors and len(responses) == 1
+    single = v2_native_single_setup(started, action="execute", client_proofs=True)
+    v2_client_proof_single_setup(single, monkeypatch)
+    values = {
+        "run_id": single.context.proposal["run_id"],
+        "git_sha": single.context.proposal["git_sha"],
+    }
+    values[change] = "s11-11111111-2222-5333-8444-555555555555" if change == "run_id" else "0" * 40
+    monkeypatch.setattr(
+        single.context, "_challenge", lambda: pytest.fail("wrong identity reached control frame")
+    )
+    before = run_files(single.store, started.context.proposal["run_id"])
+    try:
+        with pytest.raises(executor.ExecutorBridgeError, match="RUN_ID_MISMATCH"):
+            single.context.authorize_step(
+                single.store, action="execute", phase="PREPARED", **values
+            )
+        assert single.context.channel.position == 0 and not single.context.channel.dispatched
+        assert run_files(single.store, started.context.proposal["run_id"]) == before
+    finally:
+        single.context.channel.close()
+        single.host.close()
+
+
+def test_v2_delivery_claim_survives_loss_of_volatile_consumed_latch(
+    v2_native_host, dataset, monkeypatch
+):
+    started = v2_native_start_setup(v2_native_host, dataset, client_proofs=True)
+    v2_client_proof_start_setup(started, monkeypatch)
+    consume, observed = started.context.consume_delivery, []
+
+    def once(store):
+        consume(store)
+        permit = started.context.permit.to_dict()
+        claim = store.root / ("delivery-claim." + permit["permit_nonce"] + ".json")
+        raw = claim.read_bytes()
+        assert json.loads(raw) == {
+            "reservation_id": permit["reservation_id"],
+            "fencing_token": permit["fencing_token"],
+            "permit_digest": permit["permit_digest"],
+            "permit_nonce": permit["permit_nonce"],
+            "run_identity": started.context.proposal,
+        }
+        assert stat.S_IMODE(claim.stat().st_mode) == 0o600
+        # Only simulate volatile state loss: the genuine permit and durable claim
+        # are retained exactly. No production latch reset or second host RPC.
+        started.context.consumed = False
+        try:
+            with pytest.raises(executor.ExecutorBridgeError, match="WRITE_UNKNOWN"):
+                consume(store)
+            assert claim.read_bytes() == raw
+            assert not (store.root / "runs").exists()
+        finally:
+            started.context.consumed = True
+        observed.append(True)
+
+    monkeypatch.setattr(started.context, "consume_delivery", once)
+    _, errors, responses = v2_run_native_host(started, lambda: v2_start_call(started))
+    assert not errors and len(responses) == 1 and observed == [True]
+    assert started.fixture.rig.a.transport.calls.count("RESERVE") == 1
+    assert started.fixture.rig.a.transport.calls.count("COMMIT_OPEN") == 1
+
+
+def test_v2_verified_common_history_keeps_foreign_nd_when_local_root_is_empty(
+    v2_native_host, dataset, monkeypatch
+):
+    started = v2_native_start_setup(v2_native_host, dataset, client_proofs=True)
+    v2_client_proof_start_setup(started, monkeypatch)
+    original, observed = executor.verified_prior_ex10_runs, []
+
+    def complete(store, context, *, local=None):
+        assert local == [] and context.common is not None
+        source = started.fixture.source.source
+        snapshot = source.read_authority()
+        runs = started.fixture.module.op.history.list_official_runs(snapshot)
+        expected = [executor.PriorRun(r["run_id"], OFFICIAL, True, r["result"], ()) for r in runs]
+        assert len(expected) == 1 and expected[0].decision == "NOT_DEMONSTRATED"
+        actual = original(store, context, local=local)
+        assert actual == expected and actual == list(context.common)
+        observed.append(True)
+        return actual
+
+    monkeypatch.setattr(executor, "verified_prior_ex10_runs", complete)
+    result, errors, responses = v2_run_native_host(started, lambda: v2_start_call(started))
+    assert not errors and len(responses) == 1 and observed == [True]
+    state = executor.load_existing_state_readonly(started.store, result["run_id"])
+    assert (
+        state.payload(executor.ART_START)["prior_ex10_runs"][0]["run_id"]
+        == started.approved_acknowledgments[0]
+    )
+
+
+@pytest.mark.parametrize("seal", ["missing", "bad-hmac"])
+def test_v2_authorized_finalize_requires_genuine_seal_before_terminal_preparation(
+    v2_native_host, dataset, monkeypatch, seal
+):
+    """Native9+5 authorize finalize; no default True or fake finalized state."""
+    started = v2_native_start_setup(v2_native_host, dataset, client_proofs=True)
+    v2_client_proof_start_setup(started, monkeypatch)
+    _, errors, responses = v2_run_native_host(started, lambda: v2_start_call(started))
+    assert not errors and len(responses) == 1
+    if seal == "bad-hmac":
+        sealed = v2_native_single_setup(started, action="finalize", client_proofs=True)
+        v2_client_proof_single_setup(sealed, monkeypatch)
+
+        def prepare(*, context, store, run_id, result):
+            state = executor.load_existing_state_readonly(store, run_id)
+            assert context is sealed.context and state is not None and state.finalized
+            executor.validate_finalized_state(
+                state.run_root, state.records, custody_hmac_key=store.custody_hmac_key
+            )
+
+        sealed.context.prepare_terminal = prepare
+        result, responses = v2_run_single_host(
+            sealed,
+            lambda: executor.finalize_run(
+                sealed.store,
+                run_id=started.context.proposal["run_id"],
+                git_sha=started.context.proposal["git_sha"],
+                abandon_reason="synthetic-pre-t0-stop",
+                probes=started.probes,
+                operational_context=sealed.context,
+            ),
+        )
+        assert len(responses) == 1 and result["decision"] == "NOT_DEMONSTRATED"
+    single = v2_native_single_setup(started, action="finalize", client_proofs=True)
+    proof, _ = v2_client_proof_single_setup(single, monkeypatch)
+    run_id, git_sha = started.context.proposal["run_id"], started.context.proposal["git_sha"]
+    state = executor.load_existing_state_readonly(single.store, run_id)
+    phase = str(executor.phase_of(state))
+    _, responses = v2_run_single_host(
+        single,
+        lambda: single.context.authorize_step(
+            single.store, action="finalize", run_id=run_id, git_sha=git_sha, phase=phase
+        ),
+    )
+    assert len(responses) == 1 and single.context.step_authorized and single.context.finished
+    assert proof.current_observation is not None
+    # The mutation happens only after actual native admission. Keep original
+    # immutable opening artifacts and B3/B4 proofs, change this local test seal.
+    if seal == "bad-hmac":
+        path = state.run_root / ".s11-finalized"
+        value = json.loads(path.read_bytes())
+        value["signature"] = "0" * 64
+        path.write_bytes(canonical_json_bytes(value))
+    prepared = []
+    single.context.prepare_terminal = lambda **kw: prepared.append(kw)
+    before = run_files(single.store, run_id)
+    expected = executor.ExecutorBridgeError if seal == "missing" else executor.EvidencePolicyError
+    with pytest.raises(expected):
+        single.context.prepare_sealed_terminal(
+            single.store, run_id=run_id, result={"run_id": run_id}
+        )
+    assert not prepared and not single.context.terminal_prepared
+    assert run_files(single.store, run_id) == before
+    assert (
+        single.fixture.rig.a.journal.read()["latest"][single.context.reservation["reservation_id"]][
+            "state"
+        ]
+        == "COMMITTED"
+    )
+    assert single.fixture.rig.a.transport.calls.count("RETIRE") == 0
+
+
+def test_v2_closed_verified_local_diagnostic_does_not_replace_or_block_common_history(
+    v2_empty_native_host, dataset, monkeypatch
+):
+    started = v2_native_start_setup(v2_empty_native_host, dataset, client_proofs=True)
+    local = executor.start_run(
+        started.store,
+        git_sha=started.context.proposal["git_sha"],
+        source_root=Path(started.fixture.native.value["source_host_root"]),
+        nonce="local-closed-native-001",
+        evidence_mode=LOCAL,
+        timezone="UTC",
+        probes=started.probes,
+    )
+    final = executor.finalize_run(
+        started.store,
+        run_id=local["run_id"],
+        git_sha=started.context.proposal["git_sha"],
+        abandon_reason="synthetic-pre-t0-stop",
+        probes=started.probes,
+    )
+    assert final["decision"] == "NOT_DEMONSTRATED" and not final["binding"]
+    local_before = run_files(started.store, local["run_id"])
+    prior = executor.prior_ex10_runs(started.store)
+    assert prior == [executor.PriorRun(local["run_id"], LOCAL, True, "NOT_DEMONSTRATED", ())]
+    proof, _ = v2_client_proof_start_setup(started, monkeypatch)
+    assert started.approved_acknowledgments == ()
+    result, errors, responses = v2_run_native_host(started, lambda: v2_start_call(started))
+    assert not errors and len(responses) == 1 and result["phase"] == "PREPARED"
+    assert started.context.common == ()
+    assert proof.observed_revision == 1  # The qualified COMMIT raises the history floor.
+    assert run_files(started.store, local["run_id"]) == local_before
+    assert started.fixture.rig.a.transport.calls.count("RESERVE") == 1
+    assert started.fixture.rig.a.transport.calls.count("COMMIT_OPEN") == 1
+    assert not started.context._cfg()["payload"]["acknowledgments"]
+
+
+def v2_publish_sealed_terminal_and_retire(started, result):
+    """Test-only HOST boundary after the synthetic worker returns, with real CAS.
+
+    This component boundary is explicit: it does not attest a Docker worker exit.
+    W09 separately proves that OS boundary before publishing a public result.
+    """
+    import copy
+    import uuid
+
+    mod, a = started.fixture.module, started.fixture.rig.a
+    source = a.journal.sources
+    retire_count = a.transport.calls.count("RETIRE_TERMINAL")
+    before = source.read_authority()
+    prior_record = a.journal.read()["latest"][started.context.reservation["reservation_id"]]
+    assert prior_record["state"] == "COMMITTED"
+    assert prior_record["run_id"] == result["run_id"]
+    base = mod.op.history.current_revision(before)
+    revision = base["revision"] + 1
+    operation_id = str(uuid.uuid4())
+    candidate_path = source.publisher.candidates.root + "/terminal-" + operation_id + ".json"
+
+    def sealed():
+        state = executor.load_existing_state_readonly(started.store, result["run_id"])
+        assert state is not None and state.finalized
+        executor.validate_finalized_state(
+            state.run_root, state.records, custody_hmac_key=started.store.custody_hmac_key
+        )
+        decision = state.payload(executor.ART_DECISION)
+        assert decision["decision"] == result["decision"]
+        assert decision["binding"] == result["binding"]
+        decision_record = state.record(executor.ART_DECISION)
+        final_record = state.record(executor.ART_MANIFEST_FINAL)
+        assert decision_record["sha256"] == result["decision_sha256"]
+        assert final_record["sha256"] == result["manifest_sha256"]
+        path = state.run_root / final_record["relative_path"]
+        raw = path.read_bytes()
+        assert sha256_bytes(raw) == final_record["sha256"]
+        return state, {
+            "path": str(path),
+            "sha256": sha256_bytes(raw),
+            "schema_version": json.loads(raw)["schema_version"],
+        }
+
+    state, reference = sealed()
+    reference.update(kind="EVIDENCE", introduced_revision=revision)
+    reference["reference_id"] = mod.op.sql.digest(
+        {key: reference[key] for key in ("path", "sha256", "schema_version", "kind")}
+    )
+    run = copy.deepcopy(mod.op.history.find_run(before, result["run_id"]))
+    assert run["lifecycle_state"] == "OPEN" and run["run_version"] == 0
+    run.update(
+        run_version=1,
+        previous_run_version=0,
+        introduced_revision=revision,
+        lifecycle_state="TERMINAL",
+        phase="FINALIZED",
+        result=result["decision"],
+        binding=result["binding"],
+        ack_required=result["decision"] == "NOT_DEMONSTRATED",
+        validity_classification=("NON_BINDING_ND" if not result["binding"] else "VALID_BINDING"),
+        finalized_at=executor._utc(a.now()),
+        evidence_authority_reference_id=reference["reference_id"],
+    )
+    event = a.f.event(
+        "RUN_TERMINAL",
+        sequence=len(before.material["state"]["authority_events"]) + 1,
+        run=run,
+        revision=revision,
+    )
+    event.update(occurred_at=run["finalized_at"], evidence_reference_id=reference["reference_id"])
+    additions = {
+        "artifact_references": [reference],
+        "official_runs": [run],
+        "authority_events": [event],
+    }
+    capability = {
+        "issuer": "synthetic-test-only",
+        "authority_id": base["authority_id"],
+        "epoch": base["epoch"],
+        "operation_id": operation_id,
+        "expected_revision": revision,
+        "action": "RUN_TERMINAL",
+        "fence": prior_record["fencing_token"],
+        "base_revision": base["revision"],
+        "base_digest": base["ledger_digest"],
+        "reservation_id": prior_record["reservation_id"],
+    }
+    checks = []
+    observed_heads = []
+
+    class SealedTerminalVerifier:
+        def verify(
+            self, *, authority_id, epoch, operation_id, revision, action, proof, candidate_state
+        ):
+            assert (authority_id, epoch, operation_id, revision, action, proof) == (
+                base["authority_id"],
+                base["epoch"],
+                capability["operation_id"],
+                capability["expected_revision"],
+                "RUN_TERMINAL",
+                capability,
+            )
+            _, actual_reference = sealed()
+            assert actual_reference == {
+                key: reference[key] for key in ("path", "sha256", "schema_version")
+            }
+            assert a.journal.read()["latest"][prior_record["reservation_id"]] == prior_record
+            candidate = mod.op.sql.parse_canonical(candidate_state)
+            for table, original in before.material["state"].items():
+                if table in (
+                    "history_revisions",
+                    "witness_checkpoints",
+                    "publication_intents",
+                    "publication_resolutions",
+                ):
+                    assert candidate[table][: len(original)] == original
+                else:
+                    assert candidate[table] == original + additions.get(table, [])
+            control_tables = (
+                "history_revisions",
+                "witness_checkpoints",
+                "publication_intents",
+                "publication_resolutions",
+            )
+            suffix = {
+                name: candidate[name][len(before.material["state"][name]) :]
+                for name in control_tables
+            }
+            if not checks:
+                assert all(rows == [] for rows in suffix.values())
+            else:
+                assert all(len(rows) == 1 for rows in suffix.values())
+                history_row = suffix["history_revisions"][0]
+                assert history_row == {
+                    "revision": revision,
+                    "operation_id": operation_id,
+                    "previous_ledger_digest": base["ledger_digest"],
+                    "ledger_digest": mod.op.sql.logical_digest(candidate, revision),
+                    "recorded_at": run["finalized_at"],
+                    "first_event_sequence": event["event_sequence"],
+                    "last_event_sequence": event["event_sequence"],
+                    "event_count": 1,
+                }
+                checkpoint = suffix["witness_checkpoints"][0]
+                receipt = mod.op.history._receipts(candidate)[-1]
+                assert checkpoint == mod.op.history._checkpoint(receipt)
+                assert (
+                    receipt["operation_id"],
+                    receipt["revision"],
+                    receipt["ledger_digest"],
+                    receipt["previous_witness_digest"],
+                    receipt["created_at"],
+                    receipt["genesis"],
+                ) == (
+                    operation_id,
+                    revision,
+                    history_row["ledger_digest"],
+                    base["witness_digest"],
+                    run["finalized_at"],
+                    None,
+                )
+                intent = suffix["publication_intents"][0]
+                assert intent == {
+                    "operation_id": operation_id,
+                    "base_revision": base["revision"],
+                    "candidate_revision": revision,
+                    "base_ledger_digest": base["ledger_digest"],
+                    "candidate_ledger_digest": history_row["ledger_digest"],
+                    "candidate_payload_path": candidate_path,
+                    "candidate_payload_sha256": mod.op.sql.digest(
+                        mod.op.sql.logical_projection(candidate, revision)
+                    ),
+                    "serialization_capability_digest": mod.op.sql.digest(capability),
+                    "created_at": run["finalized_at"],
+                }
+                resolution = suffix["publication_resolutions"][0]
+                assert resolution == {
+                    "operation_id": operation_id,
+                    "disposition": "COMMITTED",
+                    "resolved_at": run["finalized_at"],
+                    "committed_revision": revision,
+                    "receipt_digest": mod.op.sql.digest(receipt),
+                    "operator_approval_path": None,
+                    "operator_approval_sha256": None,
+                    "operator_approval_schema": None,
+                    "fresh_witness_observation_digest": mod.op.sql.digest(observed_heads[0]),
+                }
+                assert len(resolution["fresh_witness_observation_digest"]) == 64
+            checks.append("seal-and-exact-candidate")
+
+    with mod.op.durable.HeldWriter(
+        a.stores["lock"], "global.lock", mod.h.identity(a.lock)
+    ) as writer:
+        publisher = source.publisher
+        adapter = mod.op.durable.AuthorityBackend(
+            ledger_store=publisher.ledger,
+            ledger_name=publisher.name,
+            ledger_identity=publisher.identity,
+            candidate_store=publisher.candidates,
+            floor=publisher.floor,
+            writer=writer,
+            transport=publisher.transport,
+            signer_pin=publisher.pin,
+            clock_health=publisher.health,
+        )
+        actual_observe = adapter.observe_head
+
+        def observed(receipt):
+            observation = actual_observe(receipt)
+            observed_heads.append(observation["head"])
+            return observation
+
+        adapter.observe_head = observed
+        published = mod.op.history._publication(
+            before,
+            additions,
+            operation_id=operation_id,
+            occurred_at=run["finalized_at"],
+            evidence_reference_id=reference["reference_id"],
+            action="RUN_TERMINAL",
+            verifier=SealedTerminalVerifier(),
+            capability=capability,
+            adapter=adapter,
+            signer_identity=publisher.pin,
+            candidate_payload_path=candidate_path,
+        )
+    assert checks == ["seal-and-exact-candidate", "seal-and-exact-candidate"]
+    qualified = source.read_authority()
+    assert qualified.material["state"] == published.material["state"]
+    assert mod.op.history.find_run(qualified, result["run_id"]) == run
+    raw_receipt = source.publisher.floor.store.read(source.publisher.floor._path(revision))
+    receipt = mod.op.sql.parse_canonical(raw_receipt)
+    terminal_reference = {
+        "authority_id": base["authority_id"],
+        "authority_epoch": base["epoch"],
+        "revision": revision,
+        "ledger_digest": receipt["ledger_digest"],
+        "witness_digest": sha256_bytes(raw_receipt),
+        "receipt_reference": {
+            "path": source.publisher.floor._path(revision),
+            "sha256": sha256_bytes(raw_receipt),
+            "schema_version": receipt["witness_schema_version"],
+        },
+    }
+
+    def qualify_terminal(*, operation_id, record, writer):
+        writer.check()
+        assert record == prior_record and operation_id == retire_operation
+        sealed()
+        actual = source.read_authority()
+        assert mod.op.history.find_run(actual, record["run_id"]) == run
+        assert mod.op.history.current_revision(actual)["revision"] == revision
+        return mod.op.coordination.TerminalQualification(
+            actual, canonical_json_bytes(terminal_reference), source.publisher.floor
+        )
+
+    retire_operation = str(uuid.uuid4())
+    source.lifecycle = SimpleNamespace(qualify_terminal=qualify_terminal)
+    retired = a.journal.retire_terminal(
+        reservation_id=prior_record["reservation_id"], operation_id=retire_operation
+    )
+    actual = a.journal.read()
+    assert actual["active"] is None and actual["witness_active"] is None
+    assert retired["terminal_witness_reference"] == terminal_reference
+    assert a.transport.calls.count("RETIRE_TERMINAL") == retire_count + 1
+    return qualified, retired
+
+
+def test_v2_sealed_native_terminal_is_published_and_retires_the_synthetic_slot(native_h):
+    h = native_h
+    result = h.start()
+    finished = h.finalize(abandon_reason="synthetic-pre-t0-stop")
+    before = run_files(h.store, result["run_id"])
+    snapshot, retired = v2_publish_sealed_terminal_and_retire(h.native_started, finished)
+    assert run_files(h.store, result["run_id"]) == before
+    assert retired["state"] == "COMMITTED"
+    assert snapshot.material["state"]["official_runs"][-1]["result"] == "NOT_DEMONSTRATED"
+    assert not executor.binding_refusal(
+        [executor.PriorRun(result["run_id"], OFFICIAL, True, "NOT_DEMONSTRATED", ())],
+        evidence_mode=OFFICIAL,
+        acknowledged=(),
+    )[1]
+
+
+def v2_next_native_start_setup(previous, dataset, *, acknowledgments=(), client_proofs=False):
+    """New process context/pipes and PF, full common history and explicit test ACKs."""
+    import uuid
+
+    fixture, mod = previous.fixture, previous.fixture.module
+    a, old = fixture.rig.a, fixture.rig.a.journal.sources
+    snapshot = old.read_authority()
+    head = mod.op.history.current_revision(snapshot)
+    floor = old.publisher.floor
+    receipt_path = floor._path(head["revision"])
+    raw_receipt = floor.store.read(receipt_path)
+    current_binding = mod.op.HostArtifactBinding(
+        "base_receipt",
+        canonical_json_bytes(
+            {
+                "path": receipt_path,
+                "sha256": sha256_bytes(raw_receipt),
+                "schema_version": json.loads(raw_receipt)["witness_schema_version"],
+            }
+        ),
+        floor.store,
+    )
+    historical = dict(old.histories(snapshot=snapshot, journal=a.journal).contexts)
+    for reference, qualifier in old.catalog.items():
+        assert reference not in historical or historical[reference] is qualifier
+        historical[reference] = qualifier
+    source = mod.op.NativeHostSources(
+        session_qualifier=old.sessions,
+        registry=mod.op.HostArtifactRegistry(
+            tuple(
+                binding for name, binding in old.registry.bindings.items() if name != "base_receipt"
+            )
+            + (current_binding,)
+        ),
+        policy=old.policy,
+        authority_reader=old.reader,
+        historical_contexts=lambda **kw: mod.op.NativeGovernanceHistory(tuple(historical.items())),
+        artifact_store=old.artifacts,
+        certificate_store=old.certificates,
+        publisher=old.publisher,
+        executor_fingerprint=old.fingerprint,
+        signer=old.signer,
+        bridge_pin=old.pin,
+    )
+    source.verify_registry(canonical_binding=a.journal.binding, journal=a.journal)
+    a.journal.sources = source
+    exchange = str(uuid.uuid4())
+    hr, ew = os.pipe()
+    er, hw = os.pipe()
+    host = mod.op.PipeFrameChannel(
+        read_fd=hr, write_fd=hw, exchange="START", exchange_id=exchange, budget=120
+    )
+    client = executor.ExecutorBridgeChannel(
+        read_fd=er, write_fd=ew, exchange="START", exchange_id=exchange, budget=120
+    )
+    for fd in (hr, ew, er, hw):
+        os.close(fd)
+    source.begin_exchange(channel=host)
+    raw = mod.wire.parse_request_bytes(fixture.rig.raw).to_dict()
+    raw.update(exchange_id=exchange, authority_revision=head["revision"])
+    raw["capability"].update(exchange_id=exchange, expected_revision=head["revision"])
+    raw["payload"]["expected_head"] = {
+        "authority_id": head["authority_id"],
+        "authority_epoch": head["epoch"],
+        "revision": head["revision"],
+        "ledger_digest": head["ledger_digest"],
+        "witness_digest": head["witness_digest"],
+        "receipt_reference": json.loads(current_binding.reference),
+    }
+    raw["payload"]["acknowledgments"] = []
+    for run_id in acknowledgments:
+        target = mod.op.history.verify_ack_target(snapshot, run_id)
+        assert target["recognizable"], "test supplied an invalid ACK target"
+        raw["payload"]["acknowledgments"].append(
+            {
+                "run_id": run_id,
+                "authority_revision": target["revision"],
+                "terminal_evidence_reference": target["evidence_reference"],
+            }
+        )
+    raw["payload"]["acknowledgments"].sort(key=lambda row: row["run_id"])
+    fixture.rig.raw = mod.builder.signed_request(raw, a.bridge, a.holder)
+    fixture.source = SimpleNamespace(source=source, host=host, executor=client)
+    return v2_native_start_setup(
+        fixture,
+        dataset,
+        execution_nonce=uuid.uuid4().hex * 2,
+        acknowledgments=tuple(acknowledgments),
+        client_proofs=client_proofs,
+    )
+
+
+def test_v2_second_native_start_after_sealed_nd_requires_exact_common_ack(
+    native_h, dataset, monkeypatch
+):
+    h = native_h
+    first = h.start()["run_id"]
+    final = h.finalize(abandon_reason="synthetic-pre-t0-stop")
+    snapshot, _ = v2_publish_sealed_terminal_and_retire(h.native_started, final)
+    assert executor.binding_refusal(
+        [executor.PriorRun(first, OFFICIAL, True, "NOT_DEMONSTRATED", ())],
+        evidence_mode=OFFICIAL,
+        acknowledged=(),
+    ) == (["not-demonstrated-unacknowledged:" + first], False)
+    before = run_files(h.store, first)
+    second = v2_next_native_start_setup(
+        h.native_started, dataset, acknowledgments=(first,), client_proofs=True
+    )
+    v2_client_proof_start_setup(second, monkeypatch)
+    result, errors, responses = v2_run_native_host(second, lambda: v2_start_call(second))
+    assert not errors and len(responses) == 1 and result["phase"] == "PREPARED"
+    assert result["run_id"] != first and run_files(h.store, first) == before
+    assert second.context.common == (
+        executor.PriorRun(first, OFFICIAL, True, "NOT_DEMONSTRATED", ()),
+    )
+    assert snapshot.material["state"]["official_runs"][-1]["ack_required"]
+    assert h.native_started.fixture.rig.a.transport.calls.count("RESERVE") == 2
+    assert h.native_started.fixture.rig.a.transport.calls.count("COMMIT_OPEN") == 2
+
+
+@pytest.fixture
+def native_history_h(native_h, dataset, monkeypatch):
+    """Original LOCAL API plus Native OFFICIAL actions and genuine terminal/retire.
+
+    Only synthetic, explicitly supplied recognizable ACK IDs enter the native
+    request. Invalid caller ACK IDs remain executor arguments for refusal tests.
+    The harness never translates a Native refusal into a legacy error.
+    """
+    h = native_h
+    native_steps = {
+        name: getattr(h, name) for name in ("execute", "drain", "reconcile", "finalize")
+    }
+    official_attempts = []
+
+    def start(**kwargs):
+        mode = kwargs.pop("evidence_mode", LOCAL)
+        if mode == LOCAL:
+            return type(h).start(h, evidence_mode=LOCAL, **kwargs)
+        assert mode == OFFICIAL and set(kwargs) <= {"acknowledged_not_demonstrated"}
+        acknowledged = tuple(kwargs.pop("acknowledged_not_demonstrated", ()))
+        if not official_attempts:
+            started = h.native_started
+            started.approved_acknowledgments = acknowledged
+        else:
+            old = h.native_started
+            mod, a = old.fixture.module, old.fixture.rig.a
+            snapshot = a.journal.sources.read_authority()
+            known = {row["run_id"] for row in mod.op.history.list_official_runs(snapshot)}
+            recognizable = tuple(
+                run_id
+                for run_id in acknowledged
+                if run_id in known
+                and mod.op.history.verify_ack_target(snapshot, run_id)["recognizable"]
+            )
+            started = v2_next_native_start_setup(
+                old, dataset, acknowledgments=recognizable, client_proofs=True
+            )
+            started.approved_acknowledgments = acknowledged
+        official_attempts.append(started)
+        h.native_started = started
+        v2_client_proof_start_setup(started, monkeypatch)
+        started.admission_errors = []
+        actual_approve = started.broker.sources.approve_reserve
+
+        def admitted(**arguments):
+            try:
+                return actual_approve(**arguments)
+            except started.fixture.module.op.OperationalError as error:
+                # Private test diagnostic only. The real broker still sanitizes
+                # its public error and retains the original fail-closed path.
+                started.admission_errors.append(error.code)
+                raise
+
+        started.broker.sources.approve_reserve = admitted
+        result, errors, responses = v2_run_native_host(started, lambda: v2_start_call(started))
+        assert not errors and len(responses) == 1
+        h.run_ids.append(result["run_id"])
+        return result
+
+    def step(name, run_id=None, **kwargs):
+        run_id = run_id or h.run_id
+        state = executor.load_existing_state_readonly(h.store, run_id)
+        assert state is not None
+        mode = executor._evidence_mode(state.initial_manifest)
+        if mode == LOCAL:
+            return getattr(type(h), name)(h, run_id, **kwargs)
+        result = native_steps[name](run_id, **kwargs)
+        if name == "finalize":
+            v2_publish_sealed_terminal_and_retire(h.native_started, result)
+        return result
+
+    monkeypatch.setattr(h, "start", start)
+    for name in ("execute", "drain", "reconcile", "finalize"):
+
+        def bound(run_id=None, _name=name, **kwargs):
+            return step(_name, run_id, **kwargs)
+
+        monkeypatch.setattr(h, name, bound)
+    yield h
+    for started in official_attempts:
+        started.context.channel.close()
+        started.host.close()
+
+
+def native_binding_rejection(h, *, acknowledged=(), keep=()):
+    """Keep the legacy semantic oracle and assert genuine Native fail-closed.
+
+    Common OFFICIAL authority denies before capability/RESERVE when binding or
+    exact ACK is missing. No invented wire reason or pseudo-authority is used.
+    """
+    old = h.native_started
+    mod, a = old.fixture.module, old.fixture.rig.a
+    snapshot = a.journal.sources.read_authority()
+    rows = mod.op.history.list_official_runs(snapshot)
+    prior = [
+        executor.PriorRun(
+            row["run_id"], OFFICIAL, row["lifecycle_state"] == "TERMINAL", row["result"], ()
+        )
+        for row in rows
+    ]
+    reasons, terminal = executor.binding_refusal(
+        prior, evidence_mode=OFFICIAL, acknowledged=acknowledged
+    )
+    assert reasons
+    before = {path: tree(path) for path in keep}
+    claims = tuple(h.store.root.glob("delivery-claim.*.json"))
+    reserve_count = a.transport.calls.count("RESERVE")
+    cas_count = a.journal.sources.publisher.transport.calls.count("B3_CAS")
+    commit_count = a.transport.calls.count("COMMIT_OPEN")
+    try:
+        h.start(evidence_mode=OFFICIAL, acknowledged_not_demonstrated=list(acknowledged))
+    except executor.ExecutorBridgeError as error:
+        assert error.code == "FRAME_INCOMPLETE"
+        assert len(h.native_started.host_errors) == 1
+        expected_host_reason = (
+            "FIRST_VALID_BLOCKED"
+            if terminal or any(not run.finalized for run in prior)
+            else "REQUEST_CONTEXT_INVALID"
+        )
+        assert h.native_started.host_errors[0].code == "HOST_CONTEXT_INVALID"
+        assert h.native_started.admission_errors == [expected_host_reason]
+        assert a.transport.calls.count("RESERVE") == reserve_count
+        assert a.journal.sources.publisher.transport.calls.count("B3_CAS") == cas_count
+    except executor.Ex10Refusal as error:
+        # Valid common ACKs plus unknown caller IDs reach the legacy domain
+        # check after reservation, while retaining zero claim/four-run writes.
+        assert set(error.reasons) == set(reasons) and error.terminal == terminal
+        assert a.transport.calls.count("COMMIT_OPEN") == commit_count
+        assert a.journal.sources.publisher.transport.calls.count("B3_CAS") == cas_count
+        journal = a.journal.read()
+        record = journal["latest"][h.native_started.context.reservation["reservation_id"]]
+        assert record["state"] in ("PENDING", "UNCERTAIN")
+        assert journal["active"] is not None
+    else:
+        pytest.fail("Native admission ignored first-valid/ACK rejection")
+    assert tuple(h.store.root.glob("delivery-claim.*.json")) == claims
+    assert {path: tree(path) for path in keep} == before
+    return reasons, terminal
+
+
+@pytest.mark.parametrize(
+    "mismatch", ["official-omitted", "official-discordant", "local-id-collision"]
+)
+def test_v2_prior_dto_api_rejects_incomplete_official_copy_or_local_id_collision(
+    v2_native_host, dataset, monkeypatch, mismatch
+):
+    """Typed DTO API negative, on genuine common proof and actual Native reservation.
+
+    The contradictory local DTO is injected at the helper boundary, not claimed
+    to be a new sealed run. The independent common authority is never forged.
+    """
+    rig = v2_native_start_setup(v2_native_host, dataset, client_proofs=True)
+    v2_client_proof_start_setup(rig, monkeypatch)
+    actual = executor.verified_prior_ex10_runs
+    reached = []
+
+    def mismatched(store, context, *, local=None):
+        assert context.common is not None and len(context.common) == 1
+        assert not local
+        common = context.common[0]
+        if mismatch == "official-omitted":
+            contrary = executor.PriorRun(
+                context.proposal["run_id"], OFFICIAL, True, "NOT_DEMONSTRATED", ()
+            )
+        elif mismatch == "official-discordant":
+            contrary = executor.PriorRun(common.run_id, OFFICIAL, True, "FAIL", ())
+        else:
+            contrary = executor.PriorRun(common.run_id, LOCAL, True, "NOT_DEMONSTRATED", ())
+        reached.append(mismatch)
+        return actual(store, context, local=[contrary])
+
+    monkeypatch.setattr(executor, "verified_prior_ex10_runs", mismatched)
+
+    def operation():
+        with pytest.raises(executor.ExecutorBridgeError, match="LOCAL_COMMON_HISTORY_MISMATCH"):
+            v2_start_call(rig)
+
+    v2_run_native_host(rig, operation)
+    assert reached == [mismatch]
+    assert not (rig.store.root / "runs").exists()
+    assert not list(rig.store.root.glob("delivery-claim.*.json"))
+    assert rig.fixture.source.source.publisher.transport.calls.count("B3_CAS") == 0
+    assert rig.fixture.rig.a.transport.calls.count("COMMIT_OPEN") == 0
+
+
+def test_v2_closed_local_invalid_hmac_blocks_native_start_without_repair(
+    v2_empty_native_host, dataset, monkeypatch
+):
+    rig = v2_native_start_setup(v2_empty_native_host, dataset, client_proofs=True)
+    local = executor.start_run(
+        rig.store,
+        git_sha=rig.context.proposal["git_sha"],
+        source_root=Path(rig.fixture.native.value["source_host_root"]),
+        nonce="local-hmac-native-001",
+        evidence_mode=LOCAL,
+        timezone="UTC",
+        probes=rig.probes,
+    )
+    executor.finalize_run(
+        rig.store,
+        run_id=local["run_id"],
+        git_sha=rig.context.proposal["git_sha"],
+        abandon_reason="synthetic-pre-t0-stop",
+        probes=rig.probes,
+    )
+    run_root = rig.store.root / "runs" / local["run_id"]
+    index = run_root / "metadata/artifacts.jsonl"
+    index.with_suffix(".jsonl.hmac").write_text("0" * 64 + "\n", encoding="ascii")
+    prior = executor.prior_ex10_runs(rig.store)
+    assert len(prior) == 1 and prior[0].problems
+    before = tree(run_root)
+    v2_client_proof_start_setup(rig, monkeypatch)
+
+    def operation():
+        with pytest.raises(executor.Ex10Refusal) as error:
+            v2_start_call(rig)
+        assert error.value.reasons == ("prior-run-unverifiable:" + local["run_id"],)
+
+    v2_run_native_host(rig, operation)
+    assert tree(run_root) == before
+    assert not list(rig.store.root.glob("delivery-claim.*.json"))
+    assert rig.fixture.source.source.publisher.transport.calls.count("B3_CAS") == 0
+    assert rig.fixture.rig.a.transport.calls.count("COMMIT_OPEN") == 0
+
+
+def test_v2_new_native_start_rejects_obsolete_protocol_identity(native_h, monkeypatch):
+    """A new current Native OPEN cannot impersonate the historical science identity."""
+    h = native_h
+    started = h.native_started
+    source = started.broker.sources
+    a = started.fixture.rig.a
+    before = source.read_authority().canonical_material
+    historical = {
+        k: v for k, v in ex10.protocol_identity().items() if k != "decision_addendum_a2_commit"
+    }
+    with monkeypatch.context() as patch:
+        patch.setattr(ex10, "protocol_identity", lambda: dict(historical))
+        with pytest.raises(executor.ExecutorBridgeError, match="UNCERTAIN_PUBLICATION"):
+            h.start(evidence_mode=OFFICIAL)
+    assert len(started.host_errors) == 1
+    assert isinstance(started.host_errors[0], started.fixture.module.op.OperationalError)
+    assert source.read_authority().canonical_material == before
+    assert source.publisher.transport.calls.count("B3_CAS") == 0
+    assert a.transport.calls.count("COMMIT_OPEN") == 0
+    journal = a.journal.read()
+    record = journal["latest"][started.context.reservation["reservation_id"]]
+    assert record["state"] in ("PENDING", "UNCERTAIN")
+    assert journal["active"] is not None
+    initial = executor.load_existing_state_readonly(started.store, record["run_id"])
+    assert initial is not None
+    assert initial.initial_manifest["configuration"]["protocol"] == historical
+    assert not initial.finalized
+
+
+def native_damaged_custody_rejection(h, *, prior, damage, keep):
+    """Actual failed Native admission; no invented qualified common history.
+
+    The caller separately checks the original local unverifiable-custody oracle.
+    Damage to original OPEN evidence can reject even before new pipes/PF exist.
+    Otherwise the unchanged executor or broker still denies the new START.
+    """
+    started = h.native_started
+    mod, a = started.fixture.module, started.fixture.rig.a
+    before = {path: tree(path) for path in keep}
+    journal = a.journal.read()
+    claims = tuple(h.store.root.glob("delivery-claim.*.json"))
+    reserve_count = a.transport.calls.count("RESERVE")
+    commit_count = a.transport.calls.count("COMMIT_OPEN")
+    publisher = a.journal.sources.publisher.transport
+    cas_count = publisher.calls.count("B3_CAS")
+    try:
+        h.start(evidence_mode=OFFICIAL)
+    except mod.op.evidence.OpenEvidenceError as error:
+        assert damage in {"metadata-removed", "missing-artifact", "symlinked-run"}
+        assert error.code == "EVD_PATH_UNSAFE"
+    except executor.Ex10Refusal as error:
+        assert error.reasons == ("prior-run-unverifiable:" + prior,)
+        assert not error.terminal
+    except executor.ExecutorBridgeError as error:
+        assert error.code == "FRAME_INCOMPLETE"
+        assert len(h.native_started.host_errors) == 1
+        assert h.native_started.host_errors[0].code == "HOST_CONTEXT_INVALID"
+        # Authentic common history may still prove the prior PASS/FAIL binds,
+        # even when the later science/index trace cannot be locally verified.
+        assert h.native_started.admission_errors == ["FIRST_VALID_BLOCKED"]
+    else:
+        pytest.fail("Native admission accepted damaged prior custody")
+    assert a.journal.read() == journal
+    assert a.transport.calls.count("RESERVE") == reserve_count
+    assert a.transport.calls.count("COMMIT_OPEN") == commit_count
+    assert publisher.calls.count("B3_CAS") == cas_count
+    assert tuple(h.store.root.glob("delivery-claim.*.json")) == claims
+    assert {path: tree(path) for path in keep} == before
+
+
+@pytest.fixture
+def v2_preemission_rendezvous(v2_native_host, dataset, monkeypatch, h):
+    """Real 9/5 frames, B3/B4 and durable ARMED; OS/B5 providers are explicit synthetic inputs."""
+    single, proof = v2_authorized_current_fixture(v2_native_host, dataset, monkeypatch)
+    a = single.fixture.rig.a
+    probes = replace(
+        h.probes,
+        now=a.now,
+        fingerprint=lambda: single.fixture.rig.sample["context"].executor_fingerprint,
+    )
+    run_id = single.context.proposal["run_id"]
+    executor._checkpoint_started(
+        single.store,
+        run_id=run_id,
+        git_sha=single.context.proposal["git_sha"],
+        probes=probes,
+        dataset=dataset,
+        step="execute",
+        source="s11_ex10.execute",
+        operational_context=single.context,
+    )
+    executor._arm_emission(
+        single.store,
+        run_id,
+        single.context.proposal["git_sha"],
+        probes,
+        dataset,
+        operational_context=single.context,
+    )
+    state = executor.load_existing_state_readonly(single.store, run_id)
+    assert (
+        state is not None
+        and state.has(executor.ART_ARMED)
+        and executor.phase_of(state) is P.EMITTING
+    )
+    now = [single.context._now()]
+    single.context.clock = lambda: now[0]
+    # All synthetic issuers use the same explicit observation clock.
+    a.remote.clock = lambda: now[0]
+    a.journal.clock = lambda: now[0]
+    elapsed = [0.0]
+    monkeypatch.setattr(executor.time, "monotonic", lambda: elapsed[0])
+    directory = single.store.root / ".s11-operational" / proof.exchange_id
+    source = single.broker.sources
+    material = source.read_authority().canonical_material
+    challenge = single.context.host_challenge.to_dict()["challenge"]
+    record = single.context.reservation
+    roles = [
+        ("emission-material", material),
+        ("emission-head", canonical_json_bytes(source.publisher.transport.head_b3(challenge))),
+        ("emission-coordination", canonical_json_bytes(a.transport.head(challenge))),
+        (
+            "emission-receipt",
+            a.journal.receipt_store.read(record["reservation_receipt_reference"]["path"]),
+        ),
+    ]
+    published, guards = [], []
+    window = {
+        "checked_at": executor._utc(now[0] - timedelta(seconds=1)),
+        "expires_at": executor._utc(now[0] + timedelta(seconds=900)),
+    }
+
+    def envelope(raw):
+        assert raw == b"SYNTHETIC-B5-WINDOW-ONLY"
+        assert (
+            executor.wire._time(window["checked_at"])
+            <= now[0]
+            < executor.wire._time(window["expires_at"])
+        ), "synthetic B5 expired"
+        return dict(window)
+
+    def guard():
+        single.fixture.native.qualifier.qualify()
+        guards.append(elapsed[0])
+        try:
+            envelope(b"SYNTHETIC-B5-WINDOW-ONLY")
+        except AssertionError:
+            raise executor.ExecutorBridgeError("DEPLOYMENT_REQUIRED") from None
+
+    def publish(role, raw):
+        fd = os.open(
+            directory / (role + ".json"),
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+            0o600,
+        )
+        try:
+            assert os.write(fd, raw) == len(raw)
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+        published.append(role)
+
+    def sleep(seconds):
+        elapsed[0] += seconds
+        if len(published) < len(roles):
+            publish(*roles[len(published)])
+
+    monkeypatch.setattr(executor.time, "sleep", sleep)
+    apparatus = SimpleNamespace(
+        context=single.context,
+        proof=proof,
+        cfg={"action": "execute", "exchange_id": proof.exchange_id},
+        preparation_deadline=900.0,
+        check_os=guard,
+        _envelope=envelope,
+        envelope_bytes=b"SYNTHETIC-B5-WINDOW-ONLY",
+        emission_admitted=False,
+    )
+    yield SimpleNamespace(
+        single=single,
+        proof=proof,
+        apparatus=apparatus,
+        roles=roles,
+        published=published,
+        guards=guards,
+        elapsed=elapsed,
+        now=now,
+        window=window,
+        publish=publish,
+        directory=directory,
+        run_id=run_id,
+    )
+
+
+def test_v2_preemission_waits_for_delayed_four_proofs_after_actual_armed(v2_preemission_rendezvous):
+    x = v2_preemission_rendezvous
+    executor.ExecutorNativeBootstrap.current(
+        x.apparatus, context=x.single.context, action="execute", run_id=x.run_id, phase="BARRIER"
+    )
+    assert x.published == [role for role, _ in x.roles]
+    assert x.elapsed[0] >= 0.2 and len(x.guards) >= 4
+    assert x.apparatus.emission_admitted
+    assert x.single.context.channel.position == 5 and x.single.context.finished
+    state = executor.load_existing_state_readonly(x.single.store, x.run_id)
+    assert state.has(executor.ART_ARMED) and executor.phase_of(state) is P.EMITTING
+    assert (
+        x.single.broker.journal.read()["latest"][x.single.context.reservation["reservation_id"]][
+            "state"
+        ]
+        == "COMMITTED"
+    )
+
+
+def test_v2_preemission_partial_publication_keeps_absolute_deadline(
+    v2_preemission_rendezvous, monkeypatch
+):
+    x = v2_preemission_rendezvous
+    x.apparatus.preparation_deadline = 0.2
+
+    def partial(seconds):
+        x.elapsed[0] += seconds
+        if len(x.published) < 3:
+            x.publish(*x.roles[len(x.published)])
+
+    monkeypatch.setattr(executor.time, "sleep", partial)
+    with pytest.raises(executor.ExecutorBridgeError, match="EMISSION_NOT_PREPARED"):
+        executor.ExecutorNativeBootstrap.current(
+            x.apparatus,
+            context=x.single.context,
+            action="execute",
+            run_id=x.run_id,
+            phase="BARRIER",
+        )
+    assert not x.apparatus.emission_admitted and len(x.published) == 3
+    assert x.elapsed[0] >= 0.2
+    assert (
+        executor.phase_of(executor.load_existing_state_readonly(x.single.store, x.run_id))
+        is P.EMITTING
+    )
+
+
+def test_v2_preemission_lost_process_guard_stops_wait(v2_preemission_rendezvous):
+    x = v2_preemission_rendezvous
+    genuine = x.apparatus.check_os
+
+    def lost():
+        genuine()
+        if len(x.guards) >= 2:
+            raise executor.ExecutorBridgeError("PROCESS_IDENTITY_CHANGED")
+
+    x.apparatus.check_os = lost
+    with pytest.raises(executor.ExecutorBridgeError, match="PROCESS_IDENTITY_CHANGED"):
+        executor.ExecutorNativeBootstrap.current(
+            x.apparatus,
+            context=x.single.context,
+            action="execute",
+            run_id=x.run_id,
+            phase="BARRIER",
+        )
+    assert not x.apparatus.emission_admitted and len(x.published) < 4
+
+
+def test_v2_preemission_wait_rejects_b5_expiry_without_refresh(
+    v2_preemission_rendezvous, monkeypatch
+):
+    x = v2_preemission_rendezvous
+    x.window["expires_at"] = executor._utc(x.now[0] + timedelta(seconds=0.1))
+
+    def delayed(seconds):
+        x.elapsed[0] += seconds
+        x.now[0] += timedelta(seconds=0.05)
+        if len(x.published) < len(x.roles):
+            x.publish(*x.roles[len(x.published)])
+
+    monkeypatch.setattr(executor.time, "sleep", delayed)
+    with pytest.raises(executor.ExecutorBridgeError, match="DEPLOYMENT_REQUIRED"):
+        executor.ExecutorNativeBootstrap.current(
+            x.apparatus,
+            context=x.single.context,
+            action="execute",
+            run_id=x.run_id,
+            phase="BARRIER",
+        )
+    assert not x.apparatus.emission_admitted and len(x.published) < 4
+
+
+@pytest.mark.parametrize(
+    "fault", ["signature", "head-expiry", "symlink", "noncanonical", "replacement"]
+)
+def test_v2_preemission_wait_never_repairs_invalid_published_proof(
+    v2_preemission_rendezvous, monkeypatch, fault
+):
+    x = v2_preemission_rendezvous
+    if fault in {"signature", "head-expiry"}:
+        for role, raw in x.roles:
+            if fault == "signature" and role == "emission-head":
+                value = json.loads(raw)
+                value["signature"] = "0" * 128
+                raw = canonical_json_bytes(value)
+            x.publish(role, raw)
+        if fault == "head-expiry":
+            x.now[0] += timedelta(seconds=31)
+    elif fault == "symlink":
+        (x.directory / "emission-head.json").symlink_to("/dev/null")
+    elif fault == "noncanonical":
+        x.publish("emission-head", b"{} \\n")
+    else:
+        x.publish(*x.roles[0])
+
+        def replaced(seconds):
+            x.elapsed[0] += seconds
+            (x.directory / (x.roles[0][0] + ".json")).write_bytes(b"{}\\n")
+            for role, raw in x.roles[1:]:
+                if role not in x.published:
+                    x.publish(role, raw)
+
+        monkeypatch.setattr(executor.time, "sleep", replaced)
+    with pytest.raises(executor.ExecutorBridgeError):
+        executor.ExecutorNativeBootstrap.current(
+            x.apparatus,
+            context=x.single.context,
+            action="execute",
+            run_id=x.run_id,
+            phase="BARRIER",
+        )
+    assert not x.apparatus.emission_admitted
+    assert (
+        executor.phase_of(executor.load_existing_state_readonly(x.single.store, x.run_id))
+        is P.EMITTING
+    )
+
+
+@pytest.mark.parametrize("boundary", ["qualification", "final-b5"])
+def test_v2_preemission_rejects_identical_bytes_new_inode_until_admission(
+    v2_preemission_rendezvous, monkeypatch, boundary
+):
+    x = v2_preemission_rendezvous
+    for role, raw in x.roles:
+        x.publish(role, raw)
+    path = x.directory / (x.roles[0][0] + ".json")
+    original_inode = path.stat().st_ino
+
+    def replace_same_bytes():
+        raw = path.read_bytes()
+        path.rename(x.directory / "retained-original.json")
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+        try:
+            assert os.write(fd, raw) == len(raw)
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+        assert path.stat().st_ino != original_inode and path.read_bytes() == raw
+
+    if boundary == "qualification":
+        genuine = x.proof.current
+
+        def qualify(**kw):
+            replace_same_bytes()
+            return genuine(**kw)
+
+        monkeypatch.setattr(x.proof, "current", qualify)
+    else:
+        genuine = x.apparatus._envelope
+
+        def envelope(raw):
+            result = genuine(raw)
+            replace_same_bytes()
+            return result
+
+        x.apparatus._envelope = envelope
+    with pytest.raises(executor.ExecutorBridgeError, match="HOST_PROOF_CHANGED"):
+        executor.ExecutorNativeBootstrap.current(
+            x.apparatus,
+            context=x.single.context,
+            action="execute",
+            run_id=x.run_id,
+            phase="BARRIER",
+        )
+    assert not x.apparatus.emission_admitted
+    assert x.single.context.channel.position == 5
+    assert executor.load_existing_state_readonly(x.single.store, x.run_id).has(executor.ART_ARMED)
+
+
+def test_v2_preemission_original_deadline_after_final_freshness(
+    v2_preemission_rendezvous, monkeypatch
+):
+    x = v2_preemission_rendezvous
+    for role, raw in x.roles:
+        x.publish(role, raw)
+    genuine = x.proof.check_current_freshness
+
+    def final_clock(**kw):
+        result = genuine(**kw)
+        x.elapsed[0] = x.apparatus.preparation_deadline
+        return result
+
+    monkeypatch.setattr(x.proof, "check_current_freshness", final_clock)
+    with pytest.raises(executor.ExecutorBridgeError, match="EMISSION_NOT_PREPARED"):
+        executor.ExecutorNativeBootstrap.current(
+            x.apparatus,
+            context=x.single.context,
+            action="execute",
+            run_id=x.run_id,
+            phase="BARRIER",
+        )
+    assert not x.apparatus.emission_admitted
+    assert x.single.context.channel.position == 5
+    assert executor.load_existing_state_readonly(x.single.store, x.run_id).has(executor.ART_ARMED)
+
+
+def v2_install_separate_operator_authorization(fixture):
+    """Install an explicit ephemeral pair approval before any real grant.
+
+    This fixture exercises the existing fixed verifier boundary; its small
+    synthetic authorization is not an operational signed approval format.
+    Process/B5 providers retain their existing explicit synthetic limitations.
+    """
+    mod, rig, source = fixture.module, fixture.rig, fixture.source.source
+    raw = mod.op.sql.canonical_bytes({"fixture": "independent-operator-approval"})
+    created = rig.store_file("operator-approval", raw, "s11-ex10-synthetic-authorization-v1")
+    binding = mod.op.HostArtifactBinding("authorization", created.reference, created.store)
+    original = rig.policy_options["approval_verifier"]
+    calls = []
+
+    def approve_pair(**kw):
+        original(**kw)
+        assert kw["canonical_authorization"] == raw
+        assert kw["authorization_reference"] == binding.reference
+        assert kw["reference"] == mod.op.sql.canonical_bytes(rig.host_policy.reference)
+        assert kw["journal"] is rig.a.journal
+        calls.append((kw["authorization_reference"], kw["reference"]))
+
+    rig.policy_options = dict(
+        rig.policy_options,
+        authorization_binding=binding,
+        approval_verifier=approve_pair,
+    )
+    rig.host_policy = mod.op.NativeHostPolicy(**rig.policy_options)
+    rig.policy = binding
+    source.policy = rig.host_policy
+    fixed = tuple(b for name, b in source.registry.bindings.items() if name != "authorization")
+    source.registry = mod.op.HostArtifactRegistry(fixed + (binding,))
+    source.verify_registry(canonical_binding=rig.a.journal.binding, journal=rig.a.journal)
+    request = mod.wire.parse_request_bytes(rig.raw).to_dict()
+    request["authorization_reference"] = mod.op.sql.parse_canonical(binding.reference)
+    request["capability"]["authorization_reference"] = request["authorization_reference"].copy()
+    rig.raw = mod.builder.signed_request(request, rig.a.bridge, rig.a.holder)
+    assert source.authorization_reference == binding.reference
+    assert rig.host_policy.reference != rig.host_policy.operator_authorization_reference
+    return SimpleNamespace(binding=binding, raw=raw, calls=calls)
+
+
+def test_v2_separate_authorization_actual_start9(v2_native_host, dataset):
+    pair = v2_install_separate_operator_authorization(v2_native_host)
+    rig = v2_native_start_setup(v2_native_host, dataset)
+    result, errors, responses = v2_run_native_host(rig, lambda: v2_start_call(rig))
+    assert errors == [] and len(responses) == 1
+    assert result["run_id"] == rig.context.proposal["run_id"]
+    assert rig.context.channel.position == 9 and rig.context.finished
+    record = rig.context.reservation
+    assert record["operator_authorization_reference"] == json.loads(pair.binding.reference)
+    assert record["coordination_policy_reference"] == v2_native_host.rig.host_policy.reference
+    assert record["operator_authorization_reference"] != record["coordination_policy_reference"]
+    assert v2_native_host.rig.a.transport.calls.count("RESERVE") == 1
+    assert v2_native_host.source.source.publisher.transport.calls.count("B3_CAS") == 1
+    assert v2_native_host.rig.a.transport.calls.count("COMMIT_OPEN") == 1
+    assert pair.calls and all(operator != policy for operator, policy in pair.calls)
+
+
+@pytest.mark.parametrize("provider", ["prior_reader", "prior_verifier", "guard"])
+def test_v2_separate_authorization_retains_response_before_provider(
+    v2_native_host, dataset, provider
+):
+    v2_install_separate_operator_authorization(v2_native_host)
+    rig = v2_native_start_setup(v2_native_host, dataset)
+    original = getattr(rig.context, provider)
+    changed = []
+
+    def mutate(**kw):
+        result = original(**kw)
+        context = kw["context"]
+        if context.reservation is not None and not changed:
+            value = json.loads(canonical_json_bytes(context.reservation))
+            value["coordination_policy_reference"]["sha256"] = "e" * 64
+            context.reservation = rig.fixture.module.cf.coord._seal_record(value)
+            # The replacement passes the actual closed schema and digest checks.
+            executor.wire.qualify_reservation(canonical_json_bytes(context.reservation))
+            changed.append(True)
+        return result
+
+    setattr(rig.context, provider, mutate)
+    with pytest.raises(executor.ExecutorBridgeError, match="RESERVATION_MISMATCH"):
+        v2_run_native_host(rig, lambda: v2_start_call(rig))
+    assert changed == [True]
+    assert rig.fixture.rig.a.transport.calls.count("RESERVE") == 1
+    assert rig.fixture.rig.a.transport.calls.count("COMMIT_OPEN") == 0
+    assert rig.fixture.source.source.publisher.transport.calls.count("B3_CAS") == 0
+    assert not (
+        rig.store.root / "runs"
+    ).exists(), "Provider replaced authenticated intent before delivery"
+
+
+@pytest.mark.parametrize("fault", ["raw-changed", "registry-rebound", "approval-boolean"])
+def test_v2_separate_authorization_pair_approval_rechecks_actual_binding(v2_native_host, fault):
+    pair = v2_install_separate_operator_authorization(v2_native_host)
+    policy = v2_native_host.rig.host_policy
+    original = policy.approve
+    changed = []
+
+    def mutate(**kw):
+        original(**kw)
+        if fault == "raw-changed":
+            Path(json.loads(pair.binding.reference)["path"]).write_bytes(b"{}\n")
+        elif fault == "registry-rebound":
+            policy._authorization_registry = None
+        changed.append(True)
+        return True if fault == "approval-boolean" else None
+
+    policy.approve = mutate
+    with pytest.raises(v2_native_host.module.op.OperationalError):
+        policy.qualify(
+            native=v2_native_host.native.qualifier.qualify(), journal=v2_native_host.rig.a.journal
+        )
+    assert changed == [True]
+    assert v2_native_host.rig.a.transport.calls.count("RESERVE") == 0
+    assert v2_native_host.source.source.publisher.transport.calls.count("B3_CAS") == 0
+
+
+@pytest.mark.parametrize("fault", ["clear", "rewrite", "reader-rebind", "claim-rebind"])
+def test_v2_separate_authorization_intent_mirror_cannot_reset(v2_native_host, dataset, fault):
+    v2_install_separate_operator_authorization(v2_native_host)
+    rig = v2_native_start_setup(v2_native_host, dataset)
+    original = rig.context.guard
+    changed = []
+
+    def mutate(**kw):
+        original(**kw)
+        context = kw["context"]
+        if context._reservation_intent is not None and not changed:
+            if fault == "clear":
+                context._reservation_intent = None
+            elif fault == "rewrite":
+                value = json.loads(canonical_json_bytes(context.reservation))
+                value["coordination_policy_reference"]["sha256"] = "e" * 64
+                value = rig.fixture.module.cf.coord._seal_record(value)
+                executor.wire.qualify_reservation(canonical_json_bytes(value))
+                context.reservation = value
+                context._reservation_intent = canonical_json_bytes(
+                    {
+                        k: value[k]
+                        for k in (*executor.wire.RESERVATION_INTENT_FIELDS, "reservation_digest")
+                    }
+                )
+            elif fault == "reader-rebind":
+                context._intent_reader = lambda: context._reservation_intent
+            else:
+                context._retain_reservation_intent = lambda raw: None
+            changed.append(True)
+
+    rig.context.guard = mutate
+    with pytest.raises(executor.ExecutorBridgeError, match="RESERVATION_MISMATCH"):
+        v2_run_native_host(rig, lambda: v2_start_call(rig))
+    assert changed == [True]
+    assert rig.fixture.rig.a.transport.calls.count("RESERVE") == 1
+    assert rig.fixture.rig.a.transport.calls.count("COMMIT_OPEN") == 0
+    assert not (
+        rig.store.root / "runs"
+    ).exists(), "Retained intent mirror was reset before delivery"
+
+
+def test_v2_separate_authorization_cannot_fall_back_before_qualification(v2_native_host):
+    v2_install_separate_operator_authorization(v2_native_host)
+    policy = v2_native_host.rig.host_policy
+    policy._authorization_registry = None
+    with pytest.raises(v2_native_host.module.op.OperationalError, match="HOST_POLICY_INVALID"):
+        policy.qualify(
+            native=v2_native_host.native.qualifier.qualify(), journal=v2_native_host.rig.a.journal
+        )
+    assert v2_native_host.rig.a.transport.calls.count("RESERVE") == 0
+
+
+def test_v2_separate_authorization_original_policy_single5(v2_native_host, dataset):
+    pair = v2_install_separate_operator_authorization(v2_native_host)
+    started = v2_native_start_setup(v2_native_host, dataset)
+    _, errors, responses = v2_run_native_host(started, lambda: v2_start_call(started))
+    assert errors == [] and len(responses) == 1
+    original_policy = started.context.reservation["coordination_policy_reference"].copy()
+    single = v2_native_single_setup(started, action="execute")
+    try:
+        _, replies = v2_run_single_host(
+            single,
+            lambda: single.context.authorize_step(
+                single.store,
+                action="execute",
+                run_id=started.context.proposal["run_id"],
+                git_sha=started.context.proposal["git_sha"],
+                phase="BASELINE",
+            ),
+        )
+        assert len(replies) == 1 and single.context.channel.position == 5
+        assert single.context.finished and single.context.step_authorized
+        assert single.context.reservation["coordination_policy_reference"] == original_policy
+        assert single.context.reservation["operator_authorization_reference"] == json.loads(
+            pair.binding.reference
+        )
+        assert single.context.preflight is None
+        assert v2_native_host.rig.a.transport.calls.count("RESERVE") == 1
+    finally:
+        single.context.channel.close()
+        single.host.close()
+
+
+def test_v2_separate_authorization_single_admission_keeps_permission_false(v2_native_host, dataset):
+    v2_install_separate_operator_authorization(v2_native_host)
+    started = v2_native_start_setup(v2_native_host, dataset)
+    _, errors, replies = v2_run_native_host(started, lambda: v2_start_call(started))
+    assert errors == [] and len(replies) == 1
+    single = v2_native_single_setup(started, action="execute")
+    original = single.context.prior_verifier
+    changed = []
+
+    def mutate(**kw):
+        original(**kw)
+        context = kw["context"]
+        context._intent_reader = lambda: None
+        context._retain_reservation_intent = lambda raw: None
+        context._reservation_intent = None
+        changed.append(True)
+
+    single.context.prior_verifier = mutate
+    try:
+        with pytest.raises(executor.ExecutorBridgeError, match="RESERVATION_MISMATCH"):
+            v2_run_single_host(
+                single,
+                lambda: single.context.authorize_step(
+                    single.store,
+                    action="execute",
+                    run_id=started.context.proposal["run_id"],
+                    git_sha=started.context.proposal["git_sha"],
+                    phase="BASELINE",
+                ),
+            )
+        assert changed == [True]
+        assert (
+            not single.context.step_authorized
+        ), "Rejected final SINGLE guard left scientific permission set"
+    finally:
+        single.context.channel.close()
+        single.host.close()
+
+
+def test_v2_separate_authorization_envelope_provider_cannot_rebind_mode(v2_native_host):
+    v2_install_separate_operator_authorization(v2_native_host)
+    policy = v2_native_host.rig.host_policy
+    original = policy.envelope
+    changed = []
+
+    def mutate(**kw):
+        original(**kw)
+        policy._authorization_registry = None
+        policy._authorization_guard = lambda: None
+        changed.append(True)
+
+    policy.envelope = mutate
+    mod, a = v2_native_host.module, v2_native_host.rig.a
+    with pytest.raises(mod.op.OperationalError, match="HOST_POLICY_INVALID"):
+        policy.reserve_references(
+            registry=v2_native_host.source.source.registry,
+            native=v2_native_host.native.qualifier.qualify(),
+            snapshot=v2_native_host.source.source.read_authority(),
+            issued_at=mod.cf.coord._utc(a.now()),
+        )
+    assert changed == [True]
+    assert a.transport.calls.count("RESERVE") == 0
+
+
+def v2_clone_context_options(context):
+    cfg = context._cfg()
+    return dict(
+        action=context.action,
+        channel=context.channel,
+        bridge_pin=context.pin,
+        witness_pin=context.witness,
+        holder_key=context.holder,
+        expected_challenge=cfg["expected_challenge"],
+        request_payload=cfg["payload"],
+        evidence_root=cfg["evidence_root"],
+        host_evidence_root=cfg["host_evidence_root"],
+        staging_name=cfg["staging_name"],
+        authority_revision=cfg["authority_revision"],
+        host_root_binding_sha256=cfg["host_root_binding_sha256"],
+        expected_reservation=cfg["expected_reservation"],
+        native_admitter=context.admit,
+        current_guard=context.guard,
+        common_prior_reader=context.prior_reader,
+        common_prior_verifier=context.prior_verifier,
+        commit_verifier=context.verify_commit,
+        terminal_preparer=context.prepare_terminal,
+        clock=context.clock,
+    )
+
+
+def test_v2_separate_authorization_nonstart_constructor_retains_before_admitter(
+    v2_native_host, dataset
+):
+    v2_install_separate_operator_authorization(v2_native_host)
+    started = v2_native_start_setup(v2_native_host, dataset)
+    _, errors, replies = v2_run_native_host(started, lambda: v2_start_call(started))
+    assert errors == [] and len(replies) == 1
+    single = v2_native_single_setup(started, action="execute")
+    original = single.context.admit
+    changed = []
+
+    def mutate(**kw):
+        original(**kw)
+        context = kw["context"]
+        context._intent_reader = lambda: None
+        context._retain_reservation_intent = lambda raw: None
+        context._reservation_intent = None
+        changed.append(True)
+
+    options = dict(v2_clone_context_options(single.context), native_admitter=mutate)
+    try:
+        with pytest.raises(executor.ExecutorBridgeError, match="RESERVATION_MISMATCH"):
+            executor.ExecutorOperationalContext(**options)
+        assert changed == [True]
+        assert single.context.channel.position == 0
+        assert not single.context.step_authorized
+    finally:
+        single.context.channel.close()
+        single.host.close()
+
+
+def test_v2_separate_authorization_public_result_provider_cannot_clear_intent(
+    v2_native_host, dataset
+):
+    v2_install_separate_operator_authorization(v2_native_host)
+    started = v2_native_start_setup(v2_native_host, dataset)
+    result, errors, replies = v2_run_native_host(started, lambda: v2_start_call(started))
+    assert errors == [] and len(replies) == 1
+    original = started.context.guard
+    changed = []
+
+    def mutate(**kw):
+        original(**kw)
+        context = kw["context"]
+        context._intent_reader = lambda: None
+        context._retain_reservation_intent = lambda raw: None
+        context._reservation_intent = None
+        changed.append(True)
+
+    started.context.guard = mutate
+    with pytest.raises(executor.ExecutorBridgeError, match="RESERVATION_MISMATCH"):
+        started.context.persist_public_result(started.store, result)
+    assert changed == [True]
+    output = started.store.root / (
+        "executor-result." + started.context.channel.exchange_id + ".json"
+    )
+    assert not output.exists(), "Public result bypassed the retained original intent"
+
+
+def test_v2_separate_authorization_terminal_provider_cannot_clear_intent(
+    v2_native_host, dataset, monkeypatch
+):
+    v2_install_separate_operator_authorization(v2_native_host)
+    started = v2_native_start_setup(v2_native_host, dataset, client_proofs=True)
+    v2_client_proof_start_setup(started, monkeypatch)
+    _, errors, replies = v2_run_native_host(started, lambda: v2_start_call(started))
+    assert errors == [] and len(replies) == 1
+    single = v2_native_single_setup(started, action="finalize", client_proofs=True)
+    v2_client_proof_single_setup(single, monkeypatch)
+    changed = []
+
+    def mutate(*, context, store, run_id, result):
+        state = executor.load_existing_state_readonly(store, run_id)
+        assert state is not None and state.finalized and context is single.context
+        executor.validate_finalized_state(
+            state.run_root, state.records, custody_hmac_key=store.custody_hmac_key
+        )
+        context._intent_reader = lambda: None
+        context._retain_reservation_intent = lambda raw: None
+        context._reservation_intent = None
+        changed.append(True)
+
+    single.context.prepare_terminal = mutate
+    try:
+        with pytest.raises(executor.ExecutorBridgeError, match="RESERVATION_MISMATCH"):
+            v2_run_single_host(
+                single,
+                lambda: executor.finalize_run(
+                    single.store,
+                    run_id=single.context.proposal["run_id"],
+                    git_sha=single.context.proposal["git_sha"],
+                    abandon_reason="synthetic-pre-t0-stop",
+                    probes=started.probes,
+                    operational_context=single.context,
+                ),
+            )
+        assert changed == [True]
+        assert (
+            not single.context.terminal_prepared
+        ), "Rejected terminal callback left permission set"
+        assert single.fixture.rig.a.transport.calls.count("RETIRE") == 0
+    finally:
+        single.context.channel.close()
+        single.host.close()
+
+
+def test_v2_separate_authorization_authenticated_pair_admitted_before_delivery(
+    v2_native_host, dataset
+):
+    pair = v2_install_separate_operator_authorization(v2_native_host)
+    rig = v2_native_start_setup(v2_native_host, dataset)
+    granted = []
+
+    def reserve():
+        permit = None
+        try:
+            permit = rig.context.reserve(rig.store)
+        except executor.ExecutorBridgeError:
+            pass
+        assert permit is not None, "Authenticated distinct policy/operator pair was rejected"
+        granted.append(permit)
+
+    v2_run_native_host(rig, reserve)
+    assert len(granted) == 1 and rig.context.reservation["state"] == "PENDING"
+    assert rig.context.reservation["operator_authorization_reference"] == json.loads(
+        pair.binding.reference
+    )
+    assert (
+        rig.context.reservation["coordination_policy_reference"]
+        == v2_native_host.rig.host_policy.reference
+    )
+    assert not rig.context.consumed
+    assert not (rig.store.root / "runs").exists()
+    assert v2_native_host.source.source.publisher.transport.calls.count("B3_CAS") == 0
+
+
+@pytest.mark.parametrize("provider", ["prior_reader", "prior_verifier", "guard"])
+def test_v2_separate_authorization_original_intent_denies_before_delivery(
+    v2_native_host, dataset, provider
+):
+    v2_install_separate_operator_authorization(v2_native_host)
+    rig = v2_native_start_setup(v2_native_host, dataset)
+    original = getattr(rig.context, provider)
+    changed, denied = [], []
+
+    def mutate(**kw):
+        result = original(**kw)
+        context = kw["context"]
+        if context.reservation is not None and not changed:
+            value = json.loads(canonical_json_bytes(context.reservation))
+            value["coordination_policy_reference"]["sha256"] = "e" * 64
+            context.reservation = rig.fixture.module.cf.coord._seal_record(value)
+            executor.wire.qualify_reservation(canonical_json_bytes(context.reservation))
+            changed.append(True)
+        return result
+
+    setattr(rig.context, provider, mutate)
+
+    def reserve():
+        try:
+            rig.context.reserve(rig.store)
+        except executor.ExecutorBridgeError as error:
+            denied.append(error.code)
+        assert denied == [
+            "RESERVATION_MISMATCH"
+        ], "Altered original intent was admitted before delivery"
+
+    v2_run_native_host(rig, reserve)
+    assert changed == [True] and not rig.context.consumed
+    assert not (rig.store.root / "runs").exists()
+    assert v2_native_host.rig.a.transport.calls.count("RESERVE") == 1
+    assert v2_native_host.source.source.publisher.transport.calls.count("B3_CAS") == 0
+
+
+def test_v2_separate_authorization_retains_intent_after_real_commit_eof(v2_native_host, dataset):
+    v2_install_separate_operator_authorization(v2_native_host)
+    changed, denied = [], []
+    context_ref = {}
+
+    def channel_guard_factory():
+        def mutate():
+            context = context_ref.get("context")
+            if context is None:
+                return
+            channel = context.channel
+            if channel.position == 9 and channel.write_fd is None and not changed:
+                context._intent_reader = lambda: None
+                context._retain_reservation_intent = lambda raw: None
+                context._reservation_intent = None
+                changed.append(True)
+
+        return mutate
+
+    rig = v2_native_start_setup(
+        v2_native_host, dataset, channel_guard_factory=channel_guard_factory
+    )
+    context_ref["context"] = rig.context
+
+    def start():
+        try:
+            v2_start_call(rig)
+        except executor.ExecutorBridgeError as error:
+            denied.append(error.code)
+        assert denied == [
+            "UNCERTAIN_PUBLICATION"
+        ], "Commit EOF provider erased the retained original intent"
+
+    v2_run_native_host(rig, start)
+    assert changed == [True] and not rig.context.finished and not rig.context.scientific_finished
+    assert v2_native_host.rig.a.transport.calls.count("COMMIT_OPEN") == 1
+    assert v2_native_host.source.source.publisher.transport.calls.count("B3_CAS") == 1
+
+
+def _v2_command_refusal_tree(root):
+    """Physical immutable SDK evidence, excluding access-time observations."""
+    return {
+        str(path.relative_to(root)): (
+            path.read_bytes() if path.is_file() else None,
+            stat.S_IMODE(path.lstat().st_mode),
+            path.lstat().st_ino,
+            path.lstat().st_mtime_ns,
+            path.lstat().st_ctime_ns if path.is_file() else None,
+        )
+        for path in (root, *sorted(root.rglob("*")))
+    }
+
+
+def _v2_command_refusal_actual_sealed_premise(fixture, dataset, monkeypatch):
+    """Actual START9 and SDK seal after SINGLE5; common B3 remains OPEN.
+
+    This component premise has no Factory pending intent to clear and no
+    terminal publication/retirement. It does not claim actual PID1 transfer.
+    """
+    started = v2_native_start_setup(fixture, dataset, client_proofs=True)
+    v2_client_proof_start_setup(started, monkeypatch)
+    result, errors, responses = v2_run_native_host(started, lambda: v2_start_call(started))
+    assert not errors and len(responses) == 1 and result["phase"] == "PREPARED"
+
+    def prepare(*, context, store, run_id, result):
+        assert context is sealed.context and store is sealed.store
+        assert run_id == result["run_id"] == started.context.proposal["run_id"]
+        state = executor.load_existing_state_readonly(store, run_id)
+        assert state is not None and state.finalized
+        executor.validate_finalized_state(
+            state.run_root,
+            state.records,
+            custody_hmac_key=store.custody_hmac_key,
+        )
+
+    sealed = v2_native_single_setup(
+        started,
+        action="finalize",
+        client_proofs=True,
+        terminal_preparer=prepare,
+    )
+    v2_client_proof_single_setup(sealed, monkeypatch)
+    final, responses = v2_run_single_host(
+        sealed,
+        lambda: executor.finalize_run(
+            sealed.store,
+            run_id=result["run_id"],
+            git_sha=started.context.proposal["git_sha"],
+            abandon_reason="synthetic-pre-t0-stop",
+            probes=started.probes,
+            operational_context=sealed.context,
+        ),
+    )
+    assert len(responses) == 1 and final["decision"] == "NOT_DEMONSTRATED"
+    assert not final["binding"] and sealed.context.scientific_finished
+    assert sealed.context.channel.closed and sealed.context.channel.position == 5
+    state = executor.load_existing_state_readonly(sealed.store, result["run_id"])
+    assert state is not None and state.finalized and sealed.store.verify(result["run_id"]) == []
+    assert not state.has(executor.ART_RAW)
+    authority = sealed.broker.sources.read_authority()
+    assert (
+        sealed.fixture.module.op.history.find_run(authority, result["run_id"])["lifecycle_state"]
+        == "OPEN"
+    )
+    assert started.fixture.rig.a.transport.calls.count("RETIRE") == 0
+    return started, state, _v2_command_refusal_tree(state.run_root)
+
+
+@pytest.mark.parametrize(
+    "fault",
+    [
+        pytest.param("none", id="original-scientific2-private-result"),
+        pytest.param("closed-original-provider-rebound", id="closed-original-provider-rebound"),
+        pytest.param("seal-hmac-after-actual-refusal", id="seal-hmac-after-actual-refusal"),
+        pytest.param(
+            "custody-lock-replaced-after-metadata-open",
+            id="custody-lock-replaced-after-metadata-open",
+        ),
+        pytest.param(
+            "custody-lock-replaced-after-shared-unlock",
+            id="custody-lock-replaced-after-shared-unlock",
+        ),
+    ],
+)
+def test_v2_native_command_terminal_refusal_requires_original_private_producer(
+    v2_empty_native_host, dataset, monkeypatch, capsys, fault
+):
+    """Real Command/SINGLE5/SDK Ex10Refusal; faults must reach their exact point.
+
+    Old-command causal RED uses SDK512 and the unchanged scientific exception,
+    proving the missing private output. Fault regressions qualify only after the
+    intended producer injection is reached; missing APIs/imports are not RED.
+    Synthetic installed host providers remain explicit. PID1/Docker process
+    exit transfer requires a separate actual owned-boundary test.
+    """
+    started, sealed_state, sealed_tree = _v2_command_refusal_actual_sealed_premise(
+        v2_empty_native_host,
+        dataset,
+        monkeypatch,
+    )
+    declaration = v2_native_single_setup(started, action="finalize", client_proofs=True)
+    v2_client_proof_single_setup(declaration, monkeypatch)
+    context, store = declaration.context, declaration.store
+    authority_before = declaration.broker.sources.read_authority().canonical_material
+    slots_before = declaration.fixture.rig.a.journal.read()["latest"]
+    result_path = store.root / ("executor-result." + context.channel.exchange_id + ".json")
+    lock_path = store.root / ".s11-custody.lock"
+    assert not result_path.exists() and lock_path.is_file()
+    probe = {"science": [], "producer": [], "fired": [], "armed": False}
+    actual_finalize = executor.finalize_run
+    actual_producer = executor.ExecutorOperationalContext.persist_terminal_refusal
+    actual_open, actual_flock = os.open, fcntl.flock
+
+    def original_scientific_refusal(*args, **kwargs):
+        try:
+            return actual_finalize(*args, **kwargs)
+        except executor.Ex10Refusal as error:
+            assert type(error) is executor.Ex10Refusal and error.terminal
+            assert error.reasons == ("run-finalized",)
+            assert kwargs["operational_context"] is context
+            assert context.finished and context.step_authorized and not context.scientific_finished
+            assert context.channel.closed and context.channel.position == 5
+            probe["science"].append(error)
+            raise
+
+    def replace_lock(point):
+        assert probe["armed"] and not probe["fired"] and len(probe["science"]) == 1
+        before, raw = lock_path.lstat(), lock_path.read_bytes()
+        assert stat.S_ISREG(before.st_mode) and stat.S_IMODE(before.st_mode) == 0o600
+        assert before.st_nlink == 1
+        if point == "actual-custody-shared-lock-released":
+            assert result_path.is_file()
+            probe["private_before_late_fault"] = result_path.read_bytes()
+            assert probe["private_before_late_fault"] == canonical_json_bytes(
+                {"refused": True, "terminal": True, "reasons": ["run-finalized"]},
+            )
+        replacement = lock_path.with_name(lock_path.name + ".test-owned-replacement")
+        with replacement.open("xb") as stream:
+            stream.write(raw)
+        replacement.chmod(0o600)
+        os.replace(replacement, lock_path)
+        assert lock_path.read_bytes() == raw and lock_path.lstat().st_ino != before.st_ino
+        probe["fired"].append(point)
+
+    def producer(observation, error, *, declare_executor_gone):
+        assert observation is context and error is probe["science"][0]
+        assert declare_executor_gone is True and not probe["producer"]
+        assert context._closed_single_reader() is not None
+        probe["producer"].append(error)
+        probe["armed"] = True
+        if fault == "closed-original-provider-rebound":
+            original = context.guard
+            context.guard = lambda **kw: original(**kw)
+            assert context.guard is not original
+            probe["fired"].append("original-provider-identity-after-actual-refusal")
+        elif fault == "seal-hmac-after-actual-refusal":
+            path = sealed_state.run_root / ".s11-finalized"
+            value = json.loads(path.read_bytes())
+            assert value["signature"] != "0" * 64
+            value["signature"] = "0" * 64
+            path.write_bytes(canonical_json_bytes(value))
+            with pytest.raises(executor.EvidencePolicyError):
+                executor.validate_finalized_state(
+                    sealed_state.run_root,
+                    store.records(sealed_state.run_id),
+                    custody_hmac_key=store.custody_hmac_key,
+                )
+            probe["fired"].append("actual-seal-hmac-after-actual-refusal")
+        try:
+            return actual_producer(observation, error, declare_executor_gone=declare_executor_gone)
+        finally:
+            probe["armed"] = False
+
+    def observe_open(path, flags, *args, **kwargs):
+        fd = actual_open(path, flags, *args, **kwargs)
+        if (
+            fault == "custody-lock-replaced-after-metadata-open"
+            and probe["armed"]
+            and not probe["fired"]
+            and path == ".s11-custody.lock"
+            and flags & os.O_PATH
+        ):
+            assert os.readlink("/proc/self/fd/" + str(kwargs["dir_fd"])) == str(store.root)
+            assert os.fstat(fd).st_ino == lock_path.lstat().st_ino
+            replace_lock("actual-custody-metadata-fd-opened")
+        return fd
+
+    def observe_flock(fd, operation):
+        result = actual_flock(fd, operation)
+        if (
+            fault == "custody-lock-replaced-after-shared-unlock"
+            and probe["armed"]
+            and not probe["fired"]
+            and operation == fcntl.LOCK_UN
+            and os.readlink("/proc/self/fd/" + str(fd)) == str(lock_path)
+        ):
+            assert os.fstat(fd).st_ino == lock_path.lstat().st_ino
+            replace_lock("actual-custody-shared-lock-released")
+        return result
+
+    monkeypatch.setattr(executor, "finalize_run", original_scientific_refusal)
+    monkeypatch.setattr(executor.ExecutorOperationalContext, "persist_terminal_refusal", producer)
+    monkeypatch.setattr(os, "open", observe_open)
+    monkeypatch.setattr(fcntl, "flock", observe_flock)
+    monkeypatch.setattr(s11_ex10.Command, "operational_context", lambda self, options: context)
+    monkeypatch.setattr(s11_ex10.Command, "_store", staticmethod(lambda: store))
+    monkeypatch.setattr(s11_ex10.Command, "probes", lambda self: started.probes)
+    output = io.StringIO()
+    capsys.readouterr()
+
+    def operation():
+        with pytest.raises(CommandError) as error:
+            call_command(
+                "s11_ex10",
+                "finalize",
+                "--run-id",
+                context.proposal["run_id"],
+                "--expected-git-sha",
+                context.proposal["git_sha"],
+                "--declare-executor-gone",
+                "--operational-context-stdin",
+                stdout=output,
+            )
+        return error.value
+
+    error, responses = v2_run_single_host(declaration, operation)
+    captured = capsys.readouterr()
+    assert len(responses) == 1 and len(probe["science"]) == len(probe["producer"]) == 1
+    assert probe["science"][0] is probe["producer"][0]
+    assert not output.getvalue() and captured.out == "" and not probe["armed"]
+    expected = canonical_json_bytes(
+        {"refused": True, "terminal": True, "reasons": ["run-finalized"]}
+    )
+    if fault == "none":
+        assert error.returncode == 2 and str(error) == "S11_EX10_REFUSED"
+        assert json.loads(captured.err) == {
+            "refused": True,
+            "terminal": True,
+            "reasons": ["run-finalized"],
+        }
+        assert not probe["fired"]
+        assert result_path.read_bytes() == expected
+        info = result_path.lstat()
+        assert stat.S_ISREG(info.st_mode) and stat.S_IMODE(info.st_mode) == 0o600
+        assert info.st_nlink == 1 and info.st_uid == os.geteuid() and info.st_gid == os.getegid()
+    else:
+        assert len(probe["fired"]) == 1
+        assert error.returncode == 3 and str(error) == "S11_EX10_NATIVE_REFUSAL_UNQUALIFIED"
+        assert captured.err == ""
+        if fault == "custody-lock-replaced-after-shared-unlock":
+            assert result_path.read_bytes() == probe["private_before_late_fault"] == expected
+        else:
+            assert not result_path.exists()
+    assert context.finished and context.step_authorized and not context.scientific_finished
+    assert (
+        not context.terminal_prepared and context.channel.closed and context.channel.position == 5
+    )
+    assert context.channel.read_fd is context.channel.write_fd is context.channel.error_fd is None
+    assert declaration.host.closed
+    assert declaration.broker.sources.read_authority().canonical_material == authority_before
+    assert declaration.fixture.rig.a.journal.read()["latest"] == slots_before
+    assert declaration.fixture.rig.a.transport.calls.count("RESERVE") == 1
+    assert declaration.fixture.rig.a.transport.calls.count("COMMIT_OPEN") == 1
+    assert declaration.fixture.rig.a.transport.calls.count("RETIRE") == 0
+    assert declaration.broker.sources.publisher.transport.calls.count("B3_CAS") == 1
+    if fault != "seal-hmac-after-actual-refusal":
+        assert _v2_command_refusal_tree(sealed_state.run_root) == sealed_tree
+
+
+# FINAL admission: complete metadata, lock lifecycle and frozen journal recovery.
+
+
+@pytest.mark.parametrize("replacement", ["lock", "root"])
+def test_final_admission_rechecks_named_custody_after_provider_io(h, replacement):
+    h.start()
+    root = h.store.root
+    displaced = root.with_name(root.name + "-displaced-by-admission-test")
+    try:
+        with executor._finalize_existing_checkpoint(h.store) as normalize:
+            if replacement == "lock":
+                lock = root / ".s11-custody.lock"
+                lock.rename(root / ".original-custody-lock")
+                lock.write_bytes(b"")
+                lock.chmod(0o600)
+                before = (tree(root), None)
+            else:
+                root.rename(displaced)
+                root.mkdir(mode=0o700)
+                before = (tree(root), tree(displaced))
+            with pytest.raises(executor.EvidencePolicyError):
+                normalize()
+            assert (tree(root), tree(displaced) if displaced.exists() else None) == before
+        assert (tree(root), tree(displaced) if displaced.exists() else None) == before
+        assert h.store._mutation_depth == 0 and h.store._mutation_lock_file is None
+    finally:
+        if displaced.exists():
+            shutil.rmtree(displaced)
+
+
+def test_finalized_final_refusal_preserves_root_lock_and_all_metadata_before_probes(h):
+    h.start()
+    h.finalize(abandon_reason="test")
+    before = tree(h.store.root)
+
+    def forbidden_dataset():
+        pytest.fail("Already-sealed FINAL reached dataset before its pure refusal")
+
+    probes = replace(h.probes, dataset=forbidden_dataset)
+    with write_spy() as writes:
+        rejected = refusal(
+            executor.finalize_run, h.store, run_id=h.run_id, git_sha=SHA, probes=probes
+        )
+    assert rejected.reasons == ("run-finalized",) and rejected.terminal
+    assert writes == [] and tree(h.store.root) == before
+
+
+def test_final_open_to_sealed_race_rechecks_existing_exclusive_before_mutation(h, monkeypatch):
+    h.start()
+    original_checkpoint = executor._finalize_existing_checkpoint
+    boundary = {}
+
+    @contextmanager
+    def concurrent_finalizer(store):
+        if not boundary:
+            # Another admitted FINAL wins between the shared view and exclusive
+            # acquisition. It uses the actual public FINAL and original writer.
+            boundary["closing"] = True
+            boundary["result"] = h.finalize(abandon_reason="test")
+            boundary["tree"] = tree(store.root)
+        with original_checkpoint(store) as normalize:
+            yield normalize
+
+    monkeypatch.setattr(executor, "_finalize_existing_checkpoint", concurrent_finalizer)
+    rejected = refusal(h.finalize, abandon_reason="test")
+    assert rejected.reasons == ("run-finalized",) and rejected.terminal
+    assert boundary["result"]["lifecycle"] == "ABANDONED_PRE_T0"
+    assert tree(h.store.root) == boundary["tree"]
+    assert h.store._mutation_depth == 0 and h.store._mutation_lock_file is None
+
+
+@pytest.mark.parametrize("kind", ["missing", "symlink", "directory", "fifo"])
+def test_final_existing_lock_invalid_never_creates_or_repairs_custody(h, kind):
+    h.start()
+    lock = h.store.root / ".s11-custody.lock"
+    lock.unlink()
+    if kind == "symlink":
+        lock.symlink_to("missing-lock-target")
+    elif kind == "directory":
+        lock.mkdir()
+    elif kind == "fifo":
+        os.mkfifo(lock, 0o600)
+    before = tree(h.store.root)
+    with pytest.raises((OSError, executor.EvidencePolicyError)):
+        with executor._finalize_existing_checkpoint(h.store):
+            pytest.fail("Invalid existing custody lock admitted FINAL")
+    assert tree(h.store.root) == before
+    assert h.store._mutation_depth == 0 and h.store._mutation_lock_file is None
+
+
+def test_final_existing_checkpoint_reentry_and_exception_release_original_lock(h):
+    h.start()
+    before = tree(h.store.root)
+    with pytest.raises(RuntimeError, match="injected-admission-error"):
+        with executor._finalize_existing_checkpoint(h.store):
+            held = h.store._mutation_lock_file
+            with executor._finalize_existing_checkpoint(h.store):
+                assert h.store._mutation_lock_file is held and not held.closed
+                raise RuntimeError("injected-admission-error")
+    assert held.closed and h.store._mutation_lock_file is None
+    assert h.store._mutation_depth == 0 and tree(h.store.root) == before
+    # A different fd can acquire the original inode immediately after unwind.
+    fd = os.open(h.store.root / ".s11-custody.lock", os.O_RDONLY | os.O_NOFOLLOW)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        fcntl.flock(fd, fcntl.LOCK_UN)
+    finally:
+        os.close(fd)
+
+
+@pytest.mark.parametrize("state", ["PREPARED", "COMMITTED"])
+def test_final_admission_preserves_original_interrupted_journal_recovery(h, monkeypatch, state):
+    h.start()
+    commit = h.store._commit_finalization_journal
+
+    def interrupted(path, payload):
+        if state == "COMMITTED":
+            commit(path, payload)
+        raise SystemExit("synthetic-finalization-interruption")
+
+    monkeypatch.setattr(h.store, "_commit_finalization_journal", interrupted)
+    with pytest.raises(SystemExit, match="synthetic-finalization-interruption"):
+        h.finalize(abandon_reason="test")
+    journal = h.store.root / "finalization-transactions" / f"{h.run_id}.json"
+    from base64 import b64decode
+
+    original_transaction = json.loads(journal.read_bytes())["payload"]
+    run_root = h.store.root / "runs" / h.run_id
+    original_records = [
+        json.loads(line)
+        for line in b64decode(original_transaction["original_index_b64"]).splitlines()
+    ]
+    decision = next(
+        record for record in original_records if record["artifact_type"] == executor.ART_DECISION
+    )
+    decision_path = run_root / decision["relative_path"]
+    decision_before = decision_path.read_bytes()
+    before = tree(h.store.root)
+    with executor._finalize_existing_checkpoint(h.store):
+        plan = executor._finalize_recovery_plan_under_caller_lock(h.store, h.run_id)
+        assert plan["state"] == state
+    assert tree(h.store.root) == before
+    monkeypatch.setattr(h.store, "_commit_finalization_journal", commit)
+    rejected = refusal(h.finalize, abandon_reason="test")
+    recovered = executor.load_existing_state_readonly(h.store, h.run_id)
+    if state == "PREPARED":
+        # Recovery keeps the already-custodied decision and the original
+        # DECIDED-phase abandonment refusal; it does not promise re-finalization.
+        assert rejected.reasons == ("phase:DECIDED:abandon-after-t0-not-allowed",)
+        assert not rejected.terminal and not recovered.finalized
+        assert executor.phase_of(recovered) is executor.Phase.DECIDED
+        index = run_root / "metadata" / "artifacts.jsonl"
+        for path, key in (
+            (index, "original_index_b64"),
+            (index.with_suffix(index.suffix + ".hmac"), "original_index_signature_b64"),
+            (run_root / "SHA256SUMS", "original_checksums_b64"),
+        ):
+            encoded = original_transaction[key]
+            if encoded is None:
+                assert not path.exists()
+            else:
+                assert path.read_bytes() == b64decode(encoded)
+        assert not (run_root / original_transaction["target_relative_path"]).exists()
+        assert not (run_root / original_transaction["seal_relative_path"]).exists()
+    else:
+        assert rejected.reasons == ("run-finalized",) and rejected.terminal
+        assert recovered.finalized
+    assert decision_path.read_bytes() == decision_before
+    assert not journal.exists()
+    assert h.store._mutation_depth == 0 and h.store._mutation_lock_file is None
+
+
+@pytest.mark.parametrize("fault", ["target-escape", "index-base64", "raw-symlink"])
+def test_final_invalid_prepared_journal_rejects_before_custody_normalization(h, fault):
+    from base64 import b64encode
+
+    h.start()
+    run_root = h.store.root / "runs" / h.run_id
+    index = run_root / "metadata" / "artifacts.jsonl"
+    payload = {
+        "state": "PREPARED",
+        "run_id": h.run_id,
+        "seal_relative_path": ".s11-finalized",
+        "target_relative_path": "metadata/EX-10/run-manifest.final.json",
+        "original_index_b64": b64encode(index.read_bytes()).decode(),
+        "original_index_signature_b64": None,
+        "original_checksums_b64": None,
+    }
+    if fault == "target-escape":
+        payload["target_relative_path"] = "../foreign-run.json"
+    elif fault == "index-base64":
+        payload["original_index_b64"] = []
+    else:
+        raw = run_root / "raw"
+        raw.rmdir()
+        raw.symlink_to("../missing-raw-root")
+    parent = h.store.root / "finalization-transactions"
+    parent.mkdir(mode=0o700)
+    h.store._write_finalization_journal(parent / f"{h.run_id}.json", payload, replace=False)
+    before = tree(h.store.root)
+    with pytest.raises(executor.EvidencePolicyError):
+        h.finalize(abandon_reason="test")
+    assert tree(h.store.root) == before
+    assert h.store._mutation_depth == 0 and h.store._mutation_lock_file is None
