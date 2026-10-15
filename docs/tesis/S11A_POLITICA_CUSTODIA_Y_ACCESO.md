@@ -149,6 +149,36 @@ custodio nominal.
 `var/s11-objects` (`/s11-objects`) sigue siendo almacenamiento técnico temporal y reseteable. No
 es primary, backup ni restore y no puede presentarse como evidencia custodial.
 
+
+### 5.1. EX-10 v2: roots externas y autoridad operacional
+
+La aprobación G0-A3 y las decisiones B01–B10 posteriores permiten que un runtime profile
+aprobado ligue raíces externas exactas de primary/evidence, backup, restore y object storage,
+además de fuente, masks y Compose/override. Las ubicaciones de la tabla anterior conservan
+su función histórica; no se convierten automáticamente en defaults para sesiones v2.
+Los paths futuros deben ser privados, persistentes, distintos, no anidados, fuera de Git y
+fuera de `/tmp`; owner, modos, dispositivo/inodo y leases forman parte del contexto aprobado.
+El profile no puede seleccionar proveedores de confianza ni rebajar la matriz de acceso.
+
+Autoridad histórica B3, coordinación B4, lock global, floors, journals, witness, receipts,
+aprobaciones y certificados GOV se conservan en dominios externos aprobados y no se incluyen
+como escrituras genéricas del SUT. Un cambio de project/root no particiona la autoridad común.
+Los registros y material público de verificación deben mantenerse mientras sean necesarios
+para verificar historia retenida; la política de retención y las aprobaciones PUBLIC continúan
+aplicándose a sus artefactos. No se elimina autoridad, witness, claims ni tombstones mediante
+cleanup de recursos. El acceso operacional no equivale a DELETE ni a aprobación académica.
+
+Las claves privadas y credenciales quedan fuera de Git, frames, manifests, logs, evidence,
+backup y restore; no se persiste SECRET como artefacto S11. Cada dominio de firma/PoP/HMAC
+mantiene su custodia separada y sólo transfiere el material público necesario para verificar.
+No se crean nuevas claves, génesis o autoridad real por esta adenda.
+
+El [runbook v2](../runbooks/S11_EX10_RUNTIME_PROFILE_OPERATIONS.md) documenta procedencia,
+las once acciones, incertidumbre y gates. La copia del borrador G0-A3 conserva sus bytes;
+su aprobación posterior está separada. El set atestado sigue siendo de 28 paths: esta política
+es el cambio atestado planificado y exige P02/P03 v10 después de blobs/HEAD finales,
+`PENDING_VALIDATION`. Ningún resultado futuro se incorpora a la política como PASS.
+
 ## 6. Matriz nominal y de procesos
 
 Los permisos son independientes: `READ` no implica `WRITE`; `WRITE` no implica `DELETE`;
