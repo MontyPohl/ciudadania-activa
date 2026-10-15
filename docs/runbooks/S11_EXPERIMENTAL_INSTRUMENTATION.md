@@ -461,3 +461,20 @@ docker compose -p ciudadania-s11 \
   --baseline-sha d3b492a7f5d203fc1dbd8c63e1732b7fd9227656 \
   --commit-sha <sha_git_completo>
 ```
+
+
+### EX-10 v2: candidato de aparato operacional (07/10/2026)
+
+La [operación con runtime profile](S11_EX10_RUNTIME_PROFILE_OPERATIONS.md) describe el candidato
+v2 y la procedencia G0-A3/B01–B10/B4. La copia versionada del borrador conserva los bytes y
+marcadores históricos; los registros posteriores de aprobación quedan separados.
+
+La instalación fija del host, profile/B2, autoridad/witness/GOV, OPEN_EVIDENCE/PoP,
+coordinación/bridge, B5, executor y launcher conservan gates por acción y ausencia de retry.
+Las raíces nuevas se califican por contexto aprobado; no se adopta attempt7 ni las roots históricas
+por compartir nombres. Un one-off propio no modifica los cuatro servicios del SUT.
+
+`IMPLEMENTATION_CANDIDATE`, `VALIDATED=NO`, `PENDING_VALIDATION`: integraciones, suites,
+mutantes, stress/ensayos, CI final, P02/P03 v10 y anchors. Los checks de sintaxis/import/lint
+no son pruebas de permiso ni resultados académicos. No se utilizaron ACK, START oficial ni
+claves/autoridad/génesis reales para construir este candidato.

@@ -4365,6 +4365,37 @@ quedan fuera de C2 y siguen siendo requisitos de salida de S11-C, que permanece 
 
 ---
 
+### Candidato operacional EX-10 v2 — implementación y validación separadas (08/10/2026)
+
+El candidato aislado incorpora runtime profile/B2 v2, autoridad y witness, GOV/coverage,
+OPEN_EVIDENCE/PoP, coordinación/bridge, envelope, integración executor y las rutas del launcher
+v2. La fábrica instalada en el host construye los componentes a partir de proveedores fijos;
+la falta de instalación deniega antes de efectos. LOCAL_TEST y el SUT mantienen contratos propios.
+Las comprobaciones offline de componentes, mutantes, contención/crash y seguridad se registran
+fuera del repositorio, con bytes, contextos, resultados y límites propios.
+
+Estado de la integración y documentación: `IMPLEMENTATION_CANDIDATE`; `VALIDATED=NO`;
+`PENDING_GLOBAL_VALIDATION`. Se mantiene un backlog externo único para componentes, once acciones,
+seguridad, mutantes, stress, full suites, CI y custodia. Los checks baratos de construcción
+y los resultados por componentes quedan ligados a sus scopes; el cierre exige la suite S11,
+la suite completa del repositorio, tres runs backend consecutivos sobre el mismo árbol final,
+todos los jobs frontend y CI posterior a los commits. No se registra un porcentaje
+nuevo de resultados científicos por haber escrito código o documentación.
+
+Procedencia y operación se describen en
+[`S11_EX10_RUNTIME_PROFILE_OPERATIONS.md`](runbooks/S11_EX10_RUNTIME_PROFILE_OPERATIONS.md),
+con copia exacta del borrador G0-A3 y sus aprobaciones posteriores por separado. La adenda
+custodial para roots externas conserva las 28 fuentes y obliga v10 posterior a los blobs finales.
+`PENDING_GLOBAL_VALIDATION`: suite S11, suite completa, CI final y posterior a los commits.
+P02/P03 v10, anchors y paquete preejecución conservan sus autorizaciones y gates posteriores.
+
+No se ejecutaron nuevas claves reales, autoridad/génesis real, ACK ni START oficial en la fase
+de implementación. Run1 conserva NOT_DEMONSTRATED y binding false; G0-A2 no se aplica
+retroactivamente. EX-10, S11-D y S11-E continúan abiertos hasta sus resultados y gates reales.
+
+---
+
+
 ## Sprint 12 — Catálogo de recompensas y canje simulado
 
 **Fechas planificadas:** 17/10/2026 – 23/10/2026
