@@ -91,8 +91,11 @@ def test_fixed_page_size_and_total_order_by_created_at_then_id_desc(admin_user):
     assert second.json()["previous"] == "http://testserver/api/v1/admin/audit-logs/"
 
 
-def test_page_size_stays_fixed_when_global_default_changes(admin_user, settings):
+def test_page_size_stays_fixed_when_global_default_changes(admin_user, settings, monkeypatch):
+    from rest_framework.pagination import PageNumberPagination
+
     settings.REST_FRAMEWORK = {**settings.REST_FRAMEWORK, "PAGE_SIZE": 2}
+    monkeypatch.setattr(PageNumberPagination, "page_size", 2)
     for index in range(3):
         _entry(action=f"test.fixed-page.{index}")
 
