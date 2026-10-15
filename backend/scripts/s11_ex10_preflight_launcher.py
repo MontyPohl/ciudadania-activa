@@ -349,7 +349,9 @@ def secret_masks(root: Path, tracked: set[str]) -> tuple[str, ...]:
     """`.env*` no versionados del checkout (fuera de `.git` y `node_modules`), por ruta."""
     masks = []
     for directory, dirnames, filenames in os.walk(root):
-        dirnames[:] = sorted(name for name in dirnames if name not in _UNWALKED)
+        # Prune the historical repo/var root before any descent or file stat.
+        excluded = _UNWALKED | ({"var"} if Path(directory) == root else set())
+        dirnames[:] = sorted(name for name in dirnames if name not in excluded)
         for name in filenames:
             path = Path(directory) / name
             relative = str(path.relative_to(root))
