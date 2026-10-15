@@ -1101,10 +1101,8 @@ def validate_finalized_state(
     *,
     custody_hmac_key: bytes | None,
 ) -> dict[str, str] | None:
-    """Valida el sello autenticado y su vínculo exacto con el manifest final indexado."""
-    final_records = [
-        record for record in records if record.get("artifact_type") == "run-manifest-final"
-    ]
+    """Read existing paths and reuse the unchanged pure seal/retention policy."""
+    final_records = [r for r in records if r.get("artifact_type") == "run-manifest-final"]
     seal = run_root / _FINALIZED_MARKER
     if not final_records and not seal.exists():
         return None
@@ -1113,7 +1111,44 @@ def validate_finalized_state(
     if seal.is_symlink() or not seal.is_file():
         raise EvidencePolicyError("Falta el sello autenticado del run finalizado.")
     try:
-        envelope = json.loads(seal.read_text(encoding="utf-8"))
+        seal_bytes = seal.read_bytes()
+        manifest_bytes = None
+        if final_records:
+            manifest_path = (run_root / final_records[0]["relative_path"]).resolve()
+            if run_root not in manifest_path.parents or manifest_path.is_symlink():
+                raise EvidencePolicyError("El manifest final usa una ruta insegura.")
+            manifest_bytes = manifest_path.read_bytes()
+        return validate_finalized_payload(
+            run_root.name,
+            records,
+            seal_bytes=seal_bytes,
+            final_manifest_bytes=manifest_bytes,
+            custody_hmac_key=custody_hmac_key,
+        )
+    except (CustodyPolicyError, KeyError, OSError, TypeError, ValueError) as exc:
+        raise EvidencePolicyError("El sello de cierre no es válido.") from exc
+
+
+def validate_finalized_payload(
+    run_id: str,
+    records: list[dict[str, Any]],
+    *,
+    seal_bytes: bytes | None,
+    final_manifest_bytes: bytes | None,
+    custody_hmac_key: bytes | None,
+) -> dict[str, str] | None:
+    """Valida el sello autenticado y su vínculo exacto con el manifest final indexado."""
+    final_records = [
+        record for record in records if record.get("artifact_type") == "run-manifest-final"
+    ]
+    if not final_records and seal_bytes is None:
+        return None
+    if len(final_records) > 1:
+        raise EvidencePolicyError("El run no contiene exactamente un manifest final.")
+    if type(seal_bytes) is not bytes:
+        raise EvidencePolicyError("Falta el sello autenticado del run finalizado.")
+    try:
+        envelope = json.loads(seal_bytes.decode("utf-8"))
         payload = envelope["payload"]
         signature = envelope["signature"]
         if not isinstance(payload, dict) or not isinstance(signature, str):
@@ -1124,7 +1159,7 @@ def validate_finalized_state(
             custody_hmac_key=custody_hmac_key,
         )
         if not final_records:
-            if payload.get("run_id") != run_root.name:
+            if payload.get("run_id") != run_id:
                 raise EvidencePolicyError("El sello histórico pertenece a otro run.")
             if set(payload) != {
                 "artifact_id",
@@ -1170,10 +1205,7 @@ def validate_finalized_state(
                         )
             return payload
         record = final_records[0]
-        manifest_path = (run_root / record["relative_path"]).resolve()
-        if run_root not in manifest_path.parents or manifest_path.is_symlink():
-            raise EvidencePolicyError("El manifest final usa una ruta insegura.")
-        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest = json.loads(final_manifest_bytes.decode("utf-8"))
         expected = {
             "artifact_id": record["artifact_id"],
             "finished_at": manifest["finished_at"],
