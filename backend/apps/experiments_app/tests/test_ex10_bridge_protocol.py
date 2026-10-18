@@ -807,7 +807,7 @@ def test_coordination_head_cannot_replay_or_rollback(change):
     elif change == "expired":
         context = replace(context, now=NOW + timedelta(seconds=30))
     elif change == "tooLong":
-        value["expires_at"] = "2026-10-05T08:20:30.000001Z"
+        value["expires_at"] = "2026-10-05T08:24:00.000001Z"
     elif change == "future":
         value["issued_at"] = "2026-10-05T08:20:05.000001Z"
     elif change == "partialContext":

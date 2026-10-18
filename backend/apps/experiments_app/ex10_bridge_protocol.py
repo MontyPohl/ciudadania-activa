@@ -4883,7 +4883,7 @@ def verify_coordination_head(
         _same(value[field], expected[field], "REFERENCE_MISMATCH")
     _verify_pin(value, witness_pin, bridge=False)
     _verify_signature("coordination_head", value, witness_pin.public_key)
-    _fresh(value, expected_context.now, maximum=30, code="REQUEST_EXPIRED")
+    _fresh(value, expected_context.now, maximum=240, code="REQUEST_EXPIRED")
     _require(
         type(expected_context.minimum_sequence) is int
         and expected_context.minimum_sequence >= 0

@@ -4261,7 +4261,7 @@ class ExecutorHostProofs:
             and head["witness_digest"] == previous_witness
             and context.host_challenge is not None
             and head["challenge"] == context.host_challenge.to_dict()["challenge"]
-            and issued <= now < expires <= issued + timedelta(seconds=30)
+            and issued <= now < expires <= issued + timedelta(seconds=240)
             and (minimum_issued_at is None or issued >= minimum_issued_at),
             "HOST_HISTORY_STALE",
         )

@@ -5506,7 +5506,7 @@ def test_v2_current_head_cannot_expire_during_later_qualification(
 
     def delayed(*args, **kw):
         result = coordination(*args, **kw)
-        now[0] += timedelta(seconds=31)
+        now[0] += timedelta(seconds=241)
         return result
 
     monkeypatch.setattr(proof, "coordination", delayed)
@@ -5695,7 +5695,7 @@ def test_v2_barrier_current_heads_still_fresh_after_final_b5_read(
             now=rig.now,
             fresh_required=True,
         )
-        now[0] += timedelta(seconds=31)
+        now[0] += timedelta(seconds=241)
         return result
 
     # This existing test isolates the final expiry ordering, not OS/preparation.
@@ -7012,7 +7012,7 @@ def test_v2_preemission_wait_never_repairs_invalid_published_proof(
                 raw = canonical_json_bytes(value)
             x.publish(role, raw)
         if fault == "head-expiry":
-            x.now[0] += timedelta(seconds=31)
+            x.now[0] += timedelta(seconds=241)
     elif fault == "symlink":
         (x.directory / "emission-head.json").symlink_to("/dev/null")
     elif fault == "noncanonical":

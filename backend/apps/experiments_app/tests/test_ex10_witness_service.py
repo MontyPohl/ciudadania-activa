@@ -114,6 +114,8 @@ def test_signed_reservation_and_head_survive_service_restart(apparatus):
     restarted = service.WitnessService(**a.remote_options)
     head = restarted.head_b4("9" * 64, credentials=a.auth.credential)
     assert head["sequence"] == 1 and head["active_reservation_id"] == receipt["reservation_id"]
+    duration = sql.utc_time(head["expires_at"]) - sql.utc_time(head["issued_at"])
+    assert duration.total_seconds() == 240
     expected = {
         k: v
         for k, v in head.items()

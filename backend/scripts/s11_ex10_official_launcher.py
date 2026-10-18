@@ -3514,7 +3514,7 @@ class NativeBridgeProofSigner:
             self.wire._fresh(body, now, maximum=120, code="REQUEST_EXPIRED")
         for head in heads:
             start, end = self.wire._time(head["issued_at"]), self.wire._time(head["expires_at"])
-            self._require(start <= now < end <= start + timedelta(seconds=30))
+            self._require(start <= now < end <= start + timedelta(seconds=240))
         self._require(time.monotonic() < self.sources.channel.deadline, "native-proof-deadline")
 
     def sign(self, data):
@@ -5198,7 +5198,7 @@ class NativeEmissionProofPublication:
                 self.op.wire._time(value["expires_at"]),
             )
             self._require(
-                minimum <= issued <= now < expires <= issued + timedelta(seconds=30),
+                minimum <= issued <= now < expires <= issued + timedelta(seconds=240),
                 "native-emission-head-stale",
             )
         self._require(

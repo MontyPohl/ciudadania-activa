@@ -79,7 +79,7 @@ def _validate_message(record):
     codec.utc_time(record["created_at"] if schema == RECEIPT_SCHEMA else record["issued_at"])
     if schema == HEAD_SCHEMA:
         start, end = codec.utc_time(record["issued_at"]), codec.utc_time(record["expires_at"])
-        codec.require(start < end <= start + timedelta(seconds=30), "EXPIRED_OBSERVATION")
+        codec.require(start < end <= start + timedelta(seconds=240), "EXPIRED_OBSERVATION")
     elif record["revision"] == 0:
         _validate_reference(record["genesis"]["g0_a3_approval_reference"])
     return schema

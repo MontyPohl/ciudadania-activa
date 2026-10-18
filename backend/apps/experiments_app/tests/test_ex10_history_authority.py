@@ -440,10 +440,9 @@ class Fixture:
             "key_epoch": 1,
             "key_fingerprint": self.pin.record["fingerprint"],
         }
-        # Exact duration must be <=30 seconds even if the calls cross a microsecond.
-        fields["expires_at"] = (sql.utc_time(fields["issued_at"]) + timedelta(seconds=30)).strftime(
-            "%Y-%m-%dT%H:%M:%S.%fZ"
-        )
+        # Exact duration must be <=240 seconds even if the calls cross a microsecond.
+        expires = sql.utc_time(fields["issued_at"]) + timedelta(seconds=240)
+        fields["expires_at"] = expires.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
         return {
             "head": wit._sign_current_head(fields, self.key),
             "challenge": fields["challenge"],
