@@ -6068,13 +6068,42 @@ class NativeOneOffDocker:
             if sorted(actual) != sorted(self.mounts):
                 raise ValueError()
             networks = value["NetworkSettings"]["Networks"]
-            if (
-                type(networks) is not dict
-                or len(networks) != 1
-                or next(iter(networks.values()))["NetworkID"] != self.network_id
-            ):
+            if type(networks) is not dict or len(networks) != 1:
                 raise ValueError()
+            network_name, attachment = next(iter(networks.items()))
             phase = state["Status"]
+            if attachment["NetworkID"] != self.network_id:
+                # Docker defers endpoint allocation until start. In created
+                # state qualify its exact requested network against the real
+                # network resource; never synthesize a populated attachment.
+                if (
+                    phase != "created"
+                    or "created" not in allowed
+                    or attachment["NetworkID"] != ""
+                    or host.get("NetworkMode") != self.network_id
+                ):
+                    raise ValueError()
+                observed = self.runner.run(
+                    ("/usr/bin/docker", "network", "inspect", self.network_id), timeout=30
+                )
+                if (
+                    type(observed.returncode) is not int
+                    or observed.returncode != 0
+                    or type(observed.stdout) is not bytes
+                    or len(observed.stdout) > MAX_JSON_BYTES
+                ):
+                    raise ValueError()
+                selected = json.loads(
+                    observed.stdout.decode("utf-8"), parse_constant=base._reject_constant
+                )
+                if (
+                    type(selected) is not list
+                    or len(selected) != 1
+                    or type(selected[0]) is not dict
+                    or selected[0].get("Id") != self.network_id
+                    or selected[0].get("Name") != network_name
+                ):
+                    raise ValueError()
             if (
                 phase not in allowed
                 or state["Restarting"] is not False

@@ -6970,6 +6970,21 @@ def v2_oneoff_control(v2_native_host):
 
         def run(self, argv, *, timeout):
             assert timeout > 0
+            if argv[:3] == ("/usr/bin/docker", "network", "inspect"):
+                assert argv[3] == network
+                events.append(("network-inspect", tuple(argv)))
+                return host.module.Completed(
+                    0,
+                    host.module.base.canonical_bytes(
+                        [
+                            {
+                                "Id": network,
+                                "Name": observations.get("network_name", "synthetic-network"),
+                            }
+                        ]
+                    ),
+                    b"",
+                )
             assert argv[:2] == ("/usr/bin/docker", "container")
             operation = argv[2]
             events.append((operation, tuple(argv)))
@@ -23073,3 +23088,30 @@ def test_v2_native_exec_negative_owned_close_and_original_expiry(
     assert len(observations) == len(placements) == 1
     assert placements[0][0] == fault
     _assert_native_known_active_unchanged(c, before)
+
+
+@pytest.mark.parametrize("fault", [None, "wrong-selector", "wrong-resource", "running-empty"])
+def test_v2_oneoff_created_deferred_network_requires_real_identity(v2_oneoff_control, fault):
+    case = v2_oneoff_control
+    case.control.create()
+
+    def deferred_network(value):
+        value["NetworkSettings"]["Networks"]["synthetic-network"]["NetworkID"] = ""
+        value["HostConfig"]["NetworkMode"] = (
+            "4" * 64 if fault == "wrong-selector" else case.control.network_id
+        )
+
+    case.observations["alter"] = deferred_network
+    if fault == "wrong-resource":
+        case.observations["network_name"] = "foreign-network"
+    if fault == "running-empty":
+        case.observations["phase"] = "running"
+    if fault is None:
+        assert case.control._inspect(allowed={"created"})["Status"] == "created"
+        assert [kind for kind, _ in case.events] == ["create", "inspect", "network-inspect"]
+    else:
+        with pytest.raises(
+            case.host.module.LauncherError, match="native-oneoff-observation-invalid"
+        ):
+            case.control._inspect(allowed={"created", "running"})
+    assert not any(kind == "start" for kind, _ in case.events)
