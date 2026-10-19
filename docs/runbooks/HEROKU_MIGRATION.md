@@ -152,9 +152,12 @@ pago más pequeño cubre el uso real (caché + broker de un worker con `--concur
 Aporta `REDIS_URL` automáticamente. Dos cuidados:
 
 1. **TLS.** Los planes que exigen TLS entregan `rediss://` con certificado autofirmado. Celery
-   y `redis-py` fallan la validación salvo que la URL lleve `?ssl_cert_reqs=none`. Como
-   `CELERY_BROKER_URL` y `CELERY_RESULT_BACKEND` derivan de `REDIS_URL`, el sufijo debe ir en
-   `REDIS_URL` y corregirse **cada vez que Heroku rota la credencial**.
+   y `redis-py` fallan la validación salvo que la URL lleve `?ssl_cert_reqs=none`. Heroku
+   borra ese sufijo **cada vez que rota la credencial** (v16 y v18 tiraron worker y beat), así
+   que desde el post-S12 `base.py` lo añade solo: toda URL `rediss://` sin `ssl_cert_reqs`
+   recibe el valor de `REDIS_SSL_CERT_REQS` (por defecto `none`) antes de derivar caché,
+   broker y result backend. Un `ssl_cert_reqs` explícito en la URL siempre gana; ya no hace
+   falta editar `REDIS_URL` a mano.
 2. **Persistencia.** El broker no es la fuente de verdad: las tareas son idempotentes y el
    estado vive en PostgreSQL. La política de evicción por defecto es suficiente para S9.
 
