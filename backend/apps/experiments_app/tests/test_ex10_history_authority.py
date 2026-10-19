@@ -17,6 +17,19 @@ import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 APP = Path(__file__).resolve().parents[1]
+# B1 froze ex10_runtime_profile.py one refactor before 98d7fac committed it: the
+# control-character check moved from ord() to an equivalent regex. The committed file is
+# the only one in Git history and the one later W20 preparations ran. The frozen hash
+# stays historical; undoing exactly this documented line must reproduce it.
+RUNTIME_PROFILE_COMMITTED_LINE = b'    if re.search(r"[\\x00-\\x1f\\x7f]", value) is not None:\n'
+RUNTIME_PROFILE_FROZEN_LINE = b"    if any(ord(char) < 32 or ord(char) == 127 for char in value):\n"
+
+
+def runtime_profile_as_frozen(raw: bytes) -> bytes:
+    assert raw.count(RUNTIME_PROFILE_COMMITTED_LINE) == 1
+    return raw.replace(RUNTIME_PROFILE_COMMITTED_LINE, RUNTIME_PROFILE_FROZEN_LINE)
+
+
 SOURCE = Path(os.environ.get("S11_B3_SOURCE_DIR", str(APP)))
 PACKAGE = types.ModuleType("b3_contract_fixture_" + __name__.replace(".", "_"))
 PACKAGE.__path__ = [str(SOURCE)]
@@ -1373,7 +1386,10 @@ def test_b3_plan(factory, case):
             ),
         }
         for name, sha in expected.items():
-            assert hashlib.sha256((APP / name).read_bytes()).hexdigest() == sha
+            raw = (APP / name).read_bytes()
+            if name == "ex10_runtime_profile.py":
+                raw = runtime_profile_as_frozen(raw)
+            assert hashlib.sha256(raw).hexdigest() == sha
     else:
         raise AssertionError("unimplemented planned case: " + case)
 

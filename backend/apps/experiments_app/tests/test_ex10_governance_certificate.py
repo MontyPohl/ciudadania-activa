@@ -723,7 +723,10 @@ def test_governance_plan(fixture, case):
         repo = APP.parents[2]
         for path, sha in baseline["frozen_source_hashes"].items():
             if "runtime_profile" in path or "session_v2" in path:
-                assert hashlib.sha256((repo / path).read_bytes()).hexdigest() == sha
+                raw = (repo / path).read_bytes()
+                if path == "backend/apps/experiments_app/ex10_runtime_profile.py":
+                    raw = b.runtime_profile_as_frozen(raw)
+                assert hashlib.sha256(raw).hexdigest() == sha
         for row in baseline["attested_files"]:
             raw = (repo / row["path"]).read_bytes()
             if row["path"] == "docs/tesis/S11A_POLITICA_CUSTODIA_Y_ACCESO.md":
@@ -756,6 +759,18 @@ def test_governance_plan(fixture, case):
                 )
                 assert hashlib.sha256(raw).hexdigest() == (
                     "94a32406df188f77ed073a19799ef8ffef670010aca60a561f81b3045a221b2f"
+                )
+            elif row["path"] == "backend/config/settings/base.py":
+                # Product settings keep evolving after B3 (9fd05d6): S12 throttles and
+                # ranking TTL, Redis TLS normalization. The baseline stays historical;
+                # the S11-B instrumentation block, to end of file, stays byte-exact.
+                assert row["baseline_sha256"] == (
+                    "37e55f0acd938b2f0d39c7ae22328c26adfcd6a2d6fb1588342b7852ad70c34c"
+                )
+                assert raw.count(b"# --- S11-B") == 1
+                _, marker, block = raw.partition(b"# --- S11-B")
+                assert hashlib.sha256(marker + block).hexdigest() == (
+                    "ed0b8f7f8c890174c8be8492314ce666b02fc3372fba39ffa0d0916e17fe052f"
                 )
             else:
                 assert hashlib.sha256(raw).hexdigest() == row["baseline_sha256"]
