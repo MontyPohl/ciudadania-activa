@@ -5212,6 +5212,11 @@ def _native_wait_prepared(*, cfg, deadline, guard, alive):
     ]
     if cfg["action"] == "start":
         paths.insert(0, Path("/s11-evidence") / cfg["staging_name"])
+        # The host publishes this exclusive copy before composing the bridge.
+        # Waiting for it keeps the 120-second frame budget for the exchange.
+        paths.append(
+            Path("/s11-evidence/.s11-operational") / cfg["exchange_id"] / "pending-session.json"
+        )
     while True:
         guard()
         _bridge_require(alive() and time.monotonic() < deadline, "START_NOT_PREPARED")

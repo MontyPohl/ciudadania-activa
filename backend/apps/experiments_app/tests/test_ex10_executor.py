@@ -5644,14 +5644,18 @@ def test_v2_native_preparation_waits_for_all_roles_before_frame_budget(monkeypat
         available.add("/s11-evidence/" + cfg["staging_name"])
         if now[0] >= 800:
             available.update((base + "/process.json", base + "/envelope.json"))
+        if now[0] >= 1000:
+            available.add(base + "/pending-session.json")
 
     monkeypatch.setattr(executor.time, "monotonic", lambda: now[0])
     monkeypatch.setattr(executor.time, "sleep", sleep)
     monkeypatch.setattr(Path, "exists", lambda path: str(path) in available)
     executor._native_wait_prepared(
-        cfg=cfg, deadline=900, guard=lambda: ticks.append(now[0]), alive=lambda: True
+        cfg=cfg, deadline=1100, guard=lambda: ticks.append(now[0]), alive=lambda: True
     )
-    assert now[0] == 800 and ticks == [0, 200, 400, 600, 800]
+    expected = 1000 if action == "start" else 800
+    assert now[0] == expected
+    assert ticks == [0, 200, 400, 600, 800] + ([1000] if action == "start" else [])
     now[0] = 900
     with pytest.raises(executor.ExecutorBridgeError, match="START_NOT_PREPARED"):
         executor._native_wait_prepared(
