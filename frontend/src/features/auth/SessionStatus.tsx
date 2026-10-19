@@ -17,16 +17,22 @@ export function SessionStatus() {
 
   return (
     <header className="flex flex-wrap items-center justify-between gap-4 border-b border-[#000000]/10 px-6 py-3 text-sm">
-      <div className="flex items-center gap-5">
+      <div className="flex flex-wrap items-center gap-5">
         <Link href="/" className="font-bold text-[#6950A1]">
           Ciudadanía Activa
         </Link>
-        <nav aria-label="Navegación pública">
+        <nav aria-label="Navegación pública" className="flex flex-wrap items-center gap-4">
           <Link
             href="/mapa"
             className="font-semibold text-[#00B26B] underline-offset-4 hover:underline"
           >
             Mapa público
+          </Link>
+          <Link
+            href="/ranking"
+            className="font-semibold text-[#6950A1] underline-offset-4 hover:underline"
+          >
+            Ranking
           </Link>
         </nav>
       </div>
