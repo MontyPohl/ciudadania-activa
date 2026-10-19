@@ -481,7 +481,8 @@ def test_head_expires_before_atomic_commit_retains_intent_and_local_base(apparat
             stale = datetime.fromisoformat(result["now"].replace("Z", "+00:00"))
             from datetime import timedelta
 
-            stale += timedelta(seconds=31)
+            # The signed observation window is 240 s since c45a78c (W20).
+            stale += timedelta(seconds=241)
             adapter.clock = lambda: stale.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
             return result
 
