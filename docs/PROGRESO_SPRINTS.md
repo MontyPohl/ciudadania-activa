@@ -2,7 +2,7 @@
 
 Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes de iniciar el siguiente.
 
-- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 **completado** (inicio el 22/08/2026, cierre el 23/08/2026: verificación de identidad con HMAC y almacenamiento privado, revisión administrativa manual con cotejo de la cédula, notificaciones asíncronas entregadas por la API HTTPS de Brevo y privacidad configurable del ranking, todo verificado en producción con una identidad real). Sprint 5 **completado** el 27/08/2026: S5-A, S5-B y S5-C están cerradas, integradas y validadas. Sprint 6 **completado** el 28/08/2026: S6-A y S6-B están cerrados. Sprint 7 **completado** el 29/08/2026: S7-A, S7-B y S7-C están integrados en `main`, y S7-D quedó probado en producción y cerrado con evidencia funcional y de base de datos en modo solo lectura. Sprint 8 continúa **en curso**. Sprint 9 quedó **completado** el 09/09/2026: S9-A, S9-B1, S9-B2 y el cierre documental S9-B3 están integrados en `main`; PR #38 fue mergeado mediante `7e95856c1b494d562ce1c267c06d5bebaec28cc8`. Sprint 10 quedó **implementado, desplegado, verificado y reconciliado** el 21/09/2026: el candidato `171f8c8b8f448a4092e73aeb5f67406e6b81ef09` se desplegó en Heroku, PR #39 se integró en `main` mediante `7ae82b865d90c4cade02dd3378b44107f088b7dd`, y backend, frontend, migraciones, backfill, workers e invariantes productivas quedaron verificados. Sprint 11 está **en curso**: S11-A quedó oficialmente congelada en `main@35f850eb24df552805fe8694f50fcbb3588a4141`; S11-B dejó preparada la instrumentación aislada y reproducible, sin generar resultados; S11-C registra seis runs de `EX-02` (21 y 22/09/2026): cinco `NOT_DEMONSTRATED` por causas de infraestructura y de harness, y el sexto, `s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af`, **demostrado en `PASS`**; `EX-03` quedó **demostrado en `PASS`** con el run `s11-6dc3ea66-08c9-51ef-9fe3-70e7dcc67959` `EX-04` con el run `s11-03adb9bc-c9e4-5f8f-b64c-c4360d0c2085` `EX-06` con el run `s11-989218f3-4808-5c6f-ac23-6e8870fec153` y `EX-08` con el run `s11-b567289c-9fe2-5349-a384-e9284bdde863`; `EX-05` quedó demostrado en `PASS` con el run `s11-0e2feac0-6583-513c-a6aa-33430394d14a`; `EX-07` quedó demostrado en `PASS` con el run `s11-545491b8-01fe-55e6-8f08-1a0ebbdca8d3`; S11-C2 quedó **cerrado** el 23/09/2026 con sus siete escenarios en `PASS`; `EX-09`, en su instancia OpenAI, se ejecutó el 26/09/2026 con el run `s11-a156a68c-c422-5e57-ae2b-3336d3b55e6c` y resultado **`FAIL`** (CA-4 19/28 = 67,86 %, bajo el umbral ≥ 85,00 %, es decir, al menos 24/28; run válido con manifest `COMPLETED` y `custody_verification = PASS` según la salida de `finalize`); S11-C sigue abierto con EX-10 pendiente, y S11-D y S11-E no se iniciaron.
+- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 **completado** (inicio el 22/08/2026, cierre el 23/08/2026: verificación de identidad con HMAC y almacenamiento privado, revisión administrativa manual con cotejo de la cédula, notificaciones asíncronas entregadas por la API HTTPS de Brevo y privacidad configurable del ranking, todo verificado en producción con una identidad real). Sprint 5 **completado** el 27/08/2026: S5-A, S5-B y S5-C están cerradas, integradas y validadas. Sprint 6 **completado** el 28/08/2026: S6-A y S6-B están cerrados. Sprint 7 **completado** el 29/08/2026: S7-A, S7-B y S7-C están integrados en `main`, y S7-D quedó probado en producción y cerrado con evidencia funcional y de base de datos en modo solo lectura. Sprint 8 continúa **en curso**. Sprint 9 quedó **completado** el 09/09/2026: S9-A, S9-B1, S9-B2 y el cierre documental S9-B3 están integrados en `main`; PR #38 fue mergeado mediante `7e95856c1b494d562ce1c267c06d5bebaec28cc8`. Sprint 10 quedó **implementado, desplegado, verificado y reconciliado** el 21/09/2026: el candidato `171f8c8b8f448a4092e73aeb5f67406e6b81ef09` se desplegó en Heroku, PR #39 se integró en `main` mediante `7ae82b865d90c4cade02dd3378b44107f088b7dd`, y backend, frontend, migraciones, backfill, workers e invariantes productivas quedaron verificados. Sprint 11 quedó **completado con observaciones** el 19/10/2026: S11-A quedó oficialmente congelada en `main@35f850eb24df552805fe8694f50fcbb3588a4141`; S11-B dejó preparada la instrumentación aislada y reproducible, sin generar resultados; S11-C registra seis runs de `EX-02` (21 y 22/09/2026): cinco `NOT_DEMONSTRATED` por causas de infraestructura y de harness, y el sexto, `s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af`, **demostrado en `PASS`**; `EX-03` quedó **demostrado en `PASS`** con el run `s11-6dc3ea66-08c9-51ef-9fe3-70e7dcc67959` `EX-04` con el run `s11-03adb9bc-c9e4-5f8f-b64c-c4360d0c2085` `EX-06` con el run `s11-989218f3-4808-5c6f-ac23-6e8870fec153` y `EX-08` con el run `s11-b567289c-9fe2-5349-a384-e9284bdde863`; `EX-05` quedó demostrado en `PASS` con el run `s11-0e2feac0-6583-513c-a6aa-33430394d14a`; `EX-07` quedó demostrado en `PASS` con el run `s11-545491b8-01fe-55e6-8f08-1a0ebbdca8d3`; S11-C2 quedó **cerrado** el 23/09/2026 con sus siete escenarios en `PASS`; `EX-09`, en su instancia OpenAI, se ejecutó el 26/09/2026 con el run `s11-a156a68c-c422-5e57-ae2b-3336d3b55e6c` y resultado **`FAIL`** (CA-4 19/28 = 67,86 %, bajo el umbral ≥ 85,00 %, es decir, al menos 24/28; run válido con manifest `COMPLETED` y `custody_verification = PASS` según la salida de `finalize`); `EX-10` quedó `NOT_DEMONSTRATED` (el run 1 no es vinculante y los intentos oficiales W22 en las sesiones c47, c51 y c52 terminaron en CP2 `UNCERTAIN` sin run nuevo ni efectos de autoridad); HT5 obtuvo 96,76 % en sus 33 archivos críticos, y S11-D y S11-E quedaron cerrados.
 - **Plan de referencia:** [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md)
 - **Ventana de desarrollo:** 01/08/2026 → 15/11/2026 (16 sprints semanales, Anexo F revisado)
 - **Estados posibles:** `Pendiente` · `En curso` · `Completado` · `Completado con observaciones` · `Bloqueado`
@@ -23,14 +23,14 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 | 8 | 19/09 – 25/09 | Clasificación asistida por IA | En curso |
 | 9 | 26/09 – 02/10 | Panel institucional y validación | Completado |
 | 10 | 03/10 – 09/10 | Estados, evidencias, auditoría y reversión | Completado — implementado, desplegado, verificado y reconciliado |
-| 11 | 10/10 – 16/10 | Metodología, instrumentación, experimentos, análisis y evidencia de tesis | En curso — S11-A congelada; S11-B preparada; S11-C2 cerrado con `EX-02`…`EX-08` en `PASS`; `EX-09` OpenAI ejecutado, con resultado `FAIL` (CA-4 19/28, run válido); S11-C abierto con EX-10 pendiente; S11-D y S11-E pendientes |
+| 11 | 10/10 – 16/10 | Metodología, instrumentación, experimentos, análisis y evidencia de tesis | Completado con observaciones (19/10/2026) — S11-A congelada; S11-B preparada; S11-C2 cerrado con `EX-02`…`EX-08` en `PASS`; `EX-09` OpenAI `FAIL` válido (CA-4 19/28); `EX-10` `NOT_DEMONSTRATED`; HT5 96,76 % (33 archivos críticos); S11-D y S11-E cerrados |
 | 12 | 17/10 – 23/10 | Catálogo de recompensas y canje simulado | Pendiente |
 | 13 | 24/10 – 30/10 | Dashboards, integración e ingesta social | Pendiente |
 | 14 | 31/10 – 06/11 | Pruebas unitarias, integración, seguridad y E2E | Pendiente |
 | 15 | 07/11 – 13/11 | Carga, dataset definitivo y documentación | Pendiente |
 | 16 | 14/11 – 15/11 | Cierre y preparación de la defensa | Pendiente |
 
-**Progreso:** 8 / 16 sprints completados (Sprints 1, 2 y 3 cerrados el 20/08/2026; Sprint 4 el 23/08/2026; Sprint 5 el 27/08/2026; Sprint 6 el 28/08/2026; Sprint 7 el 29/08/2026; Sprint 9 el 09/09/2026). La ejecución real arrastra el desvío de calendario registrado en CT-29. Sprint 8 continúa **en curso**: R2 permanece prerregistrado/no ejecutado y la serie S8 con Gemini no produjo ninguna medición válida de CA-4; la primera medición válida, `EX-09` OpenAI en S11-C3, dio `FAIL` (19/28), y su efecto sobre el cierre del Sprint 8 no está decidido. Sprint 11 completó la congelación S11-A y la preparación técnica S11-B; S11-C cerró `EX-02` en `PASS` con el run `s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af` —tras cinco intentos previos `NOT_DEMONSTRATED`—, `EX-03` en `PASS` con el run `s11-6dc3ea66-08c9-51ef-9fe3-70e7dcc67959`, `EX-04` en `PASS` con el run `s11-03adb9bc-c9e4-5f8f-b64c-c4360d0c2085` `EX-06` en `PASS` con el run `s11-989218f3-4808-5c6f-ac23-6e8870fec153` y `EX-08` en `PASS` con el run `s11-b567289c-9fe2-5349-a384-e9284bdde863`; `EX-05` quedó en `PASS` con el run `s11-0e2feac0-6583-513c-a6aa-33430394d14a`; `EX-07` en `PASS` con el run `s11-545491b8-01fe-55e6-8f08-1a0ebbdca8d3`; S11-C2 quedó cerrado el 23/09/2026; `EX-09` OpenAI se ejecutó el 26/09/2026 con el run `s11-a156a68c-c422-5e57-ae2b-3336d3b55e6c` y resultado `FAIL` (CA-4 19/28 = 67,86 %; run válido); S11-C sigue abierto con EX-10 pendiente, y no se iniciaron el análisis S11-D, el cierre S11-E ni S12–S13.
+**Progreso:** 9 / 16 sprints completados (Sprints 1, 2 y 3 cerrados el 20/08/2026; Sprint 4 el 23/08/2026; Sprint 5 el 27/08/2026; Sprint 6 el 28/08/2026; Sprint 7 el 29/08/2026; Sprint 9 el 09/09/2026; Sprint 11 el 19/10/2026, con observaciones). La ejecución real arrastra el desvío de calendario registrado en CT-29. Sprint 8 continúa **en curso**: R2 permanece prerregistrado/no ejecutado y la serie S8 con Gemini no produjo ninguna medición válida de CA-4; la primera medición válida, `EX-09` OpenAI en S11-C3, dio `FAIL` (19/28), y su efecto sobre el cierre del Sprint 8 no está decidido. Sprint 11 completó la congelación S11-A y la preparación técnica S11-B; S11-C cerró `EX-02` en `PASS` con el run `s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af` —tras cinco intentos previos `NOT_DEMONSTRATED`—, `EX-03` en `PASS` con el run `s11-6dc3ea66-08c9-51ef-9fe3-70e7dcc67959`, `EX-04` en `PASS` con el run `s11-03adb9bc-c9e4-5f8f-b64c-c4360d0c2085` `EX-06` en `PASS` con el run `s11-989218f3-4808-5c6f-ac23-6e8870fec153` y `EX-08` en `PASS` con el run `s11-b567289c-9fe2-5349-a384-e9284bdde863`; `EX-05` quedó en `PASS` con el run `s11-0e2feac0-6583-513c-a6aa-33430394d14a`; `EX-07` en `PASS` con el run `s11-545491b8-01fe-55e6-8f08-1a0ebbdca8d3`; S11-C2 quedó cerrado el 23/09/2026; `EX-09` OpenAI se ejecutó el 26/09/2026 con el run `s11-a156a68c-c422-5e57-ae2b-3336d3b55e6c` y resultado `FAIL` (CA-4 19/28 = 67,86 %; run válido); `EX-10` quedó `NOT_DEMONSTRATED` y el análisis S11-D y el dossier S11-E cerraron el Sprint 11 el 19/10/2026; S12–S13 no se iniciaron.
 
 ### Decisiones que condicionan el avance
 
@@ -1581,7 +1581,7 @@ ausente. S11, S12 y S13 no fueron iniciados durante este cierre.
 ## Sprint 11 — Metodología, instrumentación, experimentos, análisis y evidencia
 
 **Fechas planificadas:** 10/10/2026 – 16/10/2026
-**Estado:** En curso — S11-A y S11-B en `PASS`; rebaseline custodial completado (P02/P03 y C1
+**Estado:** Completado con observaciones (19/10/2026) — `EX-10` `NOT_DEMONSTRATED`; véase el cierre al final de esta sección. Historial: S11-A y S11-B en `PASS`; rebaseline custodial completado (P02/P03 y C1
 repetidos en `PASS` bajo la nueva época); S11-C con `EX-02` en `PASS` —run
 `s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af`, auditado como `S11C2_EX02_PASS_CONFIRMED`— tras cinco
 intentos previos `NOT_DEMONSTRATED`—, `EX-03` en `PASS` —run
@@ -4395,6 +4395,92 @@ retroactivamente. EX-10, S11-D y S11-E continúan abiertos hasta sus resultados 
 
 ---
 
+### Actualización operativa EX-10 — READY de preparación 300 s (18/10/2026 local)
+
+Por solicitud expresa del operador, el candidato c47 `1575d62064d7e00c824375990afd920cd5800455`
+(árbol `ddf7db9a05240dcdaec2660b13d87312f1f8c42b`) amplía sólo el READY de preparación de
+120 a 300 s. Conserva la ventana científica de 60 s, el techo wire de 120 s y los TTL de
+observaciones firmadas. Dos archivos cambiaron; tres pruebas dirigidas y el handoff posterior
+pasaron (72,79 s tras limitar wire). Los tres errores de fixture iniciales y la secuencia
+posterior 3 PASS/1 FAIL se conservan en la telemetría v3307; no se declaran una CI completa PASS.
+
+Los cuatro contenedores c47 funcionan y los cuatro c46 quedan detenidos conservados; se reutilizó
+el disco de DB y Redis tiene RAM nueva. El primer compose fallido y su recuperación limitada
+se conservan. El deployment se contrastó con los 747 hashes y el preflight pasó 64/64
+(SHA-256 `eecdc454a375c4ccc144a7de38c8c6ba1efc98110e7f075fbd01597b8bf1b861`).
+HT5 se reutiliza en 96,76 %: las 33 fuentes críticas y los 81 archivos de tests conservan hashes;
+no hubo una nueva medición. Custodia v3307, deployment v3308, perfil v3309 y checkpoint
+`01-work-units/checkpoint-c47-ready300-v3311/checkpoint.json` quedan bajo la raíz externa de ejecución.
+
+La inicialización genuina c47 v3312 pasó en CP1: sesión
+`s11-ex10-official-session-4a65b62aea43a068085811a34f391d3b`, `authority_written=false`,
+ACK NO y START NO. Anchor SHA-256
+`837628037338680b8179d29c183d9288a3d92e7ccf01ee3599ec62d2c64af593`; contexto v3313
+SHA-256 `521a90794b3899fb4000f3f45ba5ee0b67cd25fd4e9060eab39d67211503128c`, 37 roots.
+La fixture inicial falló por una ruta incorrecta del colector de namespace antes de cualquier
+Docker/B2; la corrección y revisión independiente precedieron al PASS. El checkpoint es
+`01-work-units/checkpoint-c47-initialized-v3316/checkpoint.json`. v3315 terminó
+`FAIL_PRE_NATIVE_STALE_COMPOSE_APPROVAL`; v3320 encontró un PostgreSQL ajeno activo y v3324
+no pudo leer el ancla por permisos de grupo. Cada fallo previo conservó CP1 sin intención.
+Se detuvo y conservó el contenedor ajeno y se corrigió el grupo de los inputs privados.
+v3327 entró en START nativo y falló con `fixed-native-envelope-binding-invalid`.
+La lectura posterior muestra CP2, `intent-start-official`, una acción en vuelo,
+`uncertain=true`, `blocked=true`, sólo `inspect` permitido y ningún run ID confirmado.
+El witness conserva revisión 0 y SHA-256
+`e16b46b1c0017de5fc3b630d3a3fe410d659ff715829ec63a9ffc91e332d2f72`.
+El readback B3/B4 muestra sólo el run histórico y ninguna reserva activa. El worker
+`e14a8f7e678e` terminó después por sí solo con exit 3; no se lo detuvo manualmente.
+El exchange sólo contiene perfil y cabecera, sin envelope ni preflight actuales. ACK y START
+están sin confirmar; PUSH NO. Se conserva la incertidumbre sin repetir START ni génesis.
+La causa exacta de `fixed-native-envelope-binding-invalid` fue una fuente `ex10_prepare.py`
+omitida del contexto de instalación. Se incorporó la corrección a un paquete de recuperación
+externo y se inicializó una sesión técnica nueva, sin autoridad escrita, en CP1. El intento
+autorizado v3344 falló antes de registrar intención de START por un pin de módulo obsoleto:
+la nueva sesión continuó en CP1, B3/B4 y witness permanecieron intactos. v3345 se retiró
+sin ejecutar al detectar otro pin transitivo. v3346 corrigió ambos y se ejecutó una vez
+tras el precheck; produjo envelope y preflight PASS, pero falló en la composición del bridge
+con `native-attachment-local-client`. La sesión nueva quedó en CP2 `UNCERTAIN`, sin run ID.
+B3 siguió en revisión 0, B4 sin reserva y witness sin cambios; el worker v3346 terminó con
+exit 3. No se repite START automáticamente. La salida espontánea del worker original volvió
+innecesaria su parada manual.
+W23 y el cierre S11 requieren recuperación exacta; los estados constan en
+`01-work-units/checkpoint-c47-uncertain-container-v3331/checkpoint.json` y
+`01-work-units/checkpoint-c47-recovery-uncertain-v3347/checkpoint.json` bajo la raíz externa.
+La adjudicación científica de S11-D y los resultados históricos no cambian. Véase
+[S11-E](s11/S11_E_DOSSIER_Y_CIERRE.md).
+
+---
+
+### Cierre de Sprint 11 — EX-10 `NOT_DEMONSTRATED` (19/10/2026)
+
+El aparato EX-10 v2 se integró en `main` hasta `28b417982e9e04be5b7e50e164732c8e6cf45e03`
+(árbol `939e8f6d0adb372f76ccda08e5b6be16f2a86b3b`), la revisión fuente montada en los intentos
+oficiales W22. Cada intento se ejecutó una vez con aprobación exacta del operador, sin
+reintento automático, seguido de una relectura de solo lectura:
+
+- **c51 / v3400:** entró en la acción nativa y falló con `fixed-native-envelope-binding-invalid`;
+  la configuración B5 heredaba 38 raíces de sesión previas y el contexto registrado tenía 40.
+  La sesión quedó en CP2 `UNCERTAIN`, sin run ID.
+- **c52 / v3403:** sesión técnica nueva con el contexto corregido y un prechequeo en el host.
+  El envelope se construyó, pero la cabecera firmada de la autoridad (vigencia 240 s) venció
+  antes de componer el bridge (`EXPIRED_OBSERVATION` → `native-bridge-composition-denied`):
+  la fase previa (~49 s) más la preparación nativa (~243 s) superan esa vigencia en este host.
+  La sesión quedó en CP2 `UNCERTAIN`, sin run ID.
+
+En c47, c51 y c52 la autoridad conserva los bytes de la génesis (B3 `056e5a7a…`, B4
+`1cc05aa4…` sin reserva, witness `e16b46b1…`); no hubo ACK aplicado, run nuevo ni efectos
+sobre el SUT. Como el conflicto de tiempos es estructural y resolverlo exigiría cambiar el
+aparato o su política temporal, el operador decidió cerrar S11 con **EX-10
+`NOT_DEMONSTRATED`**. La síntesis final queda: HT5 `PASS` (96,76 %), HT2 `FAIL` válido
+(19/28), HE, HT1, HT3, HT4 y HT6 `NOT_DEMONSTRATED`, HTP no PASS.
+
+Pendientes posteriores al cierre: separar en CI las suites largas del aparato EX-10 antes de
+publicar los commits; rotar `S11_CUSTODY_HMAC_KEY` y `DOCUMENT_HMAC_SECRET`, cuyos valores
+locales aparecieron en la salida de una herramienta de diagnóstico el 19/10/2026; y limpiar
+con inspección los contenedores de diagnóstico. Adjudicación y evidencia en
+[S11-D](s11/S11_D_ANALISIS_Y_DECISIONES.md) y [S11-E](s11/S11_E_DOSSIER_Y_CIERRE.md).
+
+---
 
 ## Sprint 12 — Catálogo de recompensas y canje simulado
 
@@ -4535,7 +4621,7 @@ Se completa a medida que las mediciones estén disponibles (Sprints 14 y 15).
 
 | Indicador | Umbral | Medición | Estado |
 |---|---|---|---|
-| Cobertura backend crítico | ≥ 80 % | — | Pendiente |
+| Cobertura backend crítico | ≥ 80 % | 96,76 % (2119/2190 líneas; 33 archivos prospectivamente fijados, medición S11 del 18/10/2026) | PASS en alcance HT5; no equivale a CI global. Ver [S11-D](s11/S11_D_ANALISIS_Y_DECISIONES.md) |
 | Concordancia IA vs etiquetas de oro | ≥ 85 % | 67,86 % (19/28): CA-4 de `EX-09` OpenAI, run `s11-a156a68c-c422-5e57-ae2b-3336d3b55e6c`, 26/09/2026 | `FAIL` |
 | Latencia P50 endpoints críticos | ≤ 800 ms | — | Pendiente |
 | Latencia de red Heroku ↔ Supabase | Medida y documentada | — | Pendiente |
