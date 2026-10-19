@@ -5642,10 +5642,12 @@ def test_v2_native_preparation_waits_for_all_roles_before_frame_budget(monkeypat
     def sleep(_seconds):
         now[0] += 200
         available.add("/s11-evidence/" + cfg["staging_name"])
+        if now[0] >= 600:
+            available.add(base + "/pending-session.json")
         if now[0] >= 800:
             available.update((base + "/process.json", base + "/envelope.json"))
         if now[0] >= 1000:
-            available.add(base + "/pending-session.json")
+            available.add(base + "/bridge-ready.json")
 
     monkeypatch.setattr(executor.time, "monotonic", lambda: now[0])
     monkeypatch.setattr(executor.time, "sleep", sleep)

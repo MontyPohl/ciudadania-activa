@@ -2488,7 +2488,7 @@ class NativeExclusiveProofPublication:
     """
 
     ROLES = frozenset(
-        {"profile", "header", "process", "envelope", "reservation"}
+        {"profile", "header", "process", "envelope", "reservation", "bridge-ready"}
         | {
             prefix + "-" + suffix
             for prefix in ("base", "action", "commit", "emission")
@@ -11233,6 +11233,18 @@ class NativeActionFactory:
                 adapter, channel = attachment.admit(
                     identity=prepared.process, observer=observe_process
                 )
+                if cfg["action"] == "start":
+                    # Wake the guest only after bridge composition and native
+                    # attachment. This role grants no exchange authority.
+                    publication.publish(
+                        "bridge-ready",
+                        bootstrap.apparatus["ex10_authority_sqlite"].canonical_bytes(
+                            {
+                                "schema_version": "s11-native-bridge-ready-v1",
+                                "exchange_id": cfg["exchange_id"],
+                            }
+                        ),
+                    )
                 if cfg["action"] == "start":
                     response = graph.broker.serve_start(channel)
                 elif cfg["action"] == "execute":
