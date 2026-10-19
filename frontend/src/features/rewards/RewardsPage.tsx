@@ -9,6 +9,7 @@ import {
 } from "@/lib/api/rewards";
 import type { RewardsSummary, RewardsCatalog, CatalogEntry } from "@/types/api";
 import { ImpactCards } from "./ImpactCards";
+import { CreditsByInstitution } from "./CreditsByInstitution";
 import { RewardCard } from "./RewardCard";
 import { RedeemDialog } from "./RedeemDialog";
 import { MovementsList } from "./MovementsList";
@@ -100,6 +101,7 @@ export function RewardsPage() {
       ) : (
         <>
           <ImpactCards impact={view.summary.impact} />
+          <CreditsByInstitution credits={view.summary.credits_by_institution} />
           <section className="space-y-4" aria-labelledby="catalog-title">
             <h2 id="catalog-title" className="text-xl font-bold">
               Recompensas disponibles

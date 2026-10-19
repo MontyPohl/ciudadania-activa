@@ -20,8 +20,8 @@ const pending: Record<RewardEventType, string> = {
 const credited: Record<RewardEventType, string> = {
   REPORT_CREATED: "Reporte validado por ANDE",
   CONFIRMATION_CREATED: "Confirmación validada por ANDE",
-  VALIDATION_BONUS: "Bono por validación por ANDE",
-  RESOLUTION_BONUS: "Bono por resolución por ANDE",
+  VALIDATION_BONUS: "Bono por validación · ANDE",
+  RESOLUTION_BONUS: "Bono por resolución · ANDE",
   REDEMPTION: "Canje de recompensa de ANDE",
   REVERSAL: "Revertido por una decisión administrativa",
 };

@@ -99,13 +99,13 @@ def redemption_in_period(*, user_id, institution_id, period: date) -> RewardRede
     ).first()
 
 
-def catalog_for(*, user) -> list[CatalogEntry]:
+def catalog_for(*, user, now: datetime | None = None) -> list[CatalogEntry]:
     """Prioriza el límite mensual sobre la falta de saldo en el catálogo."""
     balances = {row.institution.pk: row.balance for row in institution_balances(user_id=user.pk)}
     redemptions = {
         row.institution_id: row
         for row in RewardRedemption.objects.filter(
-            user_id=user.pk, period_month=periods.current_period()
+            user_id=user.pk, period_month=periods.current_period(now)
         )
     }
     rewards = (

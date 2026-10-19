@@ -25,7 +25,10 @@ class RewardRefSerializer(serializers.Serializer):
 class RewardPublicSerializer(RewardRefSerializer):
     description = serializers.CharField(read_only=True)
     credit_cost = serializers.IntegerField(read_only=True)
-    simulated = serializers.BooleanField(read_only=True)
+    simulated = serializers.SerializerMethodField()
+
+    def get_simulated(self, obj):
+        return True
 
 
 class RedemptionPeriodSerializer(serializers.Serializer):
@@ -39,10 +42,13 @@ class RedemptionSerializer(RedemptionPeriodSerializer):
     id = serializers.UUIDField(read_only=True)
     code = serializers.CharField(read_only=True)
     credits_spent = serializers.IntegerField(read_only=True)
-    simulated = serializers.BooleanField(source="reward.simulated", read_only=True)
+    simulated = serializers.SerializerMethodField()
     created_at = serializers.DateTimeField(read_only=True)
     reward = RewardRefSerializer(read_only=True)
     institution = InstitutionRefSerializer(read_only=True)
+
+    def get_simulated(self, obj):
+        return True
 
 
 class ImpactSummarySerializer(serializers.Serializer):

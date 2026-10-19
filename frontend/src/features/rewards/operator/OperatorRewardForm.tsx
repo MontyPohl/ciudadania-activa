@@ -32,6 +32,7 @@ export function OperatorRewardForm({
       input.name.length < 3 ||
       input.name.length > 160 ||
       /[\u0000-\u001f\u007f-\u009f]/.test(input.name) ||
+      /\p{Cf}/u.test(input.name) ||
       input.description.length > 1000
     ) {
       setError(

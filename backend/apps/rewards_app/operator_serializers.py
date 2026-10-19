@@ -45,9 +45,12 @@ class OperatorRewardSerializer(serializers.Serializer):
     description = serializers.CharField(read_only=True)
     active = serializers.BooleanField(read_only=True)
     credit_cost = serializers.IntegerField(read_only=True)
-    simulated = serializers.BooleanField(read_only=True)
+    simulated = serializers.SerializerMethodField()
     created_at = serializers.DateTimeField(read_only=True)
     updated_at = serializers.DateTimeField(read_only=True)
+
+    def get_simulated(self, obj):
+        return True
 
 
 class OperatorRewardContextSerializer(serializers.Serializer):

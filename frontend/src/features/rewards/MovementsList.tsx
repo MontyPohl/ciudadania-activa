@@ -3,6 +3,12 @@ import { getLedgerMovements } from "@/lib/api/rewards";
 import { PaginatedList } from "./PaginatedList";
 import { movementLabel } from "./movementLabel";
 import { number, date, panel } from "./presentation";
+const statusLabels = {
+  ACREDITADO: "Acreditado",
+  PENDIENTE: "Pendiente",
+  ANULADO: "No llegó a acreditarse",
+  REVERTIDO: "Revertido por una decisión administrativa",
+};
 const load = (page: number, signal: AbortSignal) => getLedgerMovements({ page }, signal);
 export function MovementsList() {
   return (
@@ -26,7 +32,7 @@ export function MovementsList() {
               >
                 <p className="font-semibold">{movementLabel(item)}</p>
                 <p className="text-sm">
-                  {item.status} · {date(item.created_at)}
+                  {statusLabels[item.status]} · {date(item.created_at)}
                 </p>
                 <p className="text-sm tabular-nums">
                   Impacto: {item.impact_delta > 0 ? "+" : ""}

@@ -24,8 +24,8 @@ export function movementLabel({
     case "CONFIRMATION_CREATED":
       return `Confirmación validada${by}`;
     case "VALIDATION_BONUS":
-      return `Bono por validación${by}`;
+      return `Bono por validación${institution ? ` · ${institution.name}` : ""}`;
     case "RESOLUTION_BONUS":
-      return `Bono por resolución${by}`;
+      return `Bono por resolución${institution ? ` · ${institution.name}` : ""}`;
   }
 }

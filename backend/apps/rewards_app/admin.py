@@ -42,7 +42,7 @@ class RewardAdmin(admin.ModelAdmin):
     # El costo es fijo en 1.000 créditos durante el MVP y el operador no puede
     # modificarlo (D-02). Se protege aquí, no con `editable=False` en el modelo: el
     # campo debe seguir siendo estructuralmente normal para la extensibilidad futura.
-    readonly_fields = ["credit_cost", "created_at", "updated_at"]
+    readonly_fields = ["credit_cost", "simulated", "created_at", "updated_at"]
 
 
 @admin.register(RewardRedemption)

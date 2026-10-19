@@ -1,4 +1,4 @@
-Hola {{ nombre }}:
+{% autoescape off %}Hola {{ nombre }}:
 
 Registramos tu canje simulado de la recompensa {{ recompensa }} de {{ institucion }}.
 
@@ -9,3 +9,4 @@ Esta recompensa es una simulación del prototipo académico Ciudadanía Activa y
 --
 Ciudadanía Activa
 Este es un mensaje automático. No respondas a esta dirección.
+{% endautoescape %}

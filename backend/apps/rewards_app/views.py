@@ -49,10 +49,11 @@ class RewardsSummaryView(_CitizenRewardsMixin, APIView):
 
 class RewardsCatalogView(_CitizenRewardsMixin, APIView):
     def get(self, request):
-        entries = selectors.catalog_for(user=request.user)
+        now = timezone.now()
+        entries = selectors.catalog_for(user=request.user, now=now)
         return Response(
             {
-                "period": periods.format_period(periods.current_period()),
+                "period": periods.format_period(periods.current_period(now)),
                 "results": CatalogEntrySerializer(entries, many=True).data,
             }
         )
