@@ -17,8 +17,8 @@ un sprint concreto — ver [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md) y [PROGRESO_
 | 7 | Confirmaciones ciudadanas de reportes activos | S7 | Pendiente |
 | 8 | `rewards_app`: puntos pendientes/acreditados, créditos 1:1 y reversión | S2 · S9 · S10 | En curso |
 | 9 | Panel institucional: validación, estados, evidencias y administración de recompensa | S9 · S10 | Pendiente |
-| 10 | Ranking mensual y privacidad configurable | S4 · S12 (absorbe S11 funcional) | Implementado y verificado en local; sin push, PR ni despliegue (19/10/2026) |
-| 11 | Canje simulado de 1.000 créditos y límite mensual | S12 | Implementado y verificado en local; sin push, PR ni despliegue (19/10/2026) |
+| 10 | Ranking mensual y privacidad configurable | S4 · S12 (absorbe S11 funcional) | Completado — implementado, desplegado y verificado (19/10/2026) |
+| 11 | Canje simulado de 1.000 créditos y límite mensual | S12 | Completado — implementado, desplegado y verificado (19/10/2026) |
 
 > **Estado a 22/08/2026.** El ítem 1 pertenece íntegramente al Sprint 1, cerrado el 20/08/2026. Los
 > ítems 4 y 8 abarcan varios sprints: el Sprint 2 entregó su base de datos —`institutions`,
@@ -40,8 +40,12 @@ un sprint concreto — ver [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md) y [PROGRESO_
 
 > **Actualización S12 (19/10/2026).** Los ítems 10 y 11 incluyen el ranking completo,
 > resumen, saldos y movimientos absorbidos del S11 funcional, catálogo, gestión institucional
-> y canje con límite mensual garantizado en la base. Las migraciones no se aplicaron en
-> producción. `RECOMPENSA_DISPONIBLE` y los reintentos automáticos quedan para S13.
+> y canje con límite mensual garantizado en la base. PR #43 se integró mediante `aebf900`;
+> las migraciones se aplicaron en Heroku y el frontend se desplegó en Vercel. El smoke
+> productivo sin canjear quedó verificado; el autenticado con Google sigue pendiente del
+> usuario. Los tres fallos preexistentes de EX-10/S11 quedan como deuda aparte, con
+> despliegue aceptado por el usuario. `RECOMPENSA_DISPONIBLE` y los reintentos automáticos
+> quedan para S13.
 
 ## Prioridad Media
 
