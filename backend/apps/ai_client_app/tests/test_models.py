@@ -62,7 +62,7 @@ def test_borrar_el_reporte_arrastra_su_clasificacion(report):
 
 
 def test_el_conjunto_de_campos_esta_congelado(report):
-    """Los del Anexo A más los dos que añadió el Sprint 8, y ninguno más.
+    """Los del Anexo A, los del Sprint 8 y los contadores de uso del proveedor.
 
     La comparación sigue siendo por igualdad exacta: cualquier columna nueva rompe
     esta prueba a propósito, para que ningún campo entre sin una decisión escrita.
@@ -84,6 +84,9 @@ def test_el_conjunto_de_campos_esta_congelado(report):
         "inconsistency_flag",
         "justification",
         "model_name",
+        "input_tokens",
+        "output_tokens",
+        "total_tokens",
     }
 
 

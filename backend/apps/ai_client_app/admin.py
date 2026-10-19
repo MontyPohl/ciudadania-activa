@@ -17,4 +17,10 @@ class AiClassificationAdmin(admin.ModelAdmin):
     list_filter = ["inconsistency_flag", "suggested_priority", "suggested_institution"]
     list_select_related = ["suggested_category", "suggested_institution"]
     raw_id_fields = ["report"]
-    readonly_fields = ["created_at", "updated_at"]
+    readonly_fields = [
+        "created_at",
+        "updated_at",
+        "input_tokens",
+        "output_tokens",
+        "total_tokens",
+    ]

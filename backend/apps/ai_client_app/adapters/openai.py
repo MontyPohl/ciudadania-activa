@@ -30,7 +30,7 @@ from openai import APIConnectionError, APIStatusError, OpenAI
 
 from apps.core.enums import ReportPriority
 
-from ..contracts import ClassificationRequest
+from ..contracts import ClassificationRequest, ProviderUsage
 from ..exceptions import PermanentAiProviderError, TransientAiProviderError
 from ..prompts import PROMPT_VERSION, render_classification_prompt
 
@@ -117,6 +117,7 @@ class ProviderCall:
     response_id: str | None
     request_id: str | None
     model: str | None
+    usage: ProviderUsage | None = None
 
 
 class OpenAiClassificationAdapter:
@@ -145,6 +146,7 @@ class OpenAiClassificationAdapter:
             response_id=_texto_o_none(getattr(response, "id", None)),
             request_id=_texto_o_none(getattr(response, "_request_id", None)),
             model=_texto_o_none(getattr(response, "model", None)),
+            usage=_extract_usage(response),
         )
 
     def _create_response(self, request: ClassificationRequest):
@@ -216,6 +218,16 @@ def _traducir_error(exc: BaseException) -> BaseException:
     if status in _CODIGOS_TRANSITORIOS or 500 <= status <= 599:
         return TransientAiProviderError(f"El proveedor de IA respondió {status}.")
     return PermanentAiProviderError(f"El proveedor de IA rechazó la petición ({status}).")
+
+
+def _extract_usage(response) -> ProviderUsage | None:
+    usage = getattr(response, "usage", None)
+    valores = {}
+    for campo in ("input_tokens", "output_tokens", "total_tokens"):
+        valor = getattr(usage, campo, None)
+        # bool hereda de int, pero no representa un contador de tokens.
+        valores[campo] = valor if type(valor) is int and valor >= 0 else None
+    return ProviderUsage(**valores) if any(v is not None for v in valores.values()) else None
 
 
 def _texto_o_none(value) -> str | None:

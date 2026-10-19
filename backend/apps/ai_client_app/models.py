@@ -60,6 +60,11 @@ class AiClassification(BaseModel):
     # no la respuesta del proveedor.
     model_name = models.CharField(max_length=100, blank=True, default="")
 
+    # Null: el proveedor no informa ese contador o la fila es anterior al registro de uso.
+    input_tokens = models.PositiveIntegerField(null=True, blank=True)
+    output_tokens = models.PositiveIntegerField(null=True, blank=True)
+    total_tokens = models.PositiveIntegerField(null=True, blank=True)
+
     class Meta:
         db_table = "ai_classifications"
         ordering = ["-created_at"]
