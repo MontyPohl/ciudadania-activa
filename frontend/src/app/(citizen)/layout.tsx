@@ -3,6 +3,7 @@ import { RoleGuard } from "@/features/auth/RoleGuard";
 
 const LINKS = [
   { href: "/panel", label: "Panel" },
+  { href: "/recompensas", label: "Recompensas" },
   { href: "/reportes/nuevo", label: "Crear reporte" },
   { href: "/verificacion", label: "Verificación" },
   { href: "/perfil", label: "Perfil" },

@@ -3,6 +3,7 @@ import type {
   ISODateTime,
   RankingVisibility,
   RejectionReason,
+  RewardEventType,
   RewardTxStatus,
   ReportPriority,
   ReportStatus,
@@ -342,4 +343,102 @@ export interface IdentityReviewResult {
   verification_status: VerificationStatus;
   reviewed_at: ISODateTime | null;
   verified_by: UUID | null;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Recompensas y ranking — Sprint 12                                          */
+/* -------------------------------------------------------------------------- */
+
+export type RewardPeriod = string; // "YYYY-MM"
+
+export interface RewardPublic {
+  id: UUID;
+  name: string;
+  description: string;
+  credit_cost: 1000;
+  simulated: true;
+}
+export interface Redemption {
+  id: UUID;
+  code: string;
+  period: RewardPeriod;
+  credits_spent: 1000;
+  simulated: true;
+  created_at: ISODateTime;
+  reward: { id: UUID; name: string };
+  institution: SessionInstitution;
+}
+export interface RewardsSummary {
+  impact: { historical: number; current_month: number; pending: number };
+  credits_by_institution: Array<{ institution: SessionInstitution; balance: number }>;
+  period: RewardPeriod;
+}
+export interface LedgerMovement {
+  id: UUID;
+  event_type: RewardEventType;
+  status: RewardTxStatus;
+  impact_delta: number;
+  credit_delta: number;
+  institution: SessionInstitution | null;
+  report_id: UUID | null;
+  redemption_id: UUID | null;
+  created_at: ISODateTime;
+  credited_at: ISODateTime | null;
+  voided_at: ISODateTime | null;
+  reversed_at: ISODateTime | null;
+}
+export type RewardBlockedReason = "MONTHLY_LIMIT_REACHED" | "INSUFFICIENT_BALANCE";
+export interface CatalogEntry {
+  reward: RewardPublic;
+  institution: SessionInstitution;
+  balance: number;
+  can_redeem: boolean;
+  blocked_reason: RewardBlockedReason | null;
+  missing_credits: number;
+  redemption_this_month: { id: UUID; code: string; created_at: ISODateTime } | null;
+}
+export interface RewardsCatalog {
+  period: RewardPeriod;
+  results: CatalogEntry[];
+}
+export interface RedeemResponse {
+  redemption: Redemption;
+  balance_after: number;
+}
+export type RedeemConflictCode =
+  "REWARD_INACTIVE" | "MONTHLY_LIMIT_REACHED" | "INSUFFICIENT_BALANCE";
+
+export interface OperatorReward {
+  id: UUID;
+  institution: SessionInstitution;
+  name: string;
+  description: string;
+  active: boolean;
+  credit_cost: 1000;
+  simulated: true;
+  created_at: ISODateTime;
+  updated_at: ISODateTime;
+}
+export interface OperatorRewardContext {
+  institution: SessionInstitution;
+  reward: OperatorReward | null;
+}
+export interface OperatorRedemption {
+  id: UUID;
+  code: string;
+  period: RewardPeriod;
+  created_at: ISODateTime;
+  reward: { id: UUID; name: string };
+  citizen_display: string;
+}
+
+export interface MonthlyRanking {
+  period: RewardPeriod;
+  entries: Array<{
+    position: number;
+    display_name: string;
+    points: number;
+    is_private: boolean;
+    is_me: boolean;
+  }>;
 }

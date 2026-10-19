@@ -13,4 +13,7 @@ urlpatterns = [
     path("api/v1/reports/", include("apps.reports_app.urls")),
     path("api/v1/citizen/", include("apps.reports_app.urls_citizen")),
     path("api/v1/operator/", include("apps.reports_app.urls_operator")),
+    path("api/v1/rewards/", include("apps.rewards_app.urls")),
+    path("api/v1/operator/rewards/", include("apps.rewards_app.urls_operator")),
+    path("api/v1/ranking/", include("apps.rewards_app.urls_ranking")),
 ]
