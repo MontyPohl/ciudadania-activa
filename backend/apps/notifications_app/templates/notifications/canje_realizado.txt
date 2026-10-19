@@ -1,0 +1,11 @@
+Hola {{ nombre }}:
+
+Registramos tu canje simulado de la recompensa {{ recompensa }} de {{ institucion }}.
+
+Podés ver tu vale en Recompensas → Mis canjes.
+
+Esta recompensa es una simulación del prototipo académico Ciudadanía Activa y no tiene valor económico real.
+
+--
+Ciudadanía Activa
+Este es un mensaje automático. No respondas a esta dirección.
