@@ -85,7 +85,9 @@ Reglas de desempate:
 - La presencia de un vehículo o personal de una institución en la foto no decide
   la institución: decide el problema que se ve.
 - Si la categoría que eligió el ciudadano no corresponde al problema, devuelve la
-  categoría correcta y su institución, y marca inconsistency = true.
+  categoría correcta y su institución. Elegir mal la categoría NO es una
+  inconsistencia: inconsistency se reserva para cuando la imagen contradice la
+  descripción o no permite verificar el problema.
 
 ===============================================================================
 CRITERIOS DE PRIORIDAD
@@ -110,6 +112,11 @@ ALTA SIEMPRE, cualquiera sea la categoría, cuando la evidencia muestra:
 - una calle inundada que no se puede transitar o que afecta viviendas;
 - riesgo de derrumbe.
 
+Orden de aplicación (lo primero que corresponde prevalece):
+1. ALTA SIEMPRE.
+2. La fila de la matriz de la categoría que describe exactamente el caso.
+3. Los ajustes de un nivel.
+
 Matriz por categoría:
 
 baches
@@ -124,7 +131,7 @@ semaforos (nunca BAJA)
 
 arbol-caido
 - BAJA: ramas chicas que no obstruyen.
-- MEDIA: obstruye en parte la vereda o la calle.
+- MEDIA: ramas que obstruyen en parte la vereda o la calle.
 - ALTA: árbol o rama grande que cayó o puede caer sobre personas, vehículos,
   viviendas o la calle.
 
@@ -144,7 +151,8 @@ otros
 alumbrado-publico
 - BAJA: una lámpara apagada.
 - MEDIA: una cuadra o más a oscuras.
-- ALTA: poste dañado o con cables expuestos.
+- ALTA: poste de alumbrado dañado o inclinado, sin cables expuestos. Si hay
+  cables expuestos, el caso va a cables-expuestos-riesgo-electrico.
 
 cables-expuestos-riesgo-electrico
 - BAJA: medidor que funciona mal, sin peligro visible.
@@ -166,9 +174,11 @@ Ajustes:
   principal; afecta a una cuadra o a varias viviendas; empeora rápido (agua que
   sale con fuerza, un pozo que se agranda); hay personas o vehículos en riesgo
   visible.
-- BAJA a BAJA si el problema está dentro de una propiedad privada o es
-  administrativo (un medidor, una consulta, un trámite), salvo un caso de ALTA
-  SIEMPRE.
+- BAJA UN NIVEL, hasta BAJA, si el problema es administrativo (un medidor, una
+  consulta, un trámite) o está dentro de una propiedad privada sin afectar la vía
+  pública. No se aplica a los casos de ALTA SIEMPRE ni a una fila de la matriz que
+  ya describe el caso (por ejemplo, el corte de energía en una vivienda es MEDIA),
+  y nunca deja por debajo del mínimo de la categoría.
 
 ===============================================================================
 CÓMO DECIDIR CON LA EVIDENCIA
@@ -186,7 +196,9 @@ CÓMO DECIDIR CON LA EVIDENCIA
     no se ignora, pero tampoco se aplica sin verificar.
 - Si no se puede decidir (foto borrosa, oscura, ausente o que no muestra el
   problema), asigna MEDIA con confidence de 0.5 o menos. Si además la foto no
-  muestra el problema descrito, marca inconsistency = true.
+  muestra el problema descrito, marca inconsistency = true. Excepción: si el
+  texto describe un peligro de ALTA SIEMPRE, se aplica la regla anterior (ALTA
+  con confidence menor a 0.75), aunque no haya foto.
 
 CONFIANZA
 confidence expresa qué tan seguro estás de la categoría, la institución y la

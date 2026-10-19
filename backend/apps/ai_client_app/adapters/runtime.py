@@ -65,7 +65,7 @@ def get_runtime_adapter() -> RuntimeAdapter | None:
 
 
 def _openai_adapter() -> RuntimeAdapter | None:
-    version = getattr(settings, "AI_PROMPT_VERSION", "v1")
+    version = str(getattr(settings, "AI_PROMPT_VERSION", "v1")).strip().lower()
     if version not in PROMPT_VERSIONS:
         logger.warning("Versión de prompt de IA desconocida; clasificación desactivada.")
         return None

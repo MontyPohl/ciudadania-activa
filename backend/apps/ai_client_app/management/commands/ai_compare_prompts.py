@@ -118,7 +118,14 @@ class Command(BaseCommand):
         try:
             for version in versions:
                 counts = dict(
-                    category=0, institution=0, priority=0, all=0, errors=0, auto=0, wrong=0
+                    category=0,
+                    institution=0,
+                    priority=0,
+                    all=0,
+                    errors=0,
+                    auto=0,
+                    wrong=0,
+                    wrong_any=0,
                 )
                 tokens = 0
                 missing_tokens = 0
@@ -140,6 +147,7 @@ class Command(BaseCommand):
                     counts["errors"] += int(result.error is not None)
                     counts["auto"] += int(result.auto_apply)
                     counts["wrong"] += int(result.auto_apply and not hits[2])
+                    counts["wrong_any"] += int(result.auto_apply and not all(hits))
                     tokens += result.total_tokens or 0
                     missing_tokens += int(result.total_tokens is None)
                     results.append(
@@ -173,6 +181,7 @@ class Command(BaseCommand):
                 self.stdout.write(
                     f"Se aplicarían solas con prioridad equivocada: {counts['wrong']}"
                 )
+                self.stdout.write(f"Se aplicarían solas con algún error: {counts['wrong_any']}")
                 average = tokens / total if total else 0
                 self.stdout.write(f"Tokens totales: {tokens}; promedio por caso: {average:.2f}")
                 if missing_tokens:

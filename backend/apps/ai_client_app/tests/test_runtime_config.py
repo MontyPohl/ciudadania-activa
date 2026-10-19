@@ -264,7 +264,8 @@ def test_la_credencial_no_aparece_en_la_representacion(settings, sin_cliente_rea
 
 
 def test_openai_registra_version_v2(openai_configurado, sin_cliente_real):
-    openai_configurado.AI_PROMPT_VERSION = "v2"
+    # Mayúsculas y espacios de una variable cargada a mano no apagan la IA en silencio.
+    openai_configurado.AI_PROMPT_VERSION = " V2 "
     runtime = get_runtime_adapter()
     assert runtime.prompt_version == "classification-v2"
     assert runtime.adapter._prompt_version == "v2"

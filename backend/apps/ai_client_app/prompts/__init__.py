@@ -12,7 +12,7 @@ en cada clasificación y cada reproceso (contrato S8-A, D15).
 from __future__ import annotations
 
 import json
-from functools import lru_cache
+from functools import cache
 from pathlib import Path
 
 from ..contracts import ClassificationRequest
@@ -39,7 +39,7 @@ def prompt_version_id(version: str) -> str:
 _MARCA_ENTRADA = "ENTRADA"
 
 
-@lru_cache(maxsize=2)
+@cache
 def load_prompt_template(version: str = "v1") -> str:
     """Contenido íntegro del prompt versionado."""
     prompt_version_id(version)
