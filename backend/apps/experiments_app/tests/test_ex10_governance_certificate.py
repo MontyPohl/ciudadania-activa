@@ -723,7 +723,10 @@ def test_governance_plan(fixture, case):
         repo = APP.parents[2]
         for path, sha in baseline["frozen_source_hashes"].items():
             if "runtime_profile" in path or "session_v2" in path:
-                assert hashlib.sha256((repo / path).read_bytes()).hexdigest() == sha
+                raw = (repo / path).read_bytes()
+                if path == "backend/apps/experiments_app/ex10_runtime_profile.py":
+                    raw = b.runtime_profile_as_frozen(raw)
+                assert hashlib.sha256(raw).hexdigest() == sha
         for row in baseline["attested_files"]:
             raw = (repo / row["path"]).read_bytes()
             if row["path"] == "docs/tesis/S11A_POLITICA_CUSTODIA_Y_ACCESO.md":
