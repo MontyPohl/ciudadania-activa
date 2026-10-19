@@ -9,7 +9,8 @@ from apps.notifications_app.models import Notification
 from apps.reports_app.models import ReportConfirmation, ReportStatusHistory, ResolutionEvidence
 from apps.reports_app.services import lifecycle, reversal, validation
 from apps.rewards_app.enums import RewardEventType, RewardTxStatus
-from apps.rewards_app.models import RewardTransaction
+from apps.rewards_app.models import Reward, RewardRedemption, RewardTransaction
+from apps.rewards_app.periods import current_period
 from apps.rewards_app.services import ledger
 
 pytestmark = pytest.mark.django_db
@@ -122,9 +123,19 @@ def test_reversal_writes_exact_history_audit_and_compensating_ledger(
         reward.pk: (reward.impact_delta, reward.credit_delta, reward.credited_at)
         for reward in originals
     }
+    reward = Reward.objects.create(institution=institution, name="Vale simulado")
+    voucher = RewardRedemption.objects.create(
+        user=report.citizen,
+        reward=reward,
+        institution=institution,
+        period_month=current_period(report.validated_at),
+        code="CA-0000-0000-0000-0001",
+        credits_spent=1000,
+    )
     redemption = RewardTransaction.objects.create(
         user=report.citizen,
         institution=institution,
+        redemption=voucher,
         event_type=RewardEventType.REDEMPTION,
         impact_delta=0,
         credit_delta=-1000,

@@ -4,13 +4,15 @@ Verifica los cinco casos válidos del diseño aprobado y los casos incoherentes 
 la base de datos debe rechazar, además de los dos índices únicos parciales (D2-09).
 """
 
+from datetime import date
+
 import pytest
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from apps.reports_app.models import ReportConfirmation
 from apps.rewards_app.enums import RewardEventType, RewardTxStatus
-from apps.rewards_app.models import RewardTransaction
+from apps.rewards_app.models import Reward, RewardRedemption, RewardTransaction
 
 pytestmark = pytest.mark.django_db
 
@@ -344,8 +346,27 @@ def test_un_solo_confirmation_created_por_confirmacion(report, other_citizen):
         RewardTransaction.objects.create(**datos)
 
 
-def test_varias_transacciones_pueden_no_tener_reporte_ni_confirmacion(citizen):
-    _tx(citizen, event_type=RewardEventType.REDEMPTION, impact_delta=0, credit_delta=-1000)
-    _tx(citizen, event_type=RewardEventType.REDEMPTION, impact_delta=0, credit_delta=-1000)
+def test_varias_transacciones_pueden_no_tener_reporte_ni_confirmacion(citizen, institution):
+    reward = Reward.objects.create(institution=institution, name="Vale simulado")
+    now = timezone.now()
+    for month in (10, 11):
+        redemption = RewardRedemption.objects.create(
+            user=citizen,
+            reward=reward,
+            institution=institution,
+            period_month=date(2026, month, 1),
+            code=f"CA-0000-0000-0000-00{month}",
+            credits_spent=1000,
+        )
+        _tx(
+            citizen,
+            institution=institution,
+            redemption=redemption,
+            event_type=RewardEventType.REDEMPTION,
+            impact_delta=0,
+            credit_delta=-1000,
+            status=RewardTxStatus.ACREDITADO,
+            credited_at=now,
+        )
 
     assert RewardTransaction.objects.filter(report__isnull=True).count() == 2

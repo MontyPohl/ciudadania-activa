@@ -16,9 +16,9 @@ Esa separación es lo que hace que una revisión de identidad no dependa de que 
 salga: la decisión administrativa queda registrada aunque el proveedor de correo esté
 caído, y el fallo se ve en el estado de la notificación.
 
-Alcance del Sprint 4: las dos plantillas de verificación de identidad, en texto plano.
-Las seis restantes, las plantillas HTML y los reintentos automáticos llegan en los
-Sprints 12 y 13 (CT-28).
+El Sprint 4 incorpora la verificación de identidad y el Sprint 12 agrega el canje
+simulado, siempre en texto plano. Las otras plantillas y los reintentos automáticos
+quedan para el Sprint 13 (CT-28).
 """
 
 from __future__ import annotations
@@ -47,7 +47,7 @@ class ResendError(Exception):
     """La notificación no admite un reenvío manual. El comando lo traduce a `CommandError`."""
 
 
-#: Asunto y plantilla de cada tipo que el Sprint 4 sabe enviar. Un tipo que no esté
+#: Asunto y plantilla de cada tipo que se sabe enviar. Un tipo que no esté
 #: aquí no se envía: es preferible dejarlo FALLIDO y visible a inventar un correo.
 PLANTILLAS = {
     NotificationType.VERIFICACION_APROBADA: (
@@ -58,10 +58,14 @@ PLANTILLAS = {
         "Sobre tu verificación de identidad",
         "notifications/verificacion_rechazada.txt",
     ),
+    NotificationType.CANJE_REALIZADO: (
+        "Registramos tu canje simulado",
+        "notifications/canje_realizado.txt",
+    ),
 }
 
 
-def create(user, notification_type: str) -> Notification:
+def create(user, notification_type: str, *, redemption=None) -> Notification:
     """Registra la notificación como PENDIENTE. **No envía nada.**
 
     Se llama dentro de la transacción de la acción que la origina, de modo que un
@@ -74,6 +78,7 @@ def create(user, notification_type: str) -> Notification:
     return Notification.objects.create(
         user=user,
         report=None,
+        redemption=redemption,
         notification_type=notification_type,
         channel=NotificationChannel.EMAIL,
         status=NotificationStatus.PENDIENTE,
@@ -238,8 +243,20 @@ def _enviar_email(notificacion: Notification) -> None:
     """
     asunto, plantilla = PLANTILLAS[notificacion.notification_type]
     destinatario = notificacion.user.email
-    nombre = notificacion.user.full_name or destinatario.split("@")[0]
-
-    cuerpo = render_to_string(plantilla, {"nombre": nombre})
+    cuerpo = render_to_string(plantilla, _contexto(notificacion))
 
     brevo.send_email(to=destinatario, subject=asunto, text_content=cuerpo)
+
+
+def _contexto(notificacion: Notification) -> dict[str, str]:
+    """Mantiene el contexto de S4 y agrega los nombres del canje, nunca su código."""
+    contexto = {"nombre": notificacion.user.full_name or notificacion.user.email.split("@")[0]}
+    if notificacion.notification_type == NotificationType.CANJE_REALIZADO:
+        if notificacion.redemption_id is None:
+            raise ValueError("Un aviso de canje requiere su vale.")
+        redemption = notificacion.redemption
+        contexto.update(
+            institucion=redemption.institution.name,
+            recompensa=redemption.reward.name,
+        )
+    return contexto
