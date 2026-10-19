@@ -76,4 +76,9 @@ jobs:
         run: python manage.py migrate --no-input
 
       - name: Pruebas con cobertura
-        run: pytest --cov=apps --cov-report=term-missing
+        # Los launchers EX-10 exceden el límite de 6 h de Actions y no tocan el dominio.
+        run: >-
+          pytest --cov=apps --cov-report=term-missing
+          --ignore=apps/experiments_app/tests/test_ex10_official_launcher.py
+          --ignore=apps/experiments_app/tests/test_ex10_launcher.py
+          --ignore=apps/experiments_app/tests/test_ex10_preflight_launcher.py
