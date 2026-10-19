@@ -5,6 +5,14 @@
 import Link from "next/link";
 
 import { useSession } from "@/features/auth/useSession";
+import type { SessionUser } from "@/types/api";
+
+const SECCION_ROL: Record<SessionUser["role"], { href: string; label: string; roleLabel: string }> =
+  {
+    citizen: { href: "/panel", label: "Mi panel", roleLabel: "Ciudadano" },
+    operator: { href: "/bandeja", label: "Bandeja institucional", roleLabel: "Operador" },
+    admin: { href: "/identidades", label: "Identidades", roleLabel: "Administrador" },
+  };
 
 const ETIQUETA_VERIFICACION: Record<string, string> = {
   PENDIENTE: "Identidad sin verificar",
@@ -34,6 +42,14 @@ export function SessionStatus() {
           >
             Ranking
           </Link>
+          {session.status === "authenticated" && (
+            <Link
+              href={SECCION_ROL[session.user.role].href}
+              className="font-semibold text-[#6950A1] underline-offset-4 hover:underline"
+            >
+              {SECCION_ROL[session.user.role].label}
+            </Link>
+          )}
         </nav>
       </div>
 
@@ -49,12 +65,14 @@ export function SessionStatus() {
         <div className="flex min-w-0 flex-wrap items-center justify-end gap-3">
           <span className="max-w-full break-all text-[#000000]/70">{session.user.email}</span>
           <span className="rounded-full bg-[#6950A1]/10 px-2 py-0.5 text-xs text-[#6950A1]">
-            {session.user.role}
+            {SECCION_ROL[session.user.role].roleLabel}
           </span>
-          <span className="rounded-full bg-[#00B26B]/10 px-2 py-0.5 text-xs text-[#00B26B]">
-            {ETIQUETA_VERIFICACION[session.user.verification_status] ??
-              session.user.verification_status}
-          </span>
+          {session.user.role === "citizen" && (
+            <span className="rounded-full bg-[#00B26B]/10 px-2 py-0.5 text-xs text-[#00B26B]">
+              {ETIQUETA_VERIFICACION[session.user.verification_status] ??
+                session.user.verification_status}
+            </span>
+          )}
           <button
             type="button"
             onClick={() => void session.signOut()}

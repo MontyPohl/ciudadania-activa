@@ -10,15 +10,10 @@
 }
 
 :root {
+  /* La app está diseñada en claro, incluidos los controles nativos. */
+  color-scheme: light;
   --background: #ffffff;
   --foreground: var(--color-brand-black);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
