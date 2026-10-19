@@ -31,6 +31,13 @@ class Notification(BaseModel):
         blank=True,
         related_name="notifications",
     )
+    redemption = models.ForeignKey(
+        "rewards_app.RewardRedemption",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="notifications",
+    )
     notification_type = models.CharField(max_length=40, choices=NotificationType.choices)
     channel = models.CharField(
         max_length=10,

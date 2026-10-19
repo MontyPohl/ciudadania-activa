@@ -1,3 +1,5 @@
+from datetime import date
+
 import pytest
 from django.db import IntegrityError, transaction
 from django.db.models import ProtectedError
@@ -115,11 +117,11 @@ def test_recompensa_institucional_con_costo_fijo(institution):
     assert str(reward) == f"Descuento simulado ({institution.pk})"
 
 
-def test_una_recompensa_por_nombre_e_institucion(institution):
+def test_una_recompensa_por_institucion(institution):
     Reward.objects.create(institution=institution, name="Descuento simulado")
 
     with pytest.raises(IntegrityError), transaction.atomic():
-        Reward.objects.create(institution=institution, name="Descuento simulado")
+        Reward.objects.create(institution=institution, name="Otro descuento simulado")
 
 
 def test_el_costo_de_la_recompensa_debe_ser_positivo(institution):
@@ -129,18 +131,36 @@ def test_el_costo_de_la_recompensa_debe_ser_positivo(institution):
 
 def test_canje_con_codigo_unico(citizen, institution):
     reward = Reward.objects.create(institution=institution, name="Descuento simulado")
-    canje = RewardRedemption.objects.create(user=citizen, reward=reward, code="VALE-0001")
+    canje = RewardRedemption.objects.create(
+        user=citizen,
+        reward=reward,
+        institution=reward.institution,
+        period_month=date(2026, 10, 1),
+        code="VALE-0001",
+    )
 
     assert canje.credits_spent == 1000
     assert str(canje) == "VALE-0001"
 
     with pytest.raises(IntegrityError), transaction.atomic():
-        RewardRedemption.objects.create(user=citizen, reward=reward, code="VALE-0001")
+        RewardRedemption.objects.create(
+            user=citizen,
+            reward=reward,
+            institution=reward.institution,
+            period_month=date(2026, 11, 1),
+            code="VALE-0001",
+        )
 
 
 def test_no_se_puede_borrar_una_recompensa_canjeada(citizen, institution):
     reward = Reward.objects.create(institution=institution, name="Descuento simulado")
-    RewardRedemption.objects.create(user=citizen, reward=reward, code="VALE-0002")
+    RewardRedemption.objects.create(
+        user=citizen,
+        reward=reward,
+        institution=reward.institution,
+        period_month=date(2026, 10, 1),
+        code="VALE-0002",
+    )
 
     with pytest.raises(ProtectedError):
         reward.delete()

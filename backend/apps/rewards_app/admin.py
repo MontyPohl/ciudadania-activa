@@ -49,8 +49,16 @@ class RewardAdmin(admin.ModelAdmin):
 class RewardRedemptionAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
     """Solo lectura: un canje es un hecho económico con vale ya emitido (D-01)."""
 
-    list_display = ["created_at", "user", "reward", "code", "credits_spent"]
-    list_filter = ["reward"]
+    list_display = [
+        "created_at",
+        "user",
+        "reward",
+        "institution",
+        "period_month",
+        "code",
+        "credits_spent",
+    ]
+    list_filter = ["reward", "institution", "period_month"]
     search_fields = ["code", "user__email"]
-    list_select_related = ["user", "reward"]
+    list_select_related = ["user", "reward", "institution"]
     date_hierarchy = "created_at"

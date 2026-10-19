@@ -210,7 +210,8 @@ def test_reversal_anula_pendientes_null_y_aisla_otros_ciclos(
 
     from apps.reports_app.models import ReportConfirmation
     from apps.rewards_app.enums import RewardEventType, RewardTxStatus
-    from apps.rewards_app.models import RewardTransaction
+    from apps.rewards_app.models import Reward, RewardRedemption, RewardTransaction
+    from apps.rewards_app.periods import current_period
 
     now = timezone.now()
     report.validated_at = now
@@ -248,9 +249,19 @@ def test_reversal_anula_pendientes_null_y_aisla_otros_ciclos(
         reversed_at=now,
         resolution_cycle=2,
     )
+    reward = Reward.objects.create(institution=institution, name="Vale simulado")
+    voucher = RewardRedemption.objects.create(
+        user=report.citizen,
+        reward=reward,
+        institution=institution,
+        period_month=current_period(now),
+        code="CA-0000-0000-0000-0001",
+        credits_spent=1000,
+    )
     redemption = RewardTransaction.objects.create(
         user=report.citizen,
         institution=institution,
+        redemption=voucher,
         event_type=RewardEventType.REDEMPTION,
         impact_delta=0,
         credit_delta=-1000,

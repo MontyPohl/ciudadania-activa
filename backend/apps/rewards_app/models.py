@@ -30,8 +30,8 @@ class Reward(BaseModel):
         ordering = ["institution__name", "name"]
         constraints = [
             models.UniqueConstraint(
-                fields=["institution", "name"],
-                name="reward_unica_por_institucion",
+                fields=["institution"],
+                name="reward_una_por_institucion",
             ),
             models.CheckConstraint(
                 condition=Q(credit_cost__gt=0),
@@ -85,6 +85,13 @@ class RewardTransaction(BaseModel):
         null=True,
         blank=True,
         related_name="reward_transactions",
+    )
+    redemption = models.OneToOneField(
+        "RewardRedemption",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="ledger_transaction",
     )
     event_type = models.CharField(max_length=40, choices=RewardEventType.choices)
     impact_delta = models.IntegerField()
@@ -153,6 +160,25 @@ class RewardTransaction(BaseModel):
                     Q(related_transaction__isnull=True) | Q(event_type=RewardEventType.REVERSAL)
                 ),
                 name="reward_tx_related_only_reversal",
+            ),
+            models.CheckConstraint(
+                condition=Q(redemption__isnull=True) | Q(event_type=RewardEventType.REDEMPTION),
+                name="reward_tx_redemption_only_redemption",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    ~Q(event_type=RewardEventType.REDEMPTION)
+                    | (
+                        Q(redemption__isnull=False)
+                        & Q(impact_delta=0)
+                        & Q(credit_delta__lt=0)
+                        & Q(institution__isnull=False)
+                        & Q(report__isnull=True)
+                        & Q(confirmation__isnull=True)
+                        & Q(status=RewardTxStatus.ACREDITADO)
+                    )
+                ),
+                name="reward_tx_redemption_shape",
             ),
             # Coherencia estado <-> marca temporal (D2-08). REVERTIDO no exige que
             # `credited_at` sea NULL: la fila original acreditada conserva su
@@ -225,8 +251,8 @@ class RewardRedemption(BaseModel):
     """Canje de una recompensa por créditos institucionales (Anexo A.1/A.6, RF-43).
 
     El vale emitido conserva su código y su validez incluso si una reversión
-    posterior deja el saldo institucional negativo (D-01). El servicio de canje y
-    el límite de uno por institución, usuario y mes son del Sprint 12.
+    posterior deja el saldo institucional negativo (D-01). La base garantiza el
+    límite de un canje por institución, usuario y mes.
     """
 
     user = models.ForeignKey(
@@ -239,6 +265,13 @@ class RewardRedemption(BaseModel):
         on_delete=models.PROTECT,
         related_name="redemptions",
     )
+    institution = models.ForeignKey(
+        Institution,
+        on_delete=models.PROTECT,
+        related_name="redemptions",
+    )
+    # Primer día del mes local (America/Asuncion).
+    period_month = models.DateField()
     code = models.CharField(max_length=80, unique=True)
     credits_spent = models.PositiveIntegerField(default=1000)
 
@@ -255,6 +288,14 @@ class RewardRedemption(BaseModel):
             models.CheckConstraint(
                 condition=Q(credits_spent__gt=0),
                 name="redemption_credits_positivo",
+            ),
+            models.UniqueConstraint(
+                fields=["user", "institution", "period_month"],
+                name="redemption_una_por_mes_institucion",
+            ),
+            models.CheckConstraint(
+                condition=Q(period_month__day=1),
+                name="redemption_period_dia_uno",
             ),
         ]
 
