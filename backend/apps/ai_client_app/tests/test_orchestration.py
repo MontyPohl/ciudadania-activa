@@ -12,6 +12,9 @@ import pytest
 
 from apps.admin_app.models import AuditLog, Category, Institution
 from apps.ai_client_app import orchestration
+from apps.ai_client_app.adapters.openai import ProviderCall
+from apps.ai_client_app.contracts import ProviderUsage
+from apps.ai_client_app.exceptions import PermanentAiProviderError, TransientAiProviderError
 from apps.ai_client_app.models import AiClassification
 from apps.ai_client_app.orchestration import (
     AUDIT_ACTION,
@@ -499,3 +502,55 @@ def test_la_peticion_al_proveedor_solo_lleva_lo_permitido(report):
     assert campos.isdisjoint(
         {"report_id", "citizen", "location", "latitude", "longitude", "created_at", "file_hash"}
     )
+
+
+class MetadataAdapter(ScriptedAdapter):
+    def classify_with_metadata(self, request):
+        return ProviderCall(
+            text=super().classify(request),
+            response_id=None,
+            request_id=None,
+            model=MODEL_NAME,
+            usage=ProviderUsage(120, 30, 150),
+        )
+
+    def classify(self, request):
+        raise AssertionError("Se debe usar classify_with_metadata cuando está disponible.")
+
+
+def test_persiste_tokens_del_adaptador_con_metadata(report):
+    adapter = MetadataAdapter(payload())
+
+    assert run(report, adapter) is True
+
+    clasificacion = AiClassification.objects.get()
+    assert clasificacion.input_tokens == 120
+    assert clasificacion.output_tokens == 30
+    assert clasificacion.total_tokens == 150
+    assert adapter.calls == 1
+
+
+def test_adaptador_solo_con_classify_deja_tokens_nulos(report):
+    assert run(report, ScriptedAdapter(payload())) is True
+
+    clasificacion = AiClassification.objects.get()
+    assert clasificacion.input_tokens is None
+    assert clasificacion.output_tokens is None
+    assert clasificacion.total_tokens is None
+
+
+@pytest.mark.parametrize("tipo", [ScriptedAdapter, MetadataAdapter])
+@pytest.mark.parametrize("error", [TransientAiProviderError, PermanentAiProviderError])
+def test_propaga_errores_de_integracion_en_ambos_caminos(report, tipo, error):
+    with pytest.raises(error):
+        run(report, tipo(error=error("Proveedor no disponible.")))
+
+    assert AiClassification.objects.count() == 0
+
+
+@pytest.mark.parametrize("tipo", [ScriptedAdapter, MetadataAdapter])
+def test_error_inesperado_en_ambos_caminos_devuelve_false_y_warning(report, tipo, caplog):
+    assert run(report, tipo(error=RuntimeError("Proveedor no disponible."))) is False
+
+    assert AiClassification.objects.count() == 0
+    assert "El proveedor de IA falló al clasificar el reporte" in caplog.text

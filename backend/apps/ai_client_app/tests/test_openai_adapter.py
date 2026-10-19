@@ -9,6 +9,7 @@ capacidad del modelo.
 import base64
 import inspect
 import json
+from types import SimpleNamespace
 
 import httpx2
 import openai
@@ -22,7 +23,7 @@ from apps.ai_client_app.adapters.openai import (
     build_classification_schema,
     build_client,
 )
-from apps.ai_client_app.contracts import OUTPUT_FIELDS, ClassificationRequest
+from apps.ai_client_app.contracts import OUTPUT_FIELDS, ClassificationRequest, ProviderUsage
 from apps.ai_client_app.exceptions import (
     PermanentAiProviderError,
     TransientAiProviderError,
@@ -586,3 +587,37 @@ def test_las_instrucciones_no_incrustan_la_descripcion():
     adapter.classify(build_request(description=descripcion))
 
     assert descripcion not in responses.calls[0]["instructions"]
+
+
+def test_metadata_conserva_el_uso_del_proveedor():
+    respuesta = responder()
+    respuesta.usage = SimpleNamespace(input_tokens=120, output_tokens=30, total_tokens=150)
+    adapter, _ = build_adapter(respuesta)
+
+    resultado = adapter.classify_with_metadata(build_request())
+
+    assert resultado.text == respuesta.output_text
+    assert resultado.usage == ProviderUsage(120, 30, 150)
+
+
+def test_metadata_sin_uso_devuelve_none():
+    adapter, _ = build_adapter(responder())
+
+    assert adapter.classify_with_metadata(build_request()).usage is None
+
+
+@pytest.mark.parametrize("valor", [None, -1, "12", 1.5, True, False])
+def test_metadata_descarta_contadores_invalidos_sin_perder_los_validos(valor):
+    respuesta = responder()
+    respuesta.usage = SimpleNamespace(input_tokens=valor, output_tokens=0)
+    adapter, _ = build_adapter(respuesta)
+
+    assert adapter.classify_with_metadata(build_request()).usage == ProviderUsage(None, 0, None)
+
+
+def test_metadata_sin_contadores_validos_devuelve_none():
+    respuesta = responder()
+    respuesta.usage = SimpleNamespace(input_tokens=-1, output_tokens="12", total_tokens=True)
+    adapter, _ = build_adapter(respuesta)
+
+    assert adapter.classify_with_metadata(build_request()).usage is None

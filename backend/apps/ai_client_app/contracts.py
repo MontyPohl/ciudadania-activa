@@ -71,3 +71,12 @@ class ParsedClassification:
     confidence: Decimal
     inconsistency: bool
     justification: str
+
+
+@dataclass(frozen=True, slots=True)
+class ProviderUsage:
+    """Tokens informados por el proveedor; `None` indica un contador ausente."""
+
+    input_tokens: int | None
+    output_tokens: int | None
+    total_tokens: int | None

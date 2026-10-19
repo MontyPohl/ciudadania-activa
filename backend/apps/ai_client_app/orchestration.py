@@ -70,7 +70,14 @@ def process_report_classification(report_id, *, adapter, model_name: str) -> boo
     request = _build_request(report, image)
 
     try:
-        raw_response = adapter.classify(request)
+        usage = None
+        classify_with_metadata = getattr(adapter, "classify_with_metadata", None)
+        if callable(classify_with_metadata):
+            call = classify_with_metadata(request)
+            raw_response = call.text
+            usage = call.usage
+        else:
+            raw_response = adapter.classify(request)
     except AiIntegrationError:
         # Transitorio o permanente: lo decide la tarea, que es quien reintenta.
         raise
@@ -114,6 +121,9 @@ def process_report_classification(report_id, *, adapter, model_name: str) -> boo
             inconsistency_flag=resolved.effective_inconsistency,
             justification=parsed.justification,
             model_name=model_name,
+            input_tokens=usage.input_tokens if usage is not None else None,
+            output_tokens=usage.output_tokens if usage is not None else None,
+            total_tokens=usage.total_tokens if usage is not None else None,
         )
 
         applied = resolved.eligible_for_auto_apply
