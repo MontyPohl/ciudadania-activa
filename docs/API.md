@@ -2,7 +2,9 @@
 
 Contrato de la API tal como está **implementada**, no como se planificó. Se amplía en
 cada sprint que añade endpoints; hoy incluye autenticación, identidad, mapa, creación y
-confirmación ciudadana, además de lectura y decisiones institucionales de Sprint 9.
+confirmación ciudadana, ciclo institucional S10 y recompensas, canje y ranking S12.
+La sección 8 describe la implementación verificada en local el 19/10/2026, todavía sin
+push, PR ni despliegue.
 
 - **Plan de referencia:** [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md) §14 (Sprint 4), §19
   (Sprint 9) y §29 (seguridad).
@@ -276,7 +278,8 @@ caracteres · `401` anónimo · `403` operador o administrador · `404` sin perf
 
 > El Sprint 4 **guarda y devuelve** la preferencia. La resolución del nombre visible
 > —abreviar el apellido, sustituir por el alias, emitir «Usuario privado»— ocurre en el
-> backend con el ranking del Sprint 11.
+> backend con el ranking del Sprint 12 (§8.5), que absorbió el alcance funcional
+> previsto para Sprint 11.
 
 ### 3.4 `GET /api/v1/admin/identity/`
 
@@ -1139,20 +1142,483 @@ notificaciones. El cierre manual concurrente y las repeticiones se resuelven ide
 
 ### 7.7 Cierre de alcance de Sprint 9
 
-S9-B3 no añadió endpoints ni modificó los contratos entonces existentes. Sprint 9 terminó en la consulta,
-validación y rechazo institucionales ya descritos. Quedan explícitamente fuera de este sprint:
+S9-B3 no añadió endpoints ni modificó los contratos entonces existentes. Sprint 9 terminó en la
+consulta, validación y rechazo institucionales ya descritos. El alcance posterior quedó así:
 
-- `GET /api/v1/rewards/summary/`, `GET /api/v1/rewards/transactions/`, la página
-  `/recompensas` y ranking/privacidad operativos, asignados a S11;
-- catálogo y canje de recompensas, asignados a S12;
-- dashboards e ingesta social, asignados a S13;
-- resolución, cierre y reversión del ciclo institucional;
-- notificaciones completas de eventos de reporte.
+- resumen, saldos, movimientos y `/recompensas`, junto con ranking y privacidad operativos,
+  se implementaron en S12, absorbiendo el S11 funcional;
+- catálogo, gestión institucional de recompensas y canje se implementaron en S12 (§8);
+- resolución, evidencia, cierre y reversión del ciclo institucional se implementaron en S10 (§7.6);
+- dashboards e ingesta social siguen asignados a S13;
+- `CANJE_REALIZADO` se implementó en S12; `RECOMPENSA_DISPONIBLE` y reintentos automáticos
+  quedan para S13. Las notificaciones completas de eventos de reporte siguen fuera de este cierre.
 
 Antes de ampliar esas notificaciones deben definirse destinatarios, contenido, privacidad,
 idempotencia, asociación con reportes, comportamiento ante fallos del broker, momento de emisión
 y uso de `transaction.on_commit`. Los enums o modelos existentes no constituyen por sí solos un
 contrato HTTP ni una capacidad operativa.
+
+---
+
+## 8. Recompensas, canje y ranking (Sprint 12)
+
+Implementación local integrada de los tres carriles, incluido el ranking. El contrato común es
+[S12_CONTRATO_API.md](s12/S12_CONTRATO_API.md); las reglas siguientes describen las rutas
+implementadas, todavía sin despliegue productivo al cierre del 19/10/2026.
+
+### 8.1 Convenciones de recompensas
+
+- Prefijo `/api/v1/`. Autenticación JWT `Bearer`. El permiso por defecto es `DenyAll`, así que
+  cada vista declara el suyo.
+- La forma de error es `{"detail": "...", "code": "..."}`, igual que en S7 y S9. El handler
+  `apps.core.exceptions.api_exception_handler` normaliza `detail`.
+- Las entradas son estrictas con `StrictInputMixin` (`apps.reports_app.serializers`). Una clave
+  desconocida devuelve **400** con detalle por campo y **sin `code`**, como en S7. Los campos
+  `read_only` declarados se aceptan y se **ignoran**. En el formulario del operador esto aplica
+  a `credit_cost` y `simulated`; `cost` no está declarado y se rechaza con 400.
+- Contexto institucional del operador: query `institution_id`. Es obligatorio si el operador
+  tiene varias instituciones activas y se resuelve como `_resolve_operator_institution` de S9.
+- La paginación es `PageNumberPagination`, con `PAGE_SIZE = 20` y la envoltura de §1.
+- Toda respuesta con saldos, códigos o datos propios lleva `Cache-Control: private, no-store`.
+- Fechas en ISO-8601 con zona horaria. El período mensual se calcula en `America/Asuncion` y se
+  expone como `"YYYY-MM"`.
+- Throttles: `reward_redeem: "10/hour"` y `public_ranking: "120/min"`.
+
+Ejemplo de clave no permitida en el canje (**400**):
+
+```json
+{ "detail": { "cost": ["Este campo no está permitido."] } }
+```
+
+### 8.2 Objetos compartidos
+
+**`InstitutionRef`** — referencia institucional compartida.
+
+```json
+{
+  "id": "uuid",
+  "name": "ANDE",
+  "slug": "ande"
+}
+```
+
+**`RewardPublic`** — recompensa del catálogo.
+
+```json
+{
+  "id": "uuid",
+  "name": "Vale de descuento simulado",
+  "description": "texto",
+  "credit_cost": 1000,
+  "simulated": true
+}
+```
+
+**`Redemption`** — vale del ciudadano.
+
+```json
+{
+  "id": "uuid",
+  "code": "CA-7K3M-9QXP-2D4F-HJ8R",
+  "period": "2026-10",
+  "credits_spent": 1000,
+  "simulated": true,
+  "created_at": "2026-10-19T15:04:05-03:00",
+  "reward": {
+    "id": "uuid",
+    "name": "Vale de descuento simulado"
+  },
+  "institution": {
+    "id": "uuid",
+    "name": "ANDE",
+    "slug": "ande"
+  }
+}
+```
+
+### 8.3 Ciudadano: `IsVerifiedCitizen`
+
+#### `GET /api/v1/rewards/summary/`
+
+```json
+{
+  "impact": {
+    "historical": 230,
+    "current_month": 80,
+    "pending": 20
+  },
+  "credits_by_institution": [
+    {
+      "institution": {
+        "id": "…",
+        "name": "ANDE",
+        "slug": "ande"
+      },
+      "balance": 1130
+    },
+    {
+      "institution": {
+        "id": "…",
+        "name": "ESSAP",
+        "slug": "essap"
+      },
+      "balance": -870
+    }
+  ],
+  "period": "2026-10"
+}
+```
+
+| Campo | Cálculo |
+|---|---|
+| `historical` | Σ `impact_delta` `ACREDITADO` |
+| `current_month` | ídem con `credited_at` dentro del mes local |
+| `pending` | Σ `impact_delta` `PENDIENTE` |
+| `balance` | Σ `credit_delta` `ACREDITADO`, agrupado por institución. Puede ser negativo (D-01) |
+
+`credits_by_institution` se ordena por `institution.name` y solo incluye instituciones que
+tienen alguna fila `ACREDITADO`.
+
+#### `GET /api/v1/rewards/transactions/?page=N`
+
+Lista paginada y ordenada por `-created_at, -id`:
+
+```json
+{
+  "count": 7,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "id": "uuid",
+      "event_type": "REVERSAL",
+      "status": "REVERTIDO",
+      "impact_delta": -30,
+      "credit_delta": -30,
+      "institution": {
+        "id": "uuid",
+        "name": "ANDE",
+        "slug": "ande"
+      },
+      "report_id": "uuid",
+      "redemption_id": null,
+      "created_at": "…",
+      "credited_at": null,
+      "voided_at": null,
+      "reversed_at": "…"
+    }
+  ]
+}
+```
+
+- `report_id` es `null` para `REDEMPTION`. En `CONFIRMATION_CREATED` es el reporte confirmado
+  (`confirmation.report_id`).
+- `institution` es `null` para las filas que todavía están `PENDIENTE`.
+- `redemption_id` solo viene en `REDEMPTION`.
+- El texto ("Reporte validado por ANDE · +30") lo arma el **frontend** a partir de `event_type`,
+  `status` e `institution`.
+
+#### `GET /api/v1/rewards/catalog/`
+
+```json
+{
+  "period": "2026-10",
+  "results": [
+    {
+      "reward": {
+        "id": "uuid",
+        "name": "Vale de descuento simulado",
+        "description": "texto",
+        "credit_cost": 1000,
+        "simulated": true
+      },
+      "institution": {
+        "id": "uuid",
+        "name": "ANDE",
+        "slug": "ande"
+      },
+      "balance": 1130,
+      "can_redeem": true,
+      "blocked_reason": null,
+      "missing_credits": 0,
+      "redemption_this_month": null
+    }
+  ]
+}
+```
+
+Lista las recompensas `active` de instituciones `is_active`, a lo sumo una por institución,
+ordenadas por nombre de institución. No se pagina.
+
+| `blocked_reason` | Cuándo | `missing_credits` | `redemption_this_month` |
+|---|---|---|---|
+| `null` | saldo ≥ 1000 y sin canje en el mes | 0 | `null` |
+| `"MONTHLY_LIMIT_REACHED"` | ya hay un canje en (usuario, institución, mes) | 0 | `{ "id", "code", "created_at" }` |
+| `"INSUFFICIENT_BALANCE"` | saldo < 1000, incluido un saldo negativo | `1000 − balance` (con −870 da 1870) | `null` |
+
+Si se cumplen las dos condiciones, gana `MONTHLY_LIMIT_REACHED`. Es el mismo orden que sigue el
+servicio.
+
+#### `POST /api/v1/rewards/{reward_id}/redeem/`
+
+- **Body:** vacío. El frontend envía el `POST` sin body, como `confirmReport`. Es un contrato
+  vacío con `StrictInputMixin`, así que **cualquier clave**, incluida `cost` o `credit_cost`,
+  devuelve `400` (forma de S7). El costo nunca viene del cliente.
+- **Throttle:** `reward_redeem`.
+
+**201**
+
+```json
+{
+  "redemption": {
+    "id": "uuid",
+    "code": "CA-7K3M-9QXP-2D4F-HJ8R",
+    "period": "2026-10",
+    "credits_spent": 1000,
+    "simulated": true,
+    "created_at": "2026-10-19T15:04:05-03:00",
+    "reward": {
+      "id": "uuid",
+      "name": "Vale de descuento simulado"
+    },
+    "institution": {
+      "id": "uuid",
+      "name": "ANDE",
+      "slug": "ande"
+    }
+  },
+  "balance_after": 130
+}
+```
+
+**409**: el `code` es estable y se evalúa en este orden.
+
+Recompensa o institución inactiva:
+
+```json
+{
+  "detail": "La recompensa no está disponible.",
+  "code": "REWARD_INACTIVE"
+}
+```
+
+Límite mensual alcanzado:
+
+```json
+{
+  "detail": "Ya canjeaste la recompensa de ANDE este mes.",
+  "code": "MONTHLY_LIMIT_REACHED",
+  "redemption_id": "uuid"
+}
+```
+
+Saldo insuficiente:
+
+```json
+{
+  "detail": "Te faltan 870 créditos de ANDE para canjear.",
+  "code": "INSUFFICIENT_BALANCE",
+  "balance": 130,
+  "missing_credits": 870
+}
+```
+
+Otros errores:
+
+| Código | Cuándo |
+|---|---|
+| 401 | sin sesión |
+| 403 | rol incorrecto o ciudadano no verificado |
+| 404 | `reward_id` inexistente |
+| 429 | se superó el throttle |
+
+#### `GET /api/v1/rewards/redemptions/?page=N` · `GET /api/v1/rewards/redemptions/{id}/`
+
+- La lista devuelve `Redemption` del propio usuario, ordenados por `-created_at`.
+- El detalle de un canje ajeno o inexistente da **404** (no 403), para no confirmar que existe.
+- Un vale sigue visible y válido aunque el saldo actual sea negativo (D-01).
+
+### 8.4 Operador: `IsInstitutionOperator` + contexto `institution_id`
+
+```json
+{
+  "id": "uuid",
+  "institution": {
+    "id": "uuid",
+    "name": "ANDE",
+    "slug": "ande"
+  },
+  "name": "…",
+  "description": "…",
+  "active": true,
+  "credit_cost": 1000,
+  "simulated": true,
+  "created_at": "…",
+  "updated_at": "…"
+}
+```
+
+#### `GET /api/v1/operator/rewards/?institution_id=`
+
+```json
+{
+  "institution": {
+    "id": "uuid",
+    "name": "ANDE",
+    "slug": "ande"
+  },
+  "reward": {
+    "id": "uuid",
+    "institution": {
+      "id": "uuid",
+      "name": "ANDE",
+      "slug": "ande"
+    },
+    "name": "Vale de descuento simulado",
+    "description": "texto",
+    "active": true,
+    "credit_cost": 1000,
+    "simulated": true,
+    "created_at": "…",
+    "updated_at": "…"
+  }
+}
+```
+
+`reward` es `null` si la institución todavía no creó la suya.
+
+#### `POST /api/v1/operator/rewards/?institution_id=`
+
+- **Body:** `{ "name": "…", "description": "…", "active": true }`.
+- `credit_cost` y `simulated` son `read_only`: si llegan, se ignoran.
+- `name`: de 3 a 160 caracteres, recortado y sin caracteres de control ni de formato (categorías
+  Unicode `Cc` y `Cf`).
+- `description`: hasta 1000 caracteres, puede quedar vacía.
+- `active` es opcional y vale `true` por defecto.
+
+| Respuesta | Contenido |
+|---|---|
+| 201 | `OperatorReward` |
+| 409 | `{ "code": "REWARD_ALREADY_EXISTS", "reward_id": "uuid" }`, sin `detail`, porque hay una recompensa por institución |
+| 403 | `{ "code": "INSTITUTION_OPERATOR_REQUIRED" }` |
+
+#### `PATCH /api/v1/operator/rewards/{reward_id}/?institution_id=`
+
+- **Body parcial:** `name`, `description`, `active`. Con las mismas reglas, `credit_cost` y
+  `simulated` se ignoran.
+- Responde **200** con `OperatorReward`.
+- **403** `INSTITUTION_OPERATOR_REQUIRED` si la recompensa pertenece a otra institución o el
+  operador no tiene vínculo activo con ella. Inexistente: 404.
+
+#### `GET /api/v1/operator/rewards/redemptions/?institution_id=&page=N`
+
+```json
+{
+  "count": 2,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "id": "uuid",
+      "code": "CA-…",
+      "period": "2026-10",
+      "created_at": "…",
+      "reward": {
+        "id": "uuid",
+        "name": "…"
+      },
+      "citizen_display": "María G."
+    }
+  ]
+}
+```
+
+La página del operador es `/institucion/recompensas`; la del ciudadano, `/recompensas`.
+
+`citizen_display` se arma con la primera palabra de `full_name` y la inicial de la última. Si
+`full_name` está vacío, se muestra `"Ciudadano"`. **Nunca** se devuelven email, cédula ni el ID
+del ciudadano (S12-D04).
+
+### 8.5 Ranking mensual público
+
+#### `GET /api/v1/ranking/monthly/`
+
+- Usa `AllowAny` y throttle `public_ranking`. **No admite parámetros**: cualquier query devuelve
+  `400`.
+- Sin cabecera de autenticación permite acceso anónimo. Si se envía un JWT inválido o vencido,
+  responde **401**: la autenticación se evalúa antes de `AllowAny`. Para consultar como anónimo,
+  omití `Authorization`.
+- `429` si se supera el throttle.
+
+```json
+{
+  "period": "2026-10",
+  "entries": [
+    {
+      "position": 1,
+      "display_name": "María G.",
+      "points": 180,
+      "is_private": false,
+      "is_me": false
+    },
+    {
+      "position": 2,
+      "display_name": "Usuario privado",
+      "points": 150,
+      "is_private": true,
+      "is_me": true
+    }
+  ]
+}
+```
+
+**Reglas:**
+
+- Como máximo hay 10 entradas, y `position` es correlativa del 1 al 10. El período es el mes
+  local en curso; se ordena por puntos descendentes, `MAX(credited_at)` ascendente y `user_id`
+  como último desempate.
+- `display_name` según `CitizenProfile.ranking_visibility`:
+
+  | Modo | Qué se muestra |
+  |---|---|
+  | `FULL_NAME` | `full_name` |
+  | `FIRST_INITIAL` | la primera palabra y la inicial de la última |
+  | `ALIAS` | el alias; si está vacío, `Usuario privado` |
+  | `PRIVATE` | `Usuario privado` |
+  | sin perfil | `Usuario privado` |
+
+- `is_me` solo puede ser `true` si la petición trae un JWT válido de ese ciudadano.
+- Cache-Control: **siempre `private, no-store`**, también para anónimos, para evitar reutilizar
+  una respuesta con `is_me` de otra sesión. La caché interna de Redis no cambia esta política
+  HTTP.
+- No expone IDs, emails ni el modo de visibilidad elegido.
+
+### 8.6 Correo de canje y simulación
+
+- **Asunto:** "Registramos tu canje simulado".
+- **Cuerpo:** texto plano con el nombre del ciudadano, la institución y la recompensa. Incluye:
+  - "Podés ver tu vale en Recompensas → Mis canjes";
+  - el aviso fijo: "Esta recompensa es una **simulación** del prototipo académico Ciudadanía
+Activa y **no tiene valor económico real**."
+- **No lleva el código del vale.** Sigue la política vigente de `dispatch._enviar_email`: el
+  correo no transporta nada que otorgue algo, y el vale se consulta en la plataforma
+  autenticada.
+- Una `CANJE_REALIZADO` **sin `redemption`** no se envía: queda `FALLIDO`, el mismo criterio de
+  "mejor `FALLIDO` visible que un correo inventado" que aplica hoy `dispatch`. El servicio la
+  crea vinculada al canje.
+
+`RECOMPENSA_DISPONIBLE` y los reintentos automáticos quedan para S13. El diálogo de
+confirmación y el vale también muestran el aviso de simulación. El vale usa el formato
+`CA-XXXX-XXXX-XXXX-XXXX`, con 80 bits Crockford base32 generados con `secrets`, sin bucle de
+reintento.
+
+### 8.7 Acciones de auditoría
+
+| Acción | Actor | Payload (sin el código del vale) |
+|---|---|---|
+| `reward.created` | operador | `reward_id`, `institution_id`, `name`, `active` |
+| `reward.updated` | operador | `reward_id`, `institution_id`, `changes: {campo: [antes, después]}` |
+| `reward.redeemed` | ciudadano | `redemption_id`, `reward_id`, `institution_id`, `period`, `credits_spent`, `balance_before`, `balance_after`, `ledger_transaction_id` |
 
 ---
 

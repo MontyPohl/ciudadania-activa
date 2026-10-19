@@ -2,7 +2,7 @@
 
 Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes de iniciar el siguiente.
 
-- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 **completado** (inicio el 22/08/2026, cierre el 23/08/2026: verificación de identidad con HMAC y almacenamiento privado, revisión administrativa manual con cotejo de la cédula, notificaciones asíncronas entregadas por la API HTTPS de Brevo y privacidad configurable del ranking, todo verificado en producción con una identidad real). Sprint 5 **completado** el 27/08/2026: S5-A, S5-B y S5-C están cerradas, integradas y validadas. Sprint 6 **completado** el 28/08/2026: S6-A y S6-B están cerrados. Sprint 7 **completado** el 29/08/2026: S7-A, S7-B y S7-C están integrados en `main`, y S7-D quedó probado en producción y cerrado con evidencia funcional y de base de datos en modo solo lectura. Sprint 8 continúa **en curso**. Sprint 9 quedó **completado** el 09/09/2026: S9-A, S9-B1, S9-B2 y el cierre documental S9-B3 están integrados en `main`; PR #38 fue mergeado mediante `7e95856c1b494d562ce1c267c06d5bebaec28cc8`. Sprint 10 quedó **implementado, desplegado, verificado y reconciliado** el 21/09/2026: el candidato `171f8c8b8f448a4092e73aeb5f67406e6b81ef09` se desplegó en Heroku, PR #39 se integró en `main` mediante `7ae82b865d90c4cade02dd3378b44107f088b7dd`, y backend, frontend, migraciones, backfill, workers e invariantes productivas quedaron verificados. Sprint 11 quedó **completado con observaciones** el 19/10/2026: S11-A quedó oficialmente congelada en `main@35f850eb24df552805fe8694f50fcbb3588a4141`; S11-B dejó preparada la instrumentación aislada y reproducible, sin generar resultados; S11-C registra seis runs de `EX-02` (21 y 22/09/2026): cinco `NOT_DEMONSTRATED` por causas de infraestructura y de harness, y el sexto, `s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af`, **demostrado en `PASS`**; `EX-03` quedó **demostrado en `PASS`** con el run `s11-6dc3ea66-08c9-51ef-9fe3-70e7dcc67959` `EX-04` con el run `s11-03adb9bc-c9e4-5f8f-b64c-c4360d0c2085` `EX-06` con el run `s11-989218f3-4808-5c6f-ac23-6e8870fec153` y `EX-08` con el run `s11-b567289c-9fe2-5349-a384-e9284bdde863`; `EX-05` quedó demostrado en `PASS` con el run `s11-0e2feac0-6583-513c-a6aa-33430394d14a`; `EX-07` quedó demostrado en `PASS` con el run `s11-545491b8-01fe-55e6-8f08-1a0ebbdca8d3`; S11-C2 quedó **cerrado** el 23/09/2026 con sus siete escenarios en `PASS`; `EX-09`, en su instancia OpenAI, se ejecutó el 26/09/2026 con el run `s11-a156a68c-c422-5e57-ae2b-3336d3b55e6c` y resultado **`FAIL`** (CA-4 19/28 = 67,86 %, bajo el umbral ≥ 85,00 %, es decir, al menos 24/28; run válido con manifest `COMPLETED` y `custody_verification = PASS` según la salida de `finalize`); `EX-10` quedó `NOT_DEMONSTRATED` (el run 1 no es vinculante y los intentos oficiales W22 en las sesiones c47, c51 y c52 terminaron en CP2 `UNCERTAIN` sin run nuevo ni efectos de autoridad); HT5 obtuvo 96,76 % en sus 33 archivos críticos, y S11-D y S11-E quedaron cerrados.
+- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 **completado** (inicio el 22/08/2026, cierre el 23/08/2026: verificación de identidad con HMAC y almacenamiento privado, revisión administrativa manual con cotejo de la cédula, notificaciones asíncronas entregadas por la API HTTPS de Brevo y privacidad configurable del ranking, todo verificado en producción con una identidad real). Sprint 5 **completado** el 27/08/2026: S5-A, S5-B y S5-C están cerradas, integradas y validadas. Sprint 6 **completado** el 28/08/2026: S6-A y S6-B están cerrados. Sprint 7 **completado** el 29/08/2026: S7-A, S7-B y S7-C están integrados en `main`, y S7-D quedó probado en producción y cerrado con evidencia funcional y de base de datos en modo solo lectura. Sprint 8 continúa **en curso**. Sprint 9 quedó **completado** el 09/09/2026: S9-A, S9-B1, S9-B2 y el cierre documental S9-B3 están integrados en `main`; PR #38 fue mergeado mediante `7e95856c1b494d562ce1c267c06d5bebaec28cc8`. Sprint 10 quedó **implementado, desplegado, verificado y reconciliado** el 21/09/2026: el candidato `171f8c8b8f448a4092e73aeb5f67406e6b81ef09` se desplegó en Heroku, PR #39 se integró en `main` mediante `7ae82b865d90c4cade02dd3378b44107f088b7dd`, y backend, frontend, migraciones, backfill, workers e invariantes productivas quedaron verificados. Sprint 11 quedó **completado con observaciones** el 19/10/2026: S11-A quedó oficialmente congelada en `main@35f850eb24df552805fe8694f50fcbb3588a4141`; S11-B dejó preparada la instrumentación aislada y reproducible, sin generar resultados; S11-C registra seis runs de `EX-02` (21 y 22/09/2026): cinco `NOT_DEMONSTRATED` por causas de infraestructura y de harness, y el sexto, `s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af`, **demostrado en `PASS`**; `EX-03` quedó **demostrado en `PASS`** con el run `s11-6dc3ea66-08c9-51ef-9fe3-70e7dcc67959` `EX-04` con el run `s11-03adb9bc-c9e4-5f8f-b64c-c4360d0c2085` `EX-06` con el run `s11-989218f3-4808-5c6f-ac23-6e8870fec153` y `EX-08` con el run `s11-b567289c-9fe2-5349-a384-e9284bdde863`; `EX-05` quedó demostrado en `PASS` con el run `s11-0e2feac0-6583-513c-a6aa-33430394d14a`; `EX-07` quedó demostrado en `PASS` con el run `s11-545491b8-01fe-55e6-8f08-1a0ebbdca8d3`; S11-C2 quedó **cerrado** el 23/09/2026 con sus siete escenarios en `PASS`; `EX-09`, en su instancia OpenAI, se ejecutó el 26/09/2026 con el run `s11-a156a68c-c422-5e57-ae2b-3336d3b55e6c` y resultado **`FAIL`** (CA-4 19/28 = 67,86 %, bajo el umbral ≥ 85,00 %, es decir, al menos 24/28; run válido con manifest `COMPLETED` y `custody_verification = PASS` según la salida de `finalize`); `EX-10` quedó `NOT_DEMONSTRATED` (el run 1 no es vinculante y los intentos oficiales W22 en las sesiones c47, c51 y c52 terminaron en CP2 `UNCERTAIN` sin run nuevo ni efectos de autoridad); HT5 obtuvo 96,76 % en sus 33 archivos críticos, y S11-D y S11-E quedaron cerrados. Sprint 12 quedó **implementado y verificado en local** el 19/10/2026 en `feat/s12-rewards-redemption`, con los tres carriles integrados, incluido el ranking. Sigue sin push, sin PR y sin despliegue; las migraciones no se aplicaron en producción.
 - **Plan de referencia:** [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md)
 - **Ventana de desarrollo:** 01/08/2026 → 15/11/2026 (16 sprints semanales, Anexo F revisado)
 - **Estados posibles:** `Pendiente` · `En curso` · `Completado` · `Completado con observaciones` · `Bloqueado`
@@ -24,7 +24,7 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 | 9 | 26/09 – 02/10 | Panel institucional y validación | Completado |
 | 10 | 03/10 – 09/10 | Estados, evidencias, auditoría y reversión | Completado — implementado, desplegado, verificado y reconciliado |
 | 11 | 10/10 – 16/10 | Metodología, instrumentación, experimentos, análisis y evidencia de tesis | Completado con observaciones (19/10/2026) — S11-A congelada; S11-B preparada; S11-C2 cerrado con `EX-02`…`EX-08` en `PASS`; `EX-09` OpenAI `FAIL` válido (CA-4 19/28); `EX-10` `NOT_DEMONSTRATED`; HT5 96,76 % (33 archivos críticos); S11-D y S11-E cerrados |
-| 12 | 17/10 – 23/10 | Catálogo de recompensas y canje simulado | Pendiente |
+| 12 | 17/10 – 23/10 | Catálogo de recompensas, canje simulado, saldos y ranking mensual | Implementado y verificado en local (19/10/2026); sin push, PR ni despliegue |
 | 13 | 24/10 – 30/10 | Dashboards, integración e ingesta social | Pendiente |
 | 14 | 31/10 – 06/11 | Pruebas unitarias, integración, seguridad y E2E | Pendiente |
 | 15 | 07/11 – 13/11 | Carga, dataset definitivo y documentación | Pendiente |
@@ -4485,23 +4485,121 @@ con inspección los contenedores de diagnóstico. Adjudicación y evidencia en
 ## Sprint 12 — Catálogo de recompensas y canje simulado
 
 **Fechas planificadas:** 17/10/2026 – 23/10/2026
-**Estado:** Pendiente
-**Fecha real de cierre:** —
+**Estado:** IMPLEMENTADO · VERIFICADO EN LOCAL · SIN PUSH, PR NI DESPLIEGUE
+**Fecha real de cierre local:** 19/10/2026
 
 ### Funcionalidades terminadas
-_Pendiente._
+
+- Resumen de impacto histórico, mensual y pendiente; saldos de créditos por institución y
+  movimientos paginados en `/recompensas`. S12 absorbe estas capacidades del S11 funcional.
+- Catálogo institucional y canje simulado de costo fijo de 1.000 créditos, impuesto por el
+  servidor; el operador crea y administra su única recompensa en `/institucion/recompensas`.
+- Canje transaccional con `select_for_update()` sobre `User`, recálculo del saldo bajo lock,
+  débito vinculado al vale y límite mensual por usuario e institución garantizado por `UNIQUE`.
+- Vale permanente `CA-XXXX-XXXX-XXXX-XXXX`, consulta de canjes propios y aviso de simulación
+  en el diálogo y el vale. Repetir el canje en el mes devuelve `409 MONTHLY_LIMIT_REACHED`
+  con el `redemption_id` existente. La reversión puede dejar saldo negativo sin invalidar el vale.
+- Listado institucional de canjes con nombre abreviado, sin email, cédula ni ID del ciudadano;
+  auditoría de creación, edición y canje sin código del vale en el payload.
+- Correo `CANJE_REALIZADO` con institución, recompensa y aviso de simulación, sin código;
+  `RECOMPENSA_DISPONIBLE` y reintentos automáticos quedan para S13.
+- Ranking público mensual Top 10 y privacidad configurable, con desempate determinista y
+  `Cache-Control: private, no-store`. El carril C se integró completo, sin recorte.
+- Migraciones aditivas `rewards_app.0005_s12_redemption_hardening` y
+  `notifications_app.0002_notification_redemption`, verificadas en local y **no aplicadas
+  en producción**. La primera incluye guard de precondición y cinco constraints de negocio.
+
+La base fue `origin/main@7503c32`. No hubo rebase: `origin/main` no avanzó. El conteo
+productivo de solo lectura de §0.2, ejecutado por el usuario el 19/10/2026, fue
+`rewards=0`, `redemptions=0`, `redemption_tx=0`, `dup_rewards=0`.
 
 ### Pruebas realizadas
-_Pendiente._
+
+Se añadieron `test_s12_schema_and_selectors.py`, `test_redemptions.py` (10 casos),
+`test_rewards_api.py` (10 casos), `test_ranking.py` (2), `RewardCard.test.tsx`,
+`movementLabel.test.ts`, `OperatorRewardForm.test.tsx`, `MonthlyRankingPage.test.tsx` y
+`e2e/rewards.spec.ts`.
+
+La verificación completa de §6.3 se ejecutó **una sola vez**, el 19/10/2026:
+
+- **Frontend:** Prettier, ESLint y typecheck OK; Vitest **35 archivos / 392 pruebas OK**;
+  build OK; Playwright `rewards.spec.ts` **1/1 OK**.
+- **Backend:** Ruff check/format OK y `makemigrations --check` sin cambios. La corrida
+  `pytest --cov=apps` terminó con **2144 passed, 15 skipped, 2 failed, 3462 errors**.
+  Se excluyeron únicamente `test_ex10_official_launcher.py`, `test_ex10_launcher.py` y
+  `test_ex10_preflight_launcher.py`: los launchers de EX-10 reúnen unos 730 nodos y tardan
+  cerca de 28 h en serie; prueban el aparato experimental y no tocan recompensas. El resto
+  de `experiments_app` sí se incluyó.
+- Los **3462 errores** eran de entorno: la fixture de S11 en
+  `experiments_app/tests/conftest.py` exige `HOME` fuera de `/tmp` y del checkout. El comando
+  del plan usaba `HOME=/tmp` y montaba solo `backend/` en `/app`, por lo que la raíz del
+  checkout resultaba `/`. Se re-corrió solo `experiments_app`, con el worktree completo
+  montado y `HOME` fuera de `/tmp`: **3384 passed, 17 skipped, 5 failed, 71 errors** (41 min). Los 71 errores son `IsolationError` porque el host de base `s12-dev-db` no está en la allowlist local de S11 (en CI es `localhost`). Los 5 fallos (`test_ex10_authority_backend`, `test_ex10_governance_certificate[GOV-T054]`, `test_ex10_history_authority[v1_bytes]` y dos de `test_ex10_preflight`) se reproducen idénticos sobre `origin/main@7503c32` en el mismo entorno: son preexistentes o de entorno y no los introduce S12.
+- Los **2 fallos** correspondían a tests existentes rotos al integrar: `test_settings.py`
+  no contemplaba los throttles del paso 0 y `test_ranking.py` creaba un `REDEMPTION` suelto,
+  incompatible con la constraint del carril A. Se corrigieron en `b8b6536`; la reejecución
+  focalizada terminó con **5 passed**. No se repitió la suite completa.
+
+La revisión con la skill `requesting-code-review` dio veredicto **«con fixes»**, con
+**0 críticos**. Se corrigieron en `651f9ce`: `simulated` de solo lectura y constante;
+créditos por institución visibles; autoescape del correo; rechazo de caracteres `Cf` en el
+nombre; un único `now` en el catálogo; y estados de movimientos legibles. La reejecución
+sobre lo afectado terminó con **64 passed** en backend y **29 pruebas de recompensas** en
+frontend, más lint, typecheck, build y e2e OK.
+
+El smoke manual de §6.1 usó frontend y backend reales, con el navegador conducido por
+Playwright headless. Se llevaron **11 reportes a `RESUELTO` → 1100 créditos de ANDE**;
+el operador creó la recompensa sin input de costo; el ciudadano canjeó y obtuvo un vale
+`CA-…`, con aviso de simulación tanto en el diálogo como en el vale. El segundo intento
+respondió `409 MONTHLY_LIMIT_REACHED` con `redemption_id`; el body `{"cost":1}` dio `400`.
+Se comprobó `Cache-Control: private, no-store` y el operador vio **«María P.»**.
 
 ### Problemas encontrados
-_Pendiente._
+
+Los errores de entorno de S11 y los dos tests existentes incompatibles con la integración
+se trataron mediante las reejecuciones focalizadas anteriores. La red Docker `s12-dev-net`
+necesitó una subred explícita porque los pools estaban agotados; el frontend del smoke usó
+el puerto **3012** porque el 3000 estaba ocupado.
+
+La revisión aceptó sin cambio: la rama de `IntegrityError` sin prueba propia (excluida por
+el plan), el `401` del ranking con token vencido (documentado en API §8), el monkeypatch
+amplio de `test_ranking` y el `409 REWARD_ALREADY_EXISTS` sin `detail`, tal como lo define
+el contrato.
+
+**Pendiente para el PR:** regularizar la facturación de GitHub Actions y preparar un commit
+de CI aparte que excluya de `ci-backend.yml` los tres launchers de EX-10; esta exclusión
+está propuesta, **no aplicada**. No hubo push, PR ni despliegue. Si el despliegue ocurre más
+de un día después del conteo del 19/10, debe repetirse §0.2 antes de migrar.
 
 ### Commits relevantes
-_Pendiente._
+
+| Etapa | Commits |
+|---|---|
+| Paso 0 | `e0a6ffb` |
+| Carril A | `d13a77d` (A0+A1), `0ba07e9` (A2), `9da3b17` (A3) |
+| Carril B | `d6c76a1` (B1), `f66c75e` (B2), `50abfe3` (B3), `addb10f` (e2e) |
+| Carril C | `f39679b` (C1), `1081001` (C2) |
+| Merges en `feat/s12-rewards-redemption` | `9cebfd9` (A), `e5a49b3` (B), `05673a2` (C) |
+| Fixes de integración | `b8b6536` (tests), `651f9ce` (revisión) |
 
 ### Observaciones y desvíos respecto del plan
-_Pendiente. Incorpora la decisión D-02 (costo fijo de 1.000 créditos, no editable) y las correcciones C-04 (canje serializado con `select_for_update()` sobre `User`) y C-08 (saldo definido como diferencia entre créditos válidos y consumidos)._
+
+S12 incorpora D-01 (saldo negativo tras reversión, con vale vigente), D-02 (costo fijo),
+C-04 (canje serializado sobre `User`) y C-08 (saldo como diferencia entre créditos válidos
+y consumidos). El S11 funcional queda absorbido por S12; esto no ejecuta ni cierra EX-11,
+que conserva su propio gate. El ranking se entregó completo.
+
+Además de los tests previstos en 03 §A0, se ajustaron
+`rewards_app/test_ledger_constraints.py`, `rewards_app/test_ledger_service.py`,
+`reports_app/test_reversal_service.py`, `reports_app/test_settings.py` y
+`rewards_app/test_ranking.py`, solo en fixtures y valores esperados. `reports_app` sigue
+sin cambios de código. `test_s12_reversion_tras_canje` reintenta el mes siguiente para
+comprobar `INSUFFICIENT_BALANCE`: en el mismo mes gana `MONTHLY_LIMIT_REACHED`.
+
+Los otros desvíos fueron la corrección del comando de verificación por la fixture de S11,
+la subred explícita de `s12-dev-net` y el puerto 3012 del smoke. No se crea un ADR nuevo;
+las decisiones finales y el pendiente del test de notificación para S13 quedan en
+[S12_DECISIONES.md](s12/S12_DECISIONES.md).
 
 ---
 
