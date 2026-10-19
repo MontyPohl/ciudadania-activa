@@ -10,7 +10,7 @@ from apps.auth_app.enums import RankingVisibility, UserRole
 from apps.auth_app.models import CitizenProfile
 from apps.rewards_app import periods, ranking
 from apps.rewards_app.enums import RewardEventType, RewardTxStatus
-from apps.rewards_app.models import RewardTransaction
+from apps.rewards_app.models import Reward, RewardRedemption, RewardTransaction
 
 pytestmark = pytest.mark.django_db
 NOW = datetime(2026, 10, 19, 15, tzinfo=UTC)
@@ -105,7 +105,7 @@ def test_visibilidad_y_privacidad(user_factory, monkeypatch):
     assert response["Cache-Control"] == "private, no-store"
 
 
-def test_corte_mensual_y_estados(user_factory, monkeypatch):
+def test_corte_mensual_y_estados(user_factory, monkeypatch, institution):
     cache.delete("ranking:v1:2026-10")
     monkeypatch.setattr("apps.rewards_app.ranking_views.timezone.now", lambda: NOW)
     start, end = periods.month_bounds(periods.current_period(NOW))
@@ -122,7 +122,25 @@ def test_corte_mensual_y_estados(user_factory, monkeypatch):
     _transaction(users[0], 500, at=end)
     for status in (RewardTxStatus.PENDIENTE, RewardTxStatus.ANULADO, RewardTxStatus.REVERTIDO):
         _transaction(users[0], 500, status=status)
-    _transaction(users[0], 500, event_type=RewardEventType.REDEMPTION)
+    reward = Reward.objects.create(institution=institution, name="Vale simulado")
+    redemption = RewardRedemption.objects.create(
+        user=users[0],
+        reward=reward,
+        institution=institution,
+        period_month=periods.current_period(NOW),
+        code="CA-RANKING-2026-10",
+        credits_spent=1000,
+    )
+    RewardTransaction.objects.create(
+        user=users[0],
+        institution=institution,
+        redemption=redemption,
+        event_type=RewardEventType.REDEMPTION,
+        impact_delta=0,
+        credit_delta=-1000,
+        status=RewardTxStatus.ACREDITADO,
+        credited_at=NOW,
+    )
 
     for index, extra in enumerate(
         [{"role": UserRole.OPERATOR}, {"role": UserRole.ADMIN}, {"is_active": False}, {}, {}]
