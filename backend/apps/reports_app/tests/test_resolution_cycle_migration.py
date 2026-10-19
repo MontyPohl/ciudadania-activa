@@ -30,6 +30,11 @@ def _executor(targets):
     return executor
 
 
+def _restore_latest():
+    executor = MigrationExecutor(connection)
+    executor.migrate(executor.loader.graph.leaf_nodes())
+
+
 def _historical_apps(executor, targets):
     return executor.loader.project_state(targets).apps
 
@@ -121,14 +126,17 @@ def test_backfill_aprobado_clasifica_16_reportes_como_cycle_zero():
     old_apps = _historical_apps(executor, MIGRATE_FROM)
     _create_approved_universe(old_apps)
 
-    _executor(MIGRATE_TO)
+    try:
+        _executor(MIGRATE_TO)
 
-    from apps.reports_app.models import Report as CurrentReport
-    from apps.reports_app.models import ReportStatusHistory
+        from apps.reports_app.models import Report as CurrentReport
+        from apps.reports_app.models import ReportStatusHistory
 
-    assert CurrentReport.objects.count() == 16
-    assert CurrentReport.objects.filter(resolution_cycle=0).count() == 16
-    assert ReportStatusHistory.objects.filter(resolution_cycle=0).count() == 2
+        assert CurrentReport.objects.count() == 16
+        assert CurrentReport.objects.filter(resolution_cycle=0).count() == 16
+        assert ReportStatusHistory.objects.filter(resolution_cycle=0).count() == 2
+    finally:
+        _restore_latest()
 
 
 def test_backfill_rechaza_universo_desconocido_sin_escribir():
@@ -155,7 +163,7 @@ def test_backfill_rechaza_universo_desconocido_sin_escribir():
         assert unknown.resolution_cycle is None
     finally:
         Report.objects.filter(pk=unknown.pk).delete()
-        _executor(MIGRATE_TO)
+        _restore_latest()
 
 
 def test_backfill_rechaza_ownership_contradictorio_y_deja_cero_escrituras():
@@ -214,7 +222,7 @@ def test_backfill_rechaza_ownership_contradictorio_y_deja_cero_escrituras():
         Reward.objects.filter(pk=contradictory.pk).delete()
         Confirmation.objects.filter(pk=confirmation.pk).delete()
         get_user_model().objects.filter(pk=user.pk).delete()
-        _executor(MIGRATE_TO)
+        _restore_latest()
 
 
 @pytest.mark.parametrize(
@@ -309,7 +317,7 @@ def test_backfill_rechaza_evidencia_inconsistente_sin_ninguna_escritura(scenario
         Report.objects.filter(pk=first.pk).update(citizen_id=None)
         if user is not None:
             get_user_model().objects.filter(pk=user.pk).delete()
-        _executor(MIGRATE_TO)
+        _restore_latest()
 
 
 def test_backfill_falla_tarde_sin_escribir_clasificaciones_previas():
@@ -332,7 +340,7 @@ def test_backfill_falla_tarde_sin_escribir_clasificaciones_previas():
         assert History.objects.filter(resolution_cycle__isnull=True).count() == 2
     finally:
         History.objects.filter(pk=history.pk).update(created_at=original_created_at)
-        _executor(MIGRATE_TO)
+        _restore_latest()
 
 
 def test_evidence_migration_aborts_when_historical_rows_exist():
@@ -373,4 +381,4 @@ def test_evidence_migration_aborts_when_historical_rows_exist():
     finally:
         Evidence.objects.filter(pk=evidence.pk).delete()
         Report.objects.filter(pk=report.pk).delete()
-        _executor(MIGRATE_TO)
+        _restore_latest()

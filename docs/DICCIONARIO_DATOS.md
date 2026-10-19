@@ -3,7 +3,10 @@
 Estado del modelo de datos **tal como está implementado**, contrastado con el Anexo A de
 `Tesis_Ciudadania_Activa_Revisada_Recompensas.docx`. Las 18 entidades se crearon en el
 Sprint 2; el Sprint 4 añadió `citizen_profiles.rejection_reason` y el Sprint 8 incorporó
-`ai_classifications.justification` y `ai_classifications.model_name`.
+`ai_classifications.justification` y `ai_classifications.model_name`. S12 añade la
+institución y el período mensual al vale, su vínculo con el ledger y la referencia desde
+notificaciones, con las restricciones descritas abajo. Este esquema está verificado en
+local; las migraciones de S12 no se aplicaron en producción al 19/10/2026.
 
 - **Fuente rectora:** Anexo A (A.1 entidades · A.2 enumeraciones · A.4 diccionario · A.5 índices · A.6 SQL de referencia).
 - **Plan:** [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md) §6.4, §6.5 y §12.
@@ -210,6 +213,7 @@ económico no puede perder su sujeto, su origen ni su institución.
 | `user_id` | UUID | not null | `PROTECT` |
 | `report_id` | UUID | nullable | `PROTECT` |
 | `confirmation_id` | UUID | nullable | `PROTECT`; solo `CONFIRMATION_CREATED` |
+| `redemption_id` | UUID | nullable, **unique** | S12: `OneToOneField`, `PROTECT`, hacia `reward_redemptions`; relación inversa `ledger_transaction` |
 | `institution_id` | UUID | **nullable** | Se fija **al acreditar**, con la institución validante (RF-35/RF-38) |
 | `event_type` | `varchar(40)` | not null | `RewardEventType` |
 | `impact_delta` | `integer` | not null | **Inmutable** tras la inserción |
@@ -241,21 +245,54 @@ Restricciones:
   reporte**.
 - `reward_tx_confirmation_created_unico` — índice único parcial: **un solo
   `CONFIRMATION_CREATED` por confirmación**.
-- No se restringe `VALIDATION_BONUS` ni `RESOLUTION_BONUS`: tras una reversión, una
-  revalidación legítima genera una fila nueva.
+- Las restricciones de ciclo incorporadas en S10 se conservan: una revalidación legítima
+  genera movimientos del ciclo nuevo, sin reactivar los originales.
+- `reward_tx_redemption_only_redemption` (S12) — si `redemption_id` no es NULL, el evento
+  debe ser `REDEMPTION`. La unicidad de la relación permite a lo sumo un débito por vale.
+- `reward_tx_redemption_shape` (S12) — un `REDEMPTION` exige `redemption_id` e
+  `institution_id` no nulos, `impact_delta = 0`, `credit_delta < 0`,
+  `status = ACREDITADO`, `report_id IS NULL` y `confirmation_id IS NULL`. Las reglas de
+  marcas temporales siguen aplicándose. La coherencia entre usuario, institución, importe
+  y vale se fija en el servicio transaccional; estos CHECK no comparan tablas.
 
 **`rewards`** — `institution_id` (`PROTECT`), `name`, `description`, `credit_cost`
-(`integer`, `default 1000`, `CHECK > 0`), `active`, `simulated`,
-`UNIQUE(institution_id, name)`. El costo es fijo en el MVP (D-02): el campo se conserva
-estructuralmente normal y la prohibición de editarlo se aplica en la capa de aplicación
-—`readonly_fields` en el admin ahora, serializador y servicio en el Sprint 12—, nunca con
-`editable=False`.
+(`integer`, `default 1000`, `CHECK > 0`), `active`, `simulated`.
+S12 reemplaza `reward_unica_por_institucion` (`UNIQUE(institution_id, name)`) por
+`reward_una_por_institucion` (`UNIQUE(institution_id)`): hay una sola recompensa por
+institución, incluso si está inactiva.
+
+El costo es fijo en 1.000 créditos en el MVP (D-02). `credit_cost` se conserva como
+columna normal por extensibilidad: admin, serializador y servicio impiden que el operador
+lo modifique, sin `editable=False`. `simulated` es de solo lectura en la API y se expone
+siempre como `true`; no se añade un CHECK de costo fijo ni de simulación.
 
 **`reward_redemptions`** — `user_id` (`PROTECT`), `reward_id` (`PROTECT`), `code`
 (`varchar(80)`, **único**), `credits_spent` (`default 1000`, `CHECK > 0`), índice
-`(user_id, reward_id, created_at)`. El límite de un canje por institución, usuario y mes no
-es expresable en una sola tabla: se aplica en el servicio del Sprint 12 con
-`select_for_update()` (C-04).
+`(user_id, reward_id, created_at)`. S12 añade:
+
+| Campo | Tipo | Restricción | Notas |
+|---|---|---|---|
+| `institution_id` | UUID | **not null**, `PROTECT` | Institución del canje, fijada por el servicio desde la recompensa |
+| `period_month` | `date` | **not null** | Primer día del mes civil en `America/Asuncion`; la API lo proyecta como `YYYY-MM` |
+
+- `redemption_una_por_mes_institucion` — `UNIQUE(user_id, institution_id, period_month)`:
+  el límite de un canje por usuario, institución y mes **sí queda garantizado en esta
+  tabla**, con la institución y el período explícitos.
+- `redemption_period_dia_uno` — `CHECK` que exige día 1 en `period_month`.
+
+El servicio conserva además `select_for_update()` sobre `User` dentro de
+`transaction.atomic()`, recalcula el saldo institucional bajo el bloqueo y crea juntos el
+vale y su débito (C-04). El `UNIQUE` protege el límite mensual también en la base. El
+código emitido es `CA-XXXX-XXXX-XXXX-XXXX` (80 bits Crockford base32); una reversión no
+borra ni invalida el vale, aunque el saldo resultante sea negativo (D-01).
+
+`rewards_app.0005_s12_redemption_hardening` es aditiva y atómica, con guard previo que
+aborta antes de alterar el esquema si existen canjes, movimientos `REDEMPTION` o varias
+recompensas de una institución. No hace backfill: crea `institution` y `period_month`
+como nullable y luego los vuelve obligatorios sobre la tabla vacía. Añade las cinco
+constraints de negocio nombradas arriba, además de la unicidad propia del vínculo
+`OneToOneField`. El conteo productivo del usuario del 19/10 fue `rewards=0`,
+`redemptions=0`, `redemption_tx=0`, `dup_rewards=0`; no equivale a aplicar la migración.
 
 ### `notifications_app`
 
@@ -263,17 +300,28 @@ es expresable en una sola tabla: se aplica en el servicio del Sprint 12 con
 de verificación no se refieren a un reporte), `notification_type`, `channel`
 (`default 'EMAIL'`), `status` (`default 'PENDIENTE'`).
 
+| Campo nuevo S12 | Tipo | Restricción | Notas |
+|---|---|---|---|
+| `redemption_id` | UUID | nullable, `SET_NULL` | FK a `reward_redemptions`, relación inversa `notifications`; vincula `CANJE_REALIZADO` con su vale |
+
+`notifications_app.0002_notification_redemption` depende de `rewards_app.0005`. No añade
+unicidad ni CHECK de tipo: el servicio crea `CANJE_REALIZADO` con el canje y el envío
+marca `FALLIDO` si falta esa referencia. El correo no transporta el código del vale.
+`RECOMPENSA_DISPONIBLE` y los reintentos automáticos quedan para S13.
+
 ### Frontera de datos al cierre S9-B3
 
 S9-B3 es un cierre documental: no añade tablas, campos, constraints ni migraciones. El ledger de
 Sprint 9 ya acredita los movimientos pendientes y crea `VALIDATION_BONUS` al validar, o cambia los
-pendientes a `ANULADO` al rechazar. No existe una tabla materializada de saldo ni una API de
-consulta de créditos.
+pendientes a `ANULADO` al rechazar. En ese cierre no existía una API de consulta de
+créditos; S12 la implementa sin crear una tabla materializada de saldo.
 
-`GET /api/v1/rewards/summary/`, `GET /api/v1/rewards/transactions/`, `/recompensas` y el ranking
-con privacidad pertenecen a S11; catálogo/canje a S12; dashboards e ingesta social a S13. Los
-valores de `NotificationType` y la relación opcional `notifications.report_id` sólo reservan
-estructura: las notificaciones completas requieren todavía decisiones de destinatarios,
+En la planificación de S9-B3, `GET /api/v1/rewards/summary/`,
+`GET /api/v1/rewards/transactions/`, `/recompensas` y el ranking con privacidad pertenecían
+a S11; se implementaron en S12 junto al catálogo y al canje. Dashboards e ingesta social
+siguen en S13. En S9-B3, los valores de `NotificationType` y la relación opcional
+`notifications.report_id` sólo reservaban estructura. S12 implementa el correo de canje;
+las notificaciones completas de reportes requieren todavía decisiones de destinatarios,
 contenido, privacidad, idempotencia, asociación con reportes, fallos del broker, momento de
 emisión y `transaction.on_commit`.
 
@@ -362,10 +410,26 @@ reports_app.0001_initial         reports · report_media · report_status_histor
 `swappable_dependency(AUTH_USER_MODEL)`; `ai_client_app` y `rewards_app` dependen de
 `admin_app.0001`.
 
-**Inventario acumulado: 11 archivos de migración.** El Sprint 4 aporta exactamente uno,
+**Inventario histórico al Sprint 4: 11 archivos de migración.** El Sprint 4 aporta exactamente uno,
 `auth_app.0004`; ni `admin_app` ni `notifications_app` añadieron ninguno pese a
 implementar la revisión administrativa y las notificaciones, porque sus tablas ya
 existían desde el Sprint 2 con la forma necesaria.
+
+**Ampliación S12 (verificada en local, no aplicada en producción):**
+
+```text
+rewards_app.0004_enforce_reward_event_linkage
+   └── rewards_app.0005_s12_redemption_hardening
+          +reward_redemptions.institution_id, period_month
+          +reward_transactions.redemption_id
+          +cinco constraints de negocio; reemplaza UNIQUE(institution_id, name)
+          └── notifications_app.0002_notification_redemption
+                 +notifications.redemption_id
+```
+
+`rewards_app.0005` depende también de `admin_app.0002_seed_catalogs`;
+`notifications_app.0002` depende además de `notifications_app.0001_initial`. Este tramo
+extiende el grafo histórico anterior y conserva las migraciones intermedias de S10.
 
 ---
 

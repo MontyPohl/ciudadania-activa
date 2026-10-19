@@ -42,15 +42,23 @@ class RewardAdmin(admin.ModelAdmin):
     # El costo es fijo en 1.000 créditos durante el MVP y el operador no puede
     # modificarlo (D-02). Se protege aquí, no con `editable=False` en el modelo: el
     # campo debe seguir siendo estructuralmente normal para la extensibilidad futura.
-    readonly_fields = ["credit_cost", "created_at", "updated_at"]
+    readonly_fields = ["credit_cost", "simulated", "created_at", "updated_at"]
 
 
 @admin.register(RewardRedemption)
 class RewardRedemptionAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
     """Solo lectura: un canje es un hecho económico con vale ya emitido (D-01)."""
 
-    list_display = ["created_at", "user", "reward", "code", "credits_spent"]
-    list_filter = ["reward"]
+    list_display = [
+        "created_at",
+        "user",
+        "reward",
+        "institution",
+        "period_month",
+        "code",
+        "credits_spent",
+    ]
+    list_filter = ["reward", "institution", "period_month"]
     search_fields = ["code", "user__email"]
-    list_select_related = ["user", "reward"]
+    list_select_related = ["user", "reward", "institution"]
     date_hierarchy = "created_at"

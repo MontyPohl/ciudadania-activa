@@ -10,6 +10,8 @@ def test_configuracion_central_s6(settings):
         "possible_duplicates": "60/min",
         "reports_mine": "120/hour",
         "report_confirm": "30/hour",
+        "reward_redeem": "10/hour",
+        "public_ranking": "120/min",
     }
     assert "REPORT_DUPLICATE_SAME_CATEGORY" not in dir(settings)
 

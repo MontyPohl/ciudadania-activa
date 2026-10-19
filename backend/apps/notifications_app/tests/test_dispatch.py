@@ -329,7 +329,7 @@ def test_la_clave_de_api_no_aparece_en_los_logs_del_servicio(citizen, brevo_api,
 
 def test_un_tipo_sin_plantilla_queda_fallido_y_no_envia(citizen, brevo_api):
     """Mejor una fila FALLIDO visible que un correo inventado."""
-    notificacion = _crear(citizen, NotificationType.CANJE_REALIZADO)
+    notificacion = _crear(citizen, NotificationType.RECOMPENSA_DISPONIBLE)
 
     resultado = dispatch.send(notificacion.pk)
 

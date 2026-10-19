@@ -46,4 +46,5 @@ def test_migracion_aborta_antes_de_constraints_si_hay_bonus_historico_invalido(
             assert cursor.fetchone()[0] == 0
     finally:
         RewardTransaction.objects.filter(pk=invalid.pk).delete()
-        _executor(MIGRATE_TO)
+        executor = MigrationExecutor(connection)
+        executor.migrate(executor.loader.graph.leaf_nodes())

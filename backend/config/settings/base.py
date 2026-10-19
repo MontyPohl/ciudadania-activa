@@ -228,6 +228,8 @@ REST_FRAMEWORK = {
         "possible_duplicates": "60/min",
         "reports_mine": "120/hour",
         "report_confirm": "30/hour",
+        "reward_redeem": "10/hour",
+        "public_ranking": "120/min",
     },
 }
 
@@ -270,6 +272,7 @@ CACHES = {
 }
 
 PUBLIC_MAP_CACHE_TTL_SECONDS = env.int("PUBLIC_MAP_CACHE_TTL_SECONDS", default=60)
+PUBLIC_RANKING_CACHE_TTL_SECONDS = env.int("PUBLIC_RANKING_CACHE_TTL_SECONDS", default=60)
 PUBLIC_MAP_MAX_BBOX_SPAN_DEGREES = Decimal("0.5")
 REPORT_DUPLICATE_RADIUS_METERS = env.int("REPORT_DUPLICATE_RADIUS_METERS", default=100)
 REPORT_AUTO_CLOSE_HOURS = env.int("REPORT_AUTO_CLOSE_HOURS", default=72)
