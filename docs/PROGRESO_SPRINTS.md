@@ -2,7 +2,7 @@
 
 Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes de iniciar el siguiente.
 
-- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 **completado** (inicio el 22/08/2026, cierre el 23/08/2026: verificación de identidad con HMAC y almacenamiento privado, revisión administrativa manual con cotejo de la cédula, notificaciones asíncronas entregadas por la API HTTPS de Brevo y privacidad configurable del ranking, todo verificado en producción con una identidad real). Sprint 5 **completado** el 27/08/2026: S5-A, S5-B y S5-C están cerradas, integradas y validadas. Sprint 6 **completado** el 28/08/2026: S6-A y S6-B están cerrados. Sprint 7 **completado** el 29/08/2026: S7-A, S7-B y S7-C están integrados en `main`, y S7-D quedó probado en producción y cerrado con evidencia funcional y de base de datos en modo solo lectura. Sprint 8 continúa **en curso**. Sprint 9 quedó **completado** el 09/09/2026: S9-A, S9-B1, S9-B2 y el cierre documental S9-B3 están integrados en `main`; PR #38 fue mergeado mediante `7e95856c1b494d562ce1c267c06d5bebaec28cc8`. Sprint 10 quedó **implementado, desplegado, verificado y reconciliado** el 21/09/2026: el candidato `171f8c8b8f448a4092e73aeb5f67406e6b81ef09` se desplegó en Heroku, PR #39 se integró en `main` mediante `7ae82b865d90c4cade02dd3378b44107f088b7dd`, y backend, frontend, migraciones, backfill, workers e invariantes productivas quedaron verificados. Sprint 11 no se inició.
+- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 **completado** (inicio el 22/08/2026, cierre el 23/08/2026: verificación de identidad con HMAC y almacenamiento privado, revisión administrativa manual con cotejo de la cédula, notificaciones asíncronas entregadas por la API HTTPS de Brevo y privacidad configurable del ranking, todo verificado en producción con una identidad real). Sprint 5 **completado** el 27/08/2026: S5-A, S5-B y S5-C están cerradas, integradas y validadas. Sprint 6 **completado** el 28/08/2026: S6-A y S6-B están cerrados. Sprint 7 **completado** el 29/08/2026: S7-A, S7-B y S7-C están integrados en `main`, y S7-D quedó probado en producción y cerrado con evidencia funcional y de base de datos en modo solo lectura. Sprint 8 continúa **en curso**. Sprint 9 quedó **completado** el 09/09/2026: S9-A, S9-B1, S9-B2 y el cierre documental S9-B3 están integrados en `main`; PR #38 fue mergeado mediante `7e95856c1b494d562ce1c267c06d5bebaec28cc8`. Sprint 10 quedó **implementado, desplegado, verificado y reconciliado** el 21/09/2026: el candidato `171f8c8b8f448a4092e73aeb5f67406e6b81ef09` se desplegó en Heroku, PR #39 se integró en `main` mediante `7ae82b865d90c4cade02dd3378b44107f088b7dd`, y backend, frontend, migraciones, backfill, workers e invariantes productivas quedaron verificados. Sprint 11 quedó **completado con observaciones** el 19/10/2026: S11-A quedó oficialmente congelada en `main@35f850eb24df552805fe8694f50fcbb3588a4141`; S11-B dejó preparada la instrumentación aislada y reproducible, sin generar resultados; S11-C registra seis runs de `EX-02` (21 y 22/09/2026): cinco `NOT_DEMONSTRATED` por causas de infraestructura y de harness, y el sexto, `s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af`, **demostrado en `PASS`**; `EX-03` quedó **demostrado en `PASS`** con el run `s11-6dc3ea66-08c9-51ef-9fe3-70e7dcc67959` `EX-04` con el run `s11-03adb9bc-c9e4-5f8f-b64c-c4360d0c2085` `EX-06` con el run `s11-989218f3-4808-5c6f-ac23-6e8870fec153` y `EX-08` con el run `s11-b567289c-9fe2-5349-a384-e9284bdde863`; `EX-05` quedó demostrado en `PASS` con el run `s11-0e2feac0-6583-513c-a6aa-33430394d14a`; `EX-07` quedó demostrado en `PASS` con el run `s11-545491b8-01fe-55e6-8f08-1a0ebbdca8d3`; S11-C2 quedó **cerrado** el 23/09/2026 con sus siete escenarios en `PASS`; `EX-09`, en su instancia OpenAI, se ejecutó el 26/09/2026 con el run `s11-a156a68c-c422-5e57-ae2b-3336d3b55e6c` y resultado **`FAIL`** (CA-4 19/28 = 67,86 %, bajo el umbral ≥ 85,00 %, es decir, al menos 24/28; run válido con manifest `COMPLETED` y `custody_verification = PASS` según la salida de `finalize`); `EX-10` quedó `NOT_DEMONSTRATED` (el run 1 no es vinculante y los intentos oficiales W22 en las sesiones c47, c51 y c52 terminaron en CP2 `UNCERTAIN` sin run nuevo ni efectos de autoridad); HT5 obtuvo 96,76 % en sus 33 archivos críticos, y S11-D y S11-E quedaron cerrados.
 - **Plan de referencia:** [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md)
 - **Ventana de desarrollo:** 01/08/2026 → 15/11/2026 (16 sprints semanales, Anexo F revisado)
 - **Estados posibles:** `Pendiente` · `En curso` · `Completado` · `Completado con observaciones` · `Bloqueado`
@@ -23,14 +23,14 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 | 8 | 19/09 – 25/09 | Clasificación asistida por IA | En curso |
 | 9 | 26/09 – 02/10 | Panel institucional y validación | Completado |
 | 10 | 03/10 – 09/10 | Estados, evidencias, auditoría y reversión | Completado — implementado, desplegado, verificado y reconciliado |
-| 11 | 10/10 – 16/10 | Créditos, ranking del mes en curso y privacidad | Pendiente |
+| 11 | 10/10 – 16/10 | Metodología, instrumentación, experimentos, análisis y evidencia de tesis | Completado con observaciones (19/10/2026) — S11-A congelada; S11-B preparada; S11-C2 cerrado con `EX-02`…`EX-08` en `PASS`; `EX-09` OpenAI `FAIL` válido (CA-4 19/28); `EX-10` `NOT_DEMONSTRATED`; HT5 96,76 % (33 archivos críticos); S11-D y S11-E cerrados |
 | 12 | 17/10 – 23/10 | Catálogo de recompensas y canje simulado | Pendiente |
 | 13 | 24/10 – 30/10 | Dashboards, integración e ingesta social | Pendiente |
 | 14 | 31/10 – 06/11 | Pruebas unitarias, integración, seguridad y E2E | Pendiente |
 | 15 | 07/11 – 13/11 | Carga, dataset definitivo y documentación | Pendiente |
 | 16 | 14/11 – 15/11 | Cierre y preparación de la defensa | Pendiente |
 
-**Progreso:** 8 / 16 sprints completados (Sprints 1, 2 y 3 cerrados el 20/08/2026; Sprint 4 el 23/08/2026; Sprint 5 el 27/08/2026; Sprint 6 el 28/08/2026; Sprint 7 el 29/08/2026; Sprint 9 el 09/09/2026). La ejecución real arrastra el desvío de calendario registrado en CT-29. Sprint 8 continúa **en curso**: R2 permanece prerregistrado/no ejecutado y CA-4 no demostrado. El cierre de Sprint 9 no inicia S11–S13.
+**Progreso:** 9 / 16 sprints completados (Sprints 1, 2 y 3 cerrados el 20/08/2026; Sprint 4 el 23/08/2026; Sprint 5 el 27/08/2026; Sprint 6 el 28/08/2026; Sprint 7 el 29/08/2026; Sprint 9 el 09/09/2026; Sprint 11 el 19/10/2026, con observaciones). La ejecución real arrastra el desvío de calendario registrado en CT-29. Sprint 8 continúa **en curso**: R2 permanece prerregistrado/no ejecutado y la serie S8 con Gemini no produjo ninguna medición válida de CA-4; la primera medición válida, `EX-09` OpenAI en S11-C3, dio `FAIL` (19/28), y su efecto sobre el cierre del Sprint 8 no está decidido. Sprint 11 completó la congelación S11-A y la preparación técnica S11-B; S11-C cerró `EX-02` en `PASS` con el run `s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af` —tras cinco intentos previos `NOT_DEMONSTRATED`—, `EX-03` en `PASS` con el run `s11-6dc3ea66-08c9-51ef-9fe3-70e7dcc67959`, `EX-04` en `PASS` con el run `s11-03adb9bc-c9e4-5f8f-b64c-c4360d0c2085` `EX-06` en `PASS` con el run `s11-989218f3-4808-5c6f-ac23-6e8870fec153` y `EX-08` en `PASS` con el run `s11-b567289c-9fe2-5349-a384-e9284bdde863`; `EX-05` quedó en `PASS` con el run `s11-0e2feac0-6583-513c-a6aa-33430394d14a`; `EX-07` en `PASS` con el run `s11-545491b8-01fe-55e6-8f08-1a0ebbdca8d3`; S11-C2 quedó cerrado el 23/09/2026; `EX-09` OpenAI se ejecutó el 26/09/2026 con el run `s11-a156a68c-c422-5e57-ae2b-3336d3b55e6c` y resultado `FAIL` (CA-4 19/28 = 67,86 %; run válido); `EX-10` quedó `NOT_DEMONSTRATED` y el análisis S11-D y el dossier S11-E cerraron el Sprint 11 el 19/10/2026; S12–S13 no se iniciaron.
 
 ### Decisiones que condicionan el avance
 
@@ -931,7 +931,7 @@ antes de cerrarlo.
 ## Sprint 8 — Clasificación asistida por IA
 
 **Fechas planificadas:** 19/09/2026 – 25/09/2026
-**Estado:** En curso — S8-A a S8-E1 integrados en `main`, más el hotfix de mapeo de errores, el prerregistro del modelo y la instrumentación de recuperación. La corrida canónica S8-E2 quedó `NOT_DEMONSTRATED` por los límites del nivel gratuito (RPM 5, RPD 20); la recuperación S8-E2-R1 quedó `ABORTED` tras ejecutar solo el lote 1 —10 de 14 casos agotaron el timeout de 20 s y su evidencia JSON se perdió—; y S8-E2-R2 está prerregistrada en local con timeout de 60 s y evidencia persistente, sin ejecutar. **CA-4 sigue sin medición válida.**
+**Estado:** En curso — S8-A a S8-E1 integrados en `main`, más el hotfix de mapeo de errores, el prerregistro del modelo y la instrumentación de recuperación. La corrida canónica S8-E2 quedó `NOT_DEMONSTRATED` por los límites del nivel gratuito (RPM 5, RPD 20); la recuperación S8-E2-R1 quedó `ABORTED` tras ejecutar solo el lote 1 —10 de 14 casos agotaron el timeout de 20 s y su evidencia JSON se perdió—; y S8-E2-R2 está prerregistrada en local con timeout de 60 s y evidencia persistente, sin ejecutar. **Dentro de la serie S8 con Gemini, CA-4 sigue sin medición válida.** La primera medición válida llegó después, fuera de esta serie: `EX-09` OpenAI (S11-C3, run `s11-a156a68c-c422-5e57-ae2b-3336d3b55e6c`) dio `FAIL`, 19/28 = 67,86 %. No está decidido si esa medición resuelve el requisito CA-4 del Sprint 8 (D19 del contrato de IA); el estado del sprint no cambia.
 **Fecha real de cierre:** —
 
 ### Funcionalidades terminadas
@@ -1578,26 +1578,2907 @@ ausente. S11, S12 y S13 no fueron iniciados durante este cierre.
 
 ---
 
-## Sprint 11 — Créditos, ranking del mes en curso y privacidad
+## Sprint 11 — Metodología, instrumentación, experimentos, análisis y evidencia
 
 **Fechas planificadas:** 10/10/2026 – 16/10/2026
-**Estado:** Pendiente
+**Estado:** Completado con observaciones (19/10/2026) — `EX-10` `NOT_DEMONSTRATED`; véase el cierre al final de esta sección. Historial: S11-A y S11-B en `PASS`; rebaseline custodial completado (P02/P03 y C1
+repetidos en `PASS` bajo la nueva época); S11-C con `EX-02` en `PASS` —run
+`s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af`, auditado como `S11C2_EX02_PASS_CONFIRMED`— tras cinco
+intentos previos `NOT_DEMONSTRATED`—, `EX-03` en `PASS` —run
+`s11-6dc3ea66-08c9-51ef-9fe3-70e7dcc67959`, `S11C2_EX03_PASS_CONFIRMED`—, `EX-04` en `PASS`
+—run `s11-03adb9bc-c9e4-5f8f-b64c-c4360d0c2085`, `S11C2_EX04_PASS`—, `EX-06` en `PASS` —run
+`s11-989218f3-4808-5c6f-ac23-6e8870fec153`, `S11C2_EX06_PASS`— y `EX-08` en `PASS` —run
+`s11-b567289c-9fe2-5349-a384-e9284bdde863`, `S11C2_EX08_PASS`— y `EX-05` en `PASS` —run
+`s11-0e2feac0-6583-513c-a6aa-33430394d14a`, `S11C2_EX05_PASS`— y `EX-07` en `PASS` —run
+`s11-545491b8-01fe-55e6-8f08-1a0ebbdca8d3`, `S11C2_EX07_PASS`—; **S11-C2 cerrado** el 23/09/2026;
+S11-C abierto con EX-10 pendiente. Desde el 26/09/2026 el proveedor de EX-09 es OpenAI:
+la preparación Gemini (`73e5037`) queda histórica y sin ejecutar. El protocolo
+`s11-ex09-openai-v1` y la enmienda `S11A-v1.1` están congelados. EX-09 OpenAI se preparó
+(`f88c0a2`) y se ejecutó el 26/09/2026 sobre `main@07ef681`: el run
+`s11-a156a68c-c422-5e57-ae2b-3336d3b55e6c` cerró con el manifest `COMPLETED` y
+`custody_verification = PASS` según la salida de `finalize`. Su resultado es **`FAIL`** (CA-4
+19/28 = 67,86 %; umbral ≥ 85,00 %, al menos 24/28), un resultado experimental válido.
 **Fecha real de cierre:** —
 
-### Funcionalidades terminadas
-_Pendiente._
+> **Rebaseline S11-A (21/09/2026).** El título histórico “Créditos, ranking del mes en curso y
+> privacidad” se conserva como propuesta previa, no como trabajo ejecutado. Ranking, saldo visible,
+> privacidad aplicada al ranking y canje/redención se separan como
+> `FUTURE_FEATURE / DEPENDENCY`; EX-11 queda diferido. El nuevo Sprint 11 se organiza en S11-A
+> metodología, S11-B instrumentación, S11-C experimentos, S11-D análisis y S11-E evidencia/cierre.
+
+### Artefactos metodológicos terminados
+
+- `docs/tesis/S11A_CATALOGO_Y_MATRIZ.md`: catálogo literal PG/PE/OG/OE/HE/HT y matriz
+  tesis→sistema→evidencia.
+- `docs/tesis/S11A_DICCIONARIO_INDICADORES.md`: indicadores, protocolo HT-1 y manifiesto crítico
+  HT-5.
+- `docs/tesis/S11A_ESCENARIOS_Y_PROTOCOLO.md`: EX-01…EX-11, matriz de eventos,
+  `resolution_cycle` y protocolo común.
+- `docs/tesis/S11A_DATOS_EVIDENCIA_Y_REBASELINE.md`: datasets, aislamiento, privacidad,
+  retención, cadena de evidencia y rebaseline.
+- `docs/tesis/S11A_POLITICA_CUSTODIA_Y_ACCESO.md`: política aprobada de retención,
+  responsables nominales, primary/backup/restore, acceso y destrucción para cerrar P02/P03.
+
+La versión `S11A-v1.0` fue redactada contra
+`main@635d89956ca0632d620916dc0ab298af48079ec4` y quedó oficialmente versionada en
+`main@35f850eb24df552805fe8694f50fcbb3588a4141`. S11-A no modificó código ni ejecutó
+experimentos.
+
+Gate formal de cierre: `S11A_METHODOLOGY_FROZEN`.
+
+### Decisión metodológica previa a S11-C2
+
+- **Autoridad:** Monty Emmanuel Pohl Amarilla, autor y custodio.
+- **Decisión humana explícita:** **OPCIÓN A — mantener `S11A-v1.0`**.
+- EX-02 y EX-03 permanecen independientes: cada escenario usa su propio run, reset, reporte y
+  evidencia; EX-03 no reutiliza el reporte de EX-02.
+- Esta constancia no modifica S11-A, indicadores, matriz de eventos, denominadores, hipótesis ni
+  harness, y no crea una nueva versión metodológica.
+- La constancia no incorpora una firma criptográfica y no autoriza por sí sola la ejecución de
+  C2. Los gates de credenciales operacionales deben resolverse por separado.
+
+### Incidente de continuidad HMAC y decisión C (21/09/2026)
+
+- El diagnóstico `S11_HMAC_DIAGNOSTIC_COMPLETE` clasificó el incidente como
+  `KEY_CONTINUITY_FAILURE`. La clave `S11_CUSTODY_HMAC_KEY` actualmente disponible no verifica
+  la evidencia histórica de P02/P03 ni de C1; tampoco lo hace `S11_DOCUMENT_HMAC_SECRET`. No hay
+  `key_id` histórico disponible y el runtime no implementa keyring ni versionado de claves.
+- Los JSON históricos conservan integridad de bytes verificable mediante SHA-256, pero su
+  autenticidad HMAC histórica no puede verificarse con las claves autorizadas disponibles. No se
+  consideran falsos ni corruptos y permanecen en sus rutas originales sin resignar, sobrescribir,
+  eliminar o mover destructivamente.
+- Monty Emmanuel Pohl Amarilla registró la **DECISIÓN C**: conservar esos artefactos como
+  `HISTORICAL_UNVERIFIABLE`, iniciar una nueva época de custodia con una clave estable y repetir
+  P02/P03 y C1 antes de ejecutar EX-02. La decisión completa y los hashes preservados constan en
+  [`S11_HMAC_CUSTODY_CONTINUITY_INCIDENT.md`](runbooks/S11_HMAC_CUSTODY_CONTINUITY_INCIDENT.md).
+- La nueva clave custodial fue configurada fuera de Git y el runtime comprobó el fingerprint no
+  secreto `7205a04f93cc3da9`. Se mantuvo durante C1 y debe continuar estable para los runs
+  posteriores y durante toda la retención aplicable. Para las repeticiones P02/P03 y C1,
+  `S11_HOST_GID=1003` se exportó al proceso desde `id -g`; `.env` no fue modificado.
+- El intento previo S11-C2/EX-02 queda `S11C2_EX02_NOT_DEMONSTRATED` por una causa de
+  infraestructura/custodia. No es un `FAIL` funcional: no se creó un run C2 y el experimento no
+  comenzó.
+- Gates vigentes: S11-A `PASS`; S11-B `PASS`; metodología Opción A `PASS`; diagnóstico HMAC
+  `COMPLETE`; P02/P03 `PASS`; C1 `PASS`. EX-02 y EX-03 no fueron ejecutados ni autorizados y
+  requieren un pre-gate separado. No se avanza a S11-C3.
+- La decisión no modifica `S11A-v1.0`, objetivos, hipótesis, indicadores, fórmulas, escenarios,
+  denominadores, criterios de decisión, matriz de eventos, harness ni la independencia de EX-02 y
+  EX-03.
+
+### S11-C2 / EX-02 — intento posterior al rebaseline (21/09/2026)
+
+- Baseline: `main@e76061b864c03d1c37004316779cdc77f839adae`; árbol inicialmente limpio; gates
+  S11-A, S11-B, P02/P03, C1 y metodología Opción A verificados. La clave custodial conservó el
+  fingerprint `7205a04f93cc3da9` y la clave pública el fingerprint `8c1e5a8ad7390f4d`.
+- El harness oficial se invocó exclusivamente con `--scenario EX-02` y creó el run independiente
+  `s11-3b48870b-7979-542b-8a46-1c6dfce7bed8`. Compose asignó dinámicamente
+  `http://127.0.0.1:32771`; DB `ciudadania_s11_experiment`, Redis DB `11`, storage
+  `/s11-objects` y dataset `s11-functional-v1` con SHA-256
+  `66074d1617c4e1b7a32b854090d26556faa9b35a000452787ff3b47d6f0edc1c` quedaron fijados en el
+  manifest.
+- La infraestructura completó arranque, health check, create/reset y manifest inicial, pero el
+  host no tenía `npm` disponible. El proceso terminó con `FileNotFoundError` antes de iniciar
+  Playwright; por tanto no se crearon actor sintético, identidad, reporte, confirmación,
+  validación, audit ni trazas HTTP/Celery del escenario. EX-03 y los escenarios posteriores no se
+  ejecutaron.
+- Al faltar el scope que debía producir Playwright, el exportador rechazó la recolección y la
+  validación registró `missing-artifact:source-export`, `missing-log:http` y
+  `missing-log:celery`. El manifest final quedó `FAILED`; metodológicamente el resultado es
+  `S11C2_EX02_NOT_DEMONSTRATED`, no un `FAIL` funcional.
+- Se preservó el paquete fallido en
+  `var/s11-runs/runs/s11-3b48870b-7979-542b-8a46-1c6dfce7bed8/`. Sus tres registros y el sello
+  final pasaron SHA-256/HMAC con la clave custodial actual; el manifest final tiene SHA-256
+  `02bc34d0ed51c69780b958e91cfe59f8d26a0b06ddba56a835cd985196be4dc0`.
+- Anomalía de instrumentación: `harness-execution.json` quedó con `status=COMPLETED` y
+  `failure=null`, mientras el manifest final quedó `FAILED`. La causa es que el
+  `FileNotFoundError` del ejecutable ausente no se normalizó como `HarnessError`; la validación de
+  completitud posterior sí impidió cerrar el run como exitoso. `invalidity_reason=null` es correcto
+  para `FAILED`: por contrato ese campo sólo admite contenido cuando el estado es `INVALID`.
+- La suite acotada de identidad, creación, ciclo 0, harness y evidencia obtuvo `260 passed` y dos
+  fallos en casos que simulan caída del storage externo: el overlay S11 fuerza storage local y las
+  respuestas fueron `201`, no el `503` esperado por esos tests. Se registra como discrepancia de
+  configuración de prueba y no como resultado experimental.
+- El reset oficial final dejó cero reportes, Redis DB 11 vacío y `/s11-objects` sólo con su
+  marcador. Se eliminaron contenedores, red y volumen de `ciudadania-s11`; producción permaneció
+  intacta. No se avanzó a S11-C3.
+
+### S11-C2 / EX-02 — remediación de preflight (21/09/2026)
+
+- Baseline: `main@14e1919e2135afef540004316e99da5548dfb533`. El run fallido
+  `s11-3b48870b-7979-542b-8a46-1c6dfce7bed8` permaneció inmutable: sus sidecars SHA-256 y HMAC
+  continúan verificables y su resultado sigue `S11C2_EX02_NOT_DEMONSTRATED`.
+- Como el host no admitió instalación privilegiada, Node `v22.23.2` y npm `10.9.8` se instalaron
+  en `/home/monty/.local/s11-node-v22.23.2` a partir de la imagen local ya disponible
+  `node:22-bookworm-slim`; los enlaces están en `/home/monty/.local/bin`. No se instalaron paquetes
+  npm globales ni se modificó `.env`.
+- `npm ci` reconstruyó `frontend/node_modules` desde el lockfile v3. npm informó tres
+  vulnerabilidades de dependencias (`2 high`, `1 critical`); no se ejecutó `npm audit fix` ni se
+  cambió el lockfile porque esa remediación queda fuera del preflight.
+- Playwright `1.62.1`, Chromium `151.0.7922.34`, headless shell y FFmpeg fueron detectados en la
+  caché local. La CLI respondió y un smoke técnico abrió/cerró Chromium sin backend ni tests.
+- En esta remediación el harness pasó a validar primero Node `>=20.9.0` y npm, y después
+  `package-lock.json` y la CLI
+  local de Playwright, antes de levantar Compose. Un rechazo de este preflight host no crea run ni
+  evidencia experimental. Si un `OSError` ocurre después del preflight y de crear el run y su
+  manifest inicial, durante una fase anterior a persistir el log, queda como fase `FAILED` con
+  timestamp, comando, excepción y código `127`; `harness-execution.json` v2 registra `failure` no
+  nulo y la finalización usa manifest `FAILED`. La regresión se demostró primero en rojo y luego en
+  verde.
+- El contrato v2 añade `recorded_at` y `started_at` por fase sin alterar los logs históricos v1.
+  La garantía de coherencia anterior se limita al fallo pre-Playwright observado y a fases previas
+  a persistir el log; fallos posteriores de record/custodia/finalize/shutdown deben tratarse como
+  anomalías de cierre y no como resultados funcionales.
+- Los dos tests de storage externo fueron diagnosticados: el overlay S11 activaba el adaptador
+  local, por lo que el parche de `requests` no intervenía. Sin cambiar los tests, ambos pasaron al
+  ejecutarse con `S11_LOCAL_STORAGE_ENABLED=false`, que es el contexto externo que presuponen.
+- Verificación posterior: `129 passed` en `experiments_app`; `25 passed` en la suite del harness;
+  los dos casos externos pasaron; Ruff y formato pasaron; `manage.py check` no informó problemas y
+  `makemigrations --check --dry-run` no detectó cambios.
+- El entorno de infraestructura respondió health sobre el puerto dinámico `32772`, con DB
+  `ciudadania_s11_experiment`, Redis DB `11` vacío y storage `/s11-objects` limitado a su marcador.
+  No se creó run, reporte ni evidencia experimental; no se ejecutó Playwright funcional, EX-02,
+  EX-03 ni escenarios posteriores. Producción permaneció intacta.
+- El proyecto Compose creado para este preflight se eliminó con su red y volumen. La auditoría
+  global detectó tres volúmenes PostgreSQL preexistentes (`c2-ex02`, `c2-preflight` y
+  `custody-test`): se retiraron sus contenedores y redes, pero los volúmenes se preservaron porque
+  eliminarlos sin inspección/autorización específica sería destructivo. No están montados ni
+  impiden el preflight de Playwright.
+
+Gate de remediación: `S11C2_PREFLIGHT_REMEDIATED`.
+
+### S11-C2 / EX-02 — dos intentos adicionales, defectos A1/A2/A3 y desviación A4 (22/09/2026)
+
+- Baseline: `main@2c0c70a8685a29cbee4356b19bd0ebf182d0d173`, árbol limpio. Se ejecutó el harness
+  oficial dos veces más, siempre con `--scenario EX-02` y un nonce nuevo. **EX-02 sigue sin
+  demostrarse**: en ningún momento se creó actor sintético, identidad, reporte, confirmación,
+  validación ni fila de auditoría en la base experimental, que terminó con cero reportes, cero
+  usuarios y cero registros de auditoría.
+- Run `s11-d407a461-ca75-5809-97bd-bcfea7593f3e` (`started_at` 2026-09-22T05:24:55Z, backend
+  dinámico `http://127.0.0.1:32773`). La fase `execute` falló en 1,5 s con
+  `EACCES … unlink 'frontend/test-results/.last-run.json'`. Causa —**defecto A1**—: ese
+  directorio era propiedad de root, heredado de una ejecución previa en contenedor, y Playwright
+  corría como UID 1003. Manifest final `FAILED`, `invalidity_reason=null`.
+- Run `s11-41eaa7d0-67c8-53b1-aa9a-38068859dd1f` (`started_at` 2026-09-22T05:28:33Z, backend
+  dinámico `http://127.0.0.1:32774`). Tras reubicar el directorio root-owned —preservado sin
+  modificación en `frontend/preexisting-root-owned-test-results.log/`—, Playwright sí arrancó,
+  pero durante 2,6 minutos ejecutó **52 pruebas de `frontend/e2e/`**, la suite ordinaria del
+  frontend (50 pasaron, 2 fallaron), en lugar de la única prueba `@EX-02` de
+  `frontend/e2e-s11/`. Manifest final `FAILED`, `invalidity_reason=null`.
+- Causa —**defecto A2**—: el harness construía
+  `npm exec playwright test --config=… --grep=…` **sin el separador `--`**. npm interpreta como
+  flags propios todo lo que sigue al nombre del paquete, de modo que consumía `--config` y
+  `--grep`, y Playwright arrancaba con su configuración por defecto
+  (`frontend/playwright.config.ts`, `testDir ./e2e`). Comprobación directa: `npm exec playwright
+  --version` responde `10.9.8` —la versión de npm— mientras `npm exec playwright -- --version`
+  responde `Version 1.62.1`.
+- **Defecto A3**: el preflight host verificaba Node, npm, lockfile y CLI, pero no que el
+  directorio de resultados de Playwright fuera escribible (A1) ni que el comando seleccionara
+  realmente la configuración S11 (A2). Por eso ambos defectos pasaron un preflight en verde.
+- Corrección en el commit `9e2d55d`: se interpone el separador, la invocación queda fijada en
+  `expected_execute_command` y se valida con un contrato de coincidencia **exacta** —Playwright
+  conserva el último `--config`, así que un argumento extra podría anular la configuración S11—
+  aplicado en `build_plan` y de nuevo como precheck en `FullStackHarness.execute`, que aborta
+  antes de acuñar un `run_id`. El preflight pasa además a exigir
+  `frontend/playwright.s11.config.ts`, a rechazar una respuesta de `--version` con forma de npm y
+  a comprobar que el directorio de resultados sea creable, escribible y sin entradas de otro UID.
+- Verificación sin ejecutar escenarios: el comando corregido más `--list` selecciona **1 prueba**
+  (`s11-fullstack.spec.ts:80 @EX-02`); el defectuoso ejecutaba 52. Un revert simulado del
+  separador hace fallar **5 pruebas** de regresión. Suite backend completa `2141 passed,
+  1 skipped`; Ruff, formato, `manage.py check`, `makemigrations --check`, ESLint y
+  `tsc --noEmit` en verde.
+- **Desviación A4**: al ejecutar el control negativo con el comando defectuoso, npm absorbió
+  también `--list`, Playwright ejecutó la suite y borró su `outputDir` al arrancar, eliminando
+  1,4 MB de artefactos **no custodiados** del incidente A2 (`trace.zip`, `video.webm`,
+  `test-failed-1.png`, `error-context.md`). La pérdida es **irreversible** y contradice la regla
+  explícita de no borrar evidencia. No fueron recuperados ni reconstruidos. El registro
+  autoritativo sobrevive en el `harness-execution.json` custodiado del run `s11-41eaa7d0`, que
+  conserva el listado de las 52 pruebas, los 2 fallos y los nombres de los cuatro artefactos, con
+  SHA-256 y HMAC verificables. Detalle completo en
+  [`S11_A4_EVIDENCE_LOSS_INCIDENT.md`](runbooks/S11_A4_EVIDENCE_LOSS_INCIDENT.md).
+- Los tres paquetes de evidencia (`s11-3b48870b`, `s11-d407a461`, `s11-41eaa7d0`) permanecen
+  inmutables y verifican `SHA256SUMS` con la clave custodial vigente. Producción, Supabase,
+  Redis productivo, Heroku y Vercel no se tocaron; `.env` no se modificó; contenedores, red y
+  volumen de `ciudadania-s11` se eliminaron.
+- Deuda operativa registrada, no corregida: `frontend/.next/` conserva salidas root-owned que
+  bloquean `npm run typecheck` en `next typegen`, aunque no afectan al `next dev` que usa el
+  flujo S11; y CI no ejerce la comprobación de nivel proceso del separador npm. Ambas requieren
+  cambios fuera del alcance de A2/A3.
+
+Estados al cierre de esa jornada: `A2/A3 implementation = PASS`;
+`A4 procedural compliance = FAIL`; `S11-C2 remediation gate = BLOCKED_PENDING_RECONCILIATION`;
+`EX-02 = NOT_DEMONSTRATED`. Los dos primeros se conservan; los dos últimos fueron superados por
+los intentos posteriores del mismo día, registrados a continuación.
+
+### S11-C2 / EX-02 — bloqueos A5 y A6, y ejecución demostrada (22/09/2026)
+
+- Baseline: `main@438888fa4fdb28590e585b420ad2b3dc853e2cfd`. Tras la reconciliación documental se
+  ejecutó EX-02 tres veces más, siempre con el harness oficial, `--scenario EX-02` y un nonce
+  nuevo. Las dos primeras siguieron `NOT_DEMONSTRATED`; la tercera **demostró el escenario**.
+- Run `s11-95954a43-507b-5093-824d-8f0c83c1a1a7` (`main@438888f`, backend `127.0.0.1:32775`).
+  Primera vez que el harness seleccionó y ejecutó la suite S11: `Running 1 test using 1 worker`
+  desde `e2e-s11/`, confirmando la corrección A2/A3. La prueba falló en
+  `POST /api/v1/identity/submit/` con **503**. Causa —**defecto A5**—:
+  `_asegurar_configuracion()` exigía `SUPABASE_URL` y la service-role aunque el overlay aislado
+  las deja vacías a propósito y `S11_LOCAL_STORAGE_ENABLED=true` sustituye el adaptador por el
+  local, que no las usa. Manifest final `FAILED`; `S11C2_EX02_NOT_DEMONSTRATED`.
+- Corrección A5 en el commit `83a27f1e887f73484a4776dc56d4a21e0b60de91`: `storage` expone
+  `ensure_configured()`, que valida lo que necesita el adaptador realmente activo; la guarda de
+  identidad conserva `DOCUMENT_HMAC_SECRET` y delega el resto. El modo Supabase sigue exigiendo
+  su configuración completa y no existe respaldo entre adaptadores en ninguna dirección.
+- Run `s11-6efb78d7-ca14-523f-b7e5-7c5d6ee14fad` (`main@83a27f1`, backend `127.0.0.1:32776`).
+  El 503 desapareció y el fallo avanzó a **400** en el mismo endpoint. Causa —**defecto A6**—: la
+  constante `PNG` escrita a mano en `frontend/e2e-s11/s11-fullstack.spec.ts` era un archivo
+  corrupto en tres dimensiones —longitud de `IDAT` declarada 20 frente a las 22 del encuadre, CRC
+  que no coincide con ninguna longitud candidata y flujo zlib que falla su adler32—. `Image.open`
+  la acepta de forma perezosa, pero `Image.verify()` la rechaza, de modo que el backend respondía
+  correctamente 400. Manifest final `FAILED`; `S11C2_EX02_NOT_DEMONSTRATED`.
+- Corrección A6 en el commit `721462ad5a2a79d7c84d109e29b3525914830cd3`: se elimina la constante
+  manual y `syntheticPng()` toma los bytes de `fixture.report_inputs[0].image.base64`, es decir
+  del dataset congelado, cuyas 20 imágenes se reproducen byte a byte desde la seed. S11 deja de
+  tener una segunda fuente binaria escrita a mano. El dataset, su seed y su SHA-256 no cambiaron.
+- **Run `s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af` (`main@721462a`, backend
+  `127.0.0.1:32777`): manifest final `COMPLETED`, las catorce fases del harness en `rc=0`.**
+  `execute` ejecutó exactamente una prueba de `e2e-s11/` y ninguna de la suite ordinaria `e2e/`.
+  `collect` —no `collect_failure`—, `validate`, `record`, `custody`, `finalize` y `shutdown`
+  cerraron sin fallo.
+- Garantías demostradas por ese run: identidad sintética (7 actores del fixture oficial); HMAC
+  generado (3 perfiles con `document_hmac` presente y de longitud 64); consistencia, por la
+  aprobación administrativa que recomputa la huella y la compara en tiempo constante; unicidad,
+  por el **409** del envío duplicado sobre `UNIQUE (document_hmac)`; ausencia de documento
+  nacional textual, por inventario DDL donde la única columna documental de todo el esquema es
+  `citizen_profiles.document_hmac varchar(64)`; reporte `1ce1c4d5-a14a-45f4-817e-2d9b410ab544`
+  creado; estado inicial `CREADO` y clasificación `CLASIFICADO`, ambos en ciclo 0, según
+  `status_history`; `resolution_cycle = 0`; auditoría con `identity.submitted`,
+  `identity.approved`, `report.created` y `ai.report.classified`; correlación `run_id` en los 6
+  eventos HTTP y los 6 de Celery; custodia, SHA-256, aislamiento y cleanup.
+- Frontera respetada: `validated_at`, `validated_by_id`, `resolved_at` y `closed_at` nulos;
+  `confirmations` y `resolution_evidence` vacías; recompensas limitadas a `REPORT_CREATED`. El
+  `institution_id` del reporte coincide con `suggested_institution_id` de la clasificación, de
+  modo que es prellenado de la IA y **no** asignación institucional por validación. Validación,
+  asignación por validación, confirmación, resolución, evidencia de resolución y ciclos
+  posteriores **no** fueron demostrados por EX-02 y corresponden a EX-03 y siguientes, que no se
+  ejecutaron.
+- Auditoría independiente de la evidencia custodiada: `sha256sum --check SHA256SUMS` limpio sobre
+  los diez archivos, los seis `sha256` de `artifacts.jsonl` recomputados y coincidentes, y los
+  seis tipos de artefacto presentes, incluido `celery-events`. Gate de auditoría:
+  `S11C2_EX02_PASS_CONFIRMED`.
+- Matiz de trazabilidad registrado en la auditoría: la salida de `s11_validate_run` no queda
+  dentro del paquete custodiado, porque el log del harness se persiste antes de las fases
+  `record/custody/finalize`. Su resultado sigue siendo deducible del paquete, porque
+  `run-manifest.final.json` sólo alcanza `status: COMPLETED` cuando esa fase no falló.
+- Precisión sobre el fixture: `syntheticPng()` tiene tres usos en el spec —selfie de identidad,
+  selfie duplicada y el archivo de `uploadEvidence()`—. El tercero corresponde a evidencia de
+  resolución de EX-04/06/08 y **no fue ejercido por EX-02**. La foto del reporte sigue tomando
+  sus bytes con `Buffer.from(input.image.base64, "base64")` en `createReport()`, código que A6 no
+  modificó.
+
+Gate de EX-02: `S11C2_EX02_PASS`, confirmado por auditoría como `S11C2_EX02_PASS_CONFIRMED`.
+
+### S11-C2 / EX-03 — confirmación y validación, ciclo 0→1 (22/09/2026)
+
+- Antes de ejecutar se completó el spec `@EX-03`, que cubría sólo crear, confirmar y validar una
+  vez. La ficha S11-A exige además los rechazos controlados —repetir la confirmación,
+  auto-confirmarse y repetir la validación— y su criterio `PASS` incluye «unicidad y errores
+  controlados». El spec se amplió para recorrer la secuencia completa contra los endpoints reales,
+  comprobando el efecto persistido y no sólo el código HTTP. Los códigos y montos se tomaron del
+  backend y de sus pruebas existentes, sin inventar ninguno. Commit del spec:
+  `3696d0174673201313e68e204f974784b97ea74a`, único cambio sobre
+  `frontend/e2e-s11/s11-fullstack.spec.ts`; no se tocó backend, dataset, fixtures ni metodología.
+- **Run `s11-6dc3ea66-08c9-51ef-9fe3-70e7dcc67959`** (`main@3696d01`, backend dinámico
+  `http://127.0.0.1:32778`): manifest final `COMPLETED`, `invalidity_reason` nulo y las catorce
+  fases del harness en `rc=0`, incluidas `collect` —no `collect_failure`—, `validate`, `record`,
+  `custody`, `finalize` y `shutdown`. `execute` seleccionó y ejecutó **una** prueba de
+  `e2e-s11/`, ninguna de la suite ordinaria `e2e/`.
+- Secuencia demostrada, reconciliada sobre la evidencia custodiada:
+  - estado inicial del reporte en ciclo 0, sin validación y con el autor en +20 pendiente;
+  - confirmación válida de un ciudadano ajeno con `201` y una única fila persistida;
+  - confirmación repetida rechazada con `409` y código `ALREADY_CONFIRMED`;
+  - auto-confirmación del autor rechazada con `409` y código `SELF_CONFIRMATION_NOT_ALLOWED`,
+    sin que ninguno de los dos rechazos moviera el ciclo ni el conteo;
+  - validación del operador A con `200`, transición `CLASIFICADO → ASIGNADO`, `validated_at`,
+    `validated_by` e institución A registrados, y `resolution_cycle` de 0 a 1;
+  - ledger acreditado en el ciclo 1: `REPORT_CREATED` 20/20, `CONFIRMATION_CREATED` 10/10 y
+    `VALIDATION_BONUS` 30/30, los tres en `ACREDITADO` y atribuidos a la institución validadora;
+  - validación repetida rechazada con `409` y código `ALREADY_VALIDATED`, conservando el mismo
+    `validated_at`, el mismo ciclo y sin un segundo `VALIDATION_BONUS`;
+  - ausencia de duplicaciones: una confirmación y un bonus, verificados tras los rechazos.
+- Trazabilidad: el checker oficial cerró en `PASS` sin faltantes, con auditoría
+  `report.created`, `ai.report.classified`, `report.confirmed` y `report.validated`, recompensas
+  `REPORT_CREATED`, `CONFIRMATION_CREATED` y `VALIDATION_BONUS`, y estado `ASIGNADO`. Los 16
+  eventos HTTP y los 3 de Celery quedaron correlacionados con el `run_id` y sin `celery.failed`.
+- Custodia: `s11_validate_run` en `PASS` y `finalize` con `verification: PASS`. El paquete
+  conserva los seis artefactos indexados —`run-manifest-initial`, `source-export`,
+  `harness-execution`, `http-events`, `celery-events` y `run-manifest-final`— más `SHA256SUMS`,
+  `metadata/artifacts.jsonl` con su `.hmac` y el sello `.s11-finalized`; `sha256sum --check`
+  verifica los once archivos.
+- Frontera respetada: `resolution_evidence` vacía y `resolved_at`/`closed_at` nulos. Evidencia de
+  resolución, autocierre, reversión y revalidación **no** fueron demostrados por EX-03 y
+  corresponden a EX-04 y siguientes, que en el momento de este run aún no se habían ejecutado.
+  `EX-04` se ejecutó después, ese mismo día, y consta en la sección siguiente.
+- Cleanup: base experimental reseteada según contrato —cero reportes, confirmaciones,
+  recompensas, usuarios y auditoría, con catálogos en 10/3—, Redis DB 11 vacío, storage limitado
+  a su marcador, y contenedores, red y volumen de `ciudadania-s11` eliminados. Producción,
+  dataset, metodología S11-A y evidencia histórica permanecieron intactos.
+
+Gate de EX-03: `S11C2_EX03_PASS_CONFIRMED`.
+
+### S11-C2 / EX-04 — ejecución y validación, ciclo 1 (22/09/2026)
+
+- Antes de ejecutar se completó el spec `@EX-04`, que cubría los pasos 1, 2, 3 y 6 de la ficha
+  S11-A pero omitía los dos de idempotencia: repetir la clave con el mismo contenido y reutilizarla
+  con contenido distinto. El paso de conflicto varía la **descripción** y no los bytes de la
+  imagen, porque el backend deriva la identidad del contenido de
+  `sha256(contenido normalizado + descripción + ciclo)` y el fixture del escenario expone una
+  sola imagen —`s11_fixture_actors` filtra por institución primaria las tres que el dataset
+  trae para EX-04—; escribir un segundo binario a mano es exactamente el defecto A6. Es la
+  misma estrategia de la prueba unitaria de referencia
+  `test_reused_key_with_different_content_conflicts`. Commit del spec:
+  `79a6f285508d180b3ac3699f93601d81fae9ec86`, único cambio de código sobre
+  `frontend/e2e-s11/s11-fullstack.spec.ts`; no se tocó backend, dataset, fixtures ni metodología.
+- **Identidad del run.** HEAD `79a6f285508d180b3ac3699f93601d81fae9ec86`, working tree limpio,
+  dataset `s11-functional-v1`, seed `20260921`. El manifest registra `git_clean: true`.
+- **Ejecución.** El entrypoint experimental fue el harness S11,
+  `python3 backend/scripts/s11_harness.py --scenario EX-04 --nonce ex-04-operator-approved-001
+  --expected-git-sha <HEAD> --custody-approved`. El comando
+  `npm exec playwright -- test --config=playwright.s11.config.ts --grep=@EX-04` **no** es el
+  entrypoint: es el comando interno que el harness exige y construye en
+  `expected_execute_command()`, y que la fase `execute` registra literal. Resultado: `1 passed`
+  en 14,5 s, exit code `0`, catorce fases en `rc=0`, backend dinámico `http://127.0.0.1:32779`.
+- **Run `s11-03adb9bc-c9e4-5f8f-b64c-c4360d0c2085`**: manifest final `COMPLETED` e
+  `invalidity_reason` nulo. `execute` seleccionó y ejecutó **una** prueba de `e2e-s11/`, ninguna
+  de la suite ordinaria `e2e/`.
+- Secuencia demostrada, reconciliada sobre los eventos HTTP custodiados y no sobre las aserciones
+  de Playwright:
+
+  | Paso | Resultado |
+  | ---- | --------- |
+  | `ASIGNADO → EN_PROCESO` | `PASS` (200) |
+  | resolver sin evidencia | `409 RESOLUTION_EVIDENCE_REQUIRED` |
+  | primera evidencia del ciclo 1 | `201` |
+  | replay con misma clave y mismo contenido | `200` |
+  | misma clave con contenido lógico distinto | `409 IDEMPOTENCY_KEY_REUSED` |
+  | resolución | `RESUELTO` (200) |
+
+- **Idempotencia sin duplicación.** El replay devolvió la evidencia original en lugar de crear una
+  segunda: el servicio retorna `created=False` antes de subir el objeto y antes de escribir
+  auditoría. La evidencia persistida es **una sola fila** —`id`
+  `22f9ae96-5654-410c-abb0-36b097cdb9c1`, `idempotency_key`
+  `00000000-0000-4000-8000-000000000004`, `content_hash`
+  `5989a88c1e735c30700ab08b65dd703eb57604ac9d78233092d17142649d7708`, `resolution_cycle` 1— y la
+  auditoría registra `report.resolution_evidence_created` **exactamente una vez** pese a los tres
+  POST. El conflicto de clave no persistió nada.
+- **Estado final.** `RESUELTO`, `resolved_at` presente —`2026-09-22T23:24:51.013304+00:00`—,
+  `resolution_cycle` 1 y `closed_at` nulo: el autocierre pertenece a EX-05 y no fue demostrado
+  aquí.
+- **Ledger del ciclo 1**, los tres en `ACREDITADO` y atribuidos a la institución validadora:
+
+  ```text
+  REPORT_CREATED       20 / 20
+  VALIDATION_BONUS     30 / 30
+  RESOLUTION_BONUS     50 / 50
+  --------------------------------
+  ACREDITADO          100
+  PENDIENTE             0
+  ```
+
+- **Trazabilidad.** El checker oficial cerró en `PASS` con `missing: []`. Observó la auditoría
+  `report.created`, `ai.report.classified`, `report.validated`, `report.processing_started`,
+  `report.resolution_evidence_created` y `report.resolved`; las recompensas `REPORT_CREATED`,
+  `VALIDATION_BONUS` y `RESOLUTION_BONUS`; y el estado `RESUELTO`. Los 12 eventos HTTP y los 3 de
+  Celery quedaron correlacionados con el `run_id`, sin `celery.failed`. El validador no se
+  modificó.
+- **Custodia.** `s11_validate_run` en `PASS` y `finalize` con `verification: PASS`. El paquete
+  conserva los seis artefactos indexados —`run-manifest-initial`, `source-export`,
+  `harness-execution`, `http-events`, `celery-events` y `run-manifest-final`— más `SHA256SUMS`,
+  `metadata/artifacts.jsonl` con su `.hmac` y el sello `.s11-finalized`; `sha256sum --check`
+  verifica los diez archivos listados. `manifest_sha256` del manifest final:
+  `6cb9cccc5b69af0e02625ad4d87396649e5a5ef0a51a3869bb74f8e188dc9322`; SHA-256 del
+  `source-export`: `bddbd345a7e41f1c99d84e4fd094cbb3e384f7b36fa2afcb4d73be68edede80c`.
+- **Cleanup de datos.** Base experimental reseteada según contrato: reports 0,
+  resolution_evidences 0, report_confirmations 0, report_media 0, reward_transactions 0,
+  audit_logs 0 y users 0, con catálogos restaurados a 3 instituciones y 10 categorías. Redis DB 11
+  con `dbsize = 0`. El storage quedó reducido a su marcador `.s11-isolated-object-root`: el objeto
+  privado de evidencia fue eliminado. El export conserva `content_hash` e `idempotency_key` y
+  omite `evidence_url`, que es la metadata redacted que el protocolo exige preservar.
+- **Cleanup de infraestructura.** Estado tras el run:
+
+  ```text
+  backend: Exited (0)
+  worker:  Exited (0)
+  db:      Up (healthy)
+  redis:   Up (healthy)
+  ```
+
+  El harness no define teardown adicional para DB/Redis —su única fase de `shutdown` es
+  `stop backend worker`—. Por tanto permanecen levantados después de EX-04. No se ejecutó
+  `docker compose down -v` ni ninguna operación destructiva, y el volumen
+  `ciudadania-s11_s11_postgres_data` permanece intacto. Es una condición del diseño actual del
+  harness, no un incumplimiento del experimento; a diferencia de EX-03, cuyo teardown se hizo de
+  forma explícita, aquí quedó diferido a una decisión posterior.
+- Producción, dataset, metodología S11-A y evidencia histórica permanecieron intactos.
+
+Gate de EX-04: `S11C2_EX04_PASS`.
+
+### S11-C2 / EX-06 — ejecución y validación, ciclo 2 (22/09/2026)
+
+- **Preparación.** El pre-gate encontró que el spec `@EX-06` cubría cinco de los siete pasos de la
+  ficha S11-A —faltaban la repetición idempotente de la reversión y el intento con ciclo
+  obsoleto— y que casi no aseveraba estados, ciclos ni ledger. El spec se completó contra los
+  endpoints reales y se fijó en el commit `43013facfc3ea29721fdaf4ac62cd9716c21915b`, único cambio
+  de código sobre `frontend/e2e-s11/s11-fullstack.spec.ts`, con cuatro helpers de lectura sobre
+  endpoints existentes (reversión, auditoría, historial y evidencias de administrador). No se tocó
+  backend, dataset, fixtures, harness ni metodología. El intento con ciclo obsoleto usa `cycle=2`:
+  en ese punto el ciclo vigente sigue siendo 1 y `cycle=0` lo rechaza la validación de entrada con
+  `400 INVALID_REQUEST`, no con `STALE_REPORT_CYCLE`.
+- **Identidad del run.** HEAD `43013facfc3ea29721fdaf4ac62cd9716c21915b` con `git_clean: true`,
+  nonce `ex-06-operator-approved-001`, dataset `s11-functional-v1`, seed `20260921`. El run se
+  ejecutó el 22/09/2026 en hora de Asunción; sus timestamps UTC caen en el 23/09.
+- **Ejecución.** Entrypoint: el harness S11,
+  `python3 backend/scripts/s11_harness.py --scenario EX-06 --nonce ex-06-operator-approved-001
+  --expected-git-sha 43013facfc3ea29721fdaf4ac62cd9716c21915b --custody-approved`. El harness
+  ejecutó internamente `npm exec playwright -- test --config=playwright.s11.config.ts
+  --grep=@EX-06`: `1 passed` en 16,2 s, exit code `0`. Las catorce fases cerraron en `rc=0` con
+  backend dinámico `http://127.0.0.1:32780`.
+- **Run `s11-989218f3-4808-5c6f-ac23-6e8870fec153`**: manifest final `COMPLETED` e
+  `invalidity_reason` nulo. **EX-06: `PASS`.**
+- Secuencia demostrada, reconciliada sobre los eventos HTTP custodiados:
+
+  | Paso | Resultado |
+  | ---- | --------- |
+  | estado inicial | `RESUELTO`, ciclo 1 |
+  | reversión administrativa | `200` → `CLASIFICADO`, ciclo 1 |
+  | repetición idempotente | `200`, cuerpo idéntico y sin segunda mutación |
+  | ciclo obsoleto | `409 STALE_REPORT_CYCLE` |
+  | revalidación | `200` → `ASIGNADO`, ciclo 2 |
+  | procesamiento | `200` → `EN_PROCESO`, ciclo 2 |
+  | resolver con sólo evidencia del ciclo 1 | `409 RESOLUTION_EVIDENCE_REQUIRED` |
+  | evidencia del ciclo 2 | `201` |
+  | resolución | `200` → `RESUELTO`, ciclo 2 |
+
+  Quedaron registrados 40 eventos HTTP y 3 de Celery —`ai.classify_report` en cola, iniciado y
+  terminado—, sin `celery.failed`.
+- **Ledger.** El spec observa el balance del autor en cada punto (100 → 0 → 30 → 80) a través del
+  resumen del ciudadano, pero ningún endpoint expone las filas del ledger. El detalle siguiente se
+  reconcilió desde el **export custodiado**, no desde el spec:
+
+  ```text
+  REPORT_CREATED      +20  REVERTIDO   c1
+  VALIDATION_BONUS    +30  REVERTIDO   c1
+  RESOLUTION_BONUS    +50  REVERTIDO   c1
+  REVERSAL            -20  REVERTIDO   c1 -> REPORT_CREATED
+  REVERSAL            -30  REVERTIDO   c1 -> VALIDATION_BONUS
+  REVERSAL            -50  REVERTIDO   c1 -> RESOLUTION_BONUS
+  VALIDATION_BONUS    +30  ACREDITADO  c2
+  RESOLUTION_BONUS    +50  ACREDITADO  c2
+  --------------------------------------------
+  ACREDITADO           80
+  PENDIENTE             0
+  ```
+
+  Las tres acreditaciones del ciclo 1 quedaron en `REVERTIDO`. Cada una tiene exactamente una
+  `REVERSAL` con su `related_transaction` y deltas exactamente opuestos, tanto de impacto como de
+  crédito. `REPORT_CREATED` aparece una sola vez y no se reactivó en el ciclo 2, que acredita
+  únicamente `VALIDATION_BONUS` y `RESOLUTION_BONUS`.
+- **Auditoría.** `report.created` ×1, `ai.report.classified` ×1, `report.validation_reverted` ×1,
+  y `report.validated`, `report.processing_started`, `report.resolution_evidence_created` y
+  `report.resolved` ×2 cada uno. El checker oficial de trazabilidad cerró en `PASS` con
+  `missing: []`.
+- **Historial.** Nueve transiciones con ciclo monotónico:
+
+  ```text
+  ∅ → CREADO → CLASIFICADO                  (c0)
+  → ASIGNADO → EN_PROCESO → RESUELTO        (c1)
+  RESUELTO → CLASIFICADO                    (c1, reversión)
+  → ASIGNADO → EN_PROCESO → RESUELTO        (c2)
+  ```
+
+  Ni la repetición idempotente ni el intento con ciclo obsoleto añadieron transiciones.
+- **Evidencia por ciclo.** Hay dos evidencias con la misma `idempotency_key`
+  `00000000-0000-4000-8000-000000000006`, una en cada ciclo, con ids y `content_hash` distintos:
+  ciclo 1 `f9500740-fbbf-47ce-8d98-08a081d1ff86` / `content_hash`
+  `123e84e25395b9d71a4c63f1ecdf11dd17076f3500ebb111ce0465ac5b559f70`, y ciclo 2
+  `e734bc9a-3009-4cb3-b6fa-27bb6fbc0368` / `content_hash`
+  `5850bd07ff891f4f124e2813f1a8466321ec7e4ec06cf4659b4f6e026fc2844e`. Esto es consistente con la
+  identidad efectiva `(report, resolution_cycle, idempotency_key)`. La evidencia del ciclo 1 se
+  conservó como histórica y no habilitó la resolución del ciclo 2. El export omite `evidence_url`.
+- **Custodia.** `SHA256SUMS` con 10 de 10 archivos en `OK`; `metadata/artifacts.jsonl` con seis
+  artefactos indexados y su `.hmac`; sello `.s11-finalized` presente. `manifest_sha256`:
+  `9682ff0b3245338c52a2dfc794740ec3118f417cac9cc53a7042b8dfd66098f7`. `s11_validate_run` en
+  `PASS`, `finalize` con `verification: PASS` e `invalidity_reason` nulo.
+- **Cleanup de datos.** Base experimental reseteada: reports, resolution_evidences,
+  report_confirmations, report_media, reward_transactions, audit_logs y users en 0, con catálogos
+  restaurados a 3 instituciones y 10 categorías. Redis DB 11 con `dbsize = 0`. En el storage sólo
+  queda el marcador `.s11-isolated-object-root`, sin objetos privados.
+- **Infraestructura.** Backend y worker quedaron en `Exited (0)` por el `shutdown` oficial; DB y
+  Redis siguen `Up (healthy)` porque el harness no define teardown para ellos, igual que tras
+  EX-04. EX-06 arrancó sobre esos mismos contenedores, y el `setup`/`reset` del harness más el
+  cleanup verificado confirman el aislamiento y el estado limpio. No se ejecutó ningún teardown
+  adicional.
+- Producción, dataset, metodología S11-A y evidencia histórica permanecieron intactos.
+
+Gate de EX-06: `S11C2_EX06_PASS`.
+
+### S11-C2 / EX-08 — trazabilidad integral y autorización (22/09/2026)
+
+- **Preparación.** El pre-gate encontró que el spec `@EX-08` recorría el camino feliz con un único
+  intento prohibido y casi sin aserciones, frente a una ficha S11-A que exige identidad, rechazos
+  intercalados de operador B, anónimo y ciclo obsoleto, y consultas de historial y auditoría como
+  actores permitidos y prohibidos. El spec se completó contra los contratos reales y se fijó en el
+  commit `d8ed6eb5757a7dc4c6e897c38995aeaf823dab94`, único cambio de código sobre
+  `frontend/e2e-s11/s11-fullstack.spec.ts`; no se tocó backend, dataset, fixtures, harness ni
+  metodología. Tres aserciones siguen el contrato vigente y no una expectativa genérica: el
+  detalle de operador fuera de tenant devuelve un 404 idéntico al de un reporte inexistente, sin
+  campo `code`; `validate` y `confirm` responden al anónimo con un 401 sin código propio; y la
+  respuesta de evidencia sólo expone `id` y `cycle`.
+- **Identidad del run.** HEAD `d8ed6eb5757a7dc4c6e897c38995aeaf823dab94` con `git_clean: true`,
+  nonce `ex-08-operator-approved-001`, dataset `s11-functional-v1`, seed `20260921`. El run se
+  ejecutó el 22/09/2026 en hora de Asunción; sus timestamps UTC caen en el 23/09. Infraestructura
+  aislada del proyecto Compose `ciudadania-s11`: base `ciudadania_s11_experiment`, Redis DB 11 y
+  storage `/s11-objects`, con backend dinámico `http://127.0.0.1:32781`.
+- **Ejecución.** Entrypoint: el harness S11,
+  `python3 backend/scripts/s11_harness.py --scenario EX-08 --nonce ex-08-operator-approved-001
+  --expected-git-sha d8ed6eb5757a7dc4c6e897c38995aeaf823dab94 --custody-approved`. El harness
+  ejecutó internamente `npm exec playwright -- test --config=playwright.s11.config.ts
+  --grep=@EX-08`: `1 passed` en 19,1 s y exit code `0`. Las catorce fases cerraron en `rc=0`.
+- **Run `s11-b567289c-9fe2-5349-a384-e9284bdde863`**: manifest final `COMPLETED` e
+  `invalidity_reason` nulo. **EX-08: `PASS`.**
+- **Resultado funcional.** Secuencia demostrada sobre los eventos HTTP custodiados:
+
+  | Paso | Resultado |
+  | ---- | --------- |
+  | identidad: envío, cola y aprobación | `201` / `200` / `200`, candidato verificado |
+  | creación y clasificación | `201` → `CLASIFICADO`, ciclo 0 |
+  | confirmación | `201`, `confirmation_count` 1 |
+  | validación por operador A | `200` → `ASIGNADO`, ciclo 1, institución `essap` |
+  | procesamiento | `200` → `EN_PROCESO`, ciclo 1 |
+  | evidencia | `201`, ciclo 1 |
+  | resolución | `200` → `RESUELTO`, ciclo 1 |
+  | cierre manual | `200` → `CERRADO`, ciclo 1 |
+  | reversión desde `CERRADO` | `200` → `CLASIFICADO`, ciclo 1 |
+
+  Estado final en el export: `CLASIFICADO`, ciclo 1, con `validated_at`, `validated_by_id`,
+  `resolved_at` y `closed_at` nulos.
+- **Autorización.** La instrumentación registró 105 eventos HTTP: 85 × `200`, 4 × `201`,
+  6 × `404`, 3 × `403`, 6 × `401`, 1 × `409` y ningún `5xx`. De las 16 respuestas no-2xx, 15 son
+  rechazos reales y una, `b-detail-missing`, es la petición de referencia contra un reporte
+  inexistente con la que se compara el detalle fuera de tenant. Los 15 rechazos:
+
+  | Familia | Intentos y resultado |
+  | ------- | -------------------- |
+  | operador B sobre un reporte de A, en su propio contexto | `validate`, transición, historial y evidencia `404 REPORT_NOT_FOUND`; detalle `404` idéntico al de un reporte inexistente |
+  | `institution_id` no autorizado | operador B forzando A: `403 INSTITUTION_OPERATOR_REQUIRED` |
+  | rol insuficiente | auditoría y reversión pedidas por el operador A: `403 ADMIN_REQUIRED` |
+  | anónimo | `validate` y `confirm` `401`; transición, evidencia, auditoría y reversión `401 AUTHENTICATION_REQUIRED` |
+  | ciclo obsoleto | `expected_cycle=2` con ciclo vigente 1: `409 STALE_REPORT_CYCLE` |
+
+  Cada rechazo fue seguido de una comprobación de no mutación —estado, ciclo, timestamps,
+  número de transiciones y total de auditoría del reporte— y las 15 pasaron.
+- **Auditoría.** Exactamente 9 eventos llevan el `report_id` del reporte, uno por mutación
+  autorizada: `report.created`, `ai.report.classified`, `report.confirmed`, `report.validated`,
+  `report.processing_started`, `report.resolution_evidence_created`, `report.resolved`,
+  `report.closed` —con `closure_mode: manual`— y `report.validation_reverted`, cada uno ×1.
+  `identity.submitted` e `identity.approved` aparecen además ×1 cada uno: pertenecen al paso de
+  identidad y no llevan `report_id`. Ningún rechazo dejó rastro. El checker oficial de
+  trazabilidad cerró en `PASS` con `missing: []`.
+- **Historial.** Siete transiciones con ciclo monotónico 0 → 1 y timestamps crecientes, con el
+  cierre y la reversión posteriores a la resolución:
+
+  ```text
+  ∅ → CREADO → CLASIFICADO                  (c0)
+  → ASIGNADO → EN_PROCESO → RESUELTO        (c1)
+  → CERRADO → CLASIFICADO                   (c1, cierre manual y reversión)
+  ```
+
+- **Ledger.** El spec observa los balances de autor y confirmador a través del resumen del
+  ciudadano; el detalle por fila se reconcilió desde el **export custodiado**:
+
+  ```text
+  REPORT_CREATED         +20  REVERTIDO  c1  autor
+  CONFIRMATION_CREATED   +10  REVERTIDO  c1  confirmador
+  VALIDATION_BONUS       +30  REVERTIDO  c1  autor
+  RESOLUTION_BONUS       +50  REVERTIDO  c1  autor
+  REVERSAL               -20  REVERTIDO  c1  autor       -> REPORT_CREATED
+  REVERSAL               -10  REVERTIDO  c1  confirmador -> CONFIRMATION_CREATED
+  REVERSAL               -30  REVERTIDO  c1  autor       -> VALIDATION_BONUS
+  REVERSAL               -50  REVERTIDO  c1  autor       -> RESOLUTION_BONUS
+  ```
+
+  Hay exactamente una `REVERSAL` por cada transacción original, con su `related_transaction`, el
+  mismo usuario y deltas de impacto y crédito opuestos. No queda nada acreditado ni pendiente
+  para ningún usuario.
+- **Evidencia.** Una única evidencia, `f7b48f9f-6337-4616-aee5-aaea8a2df6f3`, del ciclo 1, con
+  `idempotency_key` `00000000-0000-4000-8000-000000000008` y `content_hash`
+  `1d33d773ee2994f9f172cb69ae72ac13cf3215005b756a5aebd2d44ce7fdbefc`. El export omite
+  `evidence_url`. La cédula canario `9900008` no aparece en ningún artefacto del paquete, y los
+  tres perfiles ciudadanos exportados tienen HMAC de 64 caracteres.
+- **Custodia.** `SHA256SUMS` con 10 de 10 archivos en `OK`; `metadata/artifacts.jsonl` con seis
+  artefactos indexados y su `.hmac`; sello `.s11-finalized` presente. `manifest_sha256`:
+  `a7cbf70f65f199e09ac721a67e0b73741fe74644d18f5d1028ba294e0b515226`, coincidente con el SHA-256
+  del manifest final y con el sello. `s11_validate_run` en `PASS`, `finalize` con
+  `verification: PASS` e `invalidity_reason` nulo.
+- **Limpieza.** Base experimental reseteada: reports, resolution_evidences, report_confirmations,
+  report_media, reward_transactions, audit_logs, users y citizen_profiles en 0, con catálogos
+  restaurados a 3 instituciones y 10 categorías. Redis DB 11 con `dbsize = 0`. En el storage sólo
+  queda el marcador `.s11-isolated-object-root`. Al eliminarse los usuarios sintéticos, sus
+  tokens quedan inutilizables: el refresh y la autenticación JWT exigen un usuario existente y
+  activo, y `token_blacklist` no está instalado. Backend y worker quedaron `Exited (0)` por el
+  `shutdown` oficial; DB y Redis siguen `Up (healthy)` porque el harness no define teardown para
+  ellos. No se ejecutó ningún teardown manual.
+- **Celery.** Seis eventos, sin `celery.failed`: `ai.classify_report` y
+  `notifications.send_notification`, cada uno encolado, iniciado y terminado. La notificación la
+  dispara la aprobación de identidad y no hubo entrega real, porque la overlay S11 fija
+  `BREVO_API_KEY` vacía y `BREVO_API_URL=https://disabled.invalid.test`. Es el mismo
+  comportamiento observado en el run de EX-02 aprobado.
+- Producción, dataset, metodología S11-A y evidencia histórica permanecieron intactos.
+
+Gate de EX-08: `S11C2_EX08_PASS`. Con él, los cinco escenarios ejecutados en S11-C2 hasta esa
+fecha tienen resultado experimental `PASS`; el alcance formal de C2 se fijó después, en la
+decisión siguiente, y el cierre del gate S11-C2 no se declara aquí.
+
+### Decisión metodológica: contrato de alcance y salida de S11-C2 (22/09/2026)
+
+- **Autoridad:** Monty Emmanuel Pohl Amarilla, autor y custodio.
+- **Estado de la decisión:** redactada a partir de la revisión formal de cierre de S11-C2; entra
+  en vigor con la aprobación explícita del autor y custodio, que se registra con el commit que la
+  incorpora.
+- **Antecedente.** La revisión de cierre posterior a EX-08 comprobó que S11-C2 se usaba como
+  sub-etapa operativa de S11-C sin definición normativa propia. S11-A fija la salida de la etapa
+  completa —«EX-02…EX-10 válidos; EX-01 sólo si se resuelven sus bloqueos»
+  (`docs/tesis/S11A_DATOS_EVIDENCIA_Y_REBASELINE.md`, §1)—, pero ninguna fuente define el alcance
+  ni la salida de C1, C2 o C3. El conjunto EX-02, EX-03, EX-04, EX-06 y EX-08 apareció por primera
+  vez como lista de escenarios de C2 en la reconciliación documental de EX-03 (`79a6f28`), sin una
+  decisión que lo respaldara; hasta entonces la documentación hablaba de «EX-03 y posteriores».
+- **Fundamento.** La decisión se apoya sólo en la estructura ya congelada:
+  - S11-B construyó el harness full-stack para **EX-02…EX-08** y dejó EX-09 y EX-10 preparados «a
+    nivel de insumos e instrumentación», con datasets propios (`s8-evaluation-v1` y
+    `s11-load-v1`).
+  - HT4-01 y HT4-02 toman como población **EX-02…EX-08, siete escenarios**, y declaran que
+    «EX-09/10 deciden otras hipótesis» (`docs/tesis/S11A_DICCIONARIO_INDICADORES.md`).
+  - S11-A clasifica EX-05 y EX-07 igual que el resto de la familia —`REQUIRES_INSTRUMENTATION`,
+    ficha full-stack propia— y el harness los admite. Ninguna fuente los separa del resto.
+- **Decisión.**
+  1. **Propósito.** S11-C2 es la sub-etapa de S11-C que ejecuta, bajo el harness full-stack S11 y
+     con custodia, los escenarios funcionales cuya población alimenta HT4-01 y HT4-02.
+  2. **Alcance.** S11-C2 comprende exactamente **EX-02, EX-03, EX-04, EX-05, EX-06, EX-07 y
+     EX-08**.
+  3. **EX-05 y EX-07 pertenecen a S11-C2** (opción A). Excluirlos partiría una familia que S11-B,
+     el harness y la población de HT4 tratan como una sola, sin base en ninguna fuente.
+  4. **Fuera de S11-C2:** EX-09 y EX-10, porque usan instrumentación y datasets distintos del
+     harness full-stack y deciden HT-2 y HT-1; EX-01, condicionado a S11A-P01; y EX-11, diferido
+     por S11A-D08. EX-09 y EX-10 siguen siendo requisitos de salida de S11-C; la sub-etapa que los
+     ejecute se definirá en una decisión separada.
+  5. **Salida de S11-C2 (`PASS`).** Cada uno de los siete escenarios tiene un run oficial válido
+     con: SHA igual al commit de preparación congelado y `git_clean: true`; catorce fases del
+     harness en `rc=0`; manifest `COMPLETED` con `invalidity_reason` nulo; checker de
+     trazabilidad en `PASS` con `missing: []`; `s11_validate_run` en `PASS` y `finalize` con
+     `verification: PASS`; `SHA256SUMS` íntegro con `.hmac` y `.s11-finalized`; cleanup
+     verificado; y reconciliación contra su ficha S11-A registrada en un commit documental. Los
+     runs `NOT_DEMONSTRATED` se conservan como diagnóstico y ningún `FAIL` se reemplaza por un
+     reintento selectivo.
+  6. **Relación con S11-C.** Cerrar S11-C2 no cierra S11-C. S11-C conserva su salida propia, y
+     ningún escenario exigido por S11-C se considera cumplido por el cierre de C2.
+  7. **Relación con HT4-01 y HT4-02.** Sus denominadores no cambian: siguen siendo los siete
+     escenarios EX-02…EX-08. Los indicadores pertenecen al análisis S11-D y no se calculan en
+     C2. Mientras EX-05 y EX-07 no tengan run válido, la población de ambos está incompleta y no
+     pueden alcanzar el 100 % exigido.
+- **Consecuencia.**
+  - `PASS`: EX-02, EX-03, EX-04, EX-06 y EX-08.
+  - `NOT_EXECUTED` y requeridos para S11-C2: EX-05 y EX-07. Cada uno necesita pre-gate,
+    preparación del spec, commit de preparación, run oficial, reconciliación y commit
+    documental.
+  - `NOT_EXECUTED` y requeridos sólo para S11-C: EX-09 y EX-10.
+  - Fuera de la ejecución actual: EX-01 (S11A-P01) y EX-11 (diferido).
+  - **S11-C2 permanece abierto.** Esta decisión no convierte ningún escenario en `PASS` ni declara
+    cerrada ninguna etapa.
+- La decisión no modifica `S11A-v1.0`, objetivos, hipótesis, indicadores, fórmulas, escenarios,
+  denominadores, criterios de decisión, matriz de eventos ni harness.
+
+### S11-C2 / EX-05 — autocierre automático, ciclo 1 (22/09/2026)
+
+- **Preparación.** El spec `@EX-05` ejecutaba el autocierre una sola vez y sólo comprobaba el
+  estado `CERRADO`. La ficha S11-A exige además la ejecución previa al cutoff sin efecto, el
+  reloj controlado hasta el cutoff de 72 h, el cierre con auditoría `SYSTEM` en modo
+  automático y la reejecución idempotente. El spec se completó con los comandos existentes
+  `s11_prepare_autoclose` y `s11_run_auto_close` y se fijó en
+  `e2eee9dad4b8c70201adffc1eb82af5a3581e139`, único cambio de código sobre
+  `frontend/e2e-s11/s11-fullstack.spec.ts`. El harness no levanta
+  Celery Beat, de modo que ninguna tarea periódica puede cerrar el reporte entre pasos.
+- **Intento previo `NOT_DEMONSTRATED`: run `s11-1961b2d4-2c48-5cc0-ac84-8847dda2de39`**
+  (`main@e2eee9d`, nonce `ex-05-operator-approved-001`). Manifest `FAILED` con
+  `invalidity_reason` nulo. El test falló
+  en `e2e-s11/s11-fullstack.spec.ts:339` porque aseveraba `actor_type: "SYSTEM"`, el nombre del
+  enum, cuando el valor persistido de `ActorType.SYSTEM` es `"system"`. Es un defecto del spec,
+  no del producto: el autocierre llegó a cerrar el reporte con `closure_mode: automatic`, sin
+  usuario, en ciclo 1 y sin incentivos nuevos. La prueba se detuvo en ese punto, sin
+  completar la verificación del cierre y sin ejecutar la reejecución idempotente, y la fase
+  `validate` no forma parte de la ruta de fallo. El paquete se conserva íntegro —`SHA256SUMS`
+  10/10, sello con `manifest_sha256`
+  `feb827dcdd6d441a7601fca15213e83a1891714396dc10311a23bc779c5bb5ad`— como diagnóstico, sin
+  reinterpretarlo.
+- **Corrección.** El commit `9073fb75c345df5270329b0235c6cbcf21517fc9` cambió únicamente ese
+  literal a `actor_type: "system"`. Una auditoría previa confirmó que era la única comparación
+  con `ActorType` del spec y que los demás literales enumerados coinciden con su valor
+  persistido.
+- **Identidad del run.** HEAD `9073fb75c345df5270329b0235c6cbcf21517fc9` con `git_clean: true`,
+  nonce `ex-05-operator-approved-002`, dataset `s11-functional-v1`, seed `20260921`. Backend
+  dinámico `http://127.0.0.1:32783`; runtime Python 3.11.16, Django 5.2.17, Celery 5.4.0,
+  PostgreSQL 17.5 y Redis 7.4.11. El run se ejecutó el 22/09/2026 en hora de Asunción; sus
+  timestamps UTC caen en el 23/09.
+- **Ejecución.** Entrypoint: el harness S11, `python3 backend/scripts/s11_harness.py --scenario
+  EX-05 --nonce ex-05-operator-approved-002 --expected-git-sha
+  9073fb75c345df5270329b0235c6cbcf21517fc9 --custody-approved`, que ejecutó internamente
+  `npm exec playwright -- test --config=playwright.s11.config.ts --grep=@EX-05`: `1 passed` en
+  21,4 s y exit code `0`. Las catorce fases cerraron en `rc=0`.
+- **Run `s11-0e2feac0-6583-513c-a6aa-33430394d14a`**: manifest final `COMPLETED` e
+  `invalidity_reason` nulo. **EX-05: `PASS`.**
+- **Resultado funcional.** Los cuatro momentos de la ficha, sobre la evidencia custodiada y el
+  log del worker:
+
+  | Momento | Resultado |
+  | ------- | --------- |
+  | antes del cutoff | tarea `d49d07b0` → `closed=0`; el reporte sigue `RESUELTO` en ciclo 1, sin transición, auditoría ni incentivos nuevos |
+  | reloj controlado | `resolved_at = 2026-09-20T02:25:16.912014Z`, es decir, ahora − 72 h; sin transición, auditoría ni movimiento de ledger |
+  | cutoff | tarea `82b41274` → `closed=1`; `CERRADO`, ciclo 1, `closed_at = 2026-09-23T02:25:18.836239Z` |
+  | reejecución | tarea `35db9b7e` → `closed=0`; sin transición, auditoría ni cambio de balance nuevos |
+
+  `closed_at − resolved_at` = 72 h + 1,924 s. La idempotencia está demostrada: la proyección del
+  reporte tras la reejecución —estado, ciclo, timestamps, historial y total de auditoría— es
+  idéntica a la posterior al primer cierre.
+- **Historial.** Seis transiciones con una sola de cierre, `RESUELTO → CERRADO` en ciclo 1.
+- **Auditoría.** Seis eventos del reporte antes del cierre, siete después y siete tras la
+  reejecución. El único añadido es `report.closed`, con `actor_type: "system"`,
+  `actor_user_id: null`, `closure_mode: "automatic"` y ciclo 1. La reejecución no generó un
+  segundo cierre. El checker oficial de trazabilidad cerró en `PASS` con `missing: []`.
+- **Incentivos.** El balance del autor fue 0 pendiente y 100 acreditado antes del cierre, tras
+  él y tras la reejecución. Las tres transacciones existentes —`REPORT_CREATED` 20/20,
+  `VALIDATION_BONUS` 30/30 y `RESOLUTION_BONUS` 50/50, todas `ACREDITADO` en ciclo 1— son
+  anteriores al cierre; el autocierre no creó ninguna.
+- **Celery.** Doce eventos sin `celery.failed`: `ai.classify_report` y tres `reports.auto_close`,
+  cada uno encolado, iniciado y terminado; el worker registró las tres tareas como `succeeded`
+  con resultados 0, 1 y 0. En el arranque del worker aparecen dos `SecurityWarning` de Celery
+  —gid sin entrada y ejecución con privilegios de superusuario—, que se emiten en cada arranque
+  y también figuran en el run de EX-08. No hay traceback ni fallo de tarea asociado: es una
+  anomalía operativa no bloqueante.
+- **Custodia.** `SHA256SUMS` con 10 de 10 archivos en `OK`; seis artefactos indexados en
+  `metadata/artifacts.jsonl` con su `.hmac`; sello `.s11-finalized` presente. `manifest_sha256`:
+  `39d930f729777a32be8ca031231c21d5724ce8113c244975840baf9ee837931b`, coincidente con el SHA-256
+  del manifest final y con el sello. `s11_validate_run` en `PASS`, `finalize` con
+  `verification: PASS`.
+- **Limpieza.** Base experimental reseteada: reports, resolution_evidences, report_confirmations,
+  report_media, reward_transactions, audit_logs, users y citizen_profiles en 0, con catálogos
+  restaurados a 3 instituciones y 10 categorías. Redis DB 11 con `dbsize = 0` y storage reducido
+  al marcador `.s11-isolated-object-root`. Backend y worker `Exited (0)` por el `shutdown`
+  oficial; PostgreSQL y Redis `Up (healthy)` por diseño del harness.
+- Producción, dataset, metodología S11-A y evidencia histórica permanecieron intactos.
+
+Gate de EX-05: `S11C2_EX05_PASS`. S11-C2 sigue abierto: de su alcance formal falta EX-07.
+
+### S11-C2 / EX-07 — rechazo antes de validar, ciclo 0 (22/09/2026)
+
+- **Preparación.** El spec `@EX-07` confirmaba y rechazaba comprobando sólo `.ok()`. La ficha
+  S11-A exige además la precondición con `+20` y `+10` pendientes, el rechazo con motivo
+  tipificado, la repetición y la validación posterior como rechazos controlados, y la anulación
+  de ambas participaciones sin acreditación, compensación ni bonus. El spec se completó con los
+  helpers existentes y se fijó en `9ef4c40042f138dc36cf26275010e80c6c69c9a8`, único cambio de
+  código sobre `frontend/e2e-s11/s11-fullstack.spec.ts`.
+- **Intento previo `NOT_DEMONSTRATED`: run `s11-176a55e0-1c27-5b2f-a0f2-ef50dbe6d959`**
+  (`main@9ef4c40`, nonce `ex-07-operator-approved-001`). Manifest `FAILED` con
+  `invalidity_reason` nulo. El test falló en `e2e-s11/s11-fullstack.spec.ts:567` porque esperaba
+  `institution: null` en la respuesta del rechazo, un valor tomado de una prueba unitaria cuyo
+  fixture no pasa por la clasificación IA. El comportamiento observado era compatible con el
+  flujo real: el primer rechazo llegó a producirse con el motivo correcto, la institución
+  conservada, un único `report.rejected` y las dos participaciones en `ANULADO`. Pero el test se
+  detuvo en ese punto: no ejecutó la repetición ni la validación posterior, y la fase `validate`
+  no forma parte de la ruta de fallo, así que el run no podía demostrar la ficha completa. El
+  paquete se conserva íntegro —`SHA256SUMS` 10/10, sello con `manifest_sha256`
+  `2fe37cb4a30dc6bff157a1fca8028238be1c18e8c1d9cb56b9fd24f8ddb299ab`— como diagnóstico.
+- **Corrección.** El commit `9bf778f1a4388e0fabe09bdb80bcf1462b8b9ae8` sustituyó esa expectativa
+  por el contrato real: la institución de la respuesta es la misma que tenía el reporte antes del
+  rechazo, cuyo `id` es `fixture.institution_a`. La IA sintética S11 es determinista: conserva la
+  categoría y le asigna su institución de catálogo con confianza 0,95, y el orquestador la
+  autoaplica; `reject_report` sólo escribe estado y motivo. El mismo commit añadió la
+  comprobación de que institución y motivo siguen intactos tras la repetición y la validación.
+  Antes de fijarlo se revisó cada valor exacto del bloque contra su fuente —ficha, contrato
+  observable, enum real o fixture— y no quedó ningún supuesto heredado.
+- **Identidad del run.** HEAD `9bf778f1a4388e0fabe09bdb80bcf1462b8b9ae8` con `git_clean: true`,
+  nonce `ex-07-operator-approved-002`, dataset `s11-functional-v1`, seed `20260921`, backend
+  dinámico `http://127.0.0.1:32785`. Inicio `2026-09-23T02:54:55.259495Z`, fin
+  `2026-09-23T02:55:21.234844Z`: el 22/09/2026 en hora de Asunción.
+- **Ejecución.** El harness S11 ejecutó internamente
+  `npm exec playwright -- test --config=playwright.s11.config.ts --grep=@EX-07`: `1 passed` en
+  13,8 s, stderr vacío y exit code `0`. Las catorce fases cerraron en `rc=0`.
+- **Run `s11-545491b8-01fe-55e6-8f08-1a0ebbdca8d3`**: manifest final `COMPLETED` e
+  `invalidity_reason` nulo. **EX-07: `PASS`.**
+- **Precondición.** `CLASIFICADO`, ciclo 0, `validated_at` nulo y `confirmation_count` 1, con el
+  autor en 20 pendiente / 0 acreditado y el confirmador en 10 / 0. La IA sintética se aplicó
+  (`applied: true`, `decision: auto_apply`) y dejó el reporte asignado a ANDE, la
+  `fixture.institution_a` del escenario, por la categoría `alumbrado-publico`.
+- **Confirmación.** `201`, `confirmation_count` 1.
+- **Primer rechazo.** `200`. La respuesta coincidió exactamente (`toEqual`) con
+  `id`, `status: RECHAZADO`, `institution` —la anterior al rechazo—, `validated_at: null`,
+  `validated_by: null` y `rejection_reason: informacion_insuficiente`. El export final confirma
+  `RECHAZADO`, ciclo 0, `validated_at` y `validated_by_id` nulos, el motivo y la institución
+  conservada.
+- **Historial.** Tres transiciones, de las que el rechazo aportó una sola: `CLASIFICADO →
+  RECHAZADO`, ciclo 0, motivo `informacion_insuficiente`.
+- **Auditoría.** Un único `report.rejected`, con `actor_type: human`, actor el operador A y
+  `payload.reason: informacion_insuficiente`. El reporte terminó con cuatro eventos:
+  `report.created`, `ai.report.classified`, `report.confirmed` y `report.rejected`. El checker
+  oficial de trazabilidad cerró en `PASS` con `missing: []`.
+- **Incentivos.** Los dos `voided_transaction_ids` del evento corresponden exactamente a las dos
+  participaciones pendientes, `REPORT_CREATED` 20/20 y `CONFIRMATION_CREATED` 10/10, ambas en
+  `ANULADO`. No hay otras filas: sin acreditación, compensación ni bonus. Balances posteriores:
+  autor 0 / 0 y confirmador 0 / 0.
+- **Repetición del rechazo.** `409 ALREADY_REJECTED`. La proyección posterior es idéntica a la de
+  referencia —estado, ciclo, timestamps, número de transiciones y total de auditoría—, con la
+  misma institución, la misma última transición con su motivo y los mismos balances: sin segunda
+  transición, segundo `report.rejected`, nueva anulación, acreditación, compensación ni bonus.
+- **Validación posterior.** `409 REPORT_STATE_NOT_ALLOWED`, porque sólo `CREADO` y `CLASIFICADO`
+  son validables. Tampoco hubo mutación: el reporte siguió `RECHAZADO`, ciclo 0, con la misma
+  institución, motivo, historial, auditoría y balances.
+- **Visibilidad.** Las lecturas del operador A posteriores al rechazo devolvieron `200`. El run
+  registró 34 eventos HTTP: 30 × `200`, 2 × `201` y 2 × `409`, estos últimos exclusivamente
+  `ALREADY_REJECTED` y `REPORT_STATE_NOT_ALLOWED`; ninguna respuesta `5xx`.
+- **Alcance de las comparaciones.** Algunos campos no los expone ningún endpoint en todos los
+  momentos del flujo: `validated_by` en el detalle, el `rejection_reason` persistido y las filas
+  completas del ledger. Esos elementos se comprobaron con el export final, que confirma sus
+  valores y la ausencia de eventos o transacciones adicionales. Las comprobaciones intermedias sí
+  usaron estado, institución, historial, conteos de auditoría, motivo de la última transición y
+  balances. No es un defecto del experimento, sino el límite de lo observable por API.
+- **Custodia.** `SHA256SUMS` con 10 de 10 archivos en `OK` y 0 fallos; seis artefactos indexados
+  con su `.hmac`; sello `.s11-finalized` presente. `manifest_sha256`:
+  `a6d551a43c5e96312827532099998303008f03cc74127c6fc8c399361e202bb0`, coincidente con el SHA-256
+  del manifest final y con el valor del sello. `s11_validate_run` en `PASS`, `finalize` con
+  `verification: PASS`. `evidence_url` no aparece en el export.
+- **Limpieza.** Base experimental reseteada: reports, resolution_evidences, report_confirmations,
+  report_media, reward_transactions, audit_logs, users y citizen_profiles en 0, con catálogos
+  restaurados a 3 instituciones y 10 categorías. Redis DB 11 con `dbsize = 0` y storage reducido
+  al marcador `.s11-isolated-object-root`. Backend y worker `Exited (0)`; PostgreSQL y Redis
+  `Up (healthy)`.
+- **Celery y anomalías.** Tres eventos de `ai.classify_report` y ningún `celery.failed`. Los dos
+  `SecurityWarning` de Celery aparecieron al arrancar el worker, a las 02:54:48Z y antes del run:
+  son una advertencia operativa no bloqueante, sin traceback ni error de worker o backend.
+- **Nota técnica sobre identificadores.** El UUID de ANDE en este run
+  (`0f50d097-fad8-4957-ad22-17c52e07ce3f`) difiere del observado en el intento previo
+  (`c8a552e3…`), porque el reset experimental recrea los catálogos. El contrato se valida contra
+  `fixture.institution_a` de cada run, no contra un UUID fijo.
+- Producción, dataset, metodología S11-A y evidencia histórica permanecieron intactos.
+
+Gate de EX-07: `S11C2_EX07_PASS`. Con él, los siete escenarios del alcance formal de S11-C2 tienen
+resultado experimental `PASS`; el cierre del gate S11-C2 no se declara aquí y requiere su propia
+revisión de cierre.
+
+### S11-C2 / EX-03 — regularización documental de la reconciliación (23/09/2026)
+
+- **Antecedente.** La revisión formal de cierre de S11-C2 comprobó que la reconciliación
+  documental de EX-03 no estaba registrada en un commit documental, como exige el criterio de
+  salida de C2 («reconciliación contra su ficha S11-A registrada en un commit documental»). La
+  sección «S11-C2 / EX-03 — confirmación y validación, ciclo 0→1» y las actualizaciones de estado
+  de los dos runbooks entraron en el commit `79a6f285508d180b3ac3699f93601d81fae9ec86`
+  («test(s11): prepare EX-04 idempotency validation»). Ese commit también modifica
+  `frontend/e2e-s11/s11-fullstack.spec.ts` con la preparación de EX-04, así que es un commit mixto
+  y no un commit documental puro. Se hizo así porque el harness exige el árbol limpio y la
+  reconciliación de EX-03 seguía sin commitear cuando se congeló la preparación de EX-04.
+- **Regularización.** El presente registro, en un commit sólo documental, deja constancia de la
+  reconciliación de EX-03 a efectos del gate S11-C2. No reescribe la historia: `79a6f28` se
+  conserva intacto, y el contenido de la reconciliación sigue siendo el que ese commit introdujo en
+  la sección de EX-03, sin cambios.
+- **EX-03 reconciliado: `PASS`.** Run oficial `s11-6dc3ea66-08c9-51ef-9fe3-70e7dcc67959`, ejecutado
+  sobre el commit de preparación `3696d0174673201313e68e204f974784b97ea74a` con el árbol limpio, y
+  gate `S11C2_EX03_PASS_CONFIRMED`. La evidencia funcional, los valores del run y el paquete
+  custodiado permanecen exactamente como estaban.
+- La regularización no afecta a EX-04: su preparación, su run
+  `s11-03adb9bc-c9e4-5f8f-b64c-c4360d0c2085`, su reconciliación `a2a0bfb` y su clasificación `PASS` no cambian. Tampoco cambia ningún otro
+  escenario ni los runs históricos `NOT_DEMONSTRATED`.
+- S11-C2 sigue abierto hasta una nueva revisión formal de cierre.
+
+### Cierre formal de S11-C2 (23/09/2026)
+
+- **Revisión.** La revisión formal de cierre se hizo sobre el baseline
+  `9bdc9512f7210c2dc524ea8694b2b0b291cf2f07`, con el árbol limpio, contra el contrato de alcance y
+  salida congelado en `dcf4abd9202adff9d18eb7bf4fe838695703e839`. Fue una revisión de auditoría:
+  no se ejecutó ningún componente de S11.
+- **Alcance.** EX-02, EX-03, EX-04, EX-05, EX-06, EX-07 y EX-08.
+- **Resultado por escenario.** Los siete cumplen los criterios de salida del contrato:
+
+  | Escenario | Run oficial | Prep | Reconciliación |
+  | --------- | ----------- | ---- | -------------- |
+  | EX-02 | `s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af` | `721462a` | `d063b9c` |
+  | EX-03 | `s11-6dc3ea66-08c9-51ef-9fe3-70e7dcc67959` | `3696d01` | `79a6f28` (mixto) + `9bdc951` |
+  | EX-04 | `s11-03adb9bc-c9e4-5f8f-b64c-c4360d0c2085` | `79a6f28` | `a2a0bfb` |
+  | EX-05 | `s11-0e2feac0-6583-513c-a6aa-33430394d14a` | `9073fb7` | `5a66133` |
+  | EX-06 | `s11-989218f3-4808-5c6f-ac23-6e8870fec153` | `43013fa` | `4094d0c` |
+  | EX-07 | `s11-545491b8-01fe-55e6-8f08-1a0ebbdca8d3` | `9bf778f` | `236a578` |
+  | EX-08 | `s11-b567289c-9fe2-5349-a384-e9284bdde863` | `d8ed6eb` | `7e55093` |
+
+  En los siete, el manifest es `COMPLETED` con `invalidity_reason` nulo, el SHA coincide con el
+  prep y `git_clean` es `true`. La trazabilidad está en `PASS` con `missing: []`, `SHA256SUMS`
+  verifica 10 de 10 archivos, y el HMAC del índice y la firma del sello verifican con la clave de
+  custodia, con el sello ligado al manifest final. La fase de cleanup custodiada registra el
+  reset. Para EX-04…EX-08 se conserva además la salida del harness con las catorce fases en
+  `rc=0`, `s11_validate_run` en `PASS` y `finalize` con `verification: PASS`. Para EX-02 y
+  EX-03, el paquete conserva las diez primeras fases; `record`, `custody` y `finalize` quedan
+  probadas porque el harness sólo escribe un manifest `COMPLETED` cuando pasan, y el `rc=0` de
+  `shutdown` consta en su reconciliación documental.
+- **EX-03.** Su reconciliación, registrada originalmente en el commit mixto `79a6f28`, quedó
+  regularizada documentalmente mediante `9bdc9512f7210c2dc524ea8694b2b0b291cf2f07`.
+- **Criterios bloqueantes pendientes:** ninguno.
+- **Históricos.** Los runs `NOT_DEMONSTRATED` —los cinco intentos de EX-02, `s11-1961b2d4…` de
+  EX-05 y `s11-176a55e0…` de EX-07— se conservan como diagnóstico y no se usaron como evidencia de
+  ningún `PASS`.
+- **Integridad.** La evidencia experimental custodiada no se modificó, `docs/tesis/` no cambió
+  desde el inicio de S11-C2 y la historia Git no se reescribió.
+- **Alcance del cierre.** Cerrar S11-C2 no cierra S11-C. EX-09 y EX-10 siguen pendientes para
+  S11-C, y S11-D y S11-E no se han iniciado.
+
+```text
+S11-C2: CLOSED
+S11-C:  OPEN
+```
+
+### Decisión metodológica: sub-etapa S11-C3 para EX-09 y EX-10 (23/09/2026)
+
+- **Autoridad:** Monty Emmanuel Pohl Amarilla, autor y custodio.
+- **Estado de la decisión:** redactada a partir de la preparación de EX-09, revisada y aprobada
+  por el autor y custodio; entra en vigor con el commit que la incorpora.
+- **Antecedente.** El contrato de S11-C2 dejó EX-09 y EX-10 fuera de C2 y remitió a «una decisión
+  separada» la sub-etapa que los ejecute. La preparación de EX-09 quedó `BLOCKED BY SPECIFICATION`
+  por cuatro vacíos: la sub-etapa (D1), el contexto de ejecución con proveedor real (D2), la
+  custodia de una corrida de dos ventanas RPD (D3) y la evidencia de cuota y del ciclo de vida del
+  secreto (D4). S11-B ya había declarado ambos escenarios `NOT_READY`, con ejecutores a cargo de
+  S11-C.
+- **Fuentes.** Ficha EX-09 y EX-10 y filas de matriz de `S11A_ESCENARIOS_Y_PROTOCOLO.md`; HT1-01…04,
+  HT2-01…03 y «Validez R2» de `S11A_DICCIONARIO_INDICADORES.md`; §1, §11, S11A-D04, S11A-D05 y
+  S11A-D10 de `S11A_DATOS_EVIDENCIA_Y_REBASELINE.md`; `S11A_POLITICA_CUSTODIA_Y_ACCESO.md` §1;
+  prerregistro S8-E2-R2; contrato de S11-C2. Esta decisión no modifica ninguna de ellas.
+
+**D1 — Sub-etapa.**
+
+1. EX-09 y EX-10 se ejecutan en una nueva sub-etapa, **S11-C3**, independiente de S11-C2. Ninguno
+   de los dos usa el harness full-stack de C2.
+2. **Salida de S11-C3:** cada escenario tiene un run oficial **válido** con custodia verificada y
+   reconciliación registrada en un commit documental. Un run válido puede concluir `PASS` o
+   `FAIL` según su criterio; un `NOT_DEMONSTRATED` no satisface la salida.
+3. Cerrar S11-C3 no cierra S11-C: S11-C requiere además su propia revisión de cierre. EX-01 sigue
+   condicionado a S11A-P01.
+
+**D2 — Contexto de ejecución de EX-09.**
+
+1. **Entorno.** Un proceso efímero en un contenedor construido desde el commit de preparación de
+   EX-09, fuera del overlay aislado de C2, que fuerza la IA sintética. No accede a datos ni
+   servicios productivos ni a Supabase, y sólo necesita salida de red hacia el proveedor.
+2. **Credencial.** Una clave temporal distinta **por lote**, creada por el operador en la consola
+   del proveedor inmediatamente antes del lote, inyectada únicamente como variable de entorno del
+   proceso ejecutor y revocada al terminar ese lote. Nunca se escribe en Git, `.env`, fixtures,
+   manifests, logs ni evidencia. Sólo puede registrarse su huella no reversible: los 16 primeros
+   caracteres hexadecimales de su SHA-256, calculados en memoria, para correlacionar su alta y
+   su revocación.
+3. **Identificación.** El run fija y verifica, antes de cualquier llamada: commit y árbol limpio,
+   SHA-256 del dataset, SHA-256 del prompt, modelo, timeout, pacing, definición de lotes y el
+   protocolo `R2` congelado en `recovery.py`. Son los mismos guardas de integridad que ya
+   implementa `execution.py`.
+4. **Entorno frente a evidencia.** Pertenecen al entorno la imagen, el contenedor, la red y la
+   credencial. Pertenecen a la evidencia los manifests, las respuestas, el stderr redactado, el
+   informe combinado, los hashes, los registros de cuota y del ciclo de vida del secreto, y el
+   sello.
+5. **Operador.** Monty Emmanuel Pohl Amarilla es el único ejecutor autorizado.
+
+**D3 — Custodia de la corrida de dos lotes.**
+
+1. **Identidad.** Un único `run_id`, asignado al iniciar el lote 1 con el mismo esquema UUIDv5 del
+   harness. Los lotes se identifican como `lot-01` (casos 1–14) y `lot-02` (casos 15–28) dentro de
+   ese run. No son dos experimentos independientes.
+2. **Custodia continua.** La evidencia vive en `var/s11-runs/runs/<run_id>/` bajo
+   `S11-CUSTODY-v1.0`. El manifest inicial se registra al empezar el lote 1. Cada artefacto se
+   indexa con su SHA-256 al escribirse y el HMAC del índice se renueva con cada alta, con la
+   clave custodial estable vigente. Cada lote cierra con un manifest de lote que enumera los
+   hashes de sus artefactos.
+3. **Sin sello entre lotes.** Entre los dos lotes el run queda abierto: sin manifest final, sin
+   `SHA256SUMS` y sin `.s11-finalized`.
+4. **Continuidad.** Antes del lote 2 se verifica que siguen idénticos el commit, la configuración,
+   el prompt, el dataset y su SHA-256, los parámetros del protocolo, el modelo, el timeout, el
+   pacing y los criterios de scoring —que quedan fijados por el commit—. Cualquier diferencia deja
+   el run en `NOT_DEMONSTRATED`. El lote 1 nunca se corrige ni se sustituye.
+5. **Ventana RPD.** EX-09 sigue siendo una única corrida. El lote 2 se ejecuta en la **primera
+   ventana de cuota diaria (RPD) del proveedor disponible posterior al lote 1** y, en todo caso,
+   dentro de un **máximo operativo de 7 días naturales desde el inicio del lote 1**. La evidencia
+   primaria es la comprobación de cuota ≥14 previa al lote 2, junto con los timestamps UTC de
+   inicio y fin del lote 1 e inicio del lote 2.
+6. **Naturaleza del límite de 7 días.** Es una condición operativa específica de S11-C3, introducida
+   por esta decisión para acotar la duración de la identidad experimental y preservar la
+   continuidad demostrable de la corrida. No es una propiedad del protocolo `R2` ni una exigencia
+   del prerregistro S8-E2-R2 ni de las fuentes S11-A.
+7. **Interrupción.** Si el lote 2 no puede iniciarse bajo esas condiciones, o falla cualquiera de
+   sus precondiciones, el run se finaliza con su motivo de invalidez, se sella y se conserva, y su
+   resultado es `NOT_DEMONSTRATED`; nunca `FAIL`. Un nuevo intento exige un `run_id` nuevo y
+   ejecutar los 28 casos completos desde el lote 1. El lote 1 de un run no se reutiliza ni se
+   combina con un lote 2 posterior.
+8. **Finalización.** Sólo después de, en este orden: lote 1 válido, persistido y con su hash
+   verificado; segunda ventana confirmada; lote 2 válido, persistido y con su hash verificado;
+   continuidad verificada; una única combinación de los 28 casos correlacionados; CA-4 calculado;
+   secreto retirado y acceso revocado; manifest final; `SHA256SUMS`; HMAC; sello; y validación
+   final `PASS` de la custodia.
+
+**D4 — Evidencia de cuota y ciclo de vida del secreto.** Registros JSON dentro del run, indexados
+y autenticados por la custodia, cada uno con evento, lote, `run_id`, timestamp UTC, operador y
+resultado:
+
+- `quota_check` antes de cada lote: cuota restante observada en la consola del proveedor y
+  resultado `OK` si es ≥14. Es una precondición: sin ella el lote no empieza.
+- `credential_provisioned`: alta de la clave del lote, con su huella.
+- `credential_removed`: fin del proceso ejecutor y retirada de la variable de entorno.
+- `access_revoked`: revocación de la clave en la consola del proveedor, con su huella.
+
+Nunca se registran la clave, tokens ni contenido sensible del proveedor. Las comprobaciones de
+cuota y la revocación son atestaciones del operador, autenticadas por la custodia.
+
+**Modelo de validez de EX-09.**
+
+- `NOT_DEMONSTRATED`: error de preflight, timeout, caso ausente, respuesta no correlacionable,
+  divergencia de hash, configuración, prompt o dataset, cambio entre lotes, artefacto perdido,
+  fallo de custodia o de finalización, ventana RPD incumplida, límite operativo de 7 días
+  excedido o continuidad no demostrable.
+- `FAIL`: corrida válida y completa, 28 respuestas válidas, CA-4 < 85 %.
+- `PASS`: corrida válida y completa, 28 respuestas válidas, CA-4 ≥ 85 % (al menos 24/28).
+- El primer lote nunca se puntúa por separado.
+
+**Relación con EX-10.**
+
+- **Comparte con EX-09:** la sub-etapa S11-C3, la custodia `S11-CUSTODY-v1.0` con `run_id`,
+  manifests, HMAC y sello, y la semántica de `NOT_DEMONSTRATED` ante una caída del harness o
+  evidencia incompleta.
+- **No comparte:** proveedor, credencial, cuota, protocolo R2 ni dos ventanas. EX-10 corre en el
+  entorno aislado S11, con adaptador IA `fake`, en una sola sesión sin sello intermedio.
+- **Requiere reglas propias:** el generador de carga con barrera de 10 VU, la ventana de 60 s, el
+  throttle real de 5/h, el dataset `s11-load-v1`, la reconciliación de los 50 intentos con base,
+  ledger y cola, y la regla compuesta HT-1 (S11A-D05). Su ejecutor también está pendiente y se
+  preparará aparte.
+
+**Consecuencia.** Con esta decisión aprobada, S11-C3 queda definida y EX-09 y EX-10 pasan a poder
+prepararse, cada uno por separado. Ninguno queda ejecutado ni demostrado, y no existe resultado
+`PASS`, `FAIL` ni `NOT_DEMONSTRATED` para ninguno de los dos. S11-C2 sigue cerrado y S11-C sigue
+abierto.
+
+### Decisión metodológica: sustitución del proveedor de EX-09, de Gemini a OpenAI (26/09/2026)
+
+- **Autoridad:** Monty Emmanuel Pohl Amarilla, autor y custodio.
+- **Qué está decidido y qué no.** P1–P4 son decisión explícita del autor del 26/09/2026 y
+  entran en vigor con el commit que las incorpora. La implementación técnica que la precede está
+  en ADR-0016, en la rama local `feat/ai-openai-provider` (`1e71d06`), que no está integrada. P5
+  y P6 son una **propuesta** que todavía no está aprobada. No están en vigor y no autorizan a
+  preparar ni ejecutar ninguna medición.
+- **Baseline de la auditoría:** `main@73e50376e082b7291f34ee7a657a02723cd916f7`, con el árbol
+  limpio salvo un `.docx` sin seguimiento ajeno a S11. Durante la auditoría no se ejecutó ningún
+  componente de S11, no se hizo ninguna llamada a Gemini ni a OpenAI y no se usó ninguna
+  credencial real.
+- **Qué no modifica:** `docs/tesis/`, `S11A-v1.0`, el commit de preparación `73e5037`, el
+  protocolo `R2` de `recovery.py`, el dataset, las etiquetas de oro, el prompt, la evidencia
+  custodiada ni ningún resultado.
+
+**P1 — Sustitución del proveedor.** Gemini deja de ser el proveedor de las mediciones de IA
+futuras de S11. El proveedor experimental oficial pasa a ser OpenAI, con la Responses API y el
+modelo objetivo `gpt-6-luna`.
+
+**P2 — Los proveedores no son equivalentes.** Pasar de Gemini a OpenAI no es un cambio puramente
+técnico: cambia el factor proveedor/modelo del experimento. Por eso cualquier medición hecha con
+OpenAI es una medición nueva, registrada metodológicamente como tal. Las siguientes
+observaciones de Gemini no se reutilizan, no se combinan y no se presentan como si se hubieran
+obtenido con OpenAI:
+
+- resultados y porcentajes;
+- duraciones y fallos de transporte;
+- límites de cuota.
+
+**P3 — Estado final de la preparación Gemini de EX-09.**
+
+```text
+EX-09, instancia Gemini (protocolo s8-e2-r2, modelo gemini-3.6-flash)
+  preparación:  73e50376e082b7291f34ee7a657a02723cd916f7
+  estado:       PREPARED · NOT EXECUTED · NO OFFICIAL RESULT · HISTORICAL
+```
+
+- **Evidencia de que no se ejecutó:**
+  - `var/s11-runs/runs/` contiene 16 runs: dos `C1-PREPARATION` y runs de EX-02…EX-08. Ninguno
+    es de EX-09.
+  - El último run empezó el `2026-09-23T02:54:55Z`, antes del commit de preparación
+    (`2026-09-23T04:02:11Z`).
+  - No existe ningún directorio de evidencia `s8-e2-r2`.
+- **Sin veredicto.** No se le asigna `PASS`, `FAIL` ni `NOT_DEMONSTRATED`, porque esos son
+  veredictos de un run y este run no existe. El escenario EX-09 conserva su estado de catálogo:
+  `NOT_DEMONSTRATED`, porque no se ha ejecutado.
+- **Qué se conserva.** El ejecutor (`ex09.py`), su lanzador, su compose y su runbook se conservan
+  como registro de la preparación. Lo mismo ocurre con el adapter de Gemini y con los protocolos
+  `R1`/`R2`. No se ejecutan.
+
+**P4 — Antecedentes de Gemini respaldados por el repositorio.** Esta lista recoge sólo hechos
+documentados:
+
+| Medición | Hecho registrado | Fuente |
+| --- | --- | --- |
+| S8-E2 con `gemini-2.5-flash` | 28/28 respuestas HTTP 404 y `errors_count = 28`. Causa: el modelo ya no estaba disponible para usuarios nuevos. Además, el adapter no clasificaba esas excepciones de la Interactions API | `a47db36`, `1a6c7ac`, README de `evaluation` |
+| S8-E2 canónica con `gemini-3.6-flash` | 28 intentados, 6 válidos y 22 `TransientAiProviderError`: `NOT_DEMONSTRATED`. AI Studio mostró nivel gratuito, RPM 5 y RPD 20 (`RATE_LIMIT_CONFIRMED`). El JSON y el stderr se perdieron (tmpfs) | README de `evaluation`, sección S8 de este documento |
+| S8-E2-R1 | Sólo se ejecutó el lote 1: 14 llamadas, 4 válidas y 10 fallos por la ruta de transporte o timeout. Resultado: `ABORTED`. El JSON se perdió; el stderr está preservado en `$HOME/ciudadania-activa-evidence/s8-e2-r1/` | `812c394` |
+| S8-E2-R2 | Prerregistrada y nunca ejecutada | `recovery.py`, `823a41f` |
+| EX-09 (S11-C3) | Preparada y nunca ejecutada (P3) | `73e5037` |
+
+El repositorio no documenta más motivo de abandono que los «contratiempos técnicos y
+operativos» de ADR-0016. ADR-0016 atribuía los 404 a la jerarquía de excepciones del SDK. La
+causa registrada es otra: la indisponibilidad del modelo. La rama lo corrige en un commit propio.
+
+**P5 — Identificador de la nueva medición (propuesta).**
+
+- **Se conserva el escenario `EX-09`.** Es el escenario que decide HT-2. Se nombra así en:
+  - catálogo y matriz;
+  - HT2-01…03;
+  - la salida de S11-C3 (D1) y la de S11-C;
+  - el denominador de HT-5 («EX-09/10 deciden otras hipótesis»).
+
+  HT-2 no nombra ningún proveedor. Como la instancia Gemini no tiene run ni resultado, conservar
+  el identificador no puede confundirse con ninguna medición. Un escenario nuevo, en cambio,
+  dejaría a EX-09 como requisito de salida imposible de cumplir y obligaría a reescribir todas
+  esas referencias.
+- **La instancia cambia.** EX-09 se redefine mediante un protocolo nuevo, distinto de `s8-e2-*`.
+  No es `R3`: la serie R son recuperaciones de una misma medición Gemini con el mismo modelo, y
+  un cambio de proveedor no es una recuperación. Identificador propuesto:
+  `s11-ex09-openai-v1`.
+- **Separación de instancias.** La instancia Gemini queda como preparación histórica de EX-09
+  (P3). La evidencia de la instancia nueva no puede combinarse con artefactos `s8-e2-*`.
+
+**P6 — Protocolo propuesto `s11-ex09-openai-v1` (sin aprobar).** Todo parámetro que pueda cambiar
+el resultado forma parte de la identidad del run y se verifica antes de la primera llamada.
+
+| Parámetro | Valor | Naturaleza |
+| --- | --- | --- |
+| Dataset | `s8-evaluation-v1`, 28 casos en el orden original, SHA-256 `3bc54d591dc104aeabeecb2f5cc7c7a38e70ba042e7f045321ab33ae9b5efad4` | invariante |
+| Etiquetas de oro, parser y scoring | sin cambios | invariante |
+| CA-4 (HT2-01) | triple exacta categoría + institución + prioridad; los nulos sólo coinciden con nulos; denominador 28; `PASS` con ≥ 85 % (≥ 24/28); `FAIL` con < 85 % sólo con 28 respuestas válidas | invariante |
+| HT2-02 / HT2-03 | diagnósticos sin umbral | invariante |
+| Validez | cualquier error, timeout, caso ausente, divergencia o pérdida da `NOT_DEMONSTRATED`, nunca `FAIL`; una sola corrida; sin reruns selectivos; el primer run válido es vinculante | invariante |
+| Prompt | `s8-classification-v1`, SHA-256 `f3c803984806a3b934db0417f6cc3ce59a49cdde1e30b4c86b862c2e11c665ca`, sin versión nueva: el mismo template va en `instructions`, igual que en `system_instruction` con Gemini | invariante (verificado) |
+| Esquema de salida | contrato v1, idéntico al de Gemini (prueba de paridad); `strict: true`; se registra su SHA-256 canónico | invariante (verificado) |
+| Texto del caso | idéntico al de Gemini (prueba de paridad), con la descripción delimitada como contenido no confiable | invariante (verificado) |
+| `store` | `False` | invariante |
+| Reintentos | SDK `max_retries=0`; script 0; Celery no interviene | invariante |
+| Proveedor / API | OpenAI, Responses API, `POST /v1/responses` | depende del proveedor (P1) |
+| Modelo | `gpt-6-luna`. La documentación oficial lista un único snapshot con ese mismo ID y sin fecha, así que se registran la fecha UTC y el `model` devuelto en cada respuesta | depende del proveedor (P1) |
+| `reasoning.effort` | debe fijarse explícitamente. En blanco, el valor queda delegado en el valor por defecto del modelo (hoy `medium`), que puede cambiar | **decisión pendiente** |
+| `detail` de la imagen | debe fijarse explícitamente. La implementación usa `auto`, que delega en el tamaño por defecto del modelo | **decisión pendiente** |
+| `max_output_tokens` / `temperature` | no se envían; se registra así | depende del proveedor |
+| Versión del SDK | versión exacta registrada en la identidad (`openai` 3.19.2 resuelta en la auditoría). El requisito es un rango (`>=3.19,<4.0`) | depende del proveedor |
+| Timeout por solicitud | se propone 60 s (en segundos en este SDK). No hay ninguna observación con OpenAI que justifique otro valor | depende del proveedor; **por aprobar** |
+| Lotes, pacing y ventanas RPD | los lotes 14 + 14 en ventanas RPD distintas, el pacing de 20 s, la comprobación de cuota ≥ 14 y el límite de 7 días existían por el nivel gratuito de Gemini (RPM 5, RPD 20). La documentación oficial de `gpt-6-luna` fija límites por tier (desde 500 RPM). Se propone una única sesión de 28 casos, conservando 20 s de pacing, y sustituir la comprobación de cuota por una de crédito o límite de gasto: un `429 insufficient_quota` invalidaría el run | depende del proveedor; **por aprobar**; exige la enmienda de P7 |
+| Credencial | clave de proyecto temporal con permisos restringidos, creada antes del run, inyectada sólo en `run-lot`, registrada únicamente por su huella de 16 hex y revocada al terminar (D2 y D4 de S11-C3) | depende del proveedor |
+| Correlación | `case_id` ↔ `response.id` y request id del proveedor, más timestamps UTC por caso | depende del proveedor |
+| Retención en el proveedor | `store=False` no equivale a retención cero. Para `/v1/responses` no se guarda estado de aplicación, pero hay 30 días de *abuse monitoring* salvo ZDR, que exige aprobación de OpenAI. Las imágenes marcadas por el clasificador CSAM se retienen incluso con ZDR. Los datos de EX-09 son sintéticos | registro obligatorio; la activación con reportes reales es un gate aparte |
+
+Fuentes oficiales de OpenAI consultadas el 26/09/2026:
+`developers.openai.com/api/docs/models/gpt-6-luna`, `…/guides/your-data`,
+`…/guides/structured-outputs`, `…/guides/images-vision` y `…/guides/error-codes`.
+
+**P7 — Conflicto normativo con `docs/tesis/` (propuesto, no ejecutado).** `S11A-v1.0` fija a
+Gemini en la instancia de EX-09/HT-2:
+
+| Documento | Texto que fija a Gemini |
+| --- | --- |
+| `S11A_ESCENARIOS_Y_PROTOCOLO.md` | matriz 2.1 (actor «ejecutor + Gemini»; «R2, cuota ≥14 por lote»; lotes 1–14/15–28); matriz 2.2 («lotes en ventanas RPD distintas»); ficha EX-09 (actor «proveedor Gemini»; precondición `s8-e2-r2` y «cuota visual ≥14»; secuencia con espera de otra ventana RPD) |
+| `S11A_DICCIONARIO_INDICADORES.md` | HT2-01 (fuente «dos lotes R2 de 14 en ventanas RPD distintas»; **inclusión «modelo `gemini-3.6-flash`»**); HT2-02/03 («ejecución R2 válida»); «Validez R2»; inventario HT-5 (`adapters/gemini.py` como «contrato real con el proveedor»; `openai.py` falta) |
+| `S11A_DATOS_EVIDENCIA_Y_REBASELINE.md` | `s8-evaluation-v1` «R2 no ejecutada»; §HT-2 «exige R2 válida»; S11A-D04 (R2, dos lotes, «modelo … congelados») |
+| `S11A_CATALOGO_Y_MATRIZ.md` | PE-3, HT-2 y matriz («Evaluación canónica R2», «Adaptador Gemini», «dos lotes + combined R2») |
+
+- **Por qué no basta un runbook o un ADR.** La inclusión de HT2-01 es el criterio de población
+  del indicador que decide HT-2. Una medición con `gpt-6-luna` quedaría fuera de él, y ningún
+  documento subordinado puede decir lo contrario sin contradecir la fuente normativa.
+- **Cambio propuesto.** Una enmienda versionada de `S11A-v1.0` limitada a esos campos de
+  instancia:
+  - proveedor y modelo;
+  - protocolo `s11-ex09-openai-v1`;
+  - lotes y cuota según P6;
+  - `openai.py` en el inventario HT-5.
+
+  Su registro de cambios haría constar que la versión anterior nombraba a Gemini. No cambian
+  HT-2, las fórmulas, los umbrales, los denominadores, el dataset ni los criterios de decisión.
+  Requiere aprobación expresa del autor. La tesis en sí (§1.6.2, Tabla 8, Anexo H.3) queda
+  cubierta por CT-55, en la rama OpenAI.
+
+**P8 — Custodia.** `S11-CUSTODY-v1.0` alcanza para OpenAI y no cambia. Ya cubre:
+
+- `run_id` UUIDv5, manifests inicial y final, `invalidity_reason`;
+- índice con SHA-256 y HMAC, `SHA256SUMS`, sello, cleanup;
+- registros de credencial y de revocación.
+
+Los cambios se limitan al ejecutor de EX-09:
+
+- ampliar la identidad con proveedor, API, versión del SDK, `reasoning.effort`, `detail` de la
+  imagen, SHA-256 del esquema, `store` y `max_retries`;
+- correlación por `response.id`;
+- la partición de P6.
+
+Si se adopta la sesión única, `rolling_checksums=False` deja de hacer falta. `evidence.py`
+conserva su valor por omisión, así que EX-02…EX-08 no se ven afectados.
+
+**P9 — Rama `feat/ai-openai-provider`.**
+
+- **Contenido auditado.** Un solo commit sobre `73e5037` que añade:
+  - el adapter con la Responses API, `store=False` y esquema `strict`;
+  - la imagen en *data URL* base64, sin Files API ni URLs;
+  - `max_retries=0`;
+  - `429 insufficient_quota` tratado como permanente;
+  - `AI_PROVIDER` sin valor por defecto, con fallo cerrado;
+  - `OPENAI_*`;
+  - la suite de pruebas vaciando credenciales.
+
+  La petición no envía `user`, `safety_identifier` ni `metadata`. Suite completa: 2286 pasadas y
+  1 omitida, sin llamadas de red.
+- **No se integra todavía.** Toca cuatro fuentes atestadas por la custodia: `.env.example`,
+  `settings/base.py`, `settings/test.py` y `requirements/base.txt`. La atestación P02/P03 sigue
+  siendo válida para su commit, pero dejaría de describir las fuentes de `main`. La ejecución de
+  EX-09 exige además un commit de preparación propio, con el ejecutor adaptado a P6.
+
+**Estado resultante.**
+
+```text
+S11-C2:                      CLOSED
+S11-C:                       OPEN
+EX-02…EX-08:                 PASS (reconciliados)
+EX-09, instancia Gemini:     PREPARED · NOT EXECUTED · NO OFFICIAL RESULT · HISTORICAL
+EX-09, instancia OpenAI:     NOT PREPARED · NOT EXECUTED
+EX-10:                       sin preparar ni ejecutar
+OpenAI:                      IMPLEMENTED (rama local) · LOCALLY VALIDATED · NOT EXPERIMENTALLY EXECUTED
+Protocolo OpenAI:            NEEDS DECISION (P5–P7)
+S11-C:                       BLOCKED BY la aprobación de P5–P7
+```
+
+**Gate siguiente.** Antes de preparar la instancia OpenAI de EX-09 deben cumplirse estas
+condiciones, en este orden:
+
+1. Aprobación de P5 y P6, con `reasoning.effort`, el `detail` de la imagen, el timeout y la
+   partición fijados.
+2. Aprobación y registro de la enmienda de P7.
+3. Integración de la rama OpenAI en `main`.
+4. Commit de preparación del ejecutor adaptado, con sus pruebas locales.
+
+Hasta entonces no puede prepararse ni ejecutarse ningún run de EX-09.
+
+### Decisión metodológica: congelación de EX-09 OpenAI y enmienda `S11A-v1.1` (26/09/2026)
+
+- **Autoridad:** Monty Emmanuel Pohl Amarilla, autor y custodio.
+- **Qué resuelve.** Resuelve P5, P6 y P7 de la decisión anterior con los valores que el autor fijó el
+  26/09/2026. Entra en vigor con el commit que la incorpora.
+- **Baseline:** `main@c3725fd2535fdd5209be376738b594cabfc2ada2`. No se hizo ninguna llamada a
+  OpenAI ni a Gemini, no se usó ninguna credencial real y no se integró la rama OpenAI.
+- **Fuentes oficiales de OpenAI**, consultadas el 26/09/2026:
+  - `developers.openai.com/api/docs/models/gpt-6-luna`;
+  - `…/guides/images-vision`;
+  - `…/guides/rate-limits`;
+  - `…/guides/your-data`;
+  - `…/guides/structured-outputs`;
+  - `…/guides/error-codes`.
+- **La instancia Gemini no cambia.** EX-09 con Gemini sigue siendo
+  `PREPARED · NOT EXECUTED · NO OFFICIAL RESULT · HISTORICAL` (`73e5037`).
+
+**P5 — Identidad (resuelto).**
+
+| Campo | Valor |
+| --- | --- |
+| Escenario | `EX-09`, instancia OpenAI |
+| Protocolo | `s11-ex09-openai-v1`. No es `R3`: la serie R son recuperaciones de la configuración Gemini |
+| Proveedor / API | OpenAI, Responses API, `POST /v1/responses` |
+| Modelo | `gpt-6-luna`. La documentación oficial lo lista con un único snapshot, `gpt-6-luna`, sin fecha, y lo declara compatible con `v1/responses`, Structured Outputs e imagen. No existe un snapshot fechado que registrar. El corte de conocimiento publicado, 18/05/2026, se registra como dato informativo |
+| SDK | `openai` 3.19.2, la versión resuelta y probada en la auditoría. `requirements/base.txt` declara un rango, así que la preparación debe fijar esa versión o el preflight debe rechazar cualquier otra |
+| Registro por caso | el `model` y el `id` que devuelve cada respuesta, el request id del proveedor y los timestamps UTC |
+
+**P6 — Protocolo `s11-ex09-openai-v1` (resuelto).**
+
+| Parámetro | Valor congelado |
+| --- | --- |
+| Escenario / proveedor / modelo / protocolo | EX-09 / OpenAI / `gpt-6-luna` / `s11-ex09-openai-v1` |
+| Dataset | `s8-evaluation-v1`, 28 casos (`S8-EVAL-001`…`028`) en el orden original, SHA-256 `3bc54d591dc104aeabeecb2f5cc7c7a38e70ba042e7f045321ab33ae9b5efad4`, verificado. El dataset no contiene imágenes |
+| Prompt | `s8-classification-v1`, SHA-256 `f3c803984806a3b934db0417f6cc3ce59a49cdde1e30b4c86b862c2e11c665ca`, verificado; sin versión nueva |
+| Esquema de salida | contrato v1, `strict: true`, nombre `classification_v1`, SHA-256 canónico `ef2a7d354dc1f4526e6776c22e2356afa9881370618de75343aef339c5425f23` (idéntico al de Gemini por la prueba de paridad) |
+| `reasoning.effort` | `low`, enviado siempre de forma explícita |
+| `detail` de la imagen | `auto` (sin efecto en EX-09, ver abajo) |
+| Timeout | 60 s por request, como timeout del cliente |
+| Reintentos | 0: `max_retries=0` en el SDK, ninguno en el script y Celery no interviene. No se reintentan 429, 5xx, timeouts ni errores de parser o de JSON |
+| Casos / partición | 28, en una sola sesión, secuenciales, una petición en curso a la vez y sin pausa entre casos |
+| CA-4 | `PASS` ≥ 24/28 y `FAIL` ≤ 23/28, sólo con 28 respuestas válidas; denominador 28 |
+| Invalidez | `NOT_DEMONSTRATED`, nunca `FAIL` |
+| `store` | `false` |
+| No se envían | `user`, `safety_identifier`, `metadata`, `temperature`, `max_output_tokens`, herramientas ni `previous_response_id` |
+| Credencial | requerida. Ver «Credencial» abajo |
+
+- **Prompt: contenido y envoltorio.** El contenido semántico no cambia:
+  - el template se renderiza igual;
+  - el texto del caso es idéntico;
+  - el esquema es idéntico.
+
+  Sólo cambia el envoltorio técnico de la API:
+
+  | Elemento | Gemini | OpenAI |
+  | --- | --- | --- |
+  | Prompt | `system_instruction` | `instructions` |
+  | Texto del caso | bloque `text` | bloque `input_text` |
+  | Esquema | `response_format` | `text.format` de tipo `json_schema` |
+- **`detail=auto`.**
+  - **No está documentado para este modelo.** La tabla oficial de tamaños de imagen documenta
+    `auto` para otros modelos, por ejemplo `gpt-6-astra` («same sizing behavior as `original`»),
+    pero **no tiene fila para `gpt-6-luna`**. Por tanto, no puede afirmarse que la resolución
+    efectiva esté documentada.
+  - **No afecta a EX-09.** `s8-evaluation-v1` no tiene imágenes y el runner envía
+    `image_bytes=b""`, así que ninguna petición de EX-09 incluye un bloque `input_image` y
+    `detail` nunca llega al proveedor. Se congela `auto` y P6 no se bloquea.
+  - **El ejecutor debe verificarlo.** Debe comprobar y registrar que las 28 peticiones salen sin
+    imagen; si alguna la lleva, el run es `NOT_DEMONSTRATED`.
+  - **Límite de la conclusión.** Como ya ocurría con Gemini, HT-2 queda medida sobre
+    clasificación de texto.
+  - **Si algún día se incorporan imágenes,** hará falta una versión nueva del protocolo con un
+    nivel explícito (`low`, `high` u `original`), fijado antes de ejecutar.
+- **Sin pausas.** El pacing de 20 s, los lotes 14 + 14, las ventanas RPD, la comprobación de
+  cuota ≥ 14 y el límite de 7 días respondían al nivel gratuito de Gemini (RPM 5, RPD 20). No se
+  heredan. La documentación oficial publica para `gpt-6-luna` límites desde 500 RPM y 500 000 TPM
+  (Tier 1), sin RPD. Una sesión secuencial de 28 peticiones no justifica técnicamente ninguna
+  pausa.
+- **Límites y crédito: PARAMETER TO VERIFY AT PRE-FLIGHT.** OpenAI fija los límites por
+  organización y por proyecto, y no pueden verificarse sin credenciales. Por eso no se fija
+  ningún valor. En el preflight, el operador atesta sin secreto:
+  - el tier;
+  - los límites RPM, TPM y, si existe, RPD de `gpt-6-luna` para la organización y el proyecto;
+  - que queda crédito y que el límite de gasto no está alcanzado.
+
+  Condiciones derivadas del propio protocolo: RPM ≥ 28 y, si hay RPD, RPD ≥ 28. Cualquier 429
+  durante el run, incluido `insufficient_quota`, lo invalida. Según los precios oficiales, el
+  coste estimado es del orden de centavos de dólar y no condiciona el diseño.
+- **Validez.** Un caso entra en CA-4 sólo si se cumplen todas estas condiciones:
+  - pertenece al dataset;
+  - tiene una sola respuesta, correlacionada sin ambigüedad con su `case_id`;
+  - la respuesta tiene `status` `completed`;
+  - trae texto y no una negativa;
+  - supera el parser congelado: JSON válido, exactamente los seis campos, `category_slug` e
+    `institution_slug` como cadena no vacía o `null`, y `priority`, `confidence`,
+    `inconsistency` y `justification` válidos;
+  - no hay timeout ni error de la API.
+
+  Un slug que el parser acepta pero que no coincide con la etiqueta de oro es una predicción
+  válida **no concordante**. Es la regla congelada de S8 y esta decisión no la modifica.
+
+  | Situación | Resultado del run |
+  | --- | --- |
+  | Caso ausente o menos de 28 respuestas | `NOT_DEMONSTRATED` |
+  | Caso duplicado o respuesta no correlacionable | `NOT_DEMONSTRATED` |
+  | Respuesta malformada o rechazada por el parser (esquema) | `NOT_DEMONSTRATED` |
+  | Error del proveedor (4xx, 5xx, 429, `incomplete`, negativa) | `NOT_DEMONSTRATED` |
+  | Timeout o fallo de transporte | `NOT_DEMONSTRATED` |
+  | Divergencia de parámetros, hashes, SDK o commit, o `model` devuelto distinto entre casos | `NOT_DEMONSTRATED` |
+  | Petición con imagen | `NOT_DEMONSTRATED` |
+  | Pérdida de artefactos o fallo de custodia o de finalización | `NOT_DEMONSTRATED` |
+  | 28 respuestas válidas y CA-4 ≥ 24/28 | `PASS` |
+  | 28 respuestas válidas y CA-4 ≤ 23/28 | `FAIL` |
+
+  Un caso inválido nunca se cuenta como respuesta incorrecta para completar el denominador. El
+  primer run válido es vinculante y ningún parámetro puede cambiarse después de ver resultados.
+  Tras un run `NOT_DEMONSTRATED` sólo puede hacerse un nuevo intento con un `run_id` nuevo, los 28
+  casos y parámetros idénticos (S11-C3 D3.7). Todos los intentos se conservan y se informan.
+- **CA-4.** La definición se verificó en HT2-01 y no cambia:
+  - caso concordante sólo si `category_slug`, `institution_slug` y `priority` coinciden
+    exactamente con el oro;
+  - los nulos sólo coinciden con nulos;
+  - fórmula: `(concordantes / 28) × 100`;
+  - umbral: ≥ 85,00 %.
+
+  HT2-02 y HT2-03 siguen siendo diagnósticos.
+- **`store=false` no es retención cero.** Con `store=false`, `/v1/responses` no guarda estado de
+  aplicación. Aun así, OpenAI conserva los datos 30 días para vigilar abusos. La retención cero
+  (ZDR) requiere aprobación previa de OpenAI, y las imágenes marcadas como posible CSAM se
+  retienen incluso con ZDR.
+  - **EX-09 no exige ZDR.** Sus datos son sintéticos, sin identificadores ni PII (S11A-D02), y
+    S11-A no pide garantías de retención al proveedor para datos sintéticos. La retención de 30
+    días se registra en la identidad del run como condición conocida.
+  - **Gate aparte para reportes reales.** Activar la clasificación con reportes reales sigue
+    bloqueado hasta resolver formalmente el régimen de retención de la organización.
+- **Datos enviados.** Van el template renderizado, la descripción sintética delimitada, los
+  slugs actuales y los permitidos, y la mención `image: no disponible`. No van el `case_id`, las
+  etiquetas de oro, las notas, identificadores ciudadanos, nombres, correos ni secretos. Se
+  verificó que ninguna descripción del dataset contiene «@».
+- **Credencial.** Es obligatoria y se provisiona así:
+  - una clave de proyecto temporal y dedicada, creada por el operador justo antes del run;
+  - se inyecta sólo al proceso que llama al proveedor, como `S11_EX09_PROVIDER_KEY`;
+  - se retira y se revoca al terminar;
+  - el ejecutor no puede leer `.env`.
+
+  Sólo se registra su huella: los 16 primeros hexadecimales de su SHA-256 (S11-C3 D2). Nunca se
+  registran la clave, ningún fragmento de ella ni la vista enmascarada de la consola, y no se
+  escribe en Git, logs, manifests ni evidencia.
+- **Timeout.** Los 60 s son el timeout del cliente (`timeout=60.0`). La preparación debe
+  verificar en `openai` 3.19.2 cómo lo aplica el SDK y registrar la duración total de cada caso.
+
+**Relación con S11-C3 (D1–D4).**
+
+| Punto | Tratamiento en la instancia OpenAI |
+| --- | --- |
+| D1 | Se aplica sin cambios |
+| D2 | Se aplica con dos cambios: el protocolo congelado es `s11-ex09-openai-v1` en lugar de `R2`, y la clave es una por run en lugar de una por lote |
+| D3 | Se sustituye. Hay un único `run_id` y no hay lotes, ventanas RPD, límite de 7 días ni estado abierto entre lotes. La custodia es la estándar: `SHA256SUMS` al finalizar |
+| D4 | La comprobación de cuota ≥ 14 pasa a ser la atestación de límites y crédito. Los registros `credential_provisioned`, `credential_removed` y `access_revoked` se mantienen, una vez por run |
+| Modelo de validez | Se aplica la tabla anterior; desaparecen las causas de RPD y de 7 días |
+
+**Custodia.** `S11-CUSTODY-v1.0` no cambia. El ejecutor debe añadir a la identidad del run:
+
+- proveedor, API y versión del SDK;
+- modelo solicitado y `model` devuelto;
+- `reasoning.effort`, `detail`, `store` y `max_retries`;
+- el timeout;
+- el SHA-256 del esquema;
+- el recuento de imágenes enviadas (0);
+- la atestación de límites y crédito;
+- la condición de retención.
+
+`evidence.py` y EX-02…EX-08 no se tocan.
+
+**P7 — Enmienda `S11A-v1.1` (resuelta para EX-09 y HT-2).**
+
+- **Versión nueva.** Se aplicó en `docs/tesis/` como enmienda versionada, siguiendo la regla del
+  §11 de `S11A_DATOS_EVIDENCIA_Y_REBASELINE.md`. El registro está en su §13. No se reescribió
+  `S11A-v1.0` conservando la etiqueta: EX-02…EX-08 registran `S11A-v1.0` y esa etiqueta tiene que
+  seguir identificando el texto con el que se ejecutaron.
+- **Qué cambia.** Sólo la instancia de EX-09/HT-2:
+  - ficha y matrices de EX-09;
+  - HT2-01…03 y «Validez R2», que pasa a «Validez de EX-09»;
+  - S11A-D04 y la regla de síntesis 3;
+  - las filas afectadas del catálogo y de las matrices;
+  - las referencias a la versión metodológica.
+- **Qué no cambia:**
+  - la hipótesis HT-2, CA-4, el umbral y los denominadores;
+  - el escenario EX-09 y su numeración;
+  - los denominadores de HT-4 (EX-02…EX-08) y HT-5;
+  - la salida de S11-C3 y la de S11-C;
+  - la política de custodia.
+
+  La cita literal de la tesis que nombra a Gemini (§1.6.2) se conserva y queda en CT-55.
+- **Decisión abierta, identificada y no resuelta:** el manifiesto crítico de HT-5. Incluye
+  `adapters/gemini.py` y no el adaptador OpenAI. Cambiarlo altera el denominador de HT5-01 y exige
+  su propia versión metodológica antes de medir HT-5. No bloquea EX-09.
+- **Consecuencia técnica.** El harness sólo acepta `METHODOLOGY_VERSION = "S11A-v1.0"`, también al
+  validar runs cerrados. Ningún run bajo `S11A-v1.1`, ni EX-09 ni EX-10, puede iniciarse hasta que
+  la preparación haga que los runs nuevos registren `S11A-v1.1` sin dejar de validar los
+  históricos con `S11A-v1.0`.
+
+**Estado resultante.**
+
+```text
+P5: RESOLVED
+P6: RESOLVED
+P7: RESOLVED (EX-09/HT-2) · manifiesto HT-5: decisión abierta, no bloquea EX-09
+S11A: S11A_METHODOLOGY_FROZEN en S11A-v1.1
+S11-C2: CLOSED
+S11-C: OPEN
+EX-09 Gemini: PREPARED · NOT EXECUTED · NO OFFICIAL RESULT · HISTORICAL
+EX-09 OpenAI: DEFINED · NOT PREPARED · NOT EXECUTED
+```
+
+**Gate siguiente.** Antes de autorizar la ejecución de EX-09 deben cumplirse:
+
+1. **Integración:** integrar `feat/ai-openai-provider` en `main`, fijando `openai==3.19.2`.
+2. **Versión en el harness:** registrar `S11A-v1.1` en los runs nuevos sin dejar de validar los
+   históricos con `S11A-v1.0`.
+3. **Ejecutor:** adaptarlo a `s11-ex09-openai-v1` y crear su commit de preparación, con pruebas
+   locales sin red.
+4. **Preflight:** completarlo sin coste.
+
+La decisión sobre el manifiesto de HT-5 y la retención para reportes reales son gates aparte que no
+bloquean EX-09.
+
+### S11-C3 / EX-09 OpenAI — integración y preparación del ejecutor (26/09/2026)
+
+- **Baseline:** `main@440cba4492c94b6307f3dadbe9c34061ec006f84`. No se hizo ninguna llamada a
+  OpenAI ni a Gemini, no se usó ninguna credencial real, no se creó ningún `run_id` oficial y no
+  se generó evidencia experimental.
+- **Integración.** `d355ed6` hace un merge `--no-ff` de `feat/ai-openai-provider` y conserva
+  `1e71d06` y `9fd05d6`. No hubo conflictos: `main` sólo había cambiado documentos de S11.
+- **SDK.** `52d7ddd` fija `openai==3.19.2`, la versión instalada y verificada, junto con
+  `httpx2` 2.13.1, `pydantic` 2.13.5 y `jiter` 0.17.0. El proyecto no usa lockfile.
+- **`S11A-v1.1` en el harness (`c84b77d`).**
+  - `METHODOLOGY_VERSION` pasa a `S11A-v1.1` y es la versión que registra todo run nuevo.
+  - `S11A-v1.0` sigue siendo válida sólo para los 16 runs históricos, enumerados uno a uno
+    (C1 ×2 y EX-02…EX-08 con sus intentos). Ninguno es de EX-09.
+  - Cualquier otro valor se rechaza, incluidos los parecidos.
+  - `evidence.py` no cambió.
+  - Una prueba valida copias temporales de los 32 manifests históricos reales y comprueba que
+    los originales no se alteran.
+- **Protocolo y sesión (`1b7252b`).** `s11-ex09-openai-v1` queda implementado en
+  `ai_client_app/evaluation/openai_session.py` y reutiliza el dataset, el prompt, el parser y el
+  `compare_case` de CA-4. El adaptador expone `response.id`, `x-request-id` y el `model`
+  servido.
+- **Ejecutor (`f88c0a2`).** `ex09_openai.py`, el comando `s11_ex09_openai`, su lanzador, su
+  compose efímero y el runbook [`S11_EX09_OPENAI_EXECUTOR.md`](runbooks/S11_EX09_OPENAI_EXECUTOR.md).
+  El ejecutor Gemini (`ex09.py`) y su compose no se tocaron.
+- **Verificado en el SDK instalado:**
+  - con `max_retries=0` el bucle hace un solo intento (`range(max_retries + 1)`);
+  - el request id es la cabecera `x-request-id`;
+  - `timeout=60.0` se aplica **por fase** (conexión, lectura, escritura y pool), no como plazo
+    total. Por eso el ejecutor mide la duración total de cada caso e invalida el run si alguno
+    supera 60 s (matriz 2.2 de S11-A).
+- **Preflight local.** Se ejecutó en el contenedor efímero construido con el lanzador desde un
+  checkout limpio de `f88c0a2`, sin red y sin clave del proveedor. Resultado:
+  `READY_FOR_PROVIDER_PREFLIGHT`, con `ready_for_execution=false` y 0 llamadas.
+  - Pasaron: methodology, protocol-frozen, dataset, prompt, schema, sdk-version, request-shape
+    (las 28 peticiones reales construidas sin enviar), image-absence, timeout, retries y
+    environment-boundary (el contenedor no ve `.env` y las credenciales productivas están
+    vacías).
+  - `credential` y `provider-limits` quedan `NOT_EVALUATED` por diseño.
+  - `evidence-root` falló, correctamente, cuando el checkout de verificación estaba en `/tmp`
+    (tmpfs). Pasó con una raíz ext4, que es el sistema de archivos de `var/s11-runs`.
+
+```text
+EX-09 Gemini: PREPARED · NOT EXECUTED · HISTORICAL
+EX-09 OpenAI: PREPARED · NOT EXECUTED · READY FOR PROVIDER PREFLIGHT
+```
+
+**Pendiente antes de ejecutar:**
+
+1. **Working tree limpio.** El lanzador exige `git status --porcelain` vacío.
+   `docs/Cuestionario_Ciudadania_Activa_Anexo_G_v2.docx`, sin seguimiento, lo impide hoy.
+2. **Custodia atestada.** Esta preparación cambió cuatro fuentes atestadas por la custodia al
+   integrar OpenAI (`.env.example`, `settings/base.py`, `settings/test.py`,
+   `requirements/base.txt`) y dos al soportar `S11A-v1.1` (`constants.py`, `manifest.py`). La
+   atestación P02/P03 sigue siendo válida para su commit, pero no describe estas fuentes. Queda
+   para decisión del custodio si debe repetirse antes del run; la verificación no llama al
+   proveedor.
+3. **Preflight del proveedor, a cargo del operador:**
+   - las claves de custodia en la sesión;
+   - `limits_check` con el tier, los límites y el crédito observados;
+   - la clave temporal del run.
+
+### S11-C3 / EX-09 OpenAI — gate previo, preflight del proveedor y política de TPM (26/09/2026)
+
+En toda esta secuencia no se hizo ninguna llamada a OpenAI ni a Gemini, no se usó ninguna
+credencial real, no se creó ningún `run_id` y no se generó evidencia experimental.
+
+**Gate previo sobre `73b6b19`.**
+
+- **Working tree.** `docs/Cuestionario_Ciudadania_Activa_Anexo_G_v2.docx`, ajeno a S11, se aisló
+  fuera del checkout sin modificarlo ni versionarlo (SHA-256 `67c4f204…4c6e`). Vuelve a `docs/`
+  cuando termine EX-09.
+- **Re-atestación P02/P03.** Se repitió con el procedimiento oficial (`s11_verify_custody`
+  prepare → complete → attest, en contenedores separados), la misma clave de época
+  (`7205a04f93cc3da9`) y el ID `s11-custody-20260926-p02p03-v7`, ligado a `73b6b19`. Resultado:
+  `PASS`.
+  - Cambiaron 8 fuentes desde la v6, no 6: además de las cuatro de la integración, `constants.py`
+    y `manifest.py`, cambiaron `evidence.py` y `runtime.py` en `73e5037`. Ese cambio añade
+    `rolling_checksums=True` por defecto y no altera `S11-CUSTODY-v1.0`.
+  - La v6 (`5895329`) se conserva byte a byte como atestación histórica.
+- **Preflight del proveedor.** Quedó `NOT_DEMONSTRATED`: no había clave temporal, y el
+  `OPENAI_API_KEY` productivo no se usa. Además, el único registro de límites exigía `start`, es
+  decir, un `run_id`.
+
+**Preflight sin `run_id` (`7c76d8f`).** El subcomando `provider-preflight` es un gate
+administrativo previo a `start`. Repite el preflight local y recoge las atestaciones del operador
+leídas en la consola: tier, RPM, TPM, RPD (presente, ausente o desconocido), crédito, gasto y
+retención.
+
+- No crea `run_id`, manifest ni evidencia, no escribe en `var/s11-runs/` y no llama al proveedor.
+- La clave temporal es opcional y sólo se registra su huella.
+- Lo no atestado queda `UNKNOWN`.
+- El modelo queda `configured_model = gpt-6-luna` con `availability = NOT_DEMONSTRATED`.
+- El run conserva su propio `limits_check` custodiado.
+
+#### Decisión metodológica: política de TPM para EX-09 OpenAI (26/09/2026)
+
+**Problema.** TPM se mide en tokens, y antes del run sólo se conocen los bytes exactos de las 28
+entradas: 158 866 bytes UTF-8 en total y 5 715 como máximo por petición. No hay tokens de entrada
+exactos:
+
+- no hay tokenizador local del modelo;
+- el SDK fijado sí ofrece un contador oficial (`POST /v1/responses/input_tokens`, sin
+  generación), pero usarlo exige enviar el prompt de clasificación y los casos, que el preflight
+  prohíbe.
+
+Tampoco hay tope de salida: P6 no congela `max_output_tokens`, el parámetro que en la Responses
+API acota a la vez la salida visible y los tokens de razonamiento.
+
+**Decisión: `TPM policy = TPM_STRICT_DEMONSTRATED_MAXIMUM`.** TPM es `PASS` sólo si se demuestra
+que el consumo máximo posible de la sesión cabe en el límite. La regla `TPM_PRECHECK` se adopta
+como clasificación, y sólo `PASS` cuenta para el gate:
+
+| Estado | Condición |
+|---|---|
+| `UNKNOWN` | límite no atestado |
+| `NOT_DEMONSTRATED` | sin tokens de entrada exactos por petición, o cota máxima por encima del límite |
+| `FAIL` | una sola petición supera el límite: nunca cabe en un minuto |
+| `COMPATIBLE_MINIMUM_ONLY` | el mínimo cabe, pero la salida y el razonamiento no están acotados |
+| `PASS` | entrada total + 28 × `max_output_tokens` ≤ límite: la sesión entera cabría en un minuto |
+
+- **`FAIL` usa sólo el máximo por petición.** La entrada total no es un mínimo por minuto,
+  porque la sesión puede repartirse en varios minutos.
+- **Los bytes nunca se convierten en tokens.** El preflight los informa marcados
+  `used_in_tpm_evaluation: false`.
+
+**Por qué no la política de mínimo verificable:**
+
+1. Su condición previa, el consumo mínimo de entrada, no se obtiene sin una llamada que envíe el
+   prompt y el dataset.
+2. Aun cumplida, sólo demuestra que el mínimo cabe. Si abriera el gate, convertiría una
+   incertidumbre en garantía de capacidad. Si no lo abre, no aporta nada frente a la política
+   estricta.
+
+`COMPATIBLE_MINIMUM_ONLY` se conserva como estado informativo, nunca como `PASS`.
+
+**Efecto metodológico.** `S11A-v1.1` y `s11-ex09-openai-v1` no cambian y siguen congeladas: el
+dataset, el prompt, el esquema, CA-4, los 28 casos, la sesión única, el timeout y los reintentos
+son válidos. Pero bajo `s11-ex09-openai-v1` TPM sólo puede ser `UNKNOWN` o `NOT_DEMONSTRATED`,
+así que **EX-09 OpenAI no puede alcanzar `READY_FOR_EXECUTION` con este protocolo**. P6 es
+insuficiente para demostrar TPM.
+
+**Propuesta, no adoptada ni ejecutada.** Una versión `S11A-v1.2` con `s11-ex09-openai-v2`, que
+conservaría `S11A-v1.1` / `s11-ex09-openai-v1` como protocolo histórico congelado, en estado
+`PREPARED · NOT EXECUTED`. Tendría que fijar y justificar por escrito, antes de cualquier run y
+sin usar resultados de EX-09:
+
+- **`max_output_tokens = N`.** Una respuesta cortada termina `incomplete` → `provider_incomplete`
+  → run `NOT_DEMONSTRATED`, nunca `FAIL`. Por eso `N` cambia el tratamiento experimental y exige
+  una versión nueva.
+- **Tokens de entrada exactos.** Autorizar el contador del proveedor para las 28 peticiones como
+  paso previo al run, aceptando que envía el prompt y los casos sintéticos bajo la misma
+  retención.
+- **La contabilidad de TPM del proveedor.** Cómo cuenta las peticiones con tope de salida.
+
+Esa versión sólo se justifica si se decide ejecutar EX-09 con demostración de TPM.
+
+La alternativa que no cambia el protocolo es degradar TPM de criterio del gate a riesgo residual
+aceptado. Un 429 por TPM invalida el run (`rate_limit_429` → `NOT_DEMONSTRATED`) y no puede sesgar
+CA-4. Esta opción contradice el criterio vigente del gate («TPM compatible») y queda como decisión
+humana explícita, no adoptada aquí.
+
+**Estado resultante.**
+
+```text
+S11-C2: CLOSED
+S11-C: OPEN
+EX-09 Gemini: PREPARED · NOT EXECUTED · HISTORICAL
+EX-09 OpenAI: PREPARED · NOT EXECUTED
+Methodology: S11A-v1.1 · Protocol: s11-ex09-openai-v1
+P02/P03: PASS (s11-custody-20260926-p02p03-v7)
+TPM policy: TPM_STRICT_DEMONSTRATED_MAXIMUM
+Provider preflight: NOT_DEMONSTRATED
+READY_FOR_EXECUTION: FALSE
+```
+
+#### Decisión metodológica final sobre TPM: OPCIÓN B (26/09/2026)
+
+```text
+DECISION = B
+TPM policy = TPM_RESIDUAL_OPERATIONAL_RISK
+```
+
+Esta decisión sustituye a `TPM_STRICT_DEMONSTRATED_MAXIMUM`, que se conserva arriba como
+historial. Se toma **antes de cualquier observación**: nunca se hizo una llamada a OpenAI con
+`s11-ex09-openai-v1`, no existe ningún run de EX-09 y no hay ningún dato de consumo.
+
+**Qué criterio se reemplaza.** El criterio del gate «TPM compatible con el consumo previsto de la
+sesión». Se introdujo el 26/09/2026 en la especificación del gate previo y se implementó en
+`7c76d8f` y `8d65d30`. **No forma parte de la metodología congelada:**
+
+- `docs/tesis` no menciona TPM ni `max_output_tokens`;
+- P6 (resuelto) fija como «condiciones derivadas del propio protocolo» sólo RPM ≥ 28 y, si
+  existe, RPD ≥ 28. TPM sólo se atesta, y «cualquier 429 durante el run lo invalida»;
+- el `limits_result` congelado del run (`f88c0a2`) compara RPM, RPD, crédito y gasto, y registra
+  TPM sin compararlo.
+
+**Por qué no la Opción A (`S11A-v1.2` / `s11-ex09-openai-v2`).**
+
+- **A1, `max_output_tokens`.** Su único propósito sería hacer demostrable TPM: es exactamente la
+  motivación que A1 excluye. No hay base a priori para su valor:
+  - `justification` es texto libre sin `maxLength` (el tope de 1000 caracteres lo aplica el
+    parser después de generar);
+  - no se pueden usar resultados de EX-09;
+  - un piloto con los 28 casos sería contaminación.
+
+  Un tope alto no demuestra TPM y uno bajo trunca respuestas: `incomplete` →
+  `provider_incomplete` → run `NOT_DEMONSTRATED`. Además, revertiría una exclusión deliberada de
+  P6 («No se envían: … `max_output_tokens`») y rompería la paridad con la instancia Gemini/S8,
+  cuyo adaptador tampoco acota la salida.
+- **A2, razonamiento.** Según el SDK 3.19.2, `max_output_tokens` acota a la vez la salida visible
+  y los tokens de razonamiento. `reasoning.effort=low` no tiene un consumo documentado: un tope
+  puede agotarse razonando y dejar la respuesta incompleta, con una probabilidad desconocida a
+  priori.
+- **A3, tokens de entrada.**
+  - No hay tokenizador local del modelo.
+  - Los bytes no son tokens.
+  - Una estimación no es una demostración.
+  - El `usage` de una respuesta real sólo existe después: no puede justificar el preflight.
+  - El contador oficial (`POST /v1/responses/input_tokens`) exigiría exponer al proveedor el
+    prompt y los 28 casos antes del experimento.
+- **A4, contabilidad de TPM.** Aun con entrada exacta y un tope, `Σ entrada + 28 × tope ≤ TPM`
+  sólo demuestra algo si el limitador del proveedor cuenta exactamente esos tokens. Hay tres
+  cosas que no pueden verificarse desde el repositorio, el SDK ni las fuentes de P6:
+  - si usa estimaciones o reservas al admitir la petición;
+  - su ventana;
+  - su trato de los topes.
+
+  La Opción A no alcanza una demostración estricta: traslada el supuesto no verificable al
+  proveedor.
+- **A5, timeout.** 60 s no depende de TPM y no justifica ningún cambio.
+- **A6, comparabilidad.** El estímulo no cambia, pero el espacio de respuestas sí: aparece un
+  canal nuevo de invalidez por truncamiento. Cambiar el tratamiento experimental para satisfacer
+  un control administrativo invierte la prioridad metodológica.
+- **A7, CA-4.** No cambiaría, pero la Opción A añadiría invalidez sin ganar validez.
+
+**Por qué la Opción B no desplaza la meta.** El criterio retirado no protege la validez de CA-4,
+sólo la probabilidad de completar un run. Según las reglas congeladas de P6 y S11-C3, que esta
+decisión no cambia:
+
+1. Un 429, por TPM, RPM o `insufficient_quota`, es un error del proveedor (`rate_limit_429` o
+   `insufficient_quota`), nunca un resultado experimental.
+2. Un caso afectado nunca cuenta como desacuerdo de clasificación.
+3. El run queda `NOT_DEMONSTRATED`, nunca `FAIL` ni `PASS`.
+4. El denominador sigue siendo 28 y un caso inválido nunca lo completa.
+5. No hay reintentos: SDK 0, script 0, Celery no interviene.
+6. No hay reruns selectivos. Tras un `NOT_DEMONSTRATED` sólo cabe un intento nuevo con `run_id`
+   nuevo, los 28 casos y parámetros idénticos (S11-C3 D3.7), y todos los intentos se conservan y
+   se informan.
+7. El primer run válido es vinculante. Un intento nuevo sólo sigue a un run inválido, así que
+   nunca puede descartar un `PASS` o un `FAIL`.
+
+Un 429 por TPM depende del volumen y del ritmo de tokens, no del acierto de la clasificación. Y
+como invalida el run entero en lugar de excluir casos, el conjunto de runs válidos no se
+selecciona según el resultado. Retirar TPM del gate cambia sólo el riesgo operacional de un
+intento inválido, no lo que CA-4 mide.
+
+**Respuestas formales.**
+
+1. EX-09 puede ejecutarse sin modificar la metodología: `S11A-v1.1` y `s11-ex09-openai-v1`
+   nunca exigieron demostrar TPM.
+2. TPM no puede demostrarse estrictamente bajo `s11-ex09-openai-v1`, y tampoco bajo la Opción A
+   sin suponer la contabilidad del proveedor.
+3. La Opción A no conserva mejor la trazabilidad: abre una versión nueva, revierte una exclusión
+   explícita de P6 y añade un parámetro sin justificación a priori. La Opción B deja intactos
+   los hashes metodológicos y registra un solo cambio de regla del gate, con fecha y previo a
+   cualquier observación.
+4. La Opción B no cambia la validez del gate respecto de CA-4.
+5. La Opción B es la más defendible ante una revisión académica: no altera el tratamiento, se
+   adopta ex ante, restablece la coherencia con P6 y no presenta como garantía algo no
+   demostrado.
+6. Evidencia nueva: sólo la atestación del operador desde la consola. No hacen falta llamadas
+   ni conteo de tokens.
+7. Cambian este registro ahora y, en la implementación, `ex09_openai.py`, sus pruebas y el
+   runbook del ejecutor. No cambian `docs/tesis`, `S11A-v1.1`, el protocolo, la identidad del
+   run ni las fuentes atestadas por la custodia (P02/P03 v7 sigue vigente).
+8. Permanecen congelados:
+   - `S11A-v1.1` y todos los valores de P6, incluido que no se envía `max_output_tokens`;
+   - dataset, prompt y esquema, con sus SHA-256;
+   - CA-4 (denominador 28, `PASS` ≥ 24/28, `FAIL` ≤ 23/28);
+   - timeout de 60 s con la regla de duración total por caso, y reintentos 0;
+   - la sesión única y secuencial;
+   - `store=false`;
+   - las reglas de invalidez y D3.7;
+   - `S11-CUSTODY-v1.0` y `evidence.py`;
+   - las atestaciones v6 y v7, los runs y manifests históricos y el ejecutor Gemini.
+
+**Especificación de la regla `TPM_RESIDUAL_OPERATIONAL_RISK`** (a implementar; sin ejecución).
+
+- **Preflight.** El operador atesta el límite TPM de `gpt-6-luna` leído en la consola (el más
+  restrictivo entre organización y proyecto). El estado de TPM puede ser:
+  - `UNKNOWN`, si no se atesta: bloquea, porque falta la evidencia mínima;
+  - `RESIDUAL_RISK_ACCEPTED`, si se atesta: satisface el criterio de TPM del gate con
+    `compatibility = NOT_DEMONSTRATED` explícito.
+
+  TPM nunca se informa como `PASS`, «suficiente» ni «compatible». No se cuentan tokens, no se
+  compara con ninguna cota, y los bytes siguen informativos (`used_in_tpm_evaluation: false`).
+  Se retiran los estados `COMPATIBLE_MINIMUM_ONLY`, `FAIL` y `PASS` de TPM.
+- **Resto del gate sin cambios.**
+  - Preflight local `READY_FOR_PROVIDER_PREFLIGHT`.
+  - Credencial disponible.
+  - Crédito `sufficient`.
+  - RPM ≥ 28.
+  - RPD ≥ 28 o `ABSENT`.
+  - Gasto `absent` o `compatible`.
+  - Retención `standard` o `zero-data-retention`.
+  - La disponibilidad del modelo sigue `NOT_DEMONSTRATED` hasta la primera petición del run.
+- **Evidencia mínima antes de ejecutar.**
+  - La salida de `provider-preflight`, no persistida, con el valor de TPM, `tpm_policy` e
+    `identity_sha256`.
+  - El `limits_check` custodiado dentro del run, entre `start` y `run`. Ya exige TPM entero y no
+    cambia.
+- **Durante el run.** Nada cambia: un 429 se clasifica por caso, la sesión no se reintenta y el
+  run se decide al finalizar como `NOT_DEMONSTRATED`. La custodia es `S11-CUSTODY-v1.0`, con la
+  clase de error de cada caso en `ex09-openai-session.json`.
+- **Documentación de la implementación.**
+  - En `ex09_openai.py`: `TPM_POLICY`, la evaluación de TPM y la retirada de la comparación.
+  - Sus pruebas.
+  - El punto TPM del runbook.
+
+Hasta ese commit, el ejecutor sigue aplicando la política estricta, más restrictiva: sólo puede
+bloquear, nunca habilitar una ejecución que esta decisión no admita.
+
+**Estado resultante.**
+
+```text
+S11-C2: CLOSED
+S11-C: OPEN
+EX-09 Gemini: PREPARED · NOT EXECUTED · HISTORICAL
+EX-09 OpenAI: PREPARED · NOT EXECUTED
+Methodology: S11A-v1.1 · Protocol: s11-ex09-openai-v1
+TPM policy: TPM_RESIDUAL_OPERATIONAL_RISK (adoptada; implementación pendiente)
+Provider preflight: NOT_DEMONSTRATED
+READY_FOR_EXECUTION: FALSE
+```
+
+**Gate siguiente.** Implementar `TPM_RESIDUAL_OPERATIONAL_RISK` en el preflight del proveedor,
+con pruebas locales sin red, sin cambiar el protocolo ni el contrato del run.
+
+#### Implementación de `TPM_RESIDUAL_OPERATIONAL_RISK` (26/09/2026)
+
+Se implementó en el commit `fix(s11): implement TPM as residual operational risk`, sobre
+`cc17d17`, sin llamadas al proveedor ni credenciales reales.
+
+- **`provider-preflight`.**
+  - Con TPM atestado: `RESIDUAL_RISK_ACCEPTED`, con `compatibility = NOT_DEMONSTRATED`.
+    Satisface el criterio de TPM del gate sin escribirse nunca como `PASS`.
+  - Sin atestación: `UNKNOWN`, que bloquea.
+  - Un TPM cero, negativo o no numérico se rechaza como error del operador.
+  - Se retiraron `evaluate_tpm`, `COMPATIBLE_MINIMUM_ONLY` y toda comparación con tokens o
+    con `max_output_tokens`. Los bytes siguen siendo informativos.
+- **`limits_check` del run.** Sigue obligatorio y su `result` no cambia: sólo lo deciden RPM,
+  RPD, crédito y gasto. Ahora exige un TPM positivo y guarda `tpm_assessment` con la misma
+  interpretación.
+- **Sin cambios:** el protocolo, `S11A-v1.1`, CA-4, la custodia, `docs/tesis`, el ejecutor
+  Gemini y el tratamiento de un 429 durante el run. El caso queda con su clase de error, la
+  sesión sigue con los casos restantes sin reintentos y el run cierra `NOT_DEMONSTRATED`.
+
+```text
+TPM policy: TPM_RESIDUAL_OPERATIONAL_RISK · IMPLEMENTED
+Provider preflight: NOT_DEMONSTRATED
+READY_FOR_EXECUTION: FALSE
+```
+
+### S11-C3 / EX-09 OpenAI — ejecución oficial y reconciliación (26/09/2026)
+
+El run oficial de la instancia OpenAI de EX-09 se ejecutó y se finalizó el 26/09/2026. Este
+registro lo reconcilia con la documentación. Para hacerlo se releyó la evidencia custodiada sin
+modificarla: no se ejecutó ningún subcomando del ejecutor, no se hizo ninguna llamada a OpenAI ni a
+Gemini y no se creó ningún `run_id`. El run no es `R3`: la serie R pertenece a la instancia Gemini
+(P5).
+
+**Identidad del run** (manifest final y manifest de sesión):
+
+| Campo | Valor |
+| --- | --- |
+| Escenario / instancia | `EX-09`, instancia OpenAI |
+| `run_id` | `s11-a156a68c-c422-5e57-ae2b-3336d3b55e6c` |
+| Commit | `main@07ef681627b0589c1249cf5f7477aeafcb8857b3`, working tree limpio |
+| Metodología / protocolo | `S11A-v1.1` / `s11-ex09-openai-v1` |
+| Proveedor / modelo | OpenAI, Responses API / `gpt-6-luna`, el mismo `model` servido en los 28 casos |
+| `reasoning.effort` / `store` / reintentos | `low` / `false` / 0 |
+| Dataset | `s8-evaluation-v1`, 28 casos en una sola sesión, 0 imágenes enviadas |
+| Política de TPM | `TPM_RESIDUAL_OPERATIONAL_RISK` |
+| Inicio / fin del run (UTC) | `2026-09-26T22:10:21Z` / `2026-09-26T22:17:47Z` |
+
+**Fases, por separado.**
+
+- **Tres preflights distintos.**
+  1. **Preflight local, previo al run** (`preflight`). Gate sin `run_id` cuya salida no se
+     persiste.
+  2. **`provider-preflight` administrativo, previo al `run_id`.** Repite el preflight local y añade
+     las atestaciones de consola. Su salida no se persiste, por diseño. Según lo informado por el
+     operador, produjo `READY_FOR_EXECUTION`; la evidencia del run no permite verificarlo.
+  3. **Preflight persistido dentro del run**, inmediatamente antes de la sesión
+     (`ex09-openai-preflight.json`, `2026-09-26T22:13:16Z`): `result = PASS`,
+     `gate = READY_FOR_PROVIDER_PREFLIGHT` y `provider_calls = 0`. Registra además
+     `provider-limits = NOT_EVALUATED` y `ready_for_execution = false`. Son los valores del preflight
+     local por diseño: no evalúa los límites del proveedor, que dentro del run cubre el
+     `limits_check`, y su `ready_for_execution` es siempre `false`. No contradicen el resultado del
+     `provider-preflight` administrativo.
+- **`limits_check` custodiado** (`ex09-openai-limits-check-01.json`): `OK`. El operador atestó
+  desde la consola Tier 1, RPM 500, ningún RPD registrado, crédito disponible y límite de gasto no
+  alcanzado. El TPM atestado, 200 000, queda `RESIDUAL_RISK_ACCEPTED` con
+  `compatibility = NOT_DEMONSTRATED`, como fija la política. No es un `PASS` de TPM.
+- **Ejecución.** 28 casos intentados, 28 válidos y ninguna clase de error.
+  `execution_error = null`.
+- **Cierre del ciclo de la credencial** (huella `a0c050da916bc028`). `credential_removed`,
+  `access_revoked` y `cleanup` están registrados en `PASS`.
+- **Finalización.**
+  - **Persistido.** El manifest final quedó `COMPLETED` con `invalidity_reason = null`.
+    `ex09-openai-decision.json` registra `decision = FAIL`, CA-4 y `reasons = []`. Existen
+    `SHA256SUMS` y el sello `.s11-finalized`.
+  - **Salida operativa de `finalize`, no persistida.** `custody_verification = PASS` y
+    `custody_errors = []`; la salida también mostró `reasons = []`. El operador informó el código
+    de salida 0 (`FINALIZE_RC = 0`). `finalize` escribe el sello antes de esa verificación, que no
+    queda registrada en ningún artefacto.
+
+**Resultado** (`ex09-openai-decision.json`, con `decision = FAIL` y `reasons = []`):
+
+| Indicador | Campo persistido | Valor | Umbral | Papel |
+| --- | --- | --- | --- | --- |
+| HT2-01, CA-4 | `ca4_concordant_cases`, `ca4_concordance_pct`, `ca4_result` | 19/28 = 67,86 % | ≥ 85,00 % (al menos 24/28) | decisorio: **`FAIL`** |
+| HT2-02, categoría | `category_accuracy_pct` | 96,43 % | — | diagnóstico, sin veredicto |
+| HT2-02, institución | `institution_accuracy_pct` | 85,71 % | — | diagnóstico, sin veredicto |
+| HT2-02, prioridad | `priority_accuracy_pct` | 78,57 % | — | diagnóstico, sin veredicto |
+| HT2-03, `inconsistency` | `inconsistency_accuracy_pct` | 96,43 % | — | diagnóstico, sin veredicto |
+| HT2-03, concordancia estricta | `strict_concordance_pct` | 67,86 % | — | diagnóstico, sin veredicto |
+
+El artefacto guarda por separado `minimum_concordant_cases = 24` y `threshold_pct = 85.00`. No
+contiene los identificadores HT2-02 ni HT2-03. La correspondencia de cada campo diagnóstico con su
+indicador sigue `S11A_DICCIONARIO_INDICADORES.md`. HT2-02 y HT2-03 no tienen umbral y no reciben
+`PASS` ni `FAIL`. El artefacto no incluye la matriz de confusión booleana de HT2-03, y este registro
+no la reporta.
+
+**Interpretación.** `FAIL` es un resultado experimental válido, completo y custodiado: 19 de los 28
+casos son concordantes y CA-4 exige 24. **No es una invalidez ni un fallo técnico**: no falló la
+ejecución, el proveedor, la infraestructura ni el ejecutor. El manifest final persistido quedó
+`COMPLETED` con `invalidity_reason = null`, las 28 respuestas son válidas y `finalize` informó
+`custody_verification = PASS`. Por las reglas
+congeladas (P6, y punto 7 de la Opción B), este primer run válido es vinculante. No admite otro
+intento con `s11-ex09-openai-v1` ni cambiar parámetros después de ver el resultado. Este registro no
+formula la síntesis de HT-2.
+
+**Consecuencias.**
+
+- **S11-C3 (D1.2).** EX-09 ya tiene un run oficial válido, con la custodia verificada según la
+  salida de `finalize`. Su parte de la
+  salida de S11-C3 queda cubierta cuando esta reconciliación se registre en un commit documental.
+  S11-C3 sigue abierta por EX-10.
+- **Sin cambios de estado:** S11-C sigue abierto, S11-C2 sigue cerrado y la instancia Gemini de
+  EX-09 no cambia.
+- **`docs/tesis/` no se modifica aquí.** Los campos «Estado» de HT2-01…03 y las filas de EX-09 en
+  la matriz de `S11A-v1.1` conservan el texto congelado, anterior al run.
+- **El `.docx` del gate previo sigue fuera del checkout.** Su regreso a `docs/` no forma parte de
+  esta reconciliación.
+
+**Estado resultante.**
+
+```text
+S11-C2: CLOSED
+S11-C: OPEN
+S11-C3: OPEN (EX-10 pendiente)
+EX-09 Gemini: PREPARED · NOT EXECUTED · NO OFFICIAL RESULT · HISTORICAL
+EX-09 OpenAI: EXECUTED · FAIL
+  run_id: s11-a156a68c-c422-5e57-ae2b-3336d3b55e6c
+  CA-4: 19/28 = 67.86 % · threshold_pct: 85.00 · minimum_concordant_cases: 24
+  persisted: manifest COMPLETED · invalidity_reason null · reasons []
+  finalize output: custody_verification PASS · custody_errors []
+Methodology: S11A-v1.1 · Protocol: s11-ex09-openai-v1
+TPM policy: TPM_RESIDUAL_OPERATIONAL_RISK
+EX-10: pendiente, sin ejecutar
+```
+
+### Decisión G0 — protocolo de ejecución de EX-10 (26/09/2026)
+
+- **Autoridad:** Monty Emmanuel Pohl Amarilla, autor y custodio.
+- **Estado de la decisión:** redactada a partir del pre-gate de preparación de EX-10 y de la
+  propuesta de resolución que lo siguió. El autor y custodio la aprobó el 26/09/2026, con MD-10 en la
+  opción A. Entra en vigor con el commit documental que la incorpora.
+- **Baseline:** `main@8157235840a10c6ff30097ad3c10959d6a95ddfa`, con el working tree limpio. Durante
+  el pre-gate, la propuesta y este registro no se ejecutó ningún componente de S11, no se levantó
+  Docker, no se creó ningún `run_id`, no se generó evidencia y no se hizo ninguna llamada externa.
+- **Alcance:** fija, antes de cualquier observación, los parámetros de ejecución de EX-10 que S11-A
+  deja abiertos. Es la decisión que S11-C3 anunció para EX-10 («Requiere reglas propias», decisión
+  del 23/09/2026). No modifica `docs/tesis/`, `S11A-v1.1`, HT-1, sus umbrales, el dataset ni la
+  custodia, y no implementa ni prepara el ejecutor.
+
+**Antecedentes.**
+
+- S11-C3 D1: EX-10 se ejecuta en S11-C3, fuera del harness full-stack de C2 y con ejecutor propio.
+  Su salida exige un run oficial válido, con la custodia verificada y la reconciliación registrada
+  en un commit documental.
+- El pre-gate del 26/09/2026 dejó EX-10 en `BLOCKED_BY_METHODOLOGICAL_DECISION`. S11-A fija el
+  endpoint, el dataset, 10 × 5 = 50 requests, la barrera, la ventana de 60 s, el throttle real, el
+  worker con concurrencia 2, la IA fake, los umbrales y la regla HT-1. Deja libres diez puntos que
+  cambian lo que se mide o cómo se clasifica un run (MD-01…MD-10) y cuatro decisiones técnicas
+  (TD-01…TD-04).
+- Hechos verificados en lectura que esta decisión usa:
+  - el overlay S11 sirve el API con `runserver` de Django 5.2: multihilo, HTTP/1.1 y una cola de
+    `accept` de 10. Usa `config.settings.dev`;
+  - el repositorio no fija la concurrencia de gunicorn en producción: `heroku.yml` no pasa
+    `--workers` y no existe `WEB_CONCURRENCY`. Gunicorn no está en la imagen de desarrollo;
+  - la telemetría S11 persiste `http.finished` y `celery.queued` dentro del tiempo de la request, con
+    un `flock` global compartido con el worker y `fsync`;
+  - `process_report_classification` puede terminar sin excepción y sin persistir nada.
+    `AiClassification.model_name` registra el adaptador que clasificó;
+  - en los runs de C2, tras el reset con `flushdb`, las tareas `ai.classify_report` se encolaron,
+    empezaron y terminaron en el worker;
+  - la atestación P02/P03 v7 (`73b6b19`) sigue describiendo las fuentes atestadas de HEAD.
+
+**Identificador.** Protocolo `s11-ex10-v1`: escenario `EX-10`, metodología `S11A-v1.1`, dataset
+`s11-load-v1` (seed `20260921`, SHA-256
+`c6883b59dc861fb07fae730594c929fdd572a9ed71aee6d8b85c87f71ede0acb`). El ejecutor rechaza cualquier
+otro valor. La identidad del run registra además el SHA del commit de esta decisión.
+
+**Invariantes, que no cambian.**
+
+- 10 ciudadanos sintéticos verificados, un VU por ciudadano y 5 requests secuenciales por VU:
+  exactamente 50 requests.
+- Ventana de 60 s abierta por la barrera.
+- Throttle real `report_create = 5/hour`.
+- Un worker Celery no-eager con `--concurrency=2` y la IA fake `s11-deterministic-fake-v1`.
+- 0 reintentos del generador.
+- HT1-01 ≥ 50/min, HT1-02 P50 ≤ 800 ms, HT1-03 P99 ≤ 2 000 ms y HT1-04 estructural.
+- La regla HT-1, los veredictos `PASS`, `FAIL` y `NOT_DEMONSTRATED`, y `S11-CUSTODY-v1.0`.
+
+**Resumen de la resolución.**
+
+| ID | Decisión |
+| --- | --- |
+| MD-01 | Se emiten siempre los 50 requests. Los no iniciados antes de `window_end` se envían igual y nunca cuentan como éxito |
+| MD-02 | Plazo de 60 s por request. El timeout y los errores de transporte son fallos válidos, salvo que el entorno se haya alterado |
+| MD-03 | El denominador del throughput es la ventana de 60 s exactos |
+| MD-04 | El servidor es el `runserver` del overlay S11 atestado, sin cambios |
+| MD-05 | La telemetría sigue activa. La persistencia de `http.finished` y `celery.queued` sale del tiempo medido |
+| MD-06 | Regla booleana de HT1-04, más abajo |
+| MD-07 | Drenaje de hasta 300 s, como límite de vivacidad y no de rendimiento |
+| MD-08 | No hay ensayo full-stack previo |
+| MD-09 | El primer run válido es vinculante. Sólo se reintenta tras `NOT_DEMONSTRATED` |
+| MD-10 | Opción A, elegida por el autor: lazo cerrado sin pausa entre los requests de un VU |
+| TD-01 | Python 3.11, biblioteca estándar |
+| TD-02 | Contenedor efímero del servicio `backend` en la red Compose |
+| TD-03 | Conexión nueva por request, cuerpo precodificado, `t_start` antes del connect y `t_end` tras el último byte |
+| TD-04 | Histograma diagnóstico de 100 ms hasta 2 000 ms |
+
+**Entorno y servidor (MD-04).**
+
+- Se usa el stack del overlay S11 atestado sin modificarlo. El API es `python manage.py runserver
+  0.0.0.0:8000` con `config.settings.dev`. El worker es `celery -A config worker --loglevel=info
+  --concurrency=2`, con `S11_FAKE_AI_ENABLED=true`.
+- Los contenedores `backend` y `worker` se recrean para cada intento antes de `start`, de modo que
+  ningún proceso del sistema bajo prueba haya publicado tareas antes del reset.
+- El resultado mide el API del prototipo en el entorno experimental aislado. No es una medida de
+  capacidad de producción ni de SLA (DIC HT1-01 y HT1-02, «Limitaciones»). El servidor de desarrollo
+  (`runserver`) y `DEBUG=True` se declaran como limitación.
+
+**Generador (TD-01, TD-02 y TD-03).**
+
+- Python 3.11 de la imagen del backend, con biblioteca estándar: `http.client`, `socket`,
+  `threading`, `time.monotonic_ns` y `time.time_ns`. Sin bibliotecas HTTP de terceros, sin pool y con
+  0 reintentos.
+- Se ejecuta en un contenedor efímero del servicio `backend` (`docker compose … run --rm --no-deps
+  backend`) sobre la red Compose. El destino es `backend:8000`, resuelto a IP antes de la barrera.
+  La cabecera `Host` es `backend:8000`.
+- El mismo proceso hace el reset, el fixture y la carga. Los tokens nunca salen de su memoria.
+- Se crean 10 hilos (10 VU), uno por usuario del dataset, cada uno con sus 5 `request_key` en el
+  orden de `sequence_for_user`. En total, 50 requests.
+- Los 50 cuerpos multipart se precodifican antes de la barrera: bytes, `Content-Length` y boundary
+  determinista. Cabeceras: `Authorization: Bearer`, `X-S11-Run-ID`, `X-S11-Scenario-ID: EX-10`,
+  `X-S11-Request-ID` (determinista por `request_key`) y `Connection: close`.
+- Cada request abre una conexión TCP nueva. Cada ítem del plan admite exactamente un envío.
+- Los tokens se emiten después del reset y del fixture y se verifican localmente antes de la
+  barrera, con una vida restante de al menos 10 min.
+
+**Tiempos y ventana (MD-01 y MD-03).**
+
+- `t0` se toma con `monotonic_ns()` dentro de la acción de `threading.Barrier(10)`, que se ejecuta
+  una sola vez, cuando han llegado los 10 VU y antes de liberarlos. `window_end = t0 + 60 000 000 000
+  ns`: la ventana dura exactamente 60 s.
+- `t_start` es `monotonic_ns()` inmediatamente antes de abrir la conexión TCP. `t_end` es
+  `monotonic_ns()` inmediatamente después de leer el último byte del cuerpo de la respuesta. La
+  duración es `t_end − t_start`. En `t0`, `t_start` y `t_end` se registra también el UTC (`time_ns`).
+- Se emiten siempre los 50 requests. Uno que empieza después de `window_end` se envía igualmente,
+  lleva `started_in_window=false` y nunca cuenta como éxito para el throughput.
+
+**Ritmo (MD-10, opción A).** Lazo cerrado sin pausa: cada VU envía su siguiente request
+inmediatamente después de terminar el anterior, sea por respuesta, timeout o error.
+
+**Errores del sistema y del transporte (MD-02).** Son errores capturados del sistema bajo prueba o
+del transporte HTTP/red. Pueden producir un `FAIL` válido.
+
+- Cada request tiene un plazo total de 60 s desde `t_start`. Cada operación del socket usa el tiempo
+  restante y, al vencer, se cierra el socket.
+- Son fallos válidos, y el VU continúa sin reintentar:
+  - `timeout`;
+  - `connection_refused`, `connection_reset`, `broken_pipe`, `protocol_error` e `incomplete_read`;
+  - cualquier HTTP 4xx (incluidos 401, 403, 409 y 429);
+  - cualquier HTTP 5xx.
+- Estos errores sólo convierten el run en `NOT_DEMONSTRATED` si el entorno se alteró durante el run:
+  - la instancia de algún contenedor (ID o `StartedAt`) difiere entre la instantánea previa y la
+    posterior;
+  - el log del backend muestra un reload de `runserver` en el intervalo del run; o
+  - cambió el árbol o la huella del sistema bajo prueba.
+
+**Fallos del generador o del aparato de medida.** Dejan el run en `NOT_DEMONSTRATED`, nunca en
+`FAIL`: la muerte de un hilo, la barrera rota, una excepción interna no atribuible al transporte
+HTTP/red, `t_end < t_start`, la pérdida de resultados o la interrupción del operador después de
+`t0`.
+
+**Éxito, throughput y percentiles.**
+
+- **Éxito** (DIC HT1-01): HTTP 201, más estas condiciones:
+  - el cuerpo es `{id: UUID, status: "CREADO", reward: {impact_points: 20, credits: 20, status:
+    "PENDIENTE"}}`;
+  - existe un único `Report` con ese id, del usuario del VU, cuyo `ReportMedia.file_hash` es el SHA
+    de la imagen del plan;
+  - existe un único `REPORT_CREATED` +20/+20 `PENDIENTE`.
+- **Postcondición:** cada éxito tiene exactamente un `AuditLog report.created`.
+- **Throughput:** `N_ok_window = |{éxito ∧ t_end ≤ window_end}|`, dividido por 1 min (el
+  denominador es la ventana de 60 s exactos). HT1-01 se cumple si `N_ok_window ≥ 50`.
+- **Histograma** (TD-04, sólo diagnóstico): intervalos [a, b) en ms, 20 de 100 ms hasta 2 000; luego
+  [2 000, 5 000), [5 000, 10 000), [10 000, 60 000) y [60 000, ∞). Los fallos se cuentan aparte por
+  clase.
+
+**Estimador de percentiles (decisión explícita del protocolo).** S11-A fija el método nearest-rank
+para HT1-02 y HT1-03, pero no terminaba de especificar el procedimiento de cálculo. Distintas
+convenciones de percentil pueden dar resultados distintos en casos de borde, así que `s11-ex10-v1`
+lo congela:
+
+- El conjunto son las duraciones, en ns, de todos los HTTP 201 del run, dentro o fuera de la
+  ventana, ordenadas de menor a mayor.
+- P50 y P99 usan nearest-rank. Para N > 0:
+  - P50 es el elemento ordenado en el rango `ceil(0.50 × N)`;
+  - P99 es el elemento ordenado en el rango `ceil(0.99 × N)`;
+  - el índice es base 1.
+- Sin interpolación y sin descartar outliers.
+- Si N = 0, P50 y P99 son `NOT_COMPUTABLE`, y HT1-02 y HT1-03 no se cumplen.
+- HT1-02 se cumple si P50 ≤ 800 000 000 ns; HT1-03, si P99 ≤ 2 000 000 000 ns.
+- No requiere `S11A-v1.2`: fija el procedimiento de cálculo sin cambiar el método, el conjunto ni los
+  umbrales.
+
+**HT1-04 (MD-06).**
+
+```text
+S = { intentos con éxito }  (incluye 201 tardíos)
+CFG_ASYNC = task_always_eager=False (API y worker) ∧ broker=redis://redis:6379/11
+          ∧ un nodo worker con pool max-concurrency=2 (antes y después)
+          ∧ S11_FAKE_AI_ENABLED=true en el worker
+HT1_04_PASS = CFG_ASYNC ∧ ∀a∈S:
+    un único celery.queued(a): task_name=ai.classify_report, task_id≠∅, process=API(a)
+  ∧ queued.db_transaction_open=false
+  ∧ report(a).created_at ≤ queued.enqueue_at ≤ http(a).finished_at
+  ∧ un único celery.started con el mismo task_id, process≠API(a), start_at ≥ enqueue_at
+  ∧ un único celery.finished con el mismo task_id, status=finished, celery_state=success
+  ∧ un único AiClassification del reporte con model_name=s11-deterministic-fake-v1
+  ∧ estado final CLASIFICADO ∧ un único audit ai.report.classified
+```
+
+- Nunca se compara `task_end` con `http_end`.
+- Tras el drenaje, si falta un evento pero una evidencia independiente prueba el hecho, el run es
+  `NOT_DEMONSTRATED`. La evidencia independiente puede ser `started` con ese `request_id`, la fila
+  `AiClassification` o la tarea en el broker.
+- Si el hecho no ocurrió, el resultado es `FAIL`. Son casos de hecho no ocurrido:
+  - la tarea no se procesó;
+  - `celery.failed`;
+  - `success` sin `AiClassification`;
+  - `db_transaction_open=true`;
+  - la tarea se ejecutó en el proceso del API;
+  - el encolado falló, según el log del backend.
+- Una violación de las relaciones temporales con los indicadores estructurales correctos da
+  `NOT_DEMONSTRATED`.
+- La latencia de cola (`start_at − enqueue_at`) y la duración de las tareas se informan sin umbral.
+
+**Drenaje (MD-07).**
+
+- Empieza en `max(window_end, fin del último intento)`. Durante la ventana no se inspecciona nada.
+- Sondea cada 1 s, sólo en lectura: la base y los `celery.jsonl` del run.
+- Termina cuando todas las creaciones de S tienen estado terminal, o a los 300 s.
+- Al terminar se toma una instantánea de `LLEN celery` y de `inspect active/reserved`.
+- Los 300 s son un límite de vivacidad y no un umbral de rendimiento.
+
+**Telemetría (MD-05).**
+
+- La telemetría `run_id` sigue activa.
+- `http.finished` y `celery.queued` se capturan en los mismos instantes que hoy, pero se persisten
+  después de que el servidor haya escrito la respuesta completa. Eso ocurre en el camino de cierre de
+  la respuesta, también ante errores.
+- Todos los eventos añaden `process {hostname, pid}`. `celery.queued` añade `db_transaction_open`,
+  que vale `in_atomic_block ∨ ¬autocommit` en el momento de publicar.
+- Un fallo de volcado se registra con nivel `ERROR`. La reconciliación lo detecta como evento
+  ausente.
+- `evidence.py` y el formato `s11-technical-event-v1` no cambian, salvo esos campos añadidos. Los
+  runs de C2 no se reinterpretan.
+
+**Validez.** El run es `NOT_DEMONSTRATED`, con `invalidity_reason`, si falla cualquiera de estas
+condiciones:
+
+1. HEAD es el commit de preparación, con el árbol limpio antes y después, y las huellas del sistema
+   bajo prueba y del aparato coinciden con la identidad.
+2. La identidad del protocolo coincide con esta decisión.
+3. El SHA del dataset y el del plan coinciden.
+4. Las instantáneas de contenedores previa y posterior son iguales; no hay reload de `runserver`;
+   hay un worker con concurrencia 2 antes y después; eager=false; fake activo; throttle `5/hour`.
+5. El pre-check del reset tiene conteos cero: reportes, rewards, auditoría de reportes,
+   `AiClassification`, claves de throttle y `LLEN celery = 0`.
+6. Hay 10 usuarios `APROBADO` y los tokens se verificaron.
+7. Hay exactamente 50 intentos, con los `request_id` del plan, un envío por ítem y tiempos o clase de
+   error registrados.
+8. Hay un único `http.finished` por cada intento con respuesta, y ninguno con un `request_id` ajeno.
+9. No hubo fallos internos del generador o del aparato de medida después de `t0`: muerte de hilo,
+   barrera rota, excepción interna no atribuible al transporte HTTP/red, pérdida de resultados o
+   interrupción del operador. Los errores del sistema o del transporte capturados (MD-02) no
+   invalidan el run.
+10. Todos los `Report` y movimientos de ledger de los usuarios del fixture se correlacionan con el
+    plan por id o por hash.
+11. Los artefactos están completos, la custodia verifica (SHA y HMAC) y no hay secretos ni PII.
+12. El cleanup se ejecutó y se registraron los conteos posteriores.
+
+**Decisión.**
+
+- `NOT_DEMONSTRATED`: falla alguna condición de validez, o HT1-04 no puede evaluarse por falta de
+  evidencia. El manifest queda `INVALID`.
+- `PASS`: HT1-01, HT1-02, HT1-03 y HT1-04 se cumplen, junto con la postcondición de auditoría. El
+  manifest queda `COMPLETED`.
+- `FAIL`: en cualquier otro caso de run válido, incluidos los errores del sistema o del transporte
+  capturados. El manifest queda `COMPLETED`.
+- La decisión del run usa la plantilla §7.3. La síntesis de HT-1 corresponde a S11-D.
+
+**Reintentos y abandono (MD-09).**
+
+- El primer run válido, `PASS` o `FAIL`, es vinculante: no se repite, no se cambian parámetros y no
+  hay reruns selectivos.
+- Tras un `NOT_DEMONSTRATED` se admite un intento nuevo, con `run_id` y nonce nuevos, los 50 requests
+  y este mismo protocolo.
+- Entre intentos sólo puede cambiar el aparato de medida, con commit y pruebas. La huella del sistema
+  bajo prueba no puede cambiar bajo `s11-ex10-v1`; cambiarla exige una versión nueva del protocolo,
+  decidida antes del intento.
+- El abandono sólo es posible antes de `t0`.
+- Todos los intentos se conservan y se informan.
+- Huella del sistema bajo prueba: SHA-256 de la lista ordenada `ruta sha-blob` que da
+  `git ls-tree -r` sobre `backend/`, `infra/docker-compose.yml` e `infra/docker-compose.s11.yml`,
+  con estas exclusiones:
+  - se excluye `backend/apps/experiments_app/`, pero se incluyen `apps.py`, `ai_runtime.py` y
+    `synthetic_ai.py`;
+  - se excluyen `backend/scripts/s11_*` y toda ruta con un segmento `tests`.
+
+**Ensayo y preparación (MD-08).**
+
+- Ningún `POST /api/v1/reports/` contra el stack S11 fuera de un run oficial.
+- Se admiten:
+  - los tests offline, con sockets bloqueados o transporte inyectado y custodia en
+    `.s11-test-artifacts/`;
+  - el preflight de sólo lectura: health, `inspect ping/stats/conf`, `compose ps/inspect` y conteos.
+
+**Custodia.** `S11-CUSTODY-v1.0`, sin cambios.
+
+| Artefacto | Clase |
+| --- | --- |
+| `run-manifest.initial.json`, `run-manifest.final.json` | INTERNAL |
+| `ex10-preflight.json`, `ex10-environment-snapshot-{pre,post}.json` | INTERNAL |
+| `ex10-reset-precheck.json`, `ex10-drain.json`, `ex10-cleanup.json` | INTERNAL |
+| `logs/EX-10/http.jsonl`, `logs/EX-10/celery.jsonl` | INTERNAL |
+| `ex10-service-logs.txt` y `ex10-stderr.txt`, redactados | INTERNAL |
+| `ex10-custody-verification.json`, verificación previa al sello | INTERNAL |
+| `ex10-fixture.json`: aliases e IDs, nunca tokens ni HMAC | EXPERIMENTAL |
+| `ex10-load-plan.json`: 50 ítems, sin imágenes ni coordenadas | EXPERIMENTAL |
+| `ex10-load-raw.json`: 50 registros de intento | EXPERIMENTAL |
+| `ex10-reconciliation-export.json` y `ex10-reconciliation.json`, sin coordenadas, HMAC ni imágenes | EXPERIMENTAL |
+| `ex10-ht1-calculation.json`, con el histograma | EXPERIMENTAL |
+| `ex10-decision.json` | EXPERIMENTAL |
+
+Se cierran con `SHA256SUMS`, `artifacts.jsonl` y su `.hmac`, y el sello `.s11-finalized`. No se
+persiste nada `SENSITIVE` ni `SECRET`. El lanzador del host toma las instantáneas y los logs de
+servicio y los registra en el run.
+
+**Qué no cambia de S11-A.** `S11A-v1.1` sigue vigente sin modificaciones: la hipótesis HT-1;
+HT1-01…04 y sus umbrales; la población de 10 × 5 = 50; el dataset y su SHA; la regla HT-1 y las de
+síntesis; los veredictos; la ficha y las matrices de EX-10; el protocolo común §6; la política de
+custodia; `docs/tesis/`.
+
+**Versionado.** No requiere `S11A-v1.2` y no se crea. Las resoluciones fijan parámetros que S11-A
+deja libres, resuelven tensiones textuales a favor del texto literal (MD-01 y MD-03), fijan el
+procedimiento de cálculo de los percentiles u operacionalizan el «predicado estructural» de HT1-04
+con las fuentes que S11-A ya enumera. No cambian hipótesis, dataset, umbral, población ni regla
+decisoria.
+
+**Estado resultante.**
+
+```text
+S11-C2: CLOSED
+S11-C:  OPEN
+S11-C3: OPEN (EX-10 pendiente)
+EX-09 OpenAI: EXECUTED · FAIL · reconciliado
+EX-10:  DEFINED · NOT PREPARED · NOT EXECUTED
+Protocol: s11-ex10-v1 · Methodology: S11A-v1.1
+G0: APPROVED · CLOSED
+Next gate: EX-10 implementation/preparation
+```
+
+**Criterio de salida de G0.** G0 queda cerrado con este commit documental: registra la aprobación
+del autor, incluida MD-10 en la opción A, sin cambios en código, tests, infra, `docs/tesis/` ni
+`var/s11-runs/`.
+
+**Gate siguiente: preparación técnica.** Los commits del aparato con sus pruebas offline, el
+preflight local en `READY` y, si alguna fuente atestada cambia, la re-atestación de P02/P03. Tras
+ella, EX-10 pasa a `PREPARED · NOT EXECUTED`.
+
+### Incidente de exposición de secretos custodiales (26/09/2026)
+
+- **Registro:** `docs/runbooks/S11_SECRET_EXPOSURE_INCIDENT_20260926.md`.
+- **Estado:** `INCIDENT OPEN / ROTATION NOT EXECUTED`.
+- **Hecho:** durante la validación de desarrollo de la fase 1 de EX-10, `docker compose config`
+  resolvió `env_file: ../.env` e imprimió en la sesión del agente los valores de:
+  - `S11_CUSTODY_HMAC_KEY`;
+  - `S11_DOCUMENT_HMAC_SECRET`;
+  - `DJANGO_SECRET_KEY`.
+- **Sin uso experimental:** no hubo run, POST, llamada a proveedores ni evidencia nueva.
+- **Decisión del autor:**
+  - nueva época custodial; la época `7205a04f93cc3da9` queda `COMPROMISED / CLOSING`;
+  - sin re-firma de la evidencia histórica;
+  - verificación read-only pendiente, con la clave antigua y la línea base parcial de
+    `1693d0a`;
+  - archivo de la clave antigua fuera del entorno;
+  - rotación de los tres secretos; `DATABASE_URL` y la clave pública no rotan;
+  - P02/P03 `v8` obligatoria tras la rotación; C1 no se repite sólo por ella.
+- **Bloqueo:** EX-10 queda bloqueado hasta cerrar el incidente.
+
+```text
+Incidente: OPEN · rotación NO ejecutada
+Época custodial 7205a04f93cc3da9: COMPROMISED / CLOSING · verificación read-only pendiente
+EX-10: DEFINED · NOT PREPARED · NOT EXECUTED · BLOQUEADO por el incidente
+```
+
+### Verificación read-only de la época `7205a04f93cc3da9` (27/09/2026)
+
+- **Registro:** `docs/runbooks/S11_SECRET_EXPOSURE_INCIDENT_20260926.md`, §10.
+- **Ejecución:** una sola, el 27/09/2026 entre las 18:14:06 y las 18:14:08 UTC, con el comando del
+  runbook §5.3.
+- **Resultado:** `PASS_WITH_UNANCHORED_HISTORICAL`, código 4.
+  - 30 unidades: 21 `PASS`, 0 `FAIL`, 0 `INCOMPLETE`, 5 `HISTORICAL_ANCHORED` y
+    4 `HISTORICAL_UNANCHORED`.
+  - EX-09 OpenAI en `PASS`; `p02p03-v3` leída.
+- **Trazabilidad:**
+  - reporte fuera del repositorio, SHA-256
+    `9b3f17a2fa99e3b27497130c9ac212a7a39ed8df9c2de0d924aac6b9f88ff40b`;
+  - verificador en `0d93f6a`;
+  - línea base `1693d0a`.
+- **Decisión del autor:** se aceptan como `RESIDUAL_LIMITATION_ACCEPTED` y `NON_EVIDENTIARY` las
+  unidades `HISTORICAL_UNANCHORED` `s11-custody-20260921-p02p03-v1` a `-v4`.
+  - Se conservan sin modificar ni re-firmar.
+  - No pasan a `PASS` ni se consideran autenticadas.
+- **Rotación:** pendiente, según la secuencia del runbook §7. No se rotó ningún secreto.
+
+```text
+Incidente: OPEN · rotación NO ejecutada
+Época custodial 7205a04f93cc3da9: VERIFIED / CLOSING · RESIDUAL HISTORICAL LIMITATION ACCEPTED · ROTATION PENDING
+EX-10: DEFINED · NOT PREPARED · NOT EXECUTED · BLOCKED por el incidente de custodia
+```
+
+### Rotación y nueva época custodial `587966006e85202a` (27/09/2026)
+
+- **Registro:** `docs/runbooks/S11_SECRET_EXPOSURE_INCIDENT_20260926.md`, §10.7–§10.13.
+- **Secretos rotados localmente** (sólo nombres):
+  - `S11_CUSTODY_HMAC_KEY`;
+  - `S11_DOCUMENT_HMAC_SECRET`;
+  - `DJANGO_SECRET_KEY`;
+  - `OPENAI_API_KEY`: clave local y de Heroku nuevas, la antigua eliminada y la release v15
+    saludable.
+- **`DJANGO_SECRET_KEY` de Heroku:** no se rotó. Era independiente de la clave local
+  (`HEROKU_DJANGO_SECRET_DISTINCT=YES`).
+- **Clave custodial antigua:** archivada fuera del entorno operativo.
+- **Fuentes atestadas:** el commit `8e68d78` añade a `ATTESTED_SOURCE_PATHS` el verificador
+  read-only y sus pruebas. Pasan a ser 28.
+- **P02/P03 `v8`** (`s11-custody-20260927-p02p03-v8`): **`PASS`**.
+  - Huella `587966006e85202a`; clave pública `8c1e5a8ad7390f4d`.
+  - HMAC válido en los cinco registros; backup y restore con `sha256_match=true`.
+  - Canario destruido en las tres raíces; sin transacciones residuales.
+  - `EXTENDED_SECRET_HITS=0`.
+- **Instantánea previa: `PRE_SNAPSHOT_INCOMPLETE`**, porque `find` devolvió 1 en `p02p03-v3`. La
+  integridad histórica se comprobó contra el reporte `9b3f17a2…`: `PASS`, con 328 archivos intactos.
+- **C1:** no se repitió.
+- **EX-10:** vuelve a la implementación. Los dos archivos de la fase 1 siguen sin seguimiento y con
+  sus SHA-256 originales.
+
+```text
+Incidente: OPEN · TECHNICAL REMEDIATION COMPLETE · TRANSCRIPT DELETION PENDING
+Época 7205a04f93cc3da9: CLOSED / RETIRED (sólo verificación histórica)
+Época 587966006e85202a: ACTIVE · P02/P03 v8 PASS
+C1: no repetido
+G0: APPROVED / CLOSED
+EX-10: READY_TO_IMPLEMENT · NOT PREPARED · NOT EXECUTED
+S11-C3: OPEN
+S11-C: OPEN
+```
+
+### Cierre del incidente de exposición de secretos (27/09/2026)
+
+- **Registro:** `docs/runbooks/S11_SECRET_EXPOSURE_INCIDENT_20260926.md`, §10.14.
+- **Transcripción afectada:** el operador eliminó el JSONL de la sesión y su directorio
+  `subagents/` el 27/09/2026 a las 21:42:06 UTC, con el script preparado para el incidente. La
+  sesión no se volvió a abrir y no se eliminó ninguna otra.
+- **Borrado lógico:** el borrado físico seguro en SSD no está demostrado
+  (`PHYSICAL_SECURE_ERASE_PROVEN=NO`). El control efectivo es la rotación de todos los secretos
+  activos identificados.
+- **EX-10:** los dos archivos de la fase 1 siguen sin seguimiento, fuera de `v8`, sin ejecutar y con
+  sus SHA-256 originales.
+
+```text
+Incidente: CLOSED · TECHNICAL REMEDIATION COMPLETE · TRANSCRIPT LOGICAL DELETION COMPLETE
+Borrado físico seguro en SSD: NOT DEMONSTRATED · control efectivo: SECRET ROTATION
+Época 7205a04f93cc3da9: CLOSED / RETIRED (sólo verificación histórica)
+Época 587966006e85202a: ACTIVE · P02/P03 v8 PASS
+C1: no repetido
+G0: APPROVED / CLOSED
+EX-10: READY_TO_IMPLEMENT · NOT PREPARED · NOT EXECUTED
+S11-C3: OPEN
+S11-C: OPEN
+```
+
+### Decisión G0-A1 — aclaraciones operativas de transporte y clasificación de EX-10 (27/09/2026)
+
+- **Autoridad:** Monty Emmanuel Pohl Amarilla, autor y custodio.
+- **Estado de la decisión:** `APPROVED / CLOSED`. Es un addendum de la Decisión G0
+  (`1693d0ae562bfe777c496b616c9f8c8d5fa8a591`) y entra en vigor con el commit documental que lo
+  incorpora.
+- **Origen:** después de aprobar G0, la implementación de la Fase 1 de EX-10 y sus tests offline
+  encontraron casos de frontera. Su interpretación debía quedar congelada antes del primer commit
+  técnico. El autor fijó las decisiones A y B y confirmó C a E el 26/09/2026, durante la
+  implementación, y los dos archivos de la Fase 1 ya las aplican.
+- **Baseline:** `main@1adc0437a9f9de50a02a67ac6e906c90049bb5f0`. Los dos archivos de la Fase 1
+  siguen sin seguimiento y sin modificar. No se ejecutó EX-10 ni Docker, no se creó ningún `run_id`
+  y no se generó evidencia.
+- **Alcance:** operacionaliza casos que G0 ya distinguía entre fallos válidos del sistema y fallos
+  del aparato de medida. No cambia la población, el dataset, los umbrales, HT1-01…HT1-04, la regla
+  HT-1, los veredictos `PASS` / `FAIL` / `NOT_DEMONSTRATED` ni `s11-ex10-v1`.
+
+**Decisión A — familia de errores de transporte.** La lista de errores de G0 (MD-02) no es
+exhaustiva. Un error es un fallo válido del request (`VALID_REQUEST_FAILURE`) si se cumplen todas
+estas condiciones:
+
+1. ocurre durante una operación de transporte del request: `connect`, `send` o `receive`;
+2. puede atribuirse inequívocamente a HTTP, socket o red;
+3. el intento conserva `request_id`, `t_start`, la fase del error y la clase de error saneada;
+4. el entorno y el aparato siguen válidos:
+   - destino y protocolo correctos;
+   - instancias de contenedores sin cambios, sin reload y con el árbol sin cambios;
+   - sin fallo interno del generador.
+
+- **Ejemplos**, sin constituir una enumeración cerrada: timeout, connection refused, connection
+  reset, connection aborted, broken pipe, remote disconnected, incomplete read, bad status line,
+  protocol error, host unreachable, network unreachable, host down, network down y network reset.
+- **Efecto:** pueden contribuir a un run válido que termine en `FAIL`.
+- **Fallo del aparato.** Una excepción no se convierte en `FAIL` por defecto si:
+  - no es atribuible inequívocamente a HTTP/red;
+  - la causan recursos o estado local del generador; o
+  - es desconocida.
+
+  Se clasifica como `APPARATUS_FAILURE` y el run queda `NOT_DEMONSTRATED`. Ejemplos: `EMFILE`,
+  `ENFILE`, `ENOBUFS`, `EADDRNOTAVAIL`, `EINVAL`, `PermissionError`, una excepción interna de Python
+  no atribuible al transporte, la muerte de un hilo, la barrera rota y la pérdida de resultados.
+- **Registro:** cada error de transporte registra `error_phase` (`connect`, `send` o `receive`).
+  El mensaje original no se persiste si pudiera contener datos sensibles.
+
+**Decisión B — precedencia de `NOT_DEMONSTRATED`.** Un `FAIL` experimental vinculante exige un run
+válido, completo, reconciliable y enteramente evaluable. Si en cualquier parte requerida del run hay
+una causa que impide demostrar la validez o un criterio decisorio, el resultado global es
+`NOT_DEMONSTRATED`, aunque otra parte demuestre un hecho suficiente para `FAIL`.
+
+```text
+1. APPARATUS_INVALID · EVIDENCE_MISSING · INCONSISTENT que impida demostrar el criterio
+   · pérdida de correlación · evidencia necesaria incompleta     → NOT_DEMONSTRATED
+2. Run válido y evaluable, con uno o más criterios fallidos       → FAIL
+3. Run válido y evaluable, con todos los criterios cumplidos      → PASS
+```
+
+Ejemplos congelados:
+
+| Caso | Resultado |
+| --- | --- |
+| `FACT_FAILED` + `EVIDENCE_MISSING` | `NOT_DEMONSTRATED` |
+| `FACT_FAILED` + `INCONSISTENT` | `NOT_DEMONSTRATED` |
+| Varios `FACT_FAILED`, sin pérdida de evidencia | `FAIL` |
+| HT1-01 fallido + postcondición de auditoría no demostrable | `NOT_DEMONSTRATED` |
+| HT1-01, HT1-03 y HT1-04 fallidos, con evidencia completa | `FAIL` |
+
+La precedencia evita convertir evidencia incompleta en un `FAIL` vinculante y preserva la política
+de reintentos de MD-09:
+- el primer `PASS` o `FAIL` válido es vinculante;
+- tras un `NOT_DEMONSTRATED` se admite un intento completo nuevo, con `run_id` nuevo y el mismo
+  protocolo.
+
+**Decisión C — status HTTP final distinto de 201.** Una respuesta HTTP final, completa y
+correctamente observada con status distinto de 201 es un fallo válido del request si el aparato
+sigue válido.
+
+- **Incluye:**
+  - un 1xx final, no informacional o no esperado;
+  - un 2xx distinto de 201;
+  - 3xx, 4xx y 5xx;
+  - un status no estándar observado correctamente.
+- **Registro:** se registra la familia: `http_1xx`, `http_2xx`, `http_3xx`, `http_4xx`, `http_5xx`
+  o `http_nonstandard_status`.
+- **Efecto:**
+  - no es `NOT_DEMONSTRATED` sólo por su status;
+  - no cuenta como éxito reconciliado;
+  - puede llevar a `FAIL` por HT1-01 o por las demás reglas.
+
+**`100 Continue`.** Es una respuesta intermedia informativa, no la respuesta final que clasifica el
+intento.
+
+- El generador no envía `Expect: 100-continue`.
+- Si el servidor emite un `100 Continue` intermedio, el transporte lo consume y la clasificación usa
+  la respuesta final:
+  - `100 → 201` se evalúa como respuesta final 201;
+  - `100 → 500` se evalúa como respuesta final 500.
+
+**Decisión D — conjunto de P50/P99.** Contiene todas las respuestas HTTP finales 201 que se leyeron
+completamente y tienen `t_start`, `t_end` y `duration_ns` válidos. Da igual que terminen dentro o
+fuera de `window_end` y que el cuerpo sea contractual o no.
+
+| Respuesta | P50/P99 | Éxito de HT1-01 |
+| --- | --- | --- |
+| 201 completo, cuerpo contractual | Entra | Puede ser `HTTP_ACCEPTED`; es éxito sólo si se reconcilia |
+| 201 completo, cuerpo no contractual | Entra | No es éxito reconciliado; contribuye a un run válido que puede terminar en `FAIL` |
+
+- El conjunto de percentiles no equivale al conjunto de éxitos reconciliados.
+- Se mantiene el estimador de G0: nearest-rank, base 1, sin interpolación y sin eliminar outliers.
+
+**Decisión E — respuesta 201 truncada.** Un HTTP 201 cuyo cuerpo no puede leerse por completo:
+
+- conserva el status 201 sólo como diagnóstico;
+- no tiene un `t_end` de respuesta completa y no entra en P50 ni P99;
+- se clasifica como fallo de transporte o de protocolo, por ejemplo incomplete read, reset durante el
+  cuerpo o timeout durante el cuerpo;
+- no se reintenta;
+- con el aparato válido es un fallo válido y puede llevar a `FAIL`; con el aparato inválido, el run
+  es `NOT_DEMONSTRATED`.
+
+**Seguridad y datos.** Estas aclaraciones no autorizan a persistir:
+- mensajes originales de excepciones;
+- tokens ni la cabecera `Authorization`;
+- cuerpos multipart, imágenes ni coordenadas;
+- secretos ni valores del `.env`.
+
+Los errores se persisten con clases y detalles saneados.
+
+**Relación con G0.**
+
+- G0 sigue `APPROVED / CLOSED`; este addendum no lo reemplaza.
+- `s11-ex10-v1` no cambia.
+- `S11A-v1.1` sigue vigente. No se requiere `S11A-v1.2` y no se crea: igual que G0, el addendum no
+  cambia hipótesis, dataset, umbrales, población ni regla decisoria.
+- El addendum forma parte de la identidad documental del protocolo. La implementación registra el
+  commit de G0 (`1693d0ae562bfe777c496b616c9f8c8d5fa8a591`) y el de G0-A1.
+- El SHA de G0-A1 no se escribe aquí, porque sería autorreferencial. Es el commit que incorpora esta
+  sección (`docs(s11): clarify EX-10 transport and decision semantics`), y un commit técnico
+  posterior lo incorpora como constante documental.
+
+**Pendiente para el commit técnico.** Verificado sólo en lectura sobre los dos archivos de la Fase 1:
+- la constante documental del commit G0-A1, porque hoy la identidad sólo registra el de G0;
+- un test explícito de `100 → 500`.
+
+Ya existe el test de `100 → 201` en el transporte. El test de cabeceras congeladas compara el
+conjunto exacto, así que cubre la ausencia de `Expect`.
+
+**Estado resultante.**
+
+```text
+G0:       APPROVED / CLOSED
+G0-A1:    APPROVED / CLOSED
+Protocol: s11-ex10-v1 · Methodology: S11A-v1.1
+Incidente de secretos: CLOSED
+EX-10:    READY_TO_IMPLEMENT · NOT PREPARED · NOT EXECUTED
+S11-C3:   OPEN
+S11-C:    OPEN
+```
+
+### Fase 1 de EX-10 y atestación P02/P03 `v9` (27/09/2026)
+
+- **Fase 1 de EX-10:** comprometida en `a5107cd`, con el núcleo offline del aparato de medida.
+  - Incorpora a la identidad del protocolo los commits de G0 y G0-A1.
+  - Usa `APPARATUS_FAILURE` como término público.
+  - Suma 259 tests.
+- **Corrección del verificador:** `3768622` corrigió 37 errores de *teardown* conocidos en
+  `test_s11_verify_closed_custody.py`, una fuente atestada.
+  - Las aserciones no cambiaron.
+  - La suite backend completa queda verde: 2802 passed, 4 skipped (de entorno), 0 failed,
+    0 errors, exit 0.
+- **P02/P03 `v9`** (`s11-custody-20260927-p02p03-v9`): **`PASS`** sobre `3768622`.
+  - Misma época `587966006e85202a` y 28 fuentes; la única cambiada es la corregida.
+  - Cinco HMAC válidos, bundle de 20 archivos, backup y restore idénticos y canario destruido.
+  - Sin transacciones residuales y `EXTENDED_SECRET_HITS=0`.
+  - Los 350 SHA-256 históricos quedaron idénticos.
+  - Detalle en `docs/runbooks/S11_HMAC_CUSTODY_CONTINUITY_INCIDENT.md`, adenda `v9`.
+- **`v8`:** se conserva como `PASS · HISTORICAL SNAPSHOT` de `8e68d78`.
+- **Runner abortado previo:** `PRE_EXECUTION_RUNNER_ABORT`, antes de cualquier fase y sin usar el
+  ID, sin evidencia ni secretos expuestos. No cuenta como ejecución de `v9`.
+- **C1:** no se repitió; la corrección no tocó aislamiento, reset, reproducibilidad, dataset ni
+  gates.
+- **Siguiente gate:** Fase 2 de EX-10. `v9` satisface el requisito custodial para empezarla, pero
+  no convierte por sí sola EX-10 en `PREPARED`.
+
+```text
+P02/P03 v9: PASS · CURRENT / VIGENTE (3768622)
+P02/P03 v8: PASS · HISTORICAL SNAPSHOT (8e68d78)
+Época 587966006e85202a: ACTIVE
+Backend: 2802 passed · 4 skipped · 0 failed · 0 errors
+G0: APPROVED / CLOSED · G0-A1: APPROVED / CLOSED
+EX-10: READY_TO_CONTINUE_IMPLEMENTATION · NOT PREPARED · NOT EXECUTED
+S11-C3: OPEN
+S11-C: OPEN
+```
+
+### Run oficial 1 de EX-10 (03/10/2026)
+
+- **Revisión ejecutada:** `3bc3a37aa90abffd3b020eb0f9a7d92157cc545f`. Antes de ejecutar se dejó una
+  copia del bundle fuera del host, verificada y atestada por el operador.
+- **Run:** `s11-0ff9a5d1-2309-5f40-b4a7-dabad703e43a`, modo `OFFICIAL`, en una sesión oficial con un
+  stack aislado.
+- **Preflight y START:** preflight fresco `PASS` 64/64 y START dentro de su ventana de frescura.
+- **Emisión:** 50/50 intentos únicos, 0 duplicados y 0 reintentos.
+  - 50 respuestas HTTP 201 completas dentro de la ventana.
+  - 50 tareas de clasificación recibidas y exitosas.
+  - 0 llamadas a proveedores (adapter fake).
+  - Drain `COMPLETE`.
+- **Reconciliación y decisión:** HT1-01, HT1-02, HT1-03, HT1-04 y la postcondición de auditoría
+  dieron `PASS`, sin criterios fallidos.
+  - El run quedó **`NOT_DEMONSTRATED`** por la invalidez del aparato `broker:dynamic-residual`.
+  - La causa fue la regla de broker vacío del `READY_STATE` aplicada después del run, sobre los
+    residuos esperados de una ejecución correcta (claves de resultado de Celery, de throttle y de
+    caché).
+- **Finalización:** sellado como `NOT_DEMONSTRATED` con `binding=false` y custodia sin errores.
+  - No consume el primer run válido.
+  - El próximo START oficial exige reconocerlo
+    (`--acknowledge-not-demonstrated s11-0ff9a5d1-2309-5f40-b4a7-dabad703e43a`).
+- **Cierre:** el stack oficial se retiró con `cleanup-stack`. Se conservan la evidencia, el storage,
+  los volúmenes y las imágenes.
+- **No reinterpretación:** el resultado es definitivo y no se recalcula con ninguna semántica
+  posterior.
+- **Siguiente paso:** la Decisión G0-A2 define la semántica post-run del broker, sólo para runs
+  futuros.
+
+### Decisión G0-A2 — semántica post-run del broker de EX-10 (03/10/2026)
+
+- **Estado:** `APPROVED / CLOSED`. Es un addendum de G0 y G0-A1 y entra en vigor con el commit
+  documental que lo incorpora.
+- **Texto completo:** `docs/runbooks/S11_EX10_G0_A2_POST_RUN_BROKER_SEMANTICS.md`.
+- **Alcance:** sólo runs iniciados después del commit técnico que incorpore G0-A2 a la identidad del
+  protocolo (`G0_A2_DECISION_COMMIT`).
+- **Sin efecto retroactivo:** el run 1 sigue siendo `NOT_DEMONSTRATED`.
+- **Pre-run:** sin cambios. `READY_STATE` sigue exigiendo un broker sin colas, `unacked`, claves de
+  resultado ni de throttle.
+- **Post-run:** el broker se evalúa por quiescencia y coherencia.
+  - El trabajo pendiente invalida: colas, `unacked`, mensajes de tarea, fallos, reintentos,
+    desconocidas no adjudicadas e inclasificables.
+  - No invalidan por sí solos los residuos esperados: claves de resultado de los task IDs del run,
+    claves de throttle de los diez actores, bindings estáticos y la caché adjudicada por igualdad
+    exacta con `cache.make_key("public-reports:v1:generation")`.
+- **Prohibido:** borrar claves, manipular TTL o esperar expiraciones para cambiar un veredicto.
+- **Versiones:** `s11-ex10-v1`, `S11A-v1.1` y los schemas persistidos no cambian.
+- **Defectos técnicos abiertos, separados de la decisión:**
+  - la reescritura del marcador del object root durante la emisión;
+  - el comentario obsoleto de `READ_ONLY_ACTIONS` en el launcher oficial.
+
+```text
+EX-10 run oficial 1: NOT_DEMONSTRATED (binding=false) · evidencia preservada
+G0: APPROVED / CLOSED · G0-A1: APPROVED / CLOSED · G0-A2: APPROVED / CLOSED
+P02/P03 v9: CURRENT / VIGENTE · fuentes atestadas sin cambios
+Siguiente: commit técnico de G0-A2 (requiere autorización) y nuevo run oficial con ACK
+```
 
 ### Pruebas realizadas
-_Pendiente._
+
+- Gate inicial: rama `main`, HEAD exacto y working tree limpio.
+- Control documental: IDs, clasificaciones, estados, escenarios, umbrales, hashes R2 y referencias
+  cruzadas verificados sobre los artefactos S11-A.
+- S11-B/P02-P03: 109 tests de `experiments_app` verifican manifests, datasets,
+  aislamiento/reset, export read-only, instrumentación HTTP/Celery, trazabilidad, harness y
+  custodia/redacción; 60 corresponden específicamente a evidencia y custodia.
+- P02/P03: la verificación histórica `s11-custody-20260921-p02p03-v5` se ejecutó en dos
+  contenedores efímeros separados y sus bytes siguen preservados. Sus artefactos `complete.json`
+  y `attestation.json` están ahora `HISTORICAL_UNVERIFIABLE` por `KEY_CONTINUITY_FAILURE`; no
+  sirven como atestación criptográfica para el gate vigente.
+- Repetición P02/P03: `s11-custody-20260921-p02p03-v6` se ejecutó con la nueva época HMAC y quedó
+  `VERIFIABLE_WITH_CURRENT_CUSTODY_KEY`. Los seis registros autenticados pasaron SHA-256/HMAC,
+  frontera entre contenedores, backup, restore, matriz nominal, retención, gates de clasificación
+  y destrucción controlada del canario. `125` tests de `experiments_app` y `manage.py check`
+  pasaron. Gate: `S11_P02_P03_REPEATED_PASS`.
+- C1: la verificación histórica `s11-c1-20260921-isolation-repro-reset-v1` fue ejecutada y su
+  `complete.json` conserva el SHA-256 registrado. El artefacto está
+  `HISTORICAL_UNVERIFIABLE` por el mismo incidente y permanece preservado.
+- Repetición C1: el run `s11-8448491d-3347-5c00-9f44-d8ae110e9095` verificó aislamiento,
+  generación byte a byte reproducible de `s11-functional-v1`, reset idempotente con canarios,
+  manifest `COMPLETED`, evidencia persistente y backup/restore. Primary, backup y restore
+  conservaron siete registros con SHA-256/HMAC, clasificación y retención válidos bajo la nueva
+  época. El paquete `s11-c1-20260921-isolation-repro-reset-v2` quedó
+  `VERIFIABLE_WITH_CURRENT_CUSTODY_KEY`; su `complete.json` tiene SHA-256
+  `18170777ea896e3ef8bd6b752aac40d695f84c3a652282c5c69433c18fd748f0`. Pasaron `125` tests de
+  `experiments_app` y `manage.py check`. Gate: `S11C1_REPEATED_PASS`.
+- Backend completo: 2095 tests, 95 % de cobertura. Ruff, `manage.py check`,
+  `makemigrations --check --dry-run` y el compose combinado pasan. El frontend no cambió; se
+  conserva su baseline previo de 360 tests, ESLint, typecheck y build.
+- No se ejecutó ningún escenario oficial ni ninguna medición HT. Playwright llegó a ejecutarse una
+  vez, en el run `s11-41eaa7d0-67c8-53b1-aa9a-38068859dd1f` del 22/09/2026, pero por el defecto A2
+  corrió la suite ordinaria `frontend/e2e/` y no la suite S11; `EX-02` sigue
+  `NOT_DEMONSTRATED`.
 
 ### Problemas encontrados
-_Pendiente._
+
+- EX-01/HE tiene cuestionario en el Anexo G, pero carece de formulario aprobado, dataset y N
+  observados; permanece `NOT_DEMONSTRATED`.
+- La atestación histórica P02/P03 continúa inutilizable por pérdida de continuidad HMAC, pero la
+  repetición independiente `s11-custody-20260921-p02p03-v6` cerró nuevamente P02/P03 en `PASS`.
+- La evidencia C1 histórica también permanece `HISTORICAL_UNVERIFIABLE`, pero la repetición
+  independiente `s11-c1-20260921-isolation-repro-reset-v2` cerró C1 en `PASS` bajo la nueva época.
+- Los cinco intentos previos de S11-C2/EX-02 quedan `S11C2_EX02_NOT_DEMONSTRATED` por
+  infraestructura/harness, no como fallo funcional: ninguno llegó a ejercer una condición
+  funcional del escenario, y se conservan como evidencia histórica sin reinterpretar. Sus causas
+  fueron, en orden: `s11-3b48870b` por `npm` ausente; `s11-d407a461` por el directorio de
+  resultados root-owned (A1); `s11-41eaa7d0` por el separador npm faltante, que ejecutó la suite
+  ordinaria (A2); `s11-95954a43` por la guarda de configuración acoplada a Supabase (A5); y
+  `s11-6efb78d7` por el PNG corrupto del fixture (A6).
+- El sexto run, `s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af`, cerró `COMPLETED` y demostró EX-02.
+  `EX-02 = PASS`, auditado como `S11C2_EX02_PASS_CONFIRMED`.
+- La desviación A4 eliminó de forma irreversible 1,4 MB de artefactos no custodiados del
+  incidente A2. No fueron recuperados; el registro autoritativo permanece en la evidencia
+  custodiada. `A4 procedural compliance = FAIL` se conserva como constancia procedimental; el
+  gate de remediación S11-C2 salió de `BLOCKED_PENDING_RECONCILIATION` al completarse esta
+  reconciliación documental posterior a la verificación del `PASS`.
+- R2 no fue ejecutada y su evidencia válida no existe.
+- La cobertura global previa no decide HT-5; falta instrumentación de cobertura acotada.
+- El harness sigue exigiendo confirmación explícita por run. La clave HMAC custodial estable debe
+  conservarse para todos los runs posteriores; las verificaciones P02/P03 y C1 no utilizaron
+  `--custody-approved` ni ejecutaron escenarios funcionales.
 
 ### Commits relevantes
-_Pendiente._
+
+- S11-A: `35f850eb24df552805fe8694f50fcbb3588a4141`
+  (`docs: freeze S11-A methodology baseline`).
+- S11-B: `feat: prepare S11 experimental instrumentation`.
 
 ### Observaciones y desvíos respecto del plan
-_Pendiente._
+
+Los estados de decisión se restringen a `PASS`, `FAIL` y `NOT_DEMONSTRATED`. Dependencias,
+capacidad implementada, CI previa y despliegue no se registran como resultados experimentales.
+Los 16 reportes productivos observados al corte no son una muestra y quedan excluidos de toda
+medición S11.
+
+S11-B incorpora manifests inicial/final, datasets sintéticos versionados, overlay Docker aislado,
+reset idempotente, exportación ORM read-only, telemetría correlacionada HTTP/Celery, harness
+full-stack futuro para EX-02…EX-08 y custodia persistente con clasificación, redacción y SHA-256.
+EX-09 y EX-10 quedan preparados a nivel de insumos e instrumentación para S11-C. Esta preparación
+no contiene `PASS/FAIL` de hipótesis, resultados académicos ni cambios sobre producción.
+
+La política `S11-CUSTODY-v1.0` fija retención `INTERNAL=90 días` y
+`EXPERIMENTAL=365 días` desde `finished_at`; `PUBLIC` exige aprobación explícita de Monty
+Emmanuel Pohl Amarilla; `SENSITIVE` permanece deshabilitado y `SECRET` nunca se persiste.
+Primary, backup y restore se ubican respectivamente en `var/s11-runs`, `var/s11-backup` y
+`var/s11-restore`. La evidencia histórica permanece `HISTORICAL_UNVERIFIABLE`, pero la repetición
+independiente bajo la nueva época dejó `S11A-P02=PASS`, `S11A-P03=PASS` y C1 `PASS`. EX-02 y EX-03
+no quedaron autorizados por el cierre C1. EX-02 acumuló cinco intentos
+`S11C2_EX02_NOT_DEMONSTRATED` —dos que no alcanzaron Playwright, uno que ejecutó la suite
+ordinaria por el defecto A2, uno bloqueado por A5 y otro por A6— y quedó finalmente demostrado en
+el sexto, `s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af`, con `EX-02 = PASS` auditado como
+`S11C2_EX02_PASS_CONFIRMED`. `EX-03` quedó demostrado a continuación con el run
+`s11-6dc3ea66-08c9-51ef-9fe3-70e7dcc67959` y gate `S11C2_EX03_PASS_CONFIRMED`, y `EX-04` con el
+run `s11-03adb9bc-c9e4-5f8f-b64c-c4360d0c2085` y gate `S11C2_EX04_PASS`, y `EX-06` con el run
+`s11-989218f3-4808-5c6f-ac23-6e8870fec153` y gate `S11C2_EX06_PASS`, y `EX-08` con el run
+`s11-b567289c-9fe2-5349-a384-e9284bdde863` y gate `S11C2_EX08_PASS`. La decisión metodológica del
+22/09/2026 fijó el alcance de S11-C2 en EX-02…EX-08. `EX-05` quedó después en `PASS` con el run
+`s11-0e2feac0-6583-513c-a6aa-33430394d14a` y gate `S11C2_EX05_PASS`: con seis escenarios en
+`PASS`, faltaba EX-07, que quedó en `PASS` con el run `s11-545491b8-01fe-55e6-8f08-1a0ebbdca8d3`
+y gate `S11C2_EX07_PASS`, precedido por el intento `NOT_DEMONSTRATED`
+`s11-176a55e0-1c27-5b2f-a0f2-ef50dbe6d959`. Los siete escenarios de C2 tienen así resultado
+`PASS`, y la revisión formal del 23/09/2026 cerró el gate: **S11-C2 está cerrado**. EX-09 y EX-10
+quedan fuera de C2 y siguen siendo requisitos de salida de S11-C, que permanece abierto.
+
+---
+
+### Candidato operacional EX-10 v2 — implementación y validación separadas (08/10/2026)
+
+El candidato aislado incorpora runtime profile/B2 v2, autoridad y witness, GOV/coverage,
+OPEN_EVIDENCE/PoP, coordinación/bridge, envelope, integración executor y las rutas del launcher
+v2. La fábrica instalada en el host construye los componentes a partir de proveedores fijos;
+la falta de instalación deniega antes de efectos. LOCAL_TEST y el SUT mantienen contratos propios.
+Las comprobaciones offline de componentes, mutantes, contención/crash y seguridad se registran
+fuera del repositorio, con bytes, contextos, resultados y límites propios.
+
+Estado de la integración y documentación: `IMPLEMENTATION_CANDIDATE`; `VALIDATED=NO`;
+`PENDING_GLOBAL_VALIDATION`. Se mantiene un backlog externo único para componentes, once acciones,
+seguridad, mutantes, stress, full suites, CI y custodia. Los checks baratos de construcción
+y los resultados por componentes quedan ligados a sus scopes; el cierre exige la suite S11,
+la suite completa del repositorio, tres runs backend consecutivos sobre el mismo árbol final,
+todos los jobs frontend y CI posterior a los commits. No se registra un porcentaje
+nuevo de resultados científicos por haber escrito código o documentación.
+
+Procedencia y operación se describen en
+[`S11_EX10_RUNTIME_PROFILE_OPERATIONS.md`](runbooks/S11_EX10_RUNTIME_PROFILE_OPERATIONS.md),
+con copia exacta del borrador G0-A3 y sus aprobaciones posteriores por separado. La adenda
+custodial para roots externas conserva las 28 fuentes y obliga v10 posterior a los blobs finales.
+`PENDING_GLOBAL_VALIDATION`: suite S11, suite completa, CI final y posterior a los commits.
+P02/P03 v10, anchors y paquete preejecución conservan sus autorizaciones y gates posteriores.
+
+No se ejecutaron nuevas claves reales, autoridad/génesis real, ACK ni START oficial en la fase
+de implementación. Run1 conserva NOT_DEMONSTRATED y binding false; G0-A2 no se aplica
+retroactivamente. EX-10, S11-D y S11-E continúan abiertos hasta sus resultados y gates reales.
+
+---
+
+### Actualización operativa EX-10 — READY de preparación 300 s (18/10/2026 local)
+
+Por solicitud expresa del operador, el candidato c47 `1575d62064d7e00c824375990afd920cd5800455`
+(árbol `ddf7db9a05240dcdaec2660b13d87312f1f8c42b`) amplía sólo el READY de preparación de
+120 a 300 s. Conserva la ventana científica de 60 s, el techo wire de 120 s y los TTL de
+observaciones firmadas. Dos archivos cambiaron; tres pruebas dirigidas y el handoff posterior
+pasaron (72,79 s tras limitar wire). Los tres errores de fixture iniciales y la secuencia
+posterior 3 PASS/1 FAIL se conservan en la telemetría v3307; no se declaran una CI completa PASS.
+
+Los cuatro contenedores c47 funcionan y los cuatro c46 quedan detenidos conservados; se reutilizó
+el disco de DB y Redis tiene RAM nueva. El primer compose fallido y su recuperación limitada
+se conservan. El deployment se contrastó con los 747 hashes y el preflight pasó 64/64
+(SHA-256 `eecdc454a375c4ccc144a7de38c8c6ba1efc98110e7f075fbd01597b8bf1b861`).
+HT5 se reutiliza en 96,76 %: las 33 fuentes críticas y los 81 archivos de tests conservan hashes;
+no hubo una nueva medición. Custodia v3307, deployment v3308, perfil v3309 y checkpoint
+`01-work-units/checkpoint-c47-ready300-v3311/checkpoint.json` quedan bajo la raíz externa de ejecución.
+
+La inicialización genuina c47 v3312 pasó en CP1: sesión
+`s11-ex10-official-session-4a65b62aea43a068085811a34f391d3b`, `authority_written=false`,
+ACK NO y START NO. Anchor SHA-256
+`837628037338680b8179d29c183d9288a3d92e7ccf01ee3599ec62d2c64af593`; contexto v3313
+SHA-256 `521a90794b3899fb4000f3f45ba5ee0b67cd25fd4e9060eab39d67211503128c`, 37 roots.
+La fixture inicial falló por una ruta incorrecta del colector de namespace antes de cualquier
+Docker/B2; la corrección y revisión independiente precedieron al PASS. El checkpoint es
+`01-work-units/checkpoint-c47-initialized-v3316/checkpoint.json`. v3315 terminó
+`FAIL_PRE_NATIVE_STALE_COMPOSE_APPROVAL`; v3320 encontró un PostgreSQL ajeno activo y v3324
+no pudo leer el ancla por permisos de grupo. Cada fallo previo conservó CP1 sin intención.
+Se detuvo y conservó el contenedor ajeno y se corrigió el grupo de los inputs privados.
+v3327 entró en START nativo y falló con `fixed-native-envelope-binding-invalid`.
+La lectura posterior muestra CP2, `intent-start-official`, una acción en vuelo,
+`uncertain=true`, `blocked=true`, sólo `inspect` permitido y ningún run ID confirmado.
+El witness conserva revisión 0 y SHA-256
+`e16b46b1c0017de5fc3b630d3a3fe410d659ff715829ec63a9ffc91e332d2f72`.
+El readback B3/B4 muestra sólo el run histórico y ninguna reserva activa. El worker
+`e14a8f7e678e` terminó después por sí solo con exit 3; no se lo detuvo manualmente.
+El exchange sólo contiene perfil y cabecera, sin envelope ni preflight actuales. ACK y START
+están sin confirmar; PUSH NO. Se conserva la incertidumbre sin repetir START ni génesis.
+La causa exacta de `fixed-native-envelope-binding-invalid` fue una fuente `ex10_prepare.py`
+omitida del contexto de instalación. Se incorporó la corrección a un paquete de recuperación
+externo y se inicializó una sesión técnica nueva, sin autoridad escrita, en CP1. El intento
+autorizado v3344 falló antes de registrar intención de START por un pin de módulo obsoleto:
+la nueva sesión continuó en CP1, B3/B4 y witness permanecieron intactos. v3345 se retiró
+sin ejecutar al detectar otro pin transitivo. v3346 corrigió ambos y se ejecutó una vez
+tras el precheck; produjo envelope y preflight PASS, pero falló en la composición del bridge
+con `native-attachment-local-client`. La sesión nueva quedó en CP2 `UNCERTAIN`, sin run ID.
+B3 siguió en revisión 0, B4 sin reserva y witness sin cambios; el worker v3346 terminó con
+exit 3. No se repite START automáticamente. La salida espontánea del worker original volvió
+innecesaria su parada manual.
+W23 y el cierre S11 requieren recuperación exacta; los estados constan en
+`01-work-units/checkpoint-c47-uncertain-container-v3331/checkpoint.json` y
+`01-work-units/checkpoint-c47-recovery-uncertain-v3347/checkpoint.json` bajo la raíz externa.
+La adjudicación científica de S11-D y los resultados históricos no cambian. Véase
+[S11-E](s11/S11_E_DOSSIER_Y_CIERRE.md).
+
+---
+
+### Cierre de Sprint 11 — EX-10 `NOT_DEMONSTRATED` (19/10/2026)
+
+El aparato EX-10 v2 se integró en `main` hasta `28b417982e9e04be5b7e50e164732c8e6cf45e03`
+(árbol `939e8f6d0adb372f76ccda08e5b6be16f2a86b3b`), la revisión fuente montada en los intentos
+oficiales W22. Cada intento se ejecutó una vez con aprobación exacta del operador, sin
+reintento automático, seguido de una relectura de solo lectura:
+
+- **c51 / v3400:** entró en la acción nativa y falló con `fixed-native-envelope-binding-invalid`;
+  la configuración B5 heredaba 38 raíces de sesión previas y el contexto registrado tenía 40.
+  La sesión quedó en CP2 `UNCERTAIN`, sin run ID.
+- **c52 / v3403:** sesión técnica nueva con el contexto corregido y un prechequeo en el host.
+  El envelope se construyó, pero la cabecera firmada de la autoridad (vigencia 240 s) venció
+  antes de componer el bridge (`EXPIRED_OBSERVATION` → `native-bridge-composition-denied`):
+  la fase previa (~49 s) más la preparación nativa (~243 s) superan esa vigencia en este host.
+  La sesión quedó en CP2 `UNCERTAIN`, sin run ID.
+
+En c47, c51 y c52 la autoridad conserva los bytes de la génesis (B3 `056e5a7a…`, B4
+`1cc05aa4…` sin reserva, witness `e16b46b1…`); no hubo ACK aplicado, run nuevo ni efectos
+sobre el SUT. Como el conflicto de tiempos es estructural y resolverlo exigiría cambiar el
+aparato o su política temporal, el operador decidió cerrar S11 con **EX-10
+`NOT_DEMONSTRATED`**. La síntesis final queda: HT5 `PASS` (96,76 %), HT2 `FAIL` válido
+(19/28), HE, HT1, HT3, HT4 y HT6 `NOT_DEMONSTRATED`, HTP no PASS.
+
+Pendientes posteriores al cierre: separar en CI las suites largas del aparato EX-10 antes de
+publicar los commits; rotar `S11_CUSTODY_HMAC_KEY` y `DOCUMENT_HMAC_SECRET`, cuyos valores
+locales aparecieron en la salida de una herramienta de diagnóstico el 19/10/2026; y limpiar
+con inspección los contenedores de diagnóstico. Adjudicación y evidencia en
+[S11-D](s11/S11_D_ANALISIS_Y_DECISIONES.md) y [S11-E](s11/S11_E_DOSSIER_Y_CIERRE.md).
 
 ---
 
@@ -1740,8 +4621,8 @@ Se completa a medida que las mediciones estén disponibles (Sprints 14 y 15).
 
 | Indicador | Umbral | Medición | Estado |
 |---|---|---|---|
-| Cobertura backend crítico | ≥ 80 % | — | Pendiente |
-| Concordancia IA vs etiquetas de oro | ≥ 85 % | — | Pendiente |
+| Cobertura backend crítico | ≥ 80 % | 96,76 % (2119/2190 líneas; 33 archivos prospectivamente fijados, medición S11 del 18/10/2026) | PASS en alcance HT5; no equivale a CI global. Ver [S11-D](s11/S11_D_ANALISIS_Y_DECISIONES.md) |
+| Concordancia IA vs etiquetas de oro | ≥ 85 % | 67,86 % (19/28): CA-4 de `EX-09` OpenAI, run `s11-a156a68c-c422-5e57-ae2b-3336d3b55e6c`, 26/09/2026 | `FAIL` |
 | Latencia P50 endpoints críticos | ≤ 800 ms | — | Pendiente |
 | Latencia de red Heroku ↔ Supabase | Medida y documentada | — | Pendiente |
 | Latencia P99 bajo carga | ≤ 2.000 ms | — | Pendiente |

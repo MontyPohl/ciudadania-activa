@@ -393,22 +393,29 @@ def _asegurar_ciudadano(user) -> None:
 def _asegurar_configuracion() -> None:
     """Exige la configuración completa **antes** de normalizar, leer o subir nada.
 
-    Se comprueban las cuatro variables juntas para que un servidor a medio configurar
-    falle en seco y no después de haber subido un archivo. El mensaje es único y no
-    dice cuál falta: esa información solo le sirve a quien esté sondeando.
+    Se comprueba todo junto para que un servidor a medio configurar falle en seco y
+    no después de haber subido un archivo. El mensaje es único y no dice qué falta:
+    esa información solo le sirve a quien esté sondeando.
+
+    Qué necesita el almacenamiento lo decide `storage`, según el adaptador que vaya
+    a atender la subida, y no esta función. Enumerar aquí las variables de Supabase
+    obligaba al entorno experimental aislado —que usa el adaptador local y jamás
+    contacta con Supabase— a declarar credenciales productivas que no llegaría a
+    usar, y dejaba la verificación de identidad inalcanzable en ese entorno. El
+    modo Supabase sigue exigiendo su configuración completa: la decisión no se
+    relaja, se delega en quien la conoce.
     """
-    completa = all(
-        (
-            getattr(settings, "DOCUMENT_HMAC_SECRET", ""),
-            getattr(settings, "SUPABASE_URL", ""),
-            getattr(settings, "SUPABASE_SERVICE_ROLE_KEY", ""),
-            getattr(settings, "SUPABASE_STORAGE_BUCKET_PRIVATE", ""),
-        )
-    )
-    if not completa:
+    if not getattr(settings, "DOCUMENT_HMAC_SECRET", ""):
         raise IdentityConfigurationError(
             "La verificación de identidad no está disponible en este servidor."
         )
+    try:
+        storage.ensure_configured()
+        storage.private_bucket()
+    except storage.StorageError as exc:
+        raise IdentityConfigurationError(
+            "La verificación de identidad no está disponible en este servidor."
+        ) from exc
 
 
 def _asegurar_estado_admite_envio(user, perfil) -> None:

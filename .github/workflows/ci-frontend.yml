@@ -52,6 +52,10 @@ jobs:
   frontend-e2e:
     runs-on: ubuntu-latest
 
+    env:
+      NEXT_PUBLIC_API_URL: http://127.0.0.1:3106
+      PLAYWRIGHT_PRODUCTION: "1"
+
     steps:
       - uses: actions/checkout@v4
 
@@ -66,6 +70,9 @@ jobs:
 
       - name: Instalar Chromium
         run: npx playwright install --with-deps chromium
+
+      - name: Build para Browser E2E
+        run: npm run build
 
       - name: Browser E2E
         run: npm run test:e2e

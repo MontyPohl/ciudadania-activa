@@ -77,14 +77,24 @@ IDENTITY_SIGNED_URL_TTL = 300
 # distintas del mismo proveedor y la SMTP no autentica contra esta API.
 # --- Clasificación asistida por IA (Sprint 8) ---
 # Interruptor deliberado y separado de la credencial. Con la clave presente pero el
-# flag apagado no se clasifica nada: sin él, una `GEMINI_API_KEY` olvidada en un
+# flag apagado no se clasifica nada: sin él, una clave de proveedor olvidada en un
 # entorno bastaría para que un despliegue empezara a clasificar reportes reales.
 AI_CLASSIFICATION_ENABLED = env.bool("AI_CLASSIFICATION_ENABLED", default=False)
-# Secreto del backend y del worker. Nunca se registra, no viaja en respuestas y no
-# se audita (contrato S8-A, D14).
-GEMINI_API_KEY = env("GEMINI_API_KEY", default="")
+# Proveedor que clasifica: `openai` o `gemini` (ADR-0016). Sin valor por defecto:
+# vacío o desconocido equivale a no clasificar, aunque haya claves presentes.
+AI_PROVIDER = env("AI_PROVIDER", default="")
+# Secretos del backend y del worker. Nunca se registran, no viajan en respuestas y
+# no se auditan (contrato S8-A, D14).
+OPENAI_API_KEY = env("OPENAI_API_KEY", default="")
 # Sin valor por defecto a propósito: el modelo se documenta junto a la medición de
 # concordancia (CT-32, O-05) y fijar aquí uno concreto lo escondería.
+OPENAI_MODEL = env("OPENAI_MODEL", default="")
+# `reasoning.effort` de la Responses API. Vacío omite el parámetro y deja el valor
+# por defecto del modelo; forma parte de lo que se documenta con la medición.
+OPENAI_REASONING_EFFORT = env("OPENAI_REASONING_EFFORT", default="")
+# Proveedor histórico de S8. Se conserva porque S8-E2 y la preparación no ejecutada
+# de EX-09 archivan su código; no es proveedor de ninguna medición futura.
+GEMINI_API_KEY = env("GEMINI_API_KEY", default="")
 GEMINI_MODEL = env("GEMINI_MODEL", default="")
 # Umbral de aplicación automática asistida (contrato S8-A, D5).
 AI_CONFIDENCE_THRESHOLD = Decimal(env("AI_CONFIDENCE_THRESHOLD", default="0.75"))
@@ -125,6 +135,7 @@ INSTALLED_APPS = [
     "apps.admin_app",
     "apps.ai_client_app",
     "apps.social_ingestion_app",
+    "apps.experiments_app",
 ]
 
 MIDDLEWARE = [
@@ -136,6 +147,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "apps.experiments_app.middleware.HttpInstrumentationMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -277,6 +289,23 @@ CELERY_BEAT_SCHEDULE = {
         "schedule": crontab(minute="*/15"),
     },
 }
+
+# --- S11-B: instrumentación experimental ------------------------------------
+# Todo queda apagado por defecto y exige, además, un entorno cuyo nombre, base,
+# Redis y storage pasan el guard de aislamiento. Estos flags no se activan en
+# producción ni se usan para datos existentes.
+S11_EXPERIMENTS_ENABLED = env.bool("S11_EXPERIMENTS_ENABLED", default=False)
+S11_ENVIRONMENT = env("S11_ENVIRONMENT", default="")
+S11_DATABASE_URL = env("S11_DATABASE_URL", default="")
+S11_ARTIFACT_ROOT = Path(env("S11_ARTIFACT_ROOT", default=str(REPO_ROOT / "var" / "s11-runs")))
+S11_BACKUP_ROOT = Path(env("S11_BACKUP_ROOT", default=str(REPO_ROOT / "var" / "s11-backup")))
+S11_RESTORE_ROOT = Path(env("S11_RESTORE_ROOT", default=str(REPO_ROOT / "var" / "s11-restore")))
+S11_OBJECT_ROOT = Path(env("S11_OBJECT_ROOT", default=str(REPO_ROOT / "var" / "s11-objects")))
+S11_ALLOW_SENSITIVE_PERSISTENCE = env.bool("S11_ALLOW_SENSITIVE_PERSISTENCE", default=False)
+S11_CUSTODY_HMAC_KEY = env("S11_CUSTODY_HMAC_KEY", default="")
+S11_PUBLICATION_APPROVAL_PUBLIC_KEY = env("S11_PUBLICATION_APPROVAL_PUBLIC_KEY", default="")
+S11_LOCAL_STORAGE_ENABLED = env.bool("S11_LOCAL_STORAGE_ENABLED", default=False)
+S11_FAKE_AI_ENABLED = env.bool("S11_FAKE_AI_ENABLED", default=False)
 
 # Fijado en el Sprint 1: PostgreSQL/PostGIS reside en Supabase y se conecta siempre
 # mediante DATABASE_URL. Ninguna rama de código distingue entornos; lo único que varía

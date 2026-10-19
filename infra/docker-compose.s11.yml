@@ -1,0 +1,72 @@
+# Overlay exclusivo S11. Se usa siempre junto a docker-compose.yml y bajo un
+# project name aislado. No contiene credenciales ni endpoints remotos.
+services:
+  db:
+    environment:
+      POSTGRES_DB: ciudadania_s11_experiment
+    volumes:
+      - s11_postgres_data:/var/lib/postgresql/data
+    ports: !reset []
+
+  redis:
+    ports: !reset []
+
+  backend:
+    user: "${S11_HOST_UID:?Set S11_HOST_UID with id -u}:${S11_HOST_GID:?Set S11_HOST_GID with id -g}"
+    # El backend conserva 8000 dentro de Compose. Docker publica un puerto
+    # efímero sólo en loopback y el harness lo descubre con `compose port`.
+    ports: !override
+      - target: 8000
+        published: "0"
+        host_ip: 127.0.0.1
+        protocol: tcp
+    environment: &s11-environment
+      DATABASE_URL: postgis://ciudadania:ciudadania@db:5432/ciudadania_s11_experiment
+      S11_DATABASE_URL: postgis://ciudadania:ciudadania@db:5432/ciudadania_s11_experiment
+      REDIS_URL: redis://redis:6379/11
+      S11_EXPERIMENTS_ENABLED: "true"
+      S11_ENVIRONMENT: isolated-experiment
+      S11_ARTIFACT_ROOT: /s11-evidence
+      S11_BACKUP_ROOT: /s11-backup
+      S11_RESTORE_ROOT: /s11-restore
+      S11_OBJECT_ROOT: /s11-objects
+      S11_ALLOW_SENSITIVE_PERSISTENCE: "false"
+      S11_CUSTODY_HMAC_KEY: ${S11_CUSTODY_HMAC_KEY:?Set a stable S11 custody HMAC key of at least 32 bytes}
+      S11_PUBLICATION_APPROVAL_PUBLIC_KEY: ${S11_PUBLICATION_APPROVAL_PUBLIC_KEY:?Set Monty's Ed25519 public key as 64 hex characters}
+      S11_LOCAL_STORAGE_ENABLED: "true"
+      S11_FAKE_AI_ENABLED: "true"
+      DOCUMENT_HMAC_SECRET: ${S11_DOCUMENT_HMAC_SECRET:?Set an ephemeral S11 HMAC secret}
+      SUPABASE_STORAGE_BUCKET_PRIVATE: s11-verificaciones
+      SUPABASE_STORAGE_BUCKET_REPORTS: s11-reportes
+      SUPABASE_URL: ""
+      SUPABASE_SERVICE_ROLE_KEY: ""
+      GEMINI_API_KEY: ""
+      AI_CLASSIFICATION_ENABLED: "false"
+      BREVO_API_KEY: ""
+      BREVO_API_URL: https://disabled.invalid.test
+    volumes:
+      - ../backend:/app
+      - ../var/s11-runs:/s11-evidence
+      - ../var/s11-backup:/s11-backup
+      - ../var/s11-restore:/s11-restore
+      - ../var/s11-objects:/s11-objects
+      - ../backend:/s11-source/backend:ro
+      - ../docs:/s11-source/docs:ro
+      - ../infra:/s11-source/infra:ro
+      - ../.env.example:/s11-source/.env.example:ro
+      - ../.gitignore:/s11-source/.gitignore:ro
+      - ../.git:/s11-source/.git:ro
+
+  worker:
+    user: "${S11_HOST_UID:?Set S11_HOST_UID with id -u}:${S11_HOST_GID:?Set S11_HOST_GID with id -g}"
+    command: celery -A config worker --loglevel=info --concurrency=2
+    environment: *s11-environment
+    volumes:
+      - ../backend:/app
+      - ../var/s11-runs:/s11-evidence
+      - ../var/s11-backup:/s11-backup
+      - ../var/s11-restore:/s11-restore
+      - ../var/s11-objects:/s11-objects
+
+volumes:
+  s11_postgres_data:

@@ -1,0 +1,41 @@
+# Contenedor efímero de S11-C3/EX-09. Se usa solo, nunca junto a docker-compose.yml ni
+# al overlay de C2, y siempre a través de backend/scripts/s11_ex09.py.
+# - Sin env_file: el .env del repositorio no entra y el backend queda montado en /app,
+#   de modo que REPO_ROOT/.env tampoco es visible dentro del contenedor.
+# - Sin base de datos, Redis ni puertos. Las URLs S11 existen sólo para que la
+#   custodia verifique el aislamiento; ningún servicio las atiende.
+# - Credenciales productivas vacías y rutas de IA alternativas apagadas.
+# - La clave temporal del lote llega sólo a `run-lot`, por nombre (`-e`), desde el
+#   entorno del operador. No aparece en este archivo.
+services:
+  ex09:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile.dev
+    user: "${S11_HOST_UID:?Set S11_HOST_UID with id -u}:${S11_HOST_GID:?Set S11_HOST_GID with id -g}"
+    working_dir: /app
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.dev
+      DATABASE_URL: postgis://ciudadania:ciudadania@db:5432/ciudadania_s11_experiment
+      S11_DATABASE_URL: postgis://ciudadania:ciudadania@db:5432/ciudadania_s11_experiment
+      REDIS_URL: redis://redis:6379/11
+      S11_EXPERIMENTS_ENABLED: "true"
+      S11_ENVIRONMENT: isolated-experiment
+      S11_ARTIFACT_ROOT: /s11-evidence
+      S11_BACKUP_ROOT: /s11-backup
+      S11_RESTORE_ROOT: /s11-restore
+      S11_OBJECT_ROOT: /s11-objects
+      S11_ALLOW_SENSITIVE_PERSISTENCE: "false"
+      S11_CUSTODY_HMAC_KEY: ${S11_CUSTODY_HMAC_KEY:?Set the stable S11 custody HMAC key}
+      S11_PUBLICATION_APPROVAL_PUBLIC_KEY: ${S11_PUBLICATION_APPROVAL_PUBLIC_KEY:?Set Monty's Ed25519 public key}
+      S11_LOCAL_STORAGE_ENABLED: "false"
+      S11_FAKE_AI_ENABLED: "false"
+      AI_CLASSIFICATION_ENABLED: "false"
+      GEMINI_API_KEY: ""
+      SUPABASE_URL: ""
+      SUPABASE_SERVICE_ROLE_KEY: ""
+      BREVO_API_KEY: ""
+      DOCUMENT_HMAC_SECRET: ""
+    volumes:
+      - ../backend:/app:ro
+      - ../var/s11-runs:/s11-evidence

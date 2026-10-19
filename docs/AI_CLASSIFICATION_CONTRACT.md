@@ -6,6 +6,13 @@
 **Alcance:** S8-A (contrato y documentación)
 **Proveedor:** Google Gemini **previsto, no integrado todavía**
 
+> **Actualización 2026-09-26 (ADR-0016).** El proveedor pasa a ser **OpenAI** (Responses
+> API, `OPENAI_MODEL`), elegido con `AI_PROVIDER`. El contrato D1–D20 no cambia: misma
+> lista blanca, mismo esquema v1 y mismo parser como frontera. Donde este documento dice
+> Gemini o `GEMINI_*`, léase «el proveedor activo». El adapter de Gemini se conserva
+> como código histórico de S8-E2 y de la preparación no ejecutada de EX-09; no es
+> proveedor de ninguna medición futura.
+
 Este documento cierra por escrito el contrato de la clasificación asistida por IA del
 Sprint 8 **antes** de implementar cualquier integración real. Es la fuente normativa para
 S8-B (adapter y parser), S8-C (tarea, persistencia y auditoría), S8-D (API) y S8-E

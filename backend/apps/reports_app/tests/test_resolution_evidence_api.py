@@ -1,12 +1,17 @@
+import time
 import uuid
+from urllib.parse import urlsplit
 
 import pytest
+from django.core import signing
+from django.urls import Resolver404, resolve
 from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.core.enums import ReportStatus
 from apps.core.services import storage
 from apps.reports_app.models import ResolutionEvidence
+from apps.reports_app.services import evidence_access
 
 pytestmark = pytest.mark.django_db
 
@@ -140,6 +145,81 @@ def test_operator_cross_tenant_is_indistinguishable_from_missing(
     assert response.json()["code"] == "REPORT_NOT_FOUND"
 
 
+class _SignedUrl(str):
+    """Una signed_url que un fallo nunca muestra entera.
+
+    pytest imprime el repr de los argumentos de cada frame y de los operandos de una aserción;
+    éste omite el token. No se compara con `==`: el diff de texto de pytest lo mostraría.
+    """
+
+    def __repr__(self):
+        return "<signed_url omitida>"
+
+
+def _signed_urls(response):
+    return [_SignedUrl(item["signed_url"]) for item in response.json()]
+
+
+def _without_signed_urls(payload):
+    """La evidencia sin su URL efímera: el token lleva el instante de emisión (TTL 300 s)."""
+    return [{key: value for key, value in item.items() if key != "signed_url"} for item in payload]
+
+
+def _evidence_id_of(signed_url):
+    """La evidencia que abre una URL firmada, validada como la descarga: firma, salt y TTL.
+
+    Un fallo no muestra el token: `signed_url` llega como _SignedUrl, ninguna variable local
+    lo guarda en claro (tampoco con --showlocals), las aserciones sólo ven booleanos y los
+    errores de la validación se sustituyen por un código constante lanzado fuera del `except`,
+    para que no quede encadenada la causa original (sus args llevan la ruta o la firma).
+    """
+    parts = urlsplit(signed_url)
+    on_download_route = (parts.scheme, parts.netloc) == ("http", "testserver") and (
+        parts.path.startswith("/api/v1/reports/evidence-access/")
+    )
+    path = _SignedUrl(parts.path)
+    del parts  # su repr incluye la ruta con el token
+    assert on_download_route, "signed-url-route-mismatch"
+    try:
+        match = resolve(path)
+    except Resolver404:
+        match = None
+    assert match is not None, "signed-url-unresolvable"
+    on_download_view = match.url_name == "resolution-evidence-download"
+    token = _SignedUrl(match.kwargs["token"])
+    del match  # su repr incluye el token
+    assert on_download_view, "signed-url-route-mismatch"
+    try:
+        return evidence_access.evidence_id_from_token(token)
+    except signing.SignatureExpired:
+        failure = signing.SignatureExpired("signed-url-expired")
+    except signing.BadSignature:
+        failure = signing.BadSignature("signed-url-invalid")
+    except Exception as exc:  # cualquier otro error, sin el token de los frames de Django
+        failure = AssertionError(f"unexpected-signed-url-validation-error: {type(exc).__name__}")
+    raise failure
+
+
+def _list_as_author_other_and_admin(report, citizen, other_citizen, admin_user):
+    return (
+        _client(citizen).get(f"/api/v1/reports/{report.pk}/evidence/"),
+        _client(other_citizen).get(f"/api/v1/reports/{report.pk}/evidence/"),
+        _client(admin_user).get(f"/api/v1/admin/reports/{report.pk}/evidence/"),
+    )
+
+
+def _assert_same_evidence_for_author_and_admin(evidence, author_response, admin_response):
+    # Las mismas evidencias; cada URL firmada es válida y abre esa evidencia, aunque sus
+    # tokens difieran por haberse emitido en segundos distintos.
+    author_stable = _without_signed_urls(author_response.json())
+    admin_stable = _without_signed_urls(admin_response.json())
+    expected = str(evidence.pk)
+    assert author_stable == admin_stable, "stable-evidence-payload-mismatch"
+    assert [item["id"] for item in author_stable] == [expected], "evidence-id-mismatch"
+    for signed_url in (*_signed_urls(author_response), *_signed_urls(admin_response)):
+        assert _evidence_id_of(signed_url) == expected, "signed-url-resource-mismatch"
+
+
 def test_author_and_admin_can_list_but_other_citizen_cannot(
     report,
     operator_user,
@@ -152,16 +232,64 @@ def test_author_and_admin_can_list_but_other_citizen_cannot(
     _in_process(report, operator_user, institution)
     evidence = _evidence(report, operator_user)
 
-    author_response = _client(citizen).get(f"/api/v1/reports/{report.pk}/evidence/")
-    other_response = _client(other_citizen).get(f"/api/v1/reports/{report.pk}/evidence/")
-    admin_response = _client(admin_user).get(f"/api/v1/admin/reports/{report.pk}/evidence/")
+    author_response, other_response, admin_response = _list_as_author_other_and_admin(
+        report, citizen, other_citizen, admin_user
+    )
 
     assert author_response.status_code == admin_response.status_code == 200
-    assert author_response.json() == admin_response.json()
-    assert author_response.json()[0]["id"] == str(evidence.pk)
+    _assert_same_evidence_for_author_and_admin(evidence, author_response, admin_response)
     assert other_response.status_code == 404
     for response in (author_response, other_response, admin_response):
         assert response["Cache-Control"] == "private, no-store"
+
+
+def test_author_and_admin_signed_urls_from_different_seconds_are_equivalent(
+    report,
+    operator_user,
+    institution,
+    citizen,
+    other_citizen,
+    admin_user,
+    storage_config,
+    monkeypatch,
+):
+    # Regresión: cada firma en su propio segundo, sin dormir. Los tokens difieren (la igualdad
+    # estricta anterior fallaba aquí) y ambos siguen abriendo la misma evidencia.
+    _in_process(report, operator_user, institution)
+    evidence = _evidence(report, operator_user)
+    seconds = iter(range(int(time.time()) - 10, int(time.time())))
+    monkeypatch.setattr(
+        signing.TimestampSigner, "timestamp", lambda self: signing.b62_encode(next(seconds))
+    )
+
+    author_response, other_response, admin_response = _list_as_author_other_and_admin(
+        report, citizen, other_citizen, admin_user
+    )
+
+    assert author_response.status_code == admin_response.status_code == 200
+    author_url, admin_url = _signed_urls(author_response)[0], _signed_urls(admin_response)[0]
+    urls_differ = author_url != admin_url
+    old_equality_holds = author_response.json() == admin_response.json()
+    assert urls_differ, "signed-urls-not-distinct: el segundo forzado no se aplicó"
+    assert not old_equality_holds, "old-strict-equality-would-not-fail"
+    _assert_same_evidence_for_author_and_admin(evidence, author_response, admin_response)
+    assert other_response.status_code == 404
+
+
+def test_a_signed_url_for_another_evidence_is_not_this_evidence(
+    report, operator_user, institution, citizen, storage_config
+):
+    # La validación por URL no acepta la de otro objeto ni una firma alterada.
+    _in_process(report, operator_user, institution)
+    first, second = _evidence(report, operator_user), _evidence(report, operator_user)
+    response = _client(citizen).get(f"/api/v1/reports/{report.pk}/evidence/")
+    urls = dict(zip((item["id"] for item in response.json()), _signed_urls(response), strict=True))
+    assert _evidence_id_of(urls[str(first.pk)]) == str(first.pk), "signed-url-resource-mismatch"
+    assert _evidence_id_of(urls[str(second.pk)]) == str(second.pk), "signed-url-resource-mismatch"
+    url = _SignedUrl(urls[str(first.pk)].rstrip("/"))
+    tampered = _SignedUrl(url[:-1] + ("A" if url[-1] != "A" else "B") + "/")
+    with pytest.raises(signing.BadSignature):
+        _evidence_id_of(tampered)
 
 
 def test_signed_access_url_proxies_bytes_without_exposing_object_key(

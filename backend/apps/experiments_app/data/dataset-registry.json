@@ -1,0 +1,25 @@
+{
+  "schema_version": "s11-dataset-registry-v1",
+  "methodology_version": "S11A-v1.0",
+  "generator_version": "s11b-generator-v1",
+  "datasets": {
+    "s11-functional-v1": {
+      "path": "s11-functional-v1.json",
+      "seed": 20260921,
+      "sha256": "66074d1617c4e1b7a32b854090d26556faa9b35a000452787ff3b47d6f0edc1c",
+      "scenarios": ["EX-02", "EX-03", "EX-04", "EX-05", "EX-06", "EX-07", "EX-08"]
+    },
+    "s8-evaluation-v1": {
+      "reference_only": true,
+      "seed": null,
+      "sha256": "3bc54d591dc104aeabeecb2f5cc7c7a38e70ba042e7f045321ab33ae9b5efad4",
+      "scenarios": ["EX-09"]
+    },
+    "s11-load-v1": {
+      "path": "s11-load-v1.json",
+      "seed": 20260921,
+      "sha256": "c6883b59dc861fb07fae730594c929fdd572a9ed71aee6d8b85c87f71ede0acb",
+      "scenarios": ["EX-10"]
+    }
+  }
+}

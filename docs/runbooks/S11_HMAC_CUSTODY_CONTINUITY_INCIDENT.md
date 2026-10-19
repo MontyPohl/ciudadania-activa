@@ -1,0 +1,408 @@
+# S11 — Incidente de continuidad HMAC y rebaseline de custodia
+
+**Fecha del incidente:** 21/09/2026
+
+**Baseline documental:** `main@08262a25221b631abf9a55ade57d40494d567571`
+
+**Clasificación:** `KEY_CONTINUITY_FAILURE`
+
+**Decisión humana:** `DECISIÓN C`, emitida por Monty Emmanuel Pohl Amarilla como autor y
+custodio.
+
+**Alcance:** registro documental y operativo. No es un resultado experimental, no cambia
+`S11A-v1.0`, no autoriza un run y no modifica producción.
+
+## 1. Contexto y diagnóstico
+
+El diagnóstico `S11_HMAC_DIAGNOSTIC_COMPLETE`, realizado antes de continuar S11-C2, comprobó
+que la clave configurada actualmente como `S11_CUSTODY_HMAC_KEY` no verifica las firmas HMAC de
+la evidencia histórica de P02/P03 ni de C1. El secreto documental
+`S11_DOCUMENT_HMAC_SECRET` tampoco las verifica. No existe un `key_id` histórico para la clave
+custodial, ni una copia de esa clave en el repositorio, la configuración local o los metadatos
+autorizados que fueron inspeccionados. El runtime vigente admite una sola clave y no implementa
+keyring ni versionado histórico.
+
+La clave pública Ed25519 de aprobación permanece válida y su fingerprint no secreto es
+`8c1e5a8ad7390f4d`. Este incidente afecta la continuidad de autenticación HMAC custodial; no
+demuestra corrupción ni falsedad de los archivos.
+
+## 2. Artefactos históricos afectados
+
+Los artefactos permanecen en sus rutas originales y no deben regenerarse, resignarse,
+sobrescribirse, eliminarse ni moverse destructivamente.
+
+| Evidencia | Ruta original | SHA-256 del JSON | Integridad de bytes | Autenticidad HMAC histórica | Estado documental |
+|---|---|---|---|---|---|
+| P02/P03, cierre | `var/s11-runs/custody-verifications/s11-custody-20260921-p02p03-v5/complete.json` | `6891300d407d2666c25c3eedfcc4b4a5d7057a5ea9d6e299df0b4f0baf6fbd32` | Verificable | No verificable con las claves autorizadas disponibles | `HISTORICAL_UNVERIFIABLE` |
+| P02/P03, atestación | `var/s11-runs/custody-verifications/s11-custody-20260921-p02p03-v5/attestation.json` | `91a5a5b5f02a7f4d60d77f1034b6ad50141508d2761a0a5811b0dd66d0c9b617` | Verificable | No verificable con las claves autorizadas disponibles | `HISTORICAL_UNVERIFIABLE` |
+| C1, cierre | `var/s11-runs/custody-verifications/s11-c1-20260921-isolation-repro-reset-v1/complete.json` | `c5297c05a79a8a95e704edf55719b456de2fd14cbea33e72b09b5d1d26085276` | Verificable | No verificable con las claves autorizadas disponibles | `HISTORICAL_UNVERIFIABLE` |
+
+Los SHA-256 y sus sidecars permiten comprobar la identidad de bytes preservada. No sustituyen
+la autenticidad HMAC histórica. Por ello, estos archivos se conservan como registro del incidente,
+pero no pueden presentarse como evidencia criptográficamente atestada para los gates actuales de
+S11.
+
+## 3. Decisión C
+
+Monty Emmanuel Pohl Amarilla decide:
+
+1. declarar la evidencia anterior de P02/P03 y C1 como `HISTORICAL_UNVERIFIABLE` por
+   `KEY_CONTINUITY_FAILURE`;
+2. conservarla sin modificación como registro histórico;
+3. establecer una nueva época de custodia HMAC para S11;
+4. repetir primero P02/P03 y después C1 con una nueva clave custodial estable;
+5. mantener EX-02 y EX-03 bloqueados hasta verificar la nueva evidencia.
+
+No se inventa una firma criptográfica para esta decisión. La metodología `S11A-v1.0` permanece
+intacta y continúa vigente la **OPCIÓN A**: EX-02 y EX-03 son runs independientes, cada uno con
+su propio reset, reporte y evidencia; EX-03 no reutiliza el reporte de EX-02.
+
+El intento previo de S11-C2/EX-02 queda registrado como
+`S11C2_EX02_NOT_DEMONSTRATED`. Su causa es de infraestructura/custodia y no constituye `PASS` ni
+`FAIL` funcional. No se creó un run C2 y el experimento no comenzó.
+
+## 4. Nueva época de custodia
+
+La nueva época entró en vigor para la repetición P02/P03 y se mantuvo durante la repetición C1
+cuando el runtime cargó la
+`S11_CUSTODY_HMAC_KEY` estable configurada mediante el mecanismo local aprobado y comprobó su
+fingerprint no secreto `7205a04f93cc3da9`. Las repeticiones no generaron la clave ni modificaron
+`.env`.
+
+La clave de la nueva época debe:
+
+- permanecer fuera de Git, artefactos, logs, informes y salidas de terminal;
+- almacenarse en `.env` con permisos `0600`;
+- ser la misma durante la repetición de P02/P03, la repetición de C1 y todos los runs S11
+  posteriores;
+- conservarse hasta terminar la retención aprobada de todos los artefactos que autentique.
+
+La nueva época no resigna ni reautentica la evidencia histórica y no introduce un keyring en el
+runtime. Para las repeticiones P02/P03 y C1, `S11_HOST_GID=1003` se exportó sólo al proceso a
+partir de `id -g`, como permite el runbook; no se versionó ni se escribió en `.env`.
+
+## 5. Gates y secuencia obligatoria
+
+| Componente | Estado actual |
+|---|---|
+| S11-A | `PASS` |
+| S11-B | `PASS` |
+| Metodología Opción A | `PASS` |
+| Diagnóstico HMAC | `COMPLETE` |
+| P02/P03 | `PASS` |
+| C1 | `PASS` |
+| EX-02 | `NOT_EXECUTED — REQUIERE PRE-GATE SEPARADO` |
+| EX-03 | `NOT_EXECUTED — REQUIERE PRE-GATE SEPARADO` |
+
+La secuencia ya completada fue:
+
+1. configurar la nueva `S11_CUSTODY_HMAC_KEY` estable;
+2. configurar localmente `S11_HOST_GID=1003`;
+3. repetir P02/P03;
+4. verificar la nueva evidencia P02/P03;
+5. repetir C1 con la misma clave custodial;
+6. verificar la nueva evidencia C1.
+
+La secuencia de rebaseline de custodia queda completa. Este cierre no ejecuta ni autoriza EX-02 o
+EX-03, no declara listo su pre-gate y no avanza a S11-C3.
+
+## 6. Preservación de alcance
+
+Este registro no cambia objetivos, hipótesis, indicadores, fórmulas, escenarios, denominadores,
+criterios `PASS`/`FAIL`/`NOT_DEMONSTRATED`, la matriz de eventos, el harness ni la independencia
+de EX-02 y EX-03. Las repeticiones utilizaron únicamente Compose local aislado para P02/P03 y C1;
+no ejecutaron escenarios funcionales, no crearon evidencia C2 y no modificaron DB, Redis, storage
+ni despliegues de producción.
+
+## 7. Gate documental
+
+`S11_HMAC_CUSTODY_REBASELINED`
+
+## 8. Repetición P02/P03 bajo la nueva época
+
+**Fecha:** 21/09/2026
+
+**Baseline de ejecución:** `main@5895329c2587704da4af321624082d6b9b97c38d`
+
+**Verification/run ID:** `s11-custody-20260921-p02p03-v6`
+
+**Ruta:** `var/s11-runs/custody-verifications/s11-custody-20260921-p02p03-v6/`
+
+**Fingerprint custodial:** `7205a04f93cc3da9`
+
+| Registro | SHA-256 |
+|---|---|
+| `prepare.json` | `8dcce577f19bb0d7b72db3015b2b460b20df54a12a84831ae640cf256e35a53b` |
+| `complete.json` | `d92490f5bb1c04eaefd6795d070adfd468ccc103e4329d5c9f477d01049279c2` |
+| `attestation.json` | `bb929a390171899c948bbaaeb2c1faea49397bcd15114ad09d12adace94840d2` |
+| `custody-epoch.json` | `5282c4b4d5dafacfb1782b286f8f3c4e4117b876a8da42e1daf540a189af15aa` |
+| `destruction.intent.json` | `d61007a41b6325a7cfe4e8b2f9cb811b5806cbaa3615fc141e193acd3b37f0e3` |
+| `destruction.json` | `69995c04b65a96d92cfb4c0ba89842993e067f72918ccd6143e14ce214639eb6` |
+
+Los seis registros y sus sidecars SHA-256/HMAC/commit fueron releídos con la clave actual. La
+frontera `container-recreated`, backup, restore, comparación byte a byte, matriz nominal,
+retención, gate `PUBLIC`, rechazo de `SENSITIVE` y no persistencia de `SECRET` quedaron en
+`PASS`. El canario sintético fue destruido de primary, backup y restore según el procedimiento,
+mientras el paquete de verificación se conservó con permisos privados.
+
+**Evidencia nueva:** `VERIFIABLE_WITH_CURRENT_CUSTODY_KEY`
+
+**Resultado P02:** `PASS`
+
+**Resultado P03:** `PASS`
+
+**Gate operativo:** `S11_P02_P03_REPEATED_PASS`
+
+## 9. Repetición C1 bajo la nueva época
+
+**Fecha:** 21/09/2026
+
+**Baseline de ejecución:** `main@f0bce178a22f3a80f15619caab7a3aeaa7c63d14`
+
+**Run ID:** `s11-8448491d-3347-5c00-9f44-d8ae110e9095`
+
+**Verification ID:** `s11-c1-20260921-isolation-repro-reset-v2`
+
+**Fingerprint custodial:** `7205a04f93cc3da9`
+
+La repetición usó el entorno `isolated-experiment`, PostgreSQL
+`ciudadania_s11_experiment`, Redis DB `11`, storage `/s11-objects` y un puerto host dinámico. El
+dataset `s11-functional-v1`, versión `v1`, seed `20260921`, fue generado dos veces con bytes y
+cantidades idénticos al artefacto versionado; su SHA-256 fue
+`66074d1617c4e1b7a32b854090d26556faa9b35a000452787ff3b47d6f0edc1c`.
+
+Los canarios controlados en DB, Redis y storage desaparecieron mediante el reset oficial. Un
+segundo reset produjo nuevamente el estado aislado esperado. El manifest final quedó
+`COMPLETED`, con SHA-256
+`8a2c809839336d4c3c2ba5cd70bc649e2a2a6e72077ff549da40954bc1cc9a9a`, sin escenarios
+funcionales ejecutados.
+
+Primary, backup y restore conservaron los mismos siete registros, clasificación, retención,
+SHA-256 y HMAC. El cierre verificable está en
+`var/s11-runs/custody-verifications/s11-c1-20260921-isolation-repro-reset-v2/complete.json`, cuyo
+SHA-256 es `18170777ea896e3ef8bd6b752aac40d695f84c3a652282c5c69433c18fd748f0`.
+Tras la verificación se limpiaron DB, Redis y storage experimentales y se desmontaron los
+contenedores, la red y el volumen de Compose S11. No se ejecutaron EX-02, EX-03 ni otro escenario
+funcional; producción permaneció intacta.
+
+**Evidencia histórica:** `HISTORICAL_UNVERIFIABLE — PRESERVED`
+
+**Evidencia nueva:** `VERIFIABLE_WITH_CURRENT_CUSTODY_KEY`
+
+**Resultado C1:** `PASS`
+
+**Gate operativo:** `S11C1_REPEATED_PASS`
+
+---
+
+## Adenda — estado posterior de EX-02 (22/09/2026)
+
+Este documento describe el estado del **21/09/2026** y sus afirmaciones se conservan como
+registro de esa fecha. Para evitar una lectura desactualizada: donde dice que `EX-02` está
+`NOT_EXECUTED` y que «no se creó un run C2», eso dejó de ser cierto después.
+
+A la fecha de esta adenda existen **tres** runs de `EX-02`, los tres con `run_id` acuñado,
+manifest inicial y final `FAILED`, y evidencia custodiada que verifica SHA-256 y HMAC con la
+clave vigente:
+
+| Run | git SHA | Causa del fallo |
+|---|---|---|
+| `s11-3b48870b-7979-542b-8a46-1c6dfce7bed8` | `e76061b8` | `npm` ausente; la fase `execute` no se inició |
+| `s11-d407a461-ca75-5809-97bd-bcfea7593f3e` | `2c0c70a8` | directorio de resultados root-owned (`EACCES`) |
+| `s11-41eaa7d0-67c8-53b1-aa9a-38068859dd1f` | `2c0c70a8` | separador `--` ausente; se ejecutó la suite ordinaria `e2e/` |
+
+Ninguno de esos tres ejerció una condición funcional del escenario, y los tres conservan su
+resultado `NOT_DEMONSTRATED`. Los defectos de harness y preflight se corrigieron en el commit
+`9e2d55d`; la desviación `A4` y la deuda operativa pendiente constan en
+[`S11_A4_EVIDENCE_LOSS_INCIDENT.md`](S11_A4_EVIDENCE_LOSS_INCIDENT.md).
+
+Más tarde ese mismo día hubo dos intentos fallidos adicionales —`s11-95954a43-…` por el defecto
+`A5` y `s11-6efb78d7-…` por el `A6`, corregidos en `83a27f1` y `721462a`— y un sexto run,
+`s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af`, que cerró `COMPLETED`. **El estado vigente de `EX-02`
+es `PASS`**, auditado como `S11C2_EX02_PASS_CONFIRMED`. Después se ejecutó `EX-03` con el run
+`s11-6dc3ea66-08c9-51ef-9fe3-70e7dcc67959`, que también cerró `COMPLETED`: **el estado vigente de
+`EX-03` es `PASS`**, con gate `S11C2_EX03_PASS_CONFIRMED`; su reconciliación, registrada en el
+commit mixto `79a6f28`, se regularizó después en un commit sólo documental. A continuación se
+ejecutó `EX-04` con
+el run `s11-03adb9bc-c9e4-5f8f-b64c-c4360d0c2085`, que también cerró `COMPLETED`: **el estado
+vigente de `EX-04` es `PASS`**, con gate `S11C2_EX04_PASS`. Después se ejecutó `EX-06` con el
+run `s11-989218f3-4808-5c6f-ac23-6e8870fec153`, que también cerró `COMPLETED`: **el estado
+vigente de `EX-06` es `PASS`**, con gate `S11C2_EX06_PASS`. Por último se ejecutó `EX-08` con el
+run `s11-b567289c-9fe2-5349-a384-e9284bdde863`, que también cerró `COMPLETED`: **el estado
+vigente de `EX-08` es `PASS`**, con gate `S11C2_EX08_PASS`. Después se ejecutó `EX-05`: el run
+`s11-1961b2d4-2c48-5cc0-ac84-8847dda2de39` quedó `NOT_DEMONSTRATED` por un defecto de aserción del
+spec y el run `s11-0e2feac0-6583-513c-a6aa-33430394d14a` cerró `COMPLETED`: **el estado vigente de
+`EX-05` es `PASS`**, con gate `S11C2_EX05_PASS`. Por último se ejecutó `EX-07`: el run
+`s11-176a55e0-1c27-5b2f-a0f2-ef50dbe6d959` quedó `NOT_DEMONSTRATED` por un defecto de aserción del
+spec y el run `s11-545491b8-01fe-55e6-8f08-1a0ebbdca8d3` cerró `COMPLETED`: **el estado vigente de
+`EX-07` es `PASS`**, con gate `S11C2_EX07_PASS`. S11-C2, cuyo alcance formal es EX-02…EX-08,
+tiene sus siete escenarios en `PASS` y quedó **cerrado** tras la revisión formal del 23/09/2026;
+S11-C sigue abierto. **Previsión documentada el 23/09/2026**, que se conserva como registro de esa
+fecha y no como estado actual: «La sub-etapa S11-C3, que los ejecutará, usa la misma clave
+custodial estable de esta época: una corrida de EX-09 renueva el HMAC del índice en cada alta y
+sólo se sella al final del segundo lote.»
+
+**Estado posterior.** La corrida de dos lotes prevista para Gemini se sustituyó el 26/09/2026
+(`docs/PROGRESO_SPRINTS.md`), y S11-C3 ejecutó `EX-09` con OpenAI en una sola sesión, sin lotes. El
+run `s11-a156a68c-c422-5e57-ae2b-3336d3b55e6c` tiene el manifest final persistido en `COMPLETED`, y
+la salida de `finalize` informó `custody_verification = PASS`. La evidencia revisada en la
+reconciliación no demuestra qué clave custodial firmó ese run, y este documento no lo afirma.
+**El estado vigente de `EX-09` es `FAIL`**: CA-4 19/28 = 67,86 %, bajo el umbral ≥ 85,00 % (al
+menos 24/28). Es un resultado experimental válido, no un fallo técnico. `EX-10` sigue pendiente.
+Nada de esto altera el rebaseline de custodia descrito arriba ni sus gates, y la tabla «Estado
+actual» de §5 se conserva como instantánea del 21/09/2026: sus filas `EX-02` y `EX-03` en
+`NOT_EXECUTED` describen esa fecha y no se reescriben.
+
+---
+
+## Adenda — cierre de la época `7205a04f93cc3da9` (27/09/2026)
+
+La época de custodia abierta por la Decisión C (§4), con huella `7205a04f93cc3da9`, quedó
+**`CLOSED / RETIRED`** por el incidente de exposición de secretos del 26/09/2026
+([`S11_SECRET_EXPOSURE_INCIDENT_20260926.md`](S11_SECRET_EXPOSURE_INCIDENT_20260926.md)).
+
+- **Verificación previa al cierre.** El 27/09/2026 se ejecutó una verificación read-only con la
+  clave de la época.
+  - Resultado: `PASS_WITH_UNANCHORED_HISTORICAL`, aceptado por el autor.
+  - SHA-256 del reporte: `9b3f17a2fa99e3b27497130c9ac212a7a39ed8df9c2de0d924aac6b9f88ff40b`.
+- **Resultado por unidad:**
+  - quedaron en `PASS` la repetición P02/P03 `s11-custody-20260921-p02p03-v6` (§8) y la repetición
+    C1 `s11-c1-20260921-isolation-repro-reset-v2` (§9);
+  - el run de EX-09 `s11-a156a68c-c422-5e57-ae2b-3336d3b55e6c` quedó autenticado con la clave de
+    esta época, lo que responde a lo que la adenda anterior dejaba sin demostrar.
+- **Evidencia anterior a la época.**
+  - `s11-custody-20260921-p02p03-v5` y `s11-c1-20260921-isolation-repro-reset-v1` (§2) conservan su
+    estado `HISTORICAL_UNVERIFIABLE`. En esa verificación sus bytes quedaron anclados
+    (`HISTORICAL_ANCHORED`), pero eso no restituye su autenticidad HMAC.
+  - `s11-custody-20260921-p02p03-v1` a `-v4` se aceptaron como `RESIDUAL_LIMITATION_ACCEPTED` y
+    `NON_EVIDENTIARY`.
+- **Uso posterior.** La clave de la época está archivada fuera del entorno operativo y sólo sirve
+  para verificación histórica. Ninguna evidencia se re-firmó ni se re-autenticó.
+- **Nueva época.** La época `587966006e85202a` está **`ACTIVE`**. Su atestación P02/P03 es
+  `s11-custody-20260927-p02p03-v8` = `PASS`, ligada a `8e68d78fc7e2e659bade53452661b82b2f37d616`
+  con 28 fuentes atestadas.
+- **C1.** No se repitió: la rotación no afectó aislamiento, reset, reproducibilidad ni sus gates.
+
+Las secciones §4, §8 y §9 se conservan como registro del 21/09/2026.
+
+---
+
+## Adenda — P02/P03 `v9`, atestación vigente de la época `587966006e85202a` (27/09/2026)
+
+**Motivo.** El commit `3768622d623cc29e4481c95eeacbbf8c499710ec`
+(`test(s11): fix closed custody verifier teardown`) corrigió 37 errores de *teardown* en una
+fuente atestada. Por eso `v8` dejó de describir el contenido actual de esa fuente, y hacía falta
+una atestación nueva sobre el commit actual. No se creó época nueva, no rotó ninguna clave y no
+se reabre el incidente de exposición de secretos, que sigue `CLOSED`.
+
+**Ejecución.**
+- Una sola ejecución oficial, el 27/09/2026 hacia las 23:14 UTC.
+- Se usó el procedimiento de
+  [`S11_EXPERIMENTAL_INSTRUMENTATION.md`](S11_EXPERIMENTAL_INSTRUMENTATION.md), «Repetir la
+  verificación de custodia».
+
+| Campo | Valor |
+|---|---|
+| Verification ID | `s11-custody-20260927-p02p03-v9` |
+| Resultado | **`PASS`**: 0 `FAIL`, 0 `INCOMPLETE` |
+| Época | `587966006e85202a` (`ACTIVE`), la misma de `v8` |
+| Clave pública | `8c1e5a8ad7390f4d` |
+| Commit atestado | `3768622d623cc29e4481c95eeacbbf8c499710ec` |
+| Baseline | `d3b492a7f5d203fc1dbd8c63e1732b7fd9227656`, ancestro del commit |
+| Fuentes atestadas | 28, sin duplicados; todas coinciden con los blobs del commit |
+| Agregado de fuentes | `77b4e82bd3f4074458f1f94fa8a8fa94991675a060e9f4474eb8be08bb53a872` |
+| Fases | `prepare`, `complete`, `attest` y `hmac-recheck` con `exit=0` |
+
+| Registro | SHA-256 |
+|---|---|
+| `prepare.json` | `cb68b49a471d4cdc85a40123e8ac34f772a4a6f299276b7868b2e73d41f56ae6` |
+| `complete.json` | `7dc64ed95db57317f48cccd9a6a03c603598740df6c72ede0ef8ba39af94db34` |
+| `attestation.json` | `f248c4711abc7b8e198b2b7b0aa2bb085465b4602cac95ffd572041b380fc908` |
+| `destruction.intent.json` | `8c959700ce96c3482e290eb34d2174430d3389e5040c3b6a2e353f6aa9c62630` |
+| `destruction.json` | `3e3bc81aaf7831173fb223b53476583f7dff95c0f317a07196a21e00a776755b` |
+
+**Fuente modificada respecto de `v8`.** Es la única:
+`backend/apps/experiments_app/tests/test_s11_verify_closed_custody.py`.
+- En `v9`: `3b4617f83e831921b6b2a4471fcbb7c610efa830d3d10ffceb4363c951a4d668`.
+- En `v8`: `3968b99485a27ba4e9a0d64dcd0da34ceef46ad14b892586d0f9687116b94757`.
+- Siguen incluidos el verificador `backend/scripts/s11_verify_closed_custody.py` y esa prueba.
+- Ningún archivo de EX-10 aparece como fuente.
+
+**Resultados.**
+- **Instantánea previa:** `PRE_SNAPSHOT_COMPLETE`.
+  - Cubre `var/s11-runs`, `var/s11-backup` y `var/s11-restore`: 560 entradas y 350 archivos con
+    SHA-256, incluidos los 6 de `p02p03-v3`.
+  - 0 errores y stderr vacío.
+- **HMAC:** `HMAC_OK` con la clave de la época en `prepare.json`, `complete.json`,
+  `destruction.intent.json`, `destruction.json` y `attestation.json`.
+- **Bundle:**
+  - 20 archivos regulares en 0600, en un directorio 0700, con dueño `monty:monty`;
+  - sin symlinks, FIFOs ni extras;
+  - JSON canónico;
+  - los cinco `.sha256`, `.commit` y `.hmac` válidos.
+- **Persistencia:** `container-recreated`, con hostnames `9cc4ca932ad2` (`prepare`) y
+  `b8d2b5621af1` (`complete`).
+- **Backup y restore:** 5 archivos cada uno, `sha256_match=true`: primary = backup = restore.
+- **Gates y acceso:** los cuatro gates en `true` y la matriz de acceso de 23 casos, ambas idénticas
+  a las de `v8`.
+- **Canario:** `DESTROYED`, `remaining_artifact_ids=[]`. `runs/s11-custody-20260927-p02p03-v9`
+  no existe en primary, backup ni restore.
+- **Transacciones residuales:** ninguna. `custody-transactions/` y `finalization-transactions/`
+  quedaron vacíos.
+- **Escaneo extendido:** `EXTENDED_SECRET_HITS=0` en el bundle y en las salidas operativas
+  (44 archivos en el reescaneo final).
+  - Cubrió todas las variables sensibles no vacías del `.env` en forma literal, hexadecimal y
+    base64.
+  - Cubrió los patrones `Authorization`, `Bearer`, `PRIVATE KEY`, prefijos de API key, JWT y el
+    canario.
+- **Comparación histórica:** `PASS`.
+  - Los 350 SHA-256 históricos son idénticos y `v8` está intacta (20/20); no se eliminó ni se
+    modificó nada histórico.
+  - Sólo es nuevo el bundle `v9` (20 archivos y su directorio).
+  - Los metadatos sólo cambiaron en las raíces, `runs/`, `custody-verifications/`,
+    `custody-transactions/` y `.s11-custody.lock`.
+  - El `nlink` de `custody-verifications/` sube en 1 por el subdirectorio nuevo.
+
+**Runner abortado previo.** Antes de la ejecución oficial, el runner abortó por un error de
+sintaxis en su comprobación de huellas:
+
+```text
+PRE_EXECUTION_RUNNER_ABORT
+NO_VERIFICATION_ID_CONSUMED
+NO_PHASE_STARTED
+NO_EVIDENCE_CREATED
+NO_CANARY_CREATED
+NO_CONTAINER_CREATED
+NO_SECRET_EXPOSED
+```
+
+No es un `FAIL`, un `INCOMPLETE`, un `NOT_DEMONSTRATED` ni una segunda ejecución de `v9`: la
+ejecución oficial ocurrió una sola vez.
+
+**Desviaciones registradas, que no invalidan `v9`:**
+1. el runner abortado previo;
+2. las instantáneas se capturaron por stdout, sin montaje escribible ni archivos propiedad de root;
+3. `compose run` usó `-T` para no asignar TTY;
+4. `var/s11-objects` se incluyó sólo como raíz informativa y no cambió;
+5. `destroyed_at` es `expires_at` + 1 s, la simulación de retención del diseño, aunque la fecha
+   sea el 26/12/2026;
+6. los stderr de las fases sólo contienen la creación del contenedor.
+
+Las salidas operativas están fuera del repositorio, en `~/s11-p02p03-v9/` (0700/0600).
+
+**Estado.**
+
+```text
+Época 7205a04f93cc3da9: CLOSED / RETIRED (sólo verificación histórica)
+Época 587966006e85202a: ACTIVE
+P02/P03 v8 (s11-custody-20260927-p02p03-v8, 8e68d78): PASS · HISTORICAL SNAPSHOT
+P02/P03 v9 (s11-custody-20260927-p02p03-v9, 3768622): PASS · CURRENT / VIGENTE
+C1: no repetido
+```
+
+`v8` no se modifica ni se reemplaza retrospectivamente: sigue siendo evidencia válida de su
+snapshot.
+
+**C1 no se repitió.** La corrección sólo cambió la infraestructura de *teardown* de una prueba
+custodial. No alteró el aislamiento, el reset, la reproducibilidad, el dataset, el entorno
+funcional ni los gates de C1.

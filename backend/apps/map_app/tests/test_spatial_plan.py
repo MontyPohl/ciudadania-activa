@@ -2,7 +2,7 @@ import json
 
 import pytest
 from django.contrib.gis.geos import Point
-from django.db import connection
+from django.db import connection, transaction
 
 from apps.admin_app.models import Category, Institution
 from apps.core.enums import ReportPriority, ReportStatus
@@ -98,27 +98,38 @@ def test_sql_usa_prefiltro_gist_y_recheck_sin_transformar_location():
         assert forbidden not in where
 
 
-def test_gist_es_elegible_en_plan_controlado(category):
+def _controlled_gist_plan():
+    """EXPLAIN en JSON del prefiltro espacial ``&&`` aislado, sin secuencial.
+
+    La consulta no lleva orden: ``Report.Meta.ordering`` (``-created_at``) añadiría un
+    ORDER BY con el que el B-tree ``report_created_at_idx`` compite ahorrando el Sort.
+    Con las estadísticas que deja un VACUUM de la tabla vacía (``reltuples`` 0, cero
+    páginas) esos costes empatan y el planner podía elegir el B-tree según el momento
+    de autovacuum. Sin orden, el GiST es el único índice aplicable al predicado, así
+    que su elegibilidad ya no depende de estadísticas previas. ``SET LOCAL`` termina
+    con la transacción del bloque atómico.
+    """
     bbox = parse_and_canonicalize_bbox("-57.7,-25.35,-57.5,-25.2")
-    queryset = Report.objects.filter(location__bboverlaps=bbox.envelope())
-
-    with connection.cursor() as cursor:
+    queryset = Report.objects.filter(location__bboverlaps=bbox.envelope()).order_by()
+    with transaction.atomic(), connection.cursor() as cursor:
         cursor.execute("SET LOCAL enable_seqscan = off")
-        plan = json.loads(queryset.explain(format="json"))[0]["Plan"]
+        return json.loads(queryset.explain(format="json"))[0]["Plan"]
 
+
+def _assert_gist_prefilter(plan):
     gist_name = _gist_index_name()
-    index_nodes = [
+    gist_nodes = [
         node
         for node in _nodes(plan)
         if node.get("Node Type") in {"Index Scan", "Bitmap Index Scan"}
+        and node.get("Index Name") == gist_name
     ]
 
-    assert any(node.get("Index Name") == gist_name for node in index_nodes)
-    assert any("&&" in node.get("Index Cond", "") for node in index_nodes)
+    assert gist_nodes
+    assert all("&&" in node.get("Index Cond", "") for node in gist_nodes)
 
 
-@pytest.mark.django_db(transaction=True, serialized_rollback=True)
-def test_planner_elige_gist_con_cardinalidad_representativa():
+def _synthetic_category():
     institution, _ = Institution.objects.get_or_create(
         slug="institucion-plan-gist",
         defaults={"name": "Institución sintética para plan GIST"},
@@ -131,6 +142,68 @@ def test_planner_elige_gist_con_cardinalidad_representativa():
             "default_priority": ReportPriority.MEDIA,
         },
     )
+    return category
+
+
+def _reports_relstats():
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT reltuples, relpages FROM pg_class WHERE relname = 'reports'")
+        return cursor.fetchone()
+
+
+def test_gist_es_elegible_en_plan_controlado(category):
+    _assert_gist_prefilter(_controlled_gist_plan())
+
+
+@pytest.mark.django_db(transaction=True, serialized_rollback=True)
+@pytest.mark.parametrize("preparation", ["vacuum-tras-filas-muertas", "vacuum-analyze-con-filas"])
+def test_gist_sigue_elegible_tras_vacuum_o_analyze_forzados(preparation):
+    # Transaccional (convención del repo con `serialized_rollback`): VACUUM no puede correr
+    # dentro de un bloque de transacción y aquí la conexión está en autocommit. El flush
+    # del teardown vacía la tabla; las filas son sintéticas y deterministas.
+    category = _synthetic_category()
+    rows = Report.objects.bulk_create(
+        [
+            Report(
+                citizen=None,
+                category=category,
+                description=f"Dato sintético de estadísticas {number}",
+                status=ReportStatus.CREADO,
+                location=Point(-60 + number / 1000, -27, srid=4326),
+            )
+            for number in range(200)
+        ]
+        + [
+            Report(
+                citizen=None,
+                category=category,
+                description="Dato sintético dentro del bbox",
+                status=ReportStatus.CREADO,
+                location=Point(-57.6359, -25.2637, srid=4326),
+            )
+        ]
+    )
+    if preparation == "vacuum-tras-filas-muertas":
+        # El estado del fallo observado: autovacuum limpia filas muertas y deja la tabla
+        # con `reltuples` 0.
+        Report.objects.filter(pk__in=[row.pk for row in rows]).delete()
+        command, expected_reltuples = "VACUUM reports", 0
+    else:
+        command, expected_reltuples = "VACUUM (ANALYZE) reports", len(rows)
+    with connection.cursor() as cursor:
+        cursor.execute(command)
+    assert _reports_relstats()[0] == expected_reltuples
+
+    _assert_gist_prefilter(_controlled_gist_plan())
+
+    with connection.cursor() as cursor:
+        cursor.execute("SHOW enable_seqscan")
+        assert cursor.fetchone()[0] == "on"  # SET LOCAL no sobrevive a su transacción
+
+
+@pytest.mark.django_db(transaction=True, serialized_rollback=True)
+def test_planner_elige_gist_con_cardinalidad_representativa():
+    category = _synthetic_category()
     outside = [
         Report(
             citizen=None,
