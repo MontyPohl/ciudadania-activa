@@ -21,11 +21,15 @@ función, nunca devolviéndolo desde producción.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 
 from django.conf import settings
 
+from ..prompts import PROMPT_VERSION, PROMPT_VERSIONS, prompt_version_id
 from .base import AiClassificationAdapter
+
+logger = logging.getLogger(__name__)
 
 #: Valores admitidos en `AI_PROVIDER`.
 PROVIDER_OPENAI = "openai"
@@ -43,6 +47,7 @@ class RuntimeAdapter:
 
     adapter: AiClassificationAdapter
     model_name: str
+    prompt_version: str = PROMPT_VERSION
 
 
 def get_runtime_adapter() -> RuntimeAdapter | None:
@@ -60,6 +65,10 @@ def get_runtime_adapter() -> RuntimeAdapter | None:
 
 
 def _openai_adapter() -> RuntimeAdapter | None:
+    version = getattr(settings, "AI_PROMPT_VERSION", "v1")
+    if version not in PROMPT_VERSIONS:
+        logger.warning("Versión de prompt de IA desconocida; clasificación desactivada.")
+        return None
     api_key = getattr(settings, "OPENAI_API_KEY", "")
     model = getattr(settings, "OPENAI_MODEL", "")
     if not api_key or not model:
@@ -79,8 +88,10 @@ def _openai_adapter() -> RuntimeAdapter | None:
             client=client,
             model=model,
             reasoning_effort=getattr(settings, "OPENAI_REASONING_EFFORT", ""),
+            prompt_version=version,
         ),
         model_name=model,
+        prompt_version=prompt_version_id(version),
     )
 
 

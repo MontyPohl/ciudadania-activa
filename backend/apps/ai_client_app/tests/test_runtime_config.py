@@ -261,3 +261,23 @@ def test_la_credencial_no_aparece_en_la_representacion(settings, sin_cliente_rea
 
     assert CLAVE_DE_PRUEBA not in repr(runtime)
     assert CLAVE_DE_PRUEBA not in repr(runtime.adapter)
+
+
+def test_openai_registra_version_v2(openai_configurado, sin_cliente_real):
+    openai_configurado.AI_PROMPT_VERSION = "v2"
+    runtime = get_runtime_adapter()
+    assert runtime.prompt_version == "classification-v2"
+    assert runtime.adapter._prompt_version == "v2"
+
+
+def test_version_invalida_falla_cerrado(openai_configurado, sin_cliente_real, caplog):
+    openai_configurado.AI_PROMPT_VERSION = "version-secreta-no-registrable"
+    assert get_runtime_adapter() is None
+    assert sin_cliente_real == []
+    assert "Versión de prompt" in caplog.text
+    assert "version-secreta" not in caplog.text
+
+
+def test_gemini_conserva_v1_aunque_se_configure_v2(gemini_configurado, sin_cliente_real):
+    gemini_configurado.AI_PROMPT_VERSION = "v2"
+    assert get_runtime_adapter().prompt_version == "s8-classification-v1"

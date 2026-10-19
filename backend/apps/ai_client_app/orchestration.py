@@ -47,7 +47,9 @@ DECISION_AUTO_APPLY = "auto_apply"
 DECISION_HUMAN_REVIEW = "human_review"
 
 
-def process_report_classification(report_id, *, adapter, model_name: str) -> bool:
+def process_report_classification(
+    report_id, *, adapter, model_name: str, prompt_version: str = PROMPT_VERSION
+) -> bool:
     """Clasifica el reporte `report_id` con `adapter`. Devuelve si persistió algo.
 
     Un `False` nunca es una excepción propagada: es una salida controlada por
@@ -158,7 +160,7 @@ def process_report_classification(report_id, *, adapter, model_name: str) -> boo
             {
                 "report_id": str(report.pk),
                 "classification_id": str(classification.pk),
-                "prompt_version": PROMPT_VERSION,
+                "prompt_version": prompt_version,
                 "model_name": model_name,
                 "raw_response": raw_response[:MAX_RAW_RESPONSE_CHARS],
                 "decision": DECISION_AUTO_APPLY if applied else DECISION_HUMAN_REVIEW,
