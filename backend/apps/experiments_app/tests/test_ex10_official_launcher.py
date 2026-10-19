@@ -13995,11 +13995,32 @@ def test_v2_native_worker_bindings_actual_control_b5_publication_and_adapter(
         return result.process
 
     adapter, channel = c.attachment.admit(identity=result.process, observer=observer)
+    assert channel.deadline == min(before + 120, result.ready_deadline)
     assert adapter.identity == result.process
     assert c.ready["reads"] == 1
     assert c.attachment.transferred
     channel.close()
     assert c.control.started and c.case.observations["phase"] == "running"
+
+
+@pytest.mark.parametrize("preparation_remaining", [900, 180])
+def test_v2_native_worker_bindings_ready_budget_and_original_expiry(
+    native_worker_bindings_case, preparation_remaining
+):
+    c = native_worker_bindings_case
+    initial = c.time.monotonic()
+    result = c.mod._prepare_native_worker_bindings(
+        **dict(c.arguments, preparation_deadline=initial + preparation_remaining)
+    )
+    assert result.ready_deadline == initial + min(300, preparation_remaining)
+    # A slow preparation past the old 120-second ceiling remains qualified.
+    c.now["monotonic"] = initial + 121
+    assert result.check_retained() is None
+    # The new budget is still fixed, expires exactly, and cannot renew itself.
+    c.now["monotonic"] = result.ready_deadline
+    with pytest.raises(c.mod.LauncherError, match="^native-worker-bindings-uncertain$"):
+        result.check_retained()
+    assert result.ready_deadline == initial + min(300, preparation_remaining)
 
 
 @pytest.mark.parametrize("change", ["container"])

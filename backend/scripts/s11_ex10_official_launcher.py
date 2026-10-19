@@ -6637,7 +6637,7 @@ def _prepare_native_worker_bindings(
         retained()
         # The envelope is the final existing-role publication unblocking the
         # worker. Capture READY's budget BEFORE that write, never after return.
-        ready_deadline = min(time.monotonic() + 120, preparation_deadline)
+        ready_deadline = min(time.monotonic() + 300, preparation_deadline)
         publication.publish("envelope", envelope_bytes)
         raw, lease = _capture_native_source(
             Path(expected_root) / "envelope.json", error_type=LauncherError
@@ -7430,7 +7430,7 @@ class NativeWorkerAttachment:
             original_pipes = self._pipe_binding()
             ready_deadline = self.read_ready()
             now = time.monotonic()
-            if type(ready_deadline) not in (int, float) or not now < ready_deadline <= now + 120:
+            if type(ready_deadline) not in (int, float) or not now < ready_deadline <= now + 300:
                 raise LauncherError("native-attachment-ready-deadline")
             # Retain the first publication deadline; never call its provider to
             # renew it. This also fences the constructor/observer/FD handoff IO.
@@ -7526,7 +7526,9 @@ class NativeWorkerAttachment:
                 identity=identity, observer=current, process_factory=handoff
             )
             self.adapter = adapter
-            budget = deadline - time.monotonic()
+            # READY bounds preparation; the separate wire exchange keeps its
+            # original 120-second ceiling and cannot outlive READY.
+            budget = min(deadline - time.monotonic(), 120)
             if not 0 < budget <= 120:
                 raise LauncherError("native-attachment-ready-deadline")
             channel = adapter.open(
