@@ -1,0 +1,14 @@
+# Compuerta de cobertura de la CI (S14-D02): código de producto del backend.
+# Lo pasa solo el job de dominio (`--cov-config`); pyproject.toml no tiene sección
+# de coverage, así que el job de experiments_app y las corridas locales no lo heredan.
+[tool.coverage.run]
+omit = [
+    "apps/experiments_app/*",      # aparato experimental S11/EX-10, no es producto
+    "apps/ai_client_app/evaluation/*",  # arnés de EX-09
+    "*/tests/*",
+    "*/migrations/*",
+]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true

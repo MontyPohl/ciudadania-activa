@@ -1,0 +1,92 @@
+name: CI Experiments (S11 / EX-10)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".env.example"
+      - ".gitignore"
+      - "infra/**"
+      - "docs/tesis/S11A_POLITICA_CUSTODIA_Y_ACCESO.md"
+      - ".github/workflows/ci-experiments.yml"
+  pull_request:
+    paths:
+      # El aparato y todo lo que congela GOV-T054, también fuera de backend/.
+      - "backend/apps/experiments_app/**"
+      - "backend/config/**"
+      - "backend/requirements/**"
+      - "backend/Dockerfile.dev"
+      - "backend/manage.py"
+      - "backend/conftest.py"
+      - "backend/scripts/s11_*"
+      - ".env.example"
+      - ".gitignore"
+      - "infra/**"
+      - "docs/tesis/S11A_POLITICA_CUSTODIA_Y_ACCESO.md"
+      - ".github/workflows/ci-experiments.yml"
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: backend
+
+env:
+  DJANGO_SECRET_KEY: ci-test-secret-key
+  DJANGO_DEBUG: "False"
+  DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1
+  DATABASE_URL: postgis://ciudadania:ciudadania@localhost:5432/ciudadania_activa
+  REDIS_URL: redis://localhost:6379/0
+
+jobs:
+  experiments:
+    runs-on: ubuntu-24.04
+
+    services:
+      db:
+        # Alineado con infra/docker-compose.yml y con el major de Supabase (17). Ver ADR-0003.
+        image: postgis/postgis:17-3.5
+        env:
+          POSTGRES_USER: ciudadania
+          POSTGRES_PASSWORD: ciudadania
+          POSTGRES_DB: ciudadania_activa
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ciudadania"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Instalar dependencias de sistema (GDAL/GEOS/PROJ)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends gdal-bin libgdal-dev libgeos-dev libproj-dev
+
+      - name: Instalar dependencias Python
+        run: pip install -r requirements/test.txt
+
+      - name: Pruebas de experiments_app
+        # Mismo comando y cobertura que antes del S14: no cambia el comportamiento del aparato.
+        # Los launchers EX-10 exceden el límite de 6 h de Actions y no tocan el dominio.
+        run: >-
+          pytest apps/experiments_app --cov=apps --cov-report=term-missing
+          --ignore=apps/experiments_app/tests/test_ex10_official_launcher.py
+          --ignore=apps/experiments_app/tests/test_ex10_launcher.py
+          --ignore=apps/experiments_app/tests/test_ex10_preflight_launcher.py
