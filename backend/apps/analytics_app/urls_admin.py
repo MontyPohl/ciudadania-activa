@@ -1,6 +1,7 @@
-"""Rutas de métricas del administrador (`/api/v1/admin/metrics/`).
+"""Rutas de métricas: admin."""
 
-Las completa el carril A del Sprint 13.
-"""
+from django.urls import path
 
-urlpatterns = []
+from apps.analytics_app.views_admin import AdminMetricsView
+
+urlpatterns = [path("", AdminMetricsView.as_view(), name="metrics")]

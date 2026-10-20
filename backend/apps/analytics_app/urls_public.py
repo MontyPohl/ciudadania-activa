@@ -1,6 +1,7 @@
-"""Rutas de métricas del público (`/api/v1/public/metrics/`).
+"""Rutas de métricas: public."""
 
-Las completa el carril A del Sprint 13.
-"""
+from django.urls import path
 
-urlpatterns = []
+from apps.analytics_app.views_public import PublicMetricsView
+
+urlpatterns = [path("", PublicMetricsView.as_view(), name="metrics")]
