@@ -67,3 +67,35 @@ la [revisión independiente](S15_REVISION_IMPLEMENTACION.md) y la
 Los hashes públicos permiten localizar/comprobar originales; no vuelven anónimo
 el contenido. Una exportación para tesis necesita selección y revisión propias.
 No se actualiza todavía el `.docx` ni se cierra S15 con fotos/oro pendientes.
+
+
+## Suplemento de entrega: CI y recuperación controlada
+
+`validation-final/out/s15/delivery-index.json` añade **18 archivos** de CI y
+`runtime-diagnostic/`, reabiertos y comprobados. SHA-256:
+`f60ee79211aa77f0008c7b96e5e2889c4116d15d446db96f0df829d5e006b50a`.
+No sobrescribe el índice de 143 archivos ni modifica el corte de carga.
+
+El CI de código `bd0b0d5` pasó seis checks en [PR #56](https://github.com/MontyPohl/ciudadania-activa/pull/56):
+backend, build, frontend-e2e, auxiliares, preview y comentario automático de Vercel.
+Los logs de tres workflows se conservan completos, fuera del repositorio.
+
+El diagnóstico posterior se hizo **solo en `ca-s15-redeem-web`**, con el mismo
+perfil local gthread/4, sin tocar C3. Treinta health previos fueron correctos.
+Se detuvo deliberadamente con `SIGSTOP` únicamente su worker Gunicorn, sin
+escritores activos. El master reemplazó el proceso y health volvió a responder
+en **33,055 s**: once sondeos fallidos durante la interrupción se conservan,
+seguidos de treinta health correctos. SQL completo antes/después fue idéntico en
+las diez tablas examinadas. No hubo proveedor real ni mutación de negocio.
+
+El protocolo 002 y fuente quedaron fijados antes del ensayo. La primera ejecución
+falló por una ruta no montada, antes de ejecutar el probe; su log y fuente se
+conservan. El presupuesto de 135 s se implementó como iteraciones/timeouts, no un
+deadline monotónico estricto; el postchequeo independiente confirmó que la duración
+observada quedó dentro de ese presupuesto, sin editar ni repetir la serie.
+
+Esto acredita recuperación **en esa interrupción controlada**, no la causa del
+timeout espontáneo de C3 ni estabilidad prolongada. El texto genérico «Perhaps
+out of memory?» de Gunicorn tras matar el worker detenido no demuestra OOM;
+no se lo usa para explicar el incidente anterior. Los logs nuevos se preservan
+en este suplemento; la copia final de logs del índice positivo sigue intacta.

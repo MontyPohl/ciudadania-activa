@@ -99,6 +99,8 @@ reservar tiempo de redacción y revisión antes de la defensa.
 
 El [corte de validación](S15_INDICE_VALIDACION.md) preserva un timeout Gunicorn
 posterior a las ventanas medidas. Su causa no se estableció. Antes de desplegar el
-ajuste gthread/4, comprobar estabilidad bajo períodos prolongados y recuperación;
-no usar las ventanas cortas como garantía de operación continua. Heroku conserva
+ajuste gthread/4, comprobar estabilidad bajo períodos prolongados y tratar la causa
+pendiente. La recuperación controlada local sí se observó: reemplazo en 33,055 s,
+30 health antes/después y diez tablas sin cambios; conserva ese alcance acotado.
+No usar las ventanas cortas como garantía de operación continua. Heroku conserva
 su versión existente y no se publicó este ajuste durante S15.

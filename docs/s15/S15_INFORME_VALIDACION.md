@@ -1,7 +1,8 @@
 # Sprint 15 — validación y estado actual
 
 **Corte:** 20/10/2026. **Estado:** S15 en ejecución sobre `3d89182` más los cambios
-de la rama `feat/s15-validation`. Esta segunda etapa continúa la
+de la rama `feat/s15-validation`, implementación `bd0b0d5`, publicada para revisión
+en [PR #56](https://github.com/MontyPohl/ciudadania-activa/pull/56), borrador. Esta segunda etapa continúa la
 [preparación local](S15_INFORME_PREPARACION_LOCAL.md), cuyos resultados y fallos se
 conservan con su alcance original. No se actualizan retroactivamente los experimentos
 ni los veredictos de S11.
@@ -19,6 +20,7 @@ ni los veredictos de S11.
 | Navegación descriptiva | **18/18 observadas**, tres rutas × dos perfiles × tres repeticiones | [Medición de pantallas](S15_RENDIMIENTO_FRONTEND.md). Ventana 8 s y proxies explícitos; datos móviles visibles a 2,14–3,16 s, sin certificación de campo |
 | Canjes positivos complementarios | **3/3 HTTP + SQL**, saldo 1.010→10; tres duplicados rechazados y diez tablas sin cambios | [Suplemento de rendimiento](S15_INFORME_RENDIMIENTO.md). Mundo nuevo, N=3 exploratorio, impacto intacto y notificaciones pendientes |
 | Identidad y privacidad | 220 casos de identidad dentro de la suite global; esquema y canario local comprobados | [Matriz técnica](S15_INFORME_IDENTIDAD.md). Alcance de superficies explícito; no readjudica HT-3 |
+| Recuperación local controlada | 30 health antes y 30 después correctos; reemplazo de worker detenido en **33,055 s**, diez tablas idénticas | [Suplemento de entrega](S15_INDICE_VALIDACION.md). Once fallos durante la interrupción preservados; no explica el timeout anterior ni acredita estabilidad prolongada |
 | IA | Formatos, ejecutor offline y recuperación implementados; sin llamadas de pago | Fotos inéditas y oro humano aún pendientes; no existe resultado nuevo de concordancia |
 | Seguridad y operación | Revisión ampliada de instrumentos; proxy heredado corregido | [Informe de seguridad](S15_REVISION_SEGURIDAD.md). Rotaciones de proveedor, Google y correo reales siguen pendientes |
 
@@ -60,6 +62,17 @@ ajuste de runtime debe comprobarse antes de publicarlo. No se desplegó.
 La [matriz de evidencia](S15_MATRIZ_REQUISITOS_EVIDENCIA.md) conserva los denominadores
 separados, los intentos fallidos y los límites. La integración de la rama y su CI se
 registran en el índice técnico; S15 permanece abierto por las entradas siguientes.
+
+## Integración revisable
+
+Implementación `bd0b0d5` en [PR #56](https://github.com/MontyPohl/ciudadania-activa/pull/56),
+**borrador, sin merge ni despliegue productivo**. CI de ese commit: **6/6 SUCCESS**
+(backend, build, frontend-e2e, auxiliares, Vercel preview y comentario automático).
+GitHub repitió 2.349 pruebas de dominio, 417 Vitest, 67 E2E y auxiliares 43/28/37.
+Los tres workflows y sus logs se conservan en el árbol privado `ci/`; el índice
+suplementario de entrega conserva 18 archivos de CI y recuperación controlada.
+La suite experimental completa no se activó por estos paths; GOV exacto local se
+registra por separado. La preview automática no cambia Heroku ni la versión productiva.
 
 ## Entradas y comprobaciones que siguen pendientes
 

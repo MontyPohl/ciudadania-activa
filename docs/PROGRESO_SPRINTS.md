@@ -5119,7 +5119,11 @@ del comando Gunicorn está preparado en Dockerfile/Heroku, sin despliegue ejecut
 
 ### Commits relevantes
 
-Base de S14: `3d89182`. Cambios S15 locales aún sin commit ni publicación.
+Base de S14: `3d89182`. Implementación S15 `bd0b0d5`, publicada en
+[PR #56](https://github.com/MontyPohl/ciudadania-activa/pull/56), borrador.
+CI del código `bd0b0d5`: **6/6 SUCCESS**, incluidos dominio, frontend y auxiliares.
+El PR sigue como borrador, sin merge ni despliegue productivo; sus limitaciones
+operativas se registran en el informe vigente.
 
 ### Observaciones y desvíos respecto del plan
 

@@ -353,3 +353,11 @@ El [índice de validación](S15_INDICE_VALIDACION.md) documenta el log vivo, cop
 inmutable posterior y recibo de la diferencia. No se modificó el índice antiguo ni
 se truncó el log para forzar un hash. La revisión independiente confirmó las otras
 1.778 coincidencias y el orden temporal. No hubo despliegue del ajuste.
+
+
+Un diagnóstico posterior en **otra copia**, la del canje positivo, observó reemplazo
+del worker tras `SIGSTOP` deliberado en **33,055 s**, 30 health antes y 30 después
+correctos y diez tablas idénticas. Conserva once fallos durante la interrupción.
+El [suplemento de entrega](S15_INDICE_VALIDACION.md) preserva fuente, protocolo,
+serie y límites. No se reejecutó C3 ni se explica su timeout con este ensayo;
+estabilidad prolongada continúa sin acreditarse.

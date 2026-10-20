@@ -126,8 +126,11 @@ está preparado; no se prevé reset general. Los harnesses de volumen siguen loc
    el runbook ya escrito; el diagnóstico DB y los recorridos locales están terminados.
 4. **Operación de consolas:** ejecutar las rotaciones asignadas al usuario en S14-D19
    y verificarlas. No rotar rutinariamente HMAC de identidad conservando perfiles.
-5. **Entrega técnica:** registrar integración/CI y revisar los pendientes anteriores
-   antes del cierre formal de S15. La evidencia local ya se consolidó y no espera fotos.
+5. **Entrega técnica:** PR #56 publicado como borrador y CI del código 6/6 aprobado.
+   Antes de publicar el ajuste Gunicorn, comprobar estabilidad prolongada y tratar el
+   timeout tardío preservado; la recuperación controlada acotada ya se comprobó
+   en 33,055 s, sin mutación de negocio. Revisar estos pendientes antes del cierre formal de S15;
+   la evidencia local ya se consolidó y no espera fotos.
 6. **S16 y diciembre:** crear snapshot propio si cambian período/cupo, ensayar demo
    con cuentas preparadas y respaldo, completar S16; después actualizar el `.docx`.
    La fecha límite de entrega del documento sigue por concretar.

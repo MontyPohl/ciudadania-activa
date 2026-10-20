@@ -80,3 +80,11 @@ rutas del benchmark encontró la misma excepción del log vivo tardío: **1.778 
 un timeout posterior al corte, con causa no establecida. Confirmó que HTTP/tareas de
 C3 terminaron antes. El [índice actual](S15_INDICE_VALIDACION.md) preserva esa incidencia;
 preparar el PR no acredita estabilidad prolongada ni autoriza el despliegue.
+
+
+La revisión del diagnóstico de recuperación posterior confirmó los 33,055 s,
+30 health previos/posteriores, once fallos controlados y el índice positivo intacto.
+Señaló que el presupuesto por iteraciones no era un deadline estricto; un
+postchequeo independiente comparó el tiempo observado con 135 s. Se documenta ese
+límite sin repetir o cambiar la serie. El mensaje genérico de SIGKILL no demuestra
+OOM ni explica el incidente espontáneo. El dictamen sigue limitado a preparar el PR.
