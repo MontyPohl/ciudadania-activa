@@ -46,11 +46,23 @@ reproducen sobre `main@7503c32`; el usuario decidió desplegar y dejarlos como d
 El CI frontend de S11 sobre esa base también se re-corrió y quedó verde.
 
 El hotfix de PR #44 (`12a641a`, CI verde) incorpora acceso por rol desde la cabecera,
-rol en español, verificación solo para ciudadanos y tema claro fijo. Quedan pendientes
-los tres tests de EX-10, la normalización de `REDIS_URL` en settings y el smoke autenticado
-con Google por parte del usuario. La IA de clasificación sigue apagada en producción
-(`AI_CLASSIFICATION_ENABLED` no configurada): el prompt v1 no define criterios de
-prioridad y se prepara una v2 con los criterios del usuario.
+rol en español, verificación solo para ciudadanos y tema claro fijo.
+
+**Actualización post-S12 (20/10/2026).** PR #45 documentó el despliegue; #46
+(`2aabb7a`) normaliza Redis TLS automáticamente, #47 (`521a9cc`) añade tokens/`0003`
+y resumen de uso, #48 (`f1ff533`) corrige los tres tests EX-10 y #49 (`d9e1c11`)
+incorpora prompt v2 y comandos de prueba. Backend CI de `d9e1c11` está verde.
+Heroku v22 desplegó `744e295` (árbol igual a `backend/` de `d9e1c11`), aplicó `0003`
+y activó OpenAI con v2; v23/v24 configuraron Brevo y el remitente verificado. A las
+01:25 UTC web/worker/beat estaban arriba, health OK y migraciones al día; 0
+clasificaciones, 16 reportes y 0 recompensas/canjes. El smoke autenticado con Google
+sigue pendiente del usuario.
+
+**En PR #50**, aún abierto con CI corriendo, se corrige el descriptor de directorio
+compartido tras fork que producía enumeraciones vacías/duplicadas y un falso
+`COORDINATION_ROLLBACK` en B4-S09. Las fuentes difieren del commit aprobado del launcher:
+una futura corrida EX-10 requiere reaprobación. No cambia el cierre histórico S11.
+Detalle y medición exploratoria v2 en [post-S12](../PROGRESO_SPRINTS.md#post-s12--estabilización-y-activación-productiva-1920102026).
 
 **Pendiente S13 (03 §A0 #5):** cuando `RECOMPENSA_DISPONIBLE` tenga plantilla,
 `test_un_tipo_sin_plantilla_queda_fallido_y_no_envia` deberá cambiar otra vez de ejemplo;

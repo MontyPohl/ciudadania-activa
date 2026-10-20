@@ -1,3 +1,8 @@
+> **Archivo histórico — nota del 20/10/2026.** Lo que sigue es el prompt original de
+> planificación previo a S1; no describe el estado del repositorio ni son instrucciones
+> operativas actuales. Para preparar S13, consultá [PROGRESO_SPRINTS.md](PROGRESO_SPRINTS.md)
+> y [BACKLOG.md](BACKLOG.md); el plan original se conserva sin reescribir.
+
 Quiero que actúes como arquitecto de software y desarrollador senior para este proyecto.
 
 Estoy comenzando desde cero la implementación del proyecto **Ciudadanía Activa**, correspondiente a un Trabajo de Conclusión de Carrera.

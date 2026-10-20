@@ -1,14 +1,14 @@
 # Runbook — Migración de infraestructura Railway → Heroku (baseline S9)
 
-**Estado:** MIGRACIÓN COMPLETA. Baseline S9 operativo en Heroku, Storage verificado y Vercel
-apuntando al backend nuevo. Queda una deuda de seguridad abierta (§11).
-**Fecha de la verificación:** 2026-09-17.
+**Estado al 20/10/2026:** migración completa; S10 y S12 desplegados. Heroku v24,
+backend de `main@d9e1c11` desplegado en v22, IA v2 y Brevo activos. Vercel conserva
+solo `NEXT_PUBLIC_API_URL` y `NEXT_PUBLIC_GOOGLE_CLIENT_ID` como Config; secretos y
+rotaciones se documentan en §§11–13. No se presume cerrada ninguna rotación pendiente.
 **App:** `ciudadania-activa-api` · `https://ciudadania-activa-api-5b4f8e81977b.herokuapp.com`
-**Alcance:** mover el consumidor de la base (backend Django + Celery) de Railway a Heroku,
-manteniendo **la misma** instancia Supabase. No es un gate de S10.
-
-> **S10 permanece bloqueado.** No se despliega `feat/s10-implementation`, no se hace merge de
-> PR #39 y no se toca `da232c70a07309597296b6576f9b04f8d16919be`.
+**Lectura histórica:** §§1–4 y §§6–10 registran el baseline S9 del 17–18/09;
+no describen el estado productivo actual ni mantienen el bloqueo original de S10.
+§11 conserva la remediación ejecutada el 18/09; §5 y §14 incorporan el ajuste Redis.
+El inventario vigente, deploy por reconciliación y corte productivo están en **§15**.
 
 ---
 
@@ -313,7 +313,8 @@ Detalle menor, **preexistente y no introducido por la migración**: un objeto in
 y no `404` a la descarga. El comportamiento es idéntico al que había en Railway; queda anotado
 para cuando se toque `apps/core/services/storage.py`.
 
-**`REPORT_AUTO_CLOSE_HOURS` no se migró**: `main` no la lee, la consume S10.
+**En el baseline S9 no se migró `REPORT_AUTO_CLOSE_HOURS`.** Desde S10 está configurada
+y se consume en `base.py`; Beat está activo con una única instancia (ver §15).
 
 ### Vercel — repuntado y verificado
 
@@ -353,43 +354,304 @@ printf 'https://ciudadania-activa-api-5b4f8e81977b.herokuapp.com' \
 Para confirmar el valor real hay que usar `vercel env pull`. **Ese archivo trae todas las
 variables de producción en claro: hay que borrarlo en cuanto se lea.**
 
-`NEXT_PUBLIC_GOOGLE_CLIENT_ID` arrastra la misma contradicción (Secret + prefijo público). Hoy
-funciona porque se creó antes de que Vercel impusiera la restricción, pero cualquier edición
-futura va a chocar con el mismo diálogo.
+`NEXT_PUBLIC_GOOGLE_CLIENT_ID` tenía la misma contradicción (Secret + prefijo público).
+Se corrigió a Config durante la remediación del 18/09 descrita en §11.
 
 ---
 
-## 11. Deuda abierta — secretos de backend en el proyecto de Vercel
+## 11. Remediación S9.5 — secretos de backend retirados de Vercel
 
-`vercel env ls` sobre el proyecto `ciudadania-activa` devuelve **30 variables, y 28 son del
-backend**. El frontend solo necesita las dos `NEXT_PUBLIC_*`.
+**Ejecutada el 2026-09-18.** El proyecto de Vercel cargaba 30 variables de entorno, de las que
+solo 2 son consumidas por el frontend. Las otras 28 se retiraron de `production` y de `preview`.
 
-Entre las 28 hay credenciales de producción de primer orden:
+### Auditoría de consumo (corte histórico del 18/09/2026)
+
+El frontend lee **exactamente dos** variables de configuración, más dos que no son config vars:
+
+| Variable | Dónde se lee |
+|---|---|
+| `NEXT_PUBLIC_API_URL` | `src/lib/api/client.ts`, `src/lib/api/publicReports.ts`, `src/lib/auth/backend.ts` |
+| `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | `src/features/auth/GoogleSignInButton.tsx` |
+| `NODE_ENV` | `src/lib/auth/cookie.ts` — la inyecta Next.js, no es config var |
+| `CI` | `playwright.config.ts` — solo en tests, nunca en producción |
+
+Se revisó además: `next.config.ts` (no declara bloque `env`), los scripts de `package.json` (ningún
+uso de variables), las tres API routes de `src/app/api/auth/` (solo mencionan «env» en comentarios),
+y no existe ningún acceso dinámico del tipo `process.env[...]` ni destructuring. No hay `middleware`.
+
+**Prueba empírica:** tras retirar las 28, el build de producción se completó sin errores. Ninguna
+era `BUILD_REQUIRED`.
+
+### Clasificación de las 30 (corte histórico del 18/09/2026)
+
+| Clasificación | N.º | Contenido |
+|---|---|---|
+| `NEXT_PUBLIC_REQUIRED` | 2 | Conservadas |
+| `BACKEND_ONLY`, ya duplicadas en Heroku | 15 | Retirar la copia de Vercel no pierde nada |
+| `UNUSED` — nada en `main` las lee | 9 | Ver abajo |
+| `BACKEND_ONLY`, ausentes en Heroku | 3 | `GEMINI_API_KEY`, `GEMINI_MODEL`, `DEFAULT_FROM_EMAIL` |
+| Solo S10 | 1 | `REPORT_AUTO_CLOSE_HOURS` |
+
+Las 9 muertas: `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`,
+`EMAIL_USE_TLS` (el envío va por la API HTTPS de Brevo, no por SMTP — ADR-0015),
+`GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_OAUTH_REDIRECT_URI`, `TELEGRAM_BOT_TOKEN` y
+`SUPABASE_STORAGE_BUCKET_PUBLIC` (sustituida por `_REPORTS`).
+
+**`GOOGLE_OAUTH_CLIENT_SECRET` nunca se usó.** `apps/auth_app/services/google.py` valida el ID
+token con `verify_oauth2_token`, comprobando que `aud == GOOGLE_OAUTH_CLIENT_ID`. No hay
+intercambio de código de autorización, así que no interviene ningún client secret.
+
+Las 3 ausentes en Heroku no se migraron y no hacía falta: `AI_CLASSIFICATION_ENABLED` tiene
+`default=False` y no está definida en ningún entorno, de modo que `GEMINI_API_KEY` y `GEMINI_MODEL`
+no se leen; `DEFAULT_FROM_EMAIL` tiene valor por defecto en el código.
+
+Dato de contexto: Railway, el backend que realmente sirvió producción, tenía **20** variables. Las
+28 de Vercel eran una copia antigua de un `.env` completo, no la configuración viva.
+
+### Trampa operativa: `vercel env pull` no devuelve los valores sensibles
+
+Para una variable de tipo **Secret**, `vercel env pull` escribe el literal `[SENSITIVE]` en lugar
+del valor. Un intento de respaldar las 28 por esa vía produjo 29 placeholders y ningún valor real.
+
+Consecuencias prácticas:
+
+- **No se puede respaldar una variable de tipo Secret con la CLI.** Solo la UI de Vercel la revela.
+- Un valor de tipo *Config* sí se lee correctamente.
+- Antes de escribir en otro sistema algo leído con `env pull`, comprobar que no es `[SENSITIVE]`.
+
+### Estado final de la remediación del 18/09/2026
 
 ```text
-DATABASE_URL                 DJANGO_SECRET_KEY            DOCUMENT_HMAC_SECRET
-SUPABASE_SERVICE_ROLE_KEY    GOOGLE_OAUTH_CLIENT_SECRET   EMAIL_HOST_PASSWORD
-TELEGRAM_BOT_TOKEN           GEMINI_API_KEY               REDIS_URL
+Vercel production:  NEXT_PUBLIC_API_URL (Config) · NEXT_PUBLIC_GOOGLE_CLIENT_ID (Config)
+Vercel preview:     0 variables
+Vercel development: 0 variables
+Heroku:             16 variables, todas las que S9 necesita
 ```
 
-El README ya registra esta deuda y distingue la configuración mínima requerida del estado real
-del proyecto de Vercel. Las 28 variables sobrantes siguen presentes hasta que exista una operación
-de seguridad separada para retirarlas y rotar las credenciales afectadas.
+`NEXT_PUBLIC_GOOGLE_CLIENT_ID` estaba registrada como *Secret* pese a llevar prefijo público, la
+misma contradicción que bloqueaba `NEXT_PUBLIC_API_URL`. Se corrigió a *Config*. Como la CLI no
+podía leer su valor, se verificó primero que el `client_id` incrustado en los chunks de `/login`
+coincide con el `GOOGLE_OAUTH_CLIENT_ID` de Heroku — deben coincidir o el login no funcionaría — y
+se recreó con ese valor.
 
-**Alcance preciso, sin alarmismo:** Next.js solo incrusta en el bundle del navegador las
-variables con prefijo `NEXT_PUBLIC_`, así que estas 28 **no** se están sirviendo a los usuarios
-—lo verificamos leyendo los chunks—. El problema es de radio de exposición: están disponibles
-para cualquier paso de build, para cualquier código server-side del frontend y para cualquier
-persona con acceso al proyecto de Vercel, sin que nada de eso las necesite. Un `vercel env pull`
-las baja todas en claro, como acabamos de comprobar.
+### Verificación de fuga en bundles públicos
 
-**Remediación sugerida**, que no se ejecutó porque borrar variables del proyecto de producción
-es destructivo y excede este gate:
+Se descargaron los 11 chunks únicos servidos en `/`, `/mapa` y `/login` (658 KB) y se buscaron 13
+patrones: `railway.app`, `postgres://`, `postgis://`, `rediss://`, `service_role`, `GOCSPX-`
+(client secrets de Google), `AIza…` (claves de Google API), `bot<id>:<token>` (Telegram),
+`eyJhbGciOi` (JWT, formato de la service-role key), `SECRET_KEY`, `DOCUMENT_HMAC`, `DJANGO_SECRET`.
 
-1. confirmar que ningún build ni ruta server-side del frontend las lee;
-2. eliminar las 28 del proyecto de Vercel, dejando solo las dos `NEXT_PUBLIC_*`;
-3. **rotar** las que quedaron expuestas —especialmente `DOCUMENT_HMAC_SECRET`, que no puede
-   rotarse sin recalcular `citizen_profiles.document_hmac`, así que necesita su propio plan—;
-4. actualizar el README después de la remediación para registrar que la deuda quedó cerrada.
+**Cero coincidencias en los trece.** Las únicas referencias presentes son las esperadas: el host de
+Heroku y el `client_id` público de Google.
 
-El paso 3 es el que tiene coste real y conviene planificarlo aparte.
+---
+
+## 12. Rotación de secretos
+
+Los secretos que estuvieron innecesariamente en Vercel deben considerarse expuestos.
+
+| Secreto | Estado | Detalle |
+|---|---|---|
+| `DJANGO_SECRET_KEY` | **ROTADO** | 64 caracteres vía `secrets.choice`. Ver más abajo |
+| `DOCUMENT_HMAC_SECRET` | **SIN ROTAR, a propósito** | Ver §13 |
+| `SUPABASE_SERVICE_ROLE_KEY` | **PENDIENTE** | Requiere la consola de Supabase + actualizar Heroku |
+| `DATABASE_URL` | **PENDIENTE** | Requiere rotar la contraseña en Supabase + actualizar Heroku |
+| `REDIS_URL` | No requiere acción | La credencial es de Heroku y nunca sirvió desde Vercel |
+| `GOOGLE_OAUTH_CLIENT_SECRET` | **PENDIENTE** | Consola de GCP. El código no lo usa: puede eliminarse en vez de rotarse |
+| `EMAIL_HOST_PASSWORD` | **PENDIENTE** | Consola de Brevo. El código no usa SMTP |
+| `TELEGRAM_BOT_TOKEN` | **PENDIENTE** | Invalidar en el proveedor; Telegram quedó fuera del MVP (CT-43), no se usará en S13 |
+| `GEMINI_API_KEY` | **PENDIENTE** | Google AI Studio |
+
+Las pendientes exigen la consola de su proveedor y no pueden automatizarse desde aquí. Las cuatro
+últimas no están en el inventario vigente de Heroku ni las consume el proveedor activo;
+invalidarlas no requiere actualizar la configuración productiva. `GEMINI_*` se conserva
+como código histórico, con selección explícita de proveedor.
+
+**Prioridad:** `SUPABASE_SERVICE_ROLE_KEY` y `DATABASE_URL` son las de mayor impacto, porque dan
+acceso directo a los datos de producción.
+
+### Rotación de `DJANGO_SECRET_KEY`
+
+`base.py` documenta que SimpleJWT no declara `SIGNING_KEY` y usa `SECRET_KEY` por defecto. La
+consecuencia, ya asumida en el código, es que rotarla **invalida los tokens de acceso y refresco
+activos**: los usuarios tienen que volver a iniciar sesión.
+
+Se consideró seguro porque `django_session` tenía 0 filas y hay 4 usuarios. Tras la rotación:
+health en verde, `manage.py check` sin incidencias, API pública sirviendo.
+
+---
+
+## 13. `DOCUMENT_HMAC_SECRET`: por qué no se rota
+
+**No se rotó, y no debe rotarse sin un plan explícito.**
+
+`citizen_profiles.document_hmac` almacena el HMAC-SHA-256 de la cédula, y el secreto participa en
+su generación y en su verificación. Hay 2 registros persistidos. Reemplazar el secreto por uno
+nuevo volvería esos HMAC irreconciliables de forma permanente, **sin ningún error visible**: las
+cédulas ya verificadas dejarían de coincidir y la detección de duplicados fallaría en silencio.
+
+Un secreto plausible pero incorrecto es peor que la ausencia del secreto, porque la ausencia falla
+cerrado (`IdentityConfigurationError` → 503) y el valor incorrecto no.
+
+### Estrategia de rotación futura
+
+Cualquiera de estas tres, con pruebas de compatibilidad y rollback antes de ejecutarse:
+
+1. **Doble secreto en transición.** Introducir `DOCUMENT_HMAC_SECRET_PREVIOUS`: se firma con el
+   nuevo y se verifica contra ambos. Requiere tocar `apps/auth_app/services/identity.py`.
+2. **Re-HMAC controlado.** Solo es posible si las cédulas en claro están disponibles, lo cual
+   contradice el propósito del HMAC. En la práctica implica re-verificar a los ciudadanos.
+3. **Migración con columna de versión.** Añadir `document_hmac_version` y convivir con ambos
+   esquemas hasta que no queden registros de la versión antigua.
+
+La opción 1 es la única que no exige contacto con los ciudadanos. Ninguna es un cambio de variable
+de entorno: todas necesitan código, migración y su propio gate.
+
+Mientras no se rote, el secreto sigue expuesto por haber estado en Vercel. **Es una deuda de
+seguridad real y consciente**, no un descuido.
+
+---
+
+## 14. Deuda de infraestructura registrada
+
+| Ítem | Detalle |
+|---|---|
+| `REDIS_URL` y `ssl_cert_reqs=none` | **Rotación resuelta en PR #46**: `config.redis_url.with_ssl_cert_reqs` añade el parámetro a URL TLS que no lo traen; `REDIS_SSL_CERT_REQS` default `none`, URL explícita prevalece. Sigue pendiente evaluar validación de certificado; la normalización no cambia `CERT_NONE` |
+| `preview` sin variables públicas | `preview` no tenía `NEXT_PUBLIC_API_URL` ni `NEXT_PUBLIC_GOOGLE_CLIENT_ID` ni antes ni después de la remediación, de modo que los deployments de preview apuntan a una API vacía. Es preexistente y no lo introdujo esta tarea |
+| `StorageObjectNotFoundError` | Un objeto ausente levanta `StorageUnavailableError`, porque Supabase responde `400` y no `404`. Preexistente |
+| `BREVO_API_KEY` y remitente | **Configurados en v23/v24 (20/10)**. Correo operativo para identidad y canje. Falta dominio propio autenticado: remitente Gmail con advertencias DKIM/DMARC y riesgo de spam |
+
+
+---
+
+## 15. Operación vigente — corte 20/10/2026, 01:25 UTC
+
+### Inventario de Heroku (nombres, sin valores)
+
+Estas son las **25 variables presentes** al corte, no una lista de todos los settings
+que el código admite. No copies sus valores al repositorio, logs de revisión ni Vercel.
+Los tres tipos de proceso de esta app Heroku comparten config vars; indicar que una clave
+la consume el worker no implica que Heroku la aísle del proceso web.
+
+```text
+AI_CLASSIFICATION_ENABLED
+AI_PROMPT_VERSION
+AI_PROVIDER
+API_VERSION
+BREVO_API_KEY
+CORS_ALLOWED_ORIGINS
+DATABASE_URL
+DB_SEARCH_PATH
+DEFAULT_FROM_EMAIL
+DJANGO_ALLOWED_HOSTS
+DJANGO_DEBUG
+DJANGO_SECRET_KEY
+DJANGO_SETTINGS_MODULE
+DOCUMENT_HMAC_SECRET
+GOOGLE_OAUTH_CLIENT_ID
+OPENAI_API_KEY
+OPENAI_MODEL
+OPENAI_REASONING_EFFORT
+REDIS_URL
+REPORT_AUTO_CLOSE_HOURS
+REPORT_DUPLICATE_RADIUS_METERS
+SUPABASE_SERVICE_ROLE_KEY
+SUPABASE_STORAGE_BUCKET_PRIVATE
+SUPABASE_STORAGE_BUCKET_REPORTS
+SUPABASE_URL
+```
+
+`REDIS_SSL_CERT_REQS` es un setting opcional del código, **no está en ese inventario**.
+Default `none`; se añade únicamente a `rediss://` que no lleve `ssl_cert_reqs` antes de
+derivar caché/broker/result backend. La URL explícita gana, y `redis://` queda intacta.
+Con otro proveedor y certificado verificable se puede configurar `required`.
+`AI_CONFIDENCE_THRESHOLD`, `AI_MAX_RETRIES`, `AI_REQUEST_TIMEOUT_SECONDS`,
+`BREVO_API_URL`, TTLs y lifetimes JWT usan sus defaults al no estar definidos.
+Las variables `GEMINI_*` no están configuradas en este inventario; Gemini queda histórico.
+
+Storage se consume en web **y en el worker de IA**, que descarga fotos privadas de reportes.
+La clave HMAC corresponde al flujo de identidad; Brevo solo se consume al enviar desde
+worker. Ninguno de esos secretos debe volver a Vercel.
+
+### Desplegar backend con un commit de reconciliación del subtree
+
+El simple `git subtree push` de §2 describe el primer baseline. El historial de Heroku
+ya tiene reconciliaciones; para las entregas siguientes se usó un commit cuyo **árbol es
+exactamente el backend aprobado** y cuyos padres son el tip remoto y el nuevo split.
+Se preserva el historial del remote, sin `--force` ni resolver archivos del backend a mano.
+
+Ejecutá desde un checkout limpio del candidato aprobado y con el remote `heroku-baseline`
+configurado para esta app. En una actualización estructural, primero generá/validá el
+respaldo, activá mantenimiento y detené todos los writers (`web=0 worker=0 beat=0`),
+como indica [README](../../README.md#migraciones-estructurales-orden-obligatorio).
+No ejecutes esta receta sobre un merge documental en curso.
+
+```bash
+# Fijar y revisar el candidato; no dejar que cambie durante el procedimiento.
+CA_RELEASE_SHA=$(git rev-parse HEAD)
+git fetch heroku-baseline main
+CA_REMOTE_SHA=$(git rev-parse refs/remotes/heroku-baseline/main)
+CA_SPLIT_SHA=$(git subtree split --prefix=backend "$CA_RELEASE_SHA")
+CA_BACKEND_TREE=$(git rev-parse "$CA_RELEASE_SHA:backend")
+test "$(git rev-parse "$CA_SPLIT_SHA^{tree}")" = "$CA_BACKEND_TREE" || exit 1
+CA_RECONCILIATION_SHA=$(git commit-tree "$CA_BACKEND_TREE"   -p "$CA_REMOTE_SHA" -p "$CA_SPLIT_SHA"   -m "chore(release): reconciliar subtree de Heroku con $CA_RELEASE_SHA")
+test "$(git rev-parse "$CA_RECONCILIATION_SHA^{tree}")" = "$CA_BACKEND_TREE" || exit 1
+git merge-base --is-ancestor "$CA_REMOTE_SHA" "$CA_RECONCILIATION_SHA" || exit 1
+git push heroku-baseline "$CA_RECONCILIATION_SHA:refs/heads/main"
+```
+
+Si el remote avanzó, el push debe rechazarse: volvé a inspeccionar el tip y generá otra
+reconciliación; no fuerces. Registrá candidato, split, reconciliación, árbol y release.
+El push construye/despliega enseguida y **no aplica migraciones**: falta fase `release`.
+
+```bash
+heroku run --app ciudadania-activa-api python manage.py showmigrations
+heroku run --app ciudadania-activa-api python manage.py migrate --plan
+# Solo las migraciones aprobadas y con respaldo previo validado:
+heroku run --app ciudadania-activa-api python manage.py migrate --noinput
+heroku run --app ciudadania-activa-api python manage.py migrate --check
+heroku run --app ciudadania-activa-api python manage.py check
+heroku ps:scale --app ciudadania-activa-api web=1
+heroku ps:scale --app ciudadania-activa-api worker=1
+heroku ps:scale --app ciudadania-activa-api beat=1
+heroku ps --app ciudadania-activa-api
+```
+
+Verificá cada proceso en ese orden, health, DB/Redis y smokes del cambio antes de retirar
+mantenimiento. Conservá un solo Beat; generá/validá el respaldo posterior y verificá
+invariantes de negocio en solo lectura. No deshagas una migración mediante `rollback` de
+Heroku: ese comando revierte aplicación/configuración, no el esquema ni los datos.
+
+El método quedó registrado en S10 (`9676e94`, release v13), S12 (`9944e11`, v19) y
+activación IA (`744e295`, v22). `744e295` tiene como padres `9944e11` y `abe9376`;
+su árbol coincide con `backend/` de `d9e1c11`. Estos hashes son trazabilidad, no una
+instrucción para volver a desplegar un candidato antiguo.
+
+### IA, Brevo y comprobación productiva
+
+**v22 (20/10 00:35 UTC):** migración `ai_client_app.0003` aplicada y clasificación
+encendida con OpenAI, `gpt-6-luna`, esfuerzo `low` y prompt v2. El default del código
+sigue v1; OpenAI falla cerrado con versión desconocida. Los tokens se guardan por
+clasificación persistida y `ai_usage_summary` los consulta con precios explícitos.
+Los comandos `ai_try_classification`/`ai_compare_prompts` son manuales, llaman a OpenAI
+incluso sin el flag de producción y no generan filas de clasificación/auditoría.
+Ver [API §9](../API.md#9-comandos-de-gestión-de-ia-post-s12).
+
+**v23/v24:** clave de API Brevo y `DEFAULT_FROM_EMAIL` configurados. El remitente es una
+cuenta Gmail verificada; se omite su dirección. Brevo advierte DKIM predeterminado y
+DMARC por dominio gratuito: se necesita dominio propio autenticado para reducir riesgo
+de spam. Hay plantillas de `VERIFICACION_APROBADA`, `VERIFICACION_RECHAZADA` y
+`CANJE_REALIZADO`; el resto y reintentos automáticos son S13. El canje no envía el código
+del vale en el correo. Para recuperar un `FALLIDO` se usa `resend_notification <uuid>`
+tras corregir la causa; repetir la tarea directamente no lo reenvía.
+
+**Corte 01:25 UTC:** web/worker/beat arriba; health OK, migraciones al día y check limpio.
+0 clasificaciones IA, 16 reportes, 0 recompensas, 0 canjes; dos notificaciones
+`VERIFICACION_APROBADA` en `ENVIADO` (del 23/08 y 29/08, previas a Heroku). No se infiere que todos los tipos se hayan probado
+ni que el proveedor haya entregado cada mensaje a la bandeja de entrada.
+
+Respaldos externos en `~/s12-deploy-20261019/`:
+`pre-ai-20261020T002812Z.dump` (SHA-256 abreviado `f5ebc1dd…`) y
+`post-ai-20261020T003549Z.dump`. No se publica ni inventa un hash completo no aportado.
+La medición exploratoria v2 y los pendientes reales están en
+[post-S12](../PROGRESO_SPRINTS.md#post-s12--estabilización-y-activación-productiva-1920102026).

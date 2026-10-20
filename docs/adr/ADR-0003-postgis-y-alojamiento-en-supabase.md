@@ -1,5 +1,11 @@
 # ADR-0003 — PostgreSQL + PostGIS y alojamiento en Supabase
 
+> **Actualización 20/10/2026.** La decisión de datos no cambia. Backend, worker y Beat
+> operan en Heroku desde la migración de septiembre; Vercel sirve el frontend y Supabase
+> conserva DB/Storage. Las verificaciones y snapshots de agosto de este ADR son históricos.
+> El procedimiento vigente de respaldo/deploy/migración manual está en el
+> [runbook §15](../runbooks/HEROKU_MIGRATION.md#15-operación-vigente--corte-20102026-0125-utc).
+
 **Estado:** Aceptada (decisión D-03, resuelta en la etapa de planificación)
 **Sprint:** 1
 **Fecha:** 2026-08-01
@@ -22,8 +28,9 @@ el backend (Railway) o en un proveedor separado.
 ## Decisión
 
 PostgreSQL + PostGIS se aloja en **Supabase**, que además provee el almacenamiento de archivos
-(Supabase Storage: buckets privados para verificación de identidad, públicos-firmados para fotos
-de reportes). El backend Django y los workers Celery se despliegan en **Railway** y se conectan a
+(Supabase Storage: buckets **privados** para identidad y fotos de reportes, con acceso
+firmado cuando corresponde). El backend Django y los workers Celery se despliegan en
+**Heroku** (antes Railway) y se conectan a
 Supabase exclusivamente mediante la variable `DATABASE_URL`. El desarrollo local usa siempre el
 contenedor PostGIS de `infra/docker-compose.yml`, de modo que ningún código de la aplicación
 distingue entre entorno local y Supabase: ambos se configuran igual, por variable de entorno.
@@ -119,16 +126,17 @@ La arquitectura decidida está operativa y verificada de extremo a extremo:
 | Componente | Proveedor | Estado |
 |---|---|---|
 | PostgreSQL 17.6 + PostGIS 3.3.7 (esquema `gis`) | Supabase | Operativo, conexión por Session Pooler con TLS |
-| Almacenamiento de archivos | Supabase Storage | Aprovisionado; se usa a partir del Sprint 4 |
-| Backend Django | Railway (`Root Directory: /backend`) | Desplegado; `GET /api/v1/health/` responde `status=ok`, `db=true`, `redis=true` |
-| Worker de Celery | Railway (servicio separado) | Desplegado y conectado al Redis privado; sin dominio público ni healthcheck HTTP |
-| Redis (caché y broker) | Railway | Operativo |
+| Almacenamiento de archivos | Supabase Storage | Buckets privados; consumidos por backend web y worker IA |
+| Backend Django | Heroku (stack `container`, árbol `backend/`) | Desplegado; verificación actual en runbook §15 |
+| Worker de Celery | Heroku (proceso `worker` de la misma app) | Activo, sin dominio público ni healthcheck HTTP |
+| Celery Beat | Heroku (proceso `beat`) | Una instancia activa; agenda autocierre cada 15 minutos |
+| Redis (caché y broker) | Heroku Key-Value Store | Operativo; normalización TLS automática desde #46 |
 | Frontend Next.js | Vercel (`Root Directory: frontend`) | Desplegado; consume el backend por `NEXT_PUBLIC_API_URL` |
 
 Django se conecta a Supabase exclusivamente por `DATABASE_URL`, con
-`DB_SEARCH_PATH=public,gis,extensions`. **Celery Beat no está desplegado**: todavía no existen
-tareas periódicas que lo justifiquen. El detalle operativo de cada despliegue se registra en
-[PROGRESO_SPRINTS.md](../PROGRESO_SPRINTS.md) — Sprint 1, no en este ADR.
+`DB_SEARCH_PATH=public,gis,extensions`. **Celery Beat está activo desde S10**, con una
+única instancia para el autocierre. Detalle por release en
+[PROGRESO_SPRINTS.md](../PROGRESO_SPRINTS.md) y el runbook vigente.
 
 ## Política de respaldo manual
 
@@ -183,7 +191,7 @@ lista filtrada, sin modificar el archivo `.dump`— el proceso termina en **exit
 volcado conserva PostGIS en el esquema `gis`, de modo que sobre la base restaurada las funciones
 espaciales se resuelven con el mismo `search_path` que usa la aplicación.
 
-### Orden del respaldo frente al despliegue automático
+### Orden histórico del respaldo frente al despliegue automático (Railway)
 
 El servicio de backend en Railway ejecuta `python manage.py migrate --noinput` como comando de
 **pre-deploy**. La consecuencia operativa es concreta: **un push a `main` que incluya migraciones
@@ -201,9 +209,11 @@ debe generarse **antes del push a `main`**, no después de la validación de CI.
 5. **verificar producción** con consultas de solo lectura;
 6. generar el respaldo posterior si el cambio es estructuralmente relevante.
 
-Si en el futuro se quisiera un gate manual absoluto sobre producción, la alternativa es retirar
-`migrate` del pre-deploy y ejecutarlo como operación autorizada aparte. Esa decisión no se ha
-tomado: el despliegue automático se conserva y el control se ejerce en el orden del procedimiento.
+Ese comportamiento terminó al migrar a Heroku: `backend/heroku.yml` no define
+fase `release`, el push construye/despliega pero no migra. Hoy el orden obligatorio es
+respaldo previo validado, mantenimiento y writers detenidos, deploy de reconciliación,
+inspección del plan y migración explícita, verificación, restauración ordenada de procesos
+y respaldo posterior. Ver [README](../../README.md#migraciones-estructurales-orden-obligatorio).
 
 ## Consecuencias
 

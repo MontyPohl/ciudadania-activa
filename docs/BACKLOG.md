@@ -11,16 +11,16 @@ un sprint concreto — ver [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md) y [PROGRESO_
 | 1 | Configuración base: Django, Next.js, PostgreSQL/PostGIS y CI | S1 | Completado |
 | 2 | Autenticación Google OAuth, roles y permisos | S3 | Completado |
 | 3 | Verificación manual con cédula/selfie | S4 | Completado |
-| 4 | CRUD de instituciones, categorías y operadores | S2 · S9 | En curso |
-| 5 | Creación de reportes, foto, mapa y advertencia de duplicados | S5 · S6 | En curso |
-| 6 | Clasificación IA y auditoría | S8 | En curso |
-| 7 | Confirmaciones ciudadanas de reportes activos | S7 | Pendiente |
-| 8 | `rewards_app`: puntos pendientes/acreditados, créditos 1:1 y reversión | S2 · S9 · S10 | En curso |
-| 9 | Panel institucional: validación, estados, evidencias y administración de recompensa | S9 · S10 | Pendiente |
+| 4 | CRUD de instituciones, categorías y operadores | S2 · S9 | Parcial: modelos/admin y `promote_user`; sin CRUD institucional completo por API |
+| 5 | Creación de reportes, foto, mapa y advertencia de duplicados | S5 · S6 | Completado |
+| 6 | Clasificación IA y auditoría | S8 · post-S12 | Implementada y activa con v2; S8 sigue en curso por CA-4 y cierre metodológico pendiente |
+| 7 | Confirmaciones ciudadanas de reportes activos | S7 | Completado |
+| 8 | `rewards_app`: puntos pendientes/acreditados, créditos 1:1 y reversión | S2 · S9 · S10 | Completado |
+| 9 | Panel institucional: validación, estados, evidencias y administración de recompensa | S9 · S10 · S12 | Completado; smoke autenticado integral S12 pendiente |
 | 10 | Ranking mensual y privacidad configurable | S4 · S12 (absorbe S11 funcional) | Completado — implementado, desplegado y verificado (19/10/2026) |
 | 11 | Canje simulado de 1.000 créditos y límite mensual | S12 | Completado — implementado, desplegado y verificado (19/10/2026) |
 
-> **Estado a 22/08/2026.** El ítem 1 pertenece íntegramente al Sprint 1, cerrado el 20/08/2026. Los
+> **Nota histórica (22/08–29/08/2026; no es el estado vigente de la tabla).** El ítem 1 pertenece íntegramente al Sprint 1, cerrado el 20/08/2026. Los
 > ítems 4 y 8 abarcan varios sprints: el Sprint 2 entregó su base de datos —`institutions`,
 > `categories`, `institution_operators` y las tres tablas del ledger, con sus restricciones, índices
 > y catálogos semilla, más el registro en el admin de Django para inspección interna— pero la
@@ -43,8 +43,8 @@ un sprint concreto — ver [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md) y [PROGRESO_
 > y canje con límite mensual garantizado en la base. PR #43 se integró mediante `aebf900`;
 > las migraciones se aplicaron en Heroku y el frontend se desplegó en Vercel. El smoke
 > productivo sin canjear quedó verificado; el autenticado con Google sigue pendiente del
-> usuario. Los tres fallos preexistentes de EX-10/S11 quedan como deuda aparte, con
-> despliegue aceptado por el usuario. `RECOMPENSA_DISPONIBLE` y los reintentos automáticos
+> usuario. Los tres tests preexistentes de EX-10/S11 se corrigieron en PR #48;
+> el defecto real de enumeración se trata en PR #50, abierto al corte del 20/10. `RECOMPENSA_DISPONIBLE` y los reintentos automáticos
 > quedan para S13.
 
 ## Prioridad Media
@@ -65,6 +65,23 @@ un sprint concreto — ver [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md) y [PROGRESO_
 | 14 | PWA / aplicación móvil | Fuera del MVP | No planificado |
 | 15 | Insignias, niveles, campañas, GPS de proximidad y similitud perceptual | Fuera del MVP | No planificado |
 
+## Pendientes operativos y técnicos al 20/10/2026
+
+| Ítem | Estado y siguiente paso |
+|---|---|
+| Redis tras rotación de credenciales | Hecho en PR #46: normalización automática; `CERT_NONE` permanece como deuda de configuración |
+| Uso de IA y pruebas de prompts | Hecho en PR #47/#49: tokens, `ai_usage_summary`, v2 y comandos manuales; IA activa en Heroku v22 |
+| Correo Brevo | Configurado en v23/v24; las dos aprobaciones `ENVIADO` son del 23/08 y 29/08 (previas a Heroku); el primer envío con esta configuración aún no se observó. Plantillas actuales: identidad aprobada/rechazada y canje |
+| Medición v2 independiente | Pendiente: nuevas fotos de la planilla del usuario, incluida la foto del bache; los 13 casos conocidos tienen sesgo optimista |
+| Dominio propio para correo | Pendiente: autenticar el dominio para resolver advertencias de DKIM/DMARC y reducir riesgo de spam del remitente Gmail |
+| EX-10 | Tres tests corregidos en PR #48; **en PR #50**, abierto/CI corriendo, se corrige descriptor compartido tras fork. Nueva corrida requiere reaprobación de fuentes; no cambia el resultado histórico |
+| Edición manual de prioridad | Función inexistente: definir permisos, contrato, UI y auditoría antes de implementarla |
+| Notificaciones S13 | Restantes tipos, `RECOMPENSA_DISPONIBLE` y reintentos automáticos pendientes |
+| Smoke S12 autenticado | Pendiente del usuario con Google; no se generaron canjes/recompensas para el smoke público |
+| Rotación de credenciales heredadas de Vercel | Retirada ya ejecutada en #41; rotaciones pendientes según [runbook §§12–13](runbooks/HEROKU_MIGRATION.md#12-rotación-de-secretos), sin evidencia de cierre posterior |
+| Ramas remotas S05–S09 | Unas 25 sin mergear; limpieza opcional, revisar aportes antes de borrar |
+| Plan S13 | Fuera del repo en `~/project-s13-plan-20261019/`; arrancar desde `origin/main` |
+
 ## Riesgos (Anexo E.2)
 
 | Riesgo | Nivel | Mitigación | Seguimiento |
@@ -74,7 +91,7 @@ un sprint concreto — ver [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md) y [PROGRESO_
 | Reportes duplicados | Medio | Advertencia de proximidad (`ST_DWithin`) y opción de confirmar el reporte existente | S6 |
 | Fotos repetidas | Medio | Hash exacto (`file_hash` SHA-256) en el MVP; similitud perceptual queda como mejora futura | S6 |
 | Errores de IA | Medio | Revisión humana y auditoría; sin rechazo automático | S8 · S9 |
-| Privacidad del ranking | Medio | Visibilidad opt-in, modo "Usuario privado" | S11 |
+| Privacidad del ranking | Medio | Visibilidad configurable (`FULL_NAME` por defecto), modo "Usuario privado" | S4 · S12 |
 | Costos o cambio de proveedor de IA | Medio | Arquitectura desacoplada (`ai_client_app`) y mocks de prueba | S8 |
 | Privacidad de cédulas/selfies | Alto | HMAC-SHA-256, almacenamiento privado y acceso restringido | S4 |
 | Presupuesto real de recompensas | Alto | El MVP usa vales simulados; convenios reales quedan fuera de alcance | S12 |

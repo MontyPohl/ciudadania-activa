@@ -1,5 +1,11 @@
 # ADR-0011 — Privacidad configurable del ranking
 
+> **Evolución al 20/10/2026.** El ranking previsto originalmente para S11 se entregó
+> en S12 (PR #43), integrado y desplegado el 19/10. Se mantienen las cuatro modalidades
+> y el fallback `Usuario privado` si no hay perfil o el alias está vacío. `FULL_NAME`
+> sigue siendo el default: la privacidad es configurable, no una publicación opt-in.
+> Contrato vigente en [API §8.5](../API.md#85-ranking-mensual-público).
+
 **Estado:** Aceptada
 **Sprint:** 4
 **Fecha:** 2026-08-22

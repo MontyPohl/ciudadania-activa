@@ -9,7 +9,9 @@ Incentivar la participación ciudadana y aumentar el impacto urbano real mediant
 - Crear reporte: +20 puntos pendientes.
 - Validación institucional: se acreditan los 20 pendientes y se agregan +30 puntos.
 - Resolución del reporte: +50 puntos.
-- Máximo por reporte propio: 100 puntos.
+- El ciclo inicial puede aportar 100 puntos por reporte propio (20 + 30 + 50). Tras
+  reversión/revalidación S10 puede generar bonus nuevos por ciclo, sin reactivar
+  originales; el valor acreditado se deriva del ledger ([ADR-0013](adr/ADR-0013-politica-de-reversion.md)).
 - Confirmar reporte de otro usuario: +10 puntos pendientes.
 
 ## Reglas de confirmación
@@ -29,7 +31,7 @@ Incentivar la participación ciudadana y aumentar el impacto urbano real mediant
 
 ## Recompensas
 
-- Canje mínimo: 1.000 créditos.
+- Costo fijo del canje MVP: 1.000 créditos; el servidor lo impone.
 - Máximo un canje por institución por usuario por mes.
 - En el MVP la recompensa es simulada mediante un código de vale.
 - Los descuentos reales quedan para una implementación futura.
@@ -38,7 +40,8 @@ Incentivar la participación ciudadana y aumentar el impacto urbano real mediant
 
 - Top 10 mensual.
 - Solo usa puntos acreditados.
-- El ranking mensual se reinicia cada mes.
+- El ranking consulta el mes civil actual en `America/Asuncion` por `credited_at`; no
+  borra filas ni conserva snapshots de períodos cerrados.
 - El impacto histórico no se borra.
 - El usuario puede mostrarse con nombre completo, nombre + inicial, alias o como “Usuario privado”.
 

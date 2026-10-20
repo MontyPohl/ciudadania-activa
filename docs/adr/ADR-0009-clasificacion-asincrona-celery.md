@@ -1,5 +1,12 @@
 # ADR-0009 — Clasificación IA asíncrona mediante Celery
 
+> **Actualización 20/10/2026.** La tarea y persistencia descritas aquí ya están implementadas;
+> la IA está activa en Heroku v22 con OpenAI y prompt v2. La selección por
+> `AI_PROMPT_VERSION` (default v1) y los tokens de `ai_client_app.0003` se detallan en
+> [ADR-0016](ADR-0016-proveedor-de-ia-openai.md) y el [contrato](../AI_CLASSIFICATION_CONTRACT.md).
+> Se conserva la política de estados, locks y reintentos. Los contadores guardados no suman
+> intentos descartados ni reintentos y no constituyen un registro de facturación completo.
+
 **Estado:** Aceptada
 **Sprint:** 8
 **Fecha:** 2026-08-29

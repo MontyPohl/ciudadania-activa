@@ -6,7 +6,8 @@ Sprint 2; el Sprint 4 añadió `citizen_profiles.rejection_reason` y el Sprint 8
 `ai_classifications.justification` y `ai_classifications.model_name`. S12 añade la
 institución y el período mensual al vale, su vínculo con el ledger y la referencia desde
 notificaciones, con las restricciones descritas abajo. Este esquema está verificado en
-local; las migraciones de S12 no se aplicaron en producción al 19/10/2026.
+local y desplegado: S12 se migró en Heroku el 19/10/2026; `ai_client_app.0003`
+añadió los tres contadores de tokens y se aplicó en v22 el 20/10/2026.
 
 - **Fuente rectora:** Anexo A (A.1 entidades · A.2 enumeraciones · A.4 diccionario · A.5 índices · A.6 SQL de referencia).
 - **Plan:** [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md) §6.4, §6.5 y §12.
@@ -139,11 +140,12 @@ contradicción 5).
 | `institution_id` | UUID | **nullable** | `PROTECT` | La responsable definitiva se fija al validar (Sprint 9). Nunca se rellena con una institución ficticia |
 | `description` | `text` | not null | — | RF-08 |
 | `status` | `varchar(20)` | not null, `default 'CREADO'`, **índice B-tree** | — | `ReportStatus` |
-| `priority` | `varchar(10)` | not null, `default 'MEDIA'`, **índice B-tree** | — | El servicio del Sprint 6 tomará el valor de `category.default_priority` |
+| `priority` | `varchar(10)` | not null, `default 'MEDIA'`, **índice B-tree** | — | El servicio de creación toma `category.default_priority`; IA puede sugerir/aplicar otra prioridad según su política |
 | `source` | `varchar(20)` | **not null**, `default 'platform'` | — | RF-17/RF-45 (CT-19) |
 | `location` | `geometry(Point,4326)` | not null, **índice GIST** | — | El GIST lo crea GeoDjango (`spatial_index=True`) |
 | `validated_at` / `validated_by_id` | `timestamptz` / UUID | nullable | `SET_NULL` | Evento de validación, no estado (RF-28) |
-| `resolved_at` | `timestamptz` | nullable | — | — |
+| `resolved_at` / `closed_at` | `timestamptz` | nullable | — | Proyecciones actuales de resolución y cierre; `closed_at` se añadió en S10 |
+| `resolution_cycle` | entero no negativo | not null, default 0, `report_resolution_cycle_nonnegative` | — | Ciclo monotónico de validación/resolución S10 |
 | `rejection_reason` | `varchar(30)` | blank | — | `RejectionReason` (RF-14). **No figura en el Anexo A** → CT-42 |
 | `created_at` | `timestamptz` | **índice B-tree** | — | A.5 |
 
@@ -165,12 +167,19 @@ activos; después se contrasta con
 impide reutilizar una fotografía exacta sin imponer unicidad a tipos de media futuros.
 
 **`report_status_history`** — `report_id` (`CASCADE`), `previous_status` (blank en el
-asiento inicial), `new_status`, `changed_by_id` (nullable, `SET_NULL`: el cierre automático
+asiento inicial), `new_status`, `resolution_cycle` (entero, default 0,
+`report_history_cycle_nonnegative` exige ≥ 0), `changed_by_id` (nullable, `SET_NULL`: el cierre automático
 a 72 h no tiene actor humano), `reason` (`text`, blank). S9-B2 añade una fila por decisión
 institucional confirmada; un conflicto o rollback no deja historial parcial.
 
-**`resolution_evidences`** — `report_id` (`CASCADE`), `description`, `evidence_url`,
-`uploaded_by_id` (nullable, `SET_NULL`).
+**`resolution_evidences`** — `report_id` (`CASCADE`), `description`, `evidence_url`
+(clave de objeto privado, no URL), `uploaded_by_id` (nullable, `SET_NULL`),
+`resolution_cycle` (`PositiveIntegerField`, obligatorio), `idempotency_key` (UUID,
+obligatorio) y `content_hash` (`varchar(64)`, obligatorio). S10 exige ciclo ≥ 1
+(`resolution_evidence_cycle_positive`) y unicidad de
+`(report_id, resolution_cycle, idempotency_key)` (`resolution_evidence_idempotency_unique`).
+El servicio limita a cinco evidencias por ciclo; ese límite no es un CHECK de tabla.
+`reports` incorpora el índice `(status, resolved_at)` (`report_auto_close_idx`).
 
 **`report_confirmations`** — `report_id` (`CASCADE`), `citizen_id` (`PROTECT`),
 **`UNIQUE(report_id, citizen_id)`**. El instante de la confirmación es `created_at`: **no
@@ -183,7 +192,8 @@ trigger; vive en el servicio de dominio del Sprint 7 (C-02, CT-16).
 **`ai_classifications`** — `report_id` (`CASCADE`, sin unicidad: el Sprint 8 admite
 reproceso), `suggested_category_id` y `suggested_institution_id` (nullables, `PROTECT`),
 `suggested_priority` (blank), `confidence` (`numeric(4,3)`, nullable, `CHECK 0 ≤ x ≤ 1`),
-`inconsistency_flag` (`default false`), `justification` (blank) y `model_name` (blank).
+`inconsistency_flag` (`default false`), `justification` (blank), `model_name` (blank),
+`input_tokens`, `output_tokens` y `total_tokens` (enteros no negativos, nullables).
 Estos son los campos implementados actualmente.
 
 **Ampliación implementada en Sprint 8.** El contrato cerrado en S8-A
@@ -196,6 +206,15 @@ exactamente dos columnas nuevas:
 |---|---|---|---|
 | `justification` | `TextField` | justificación normalizada de la clasificación (CA-2) | `blank` / vacío |
 | `model_name` | `CharField(100)` | modelo del proveedor efectivamente usado (CT-32, O-05) | `blank` / vacío |
+
+**Ampliación post-S12 (PR #47, 19–20/10/2026).**
+`ai_client_app.0003_aiclassification_token_usage` añade `input_tokens`, `output_tokens` y
+`total_tokens`, los tres `PositiveIntegerField(null=True, blank=True)`. Admiten cero;
+`null` indica contador no informado por el proveedor o clasificación anterior. No hay
+constraint que obligue a que total sea entrada más salida. Se guarda el uso de la respuesta
+que termina persistida; no representa toda llamada facturada. Aplicada en Heroku v22 el
+20/10. El resumen operativo se consulta con `ai_usage_summary` (ver [API §9](API.md#9-comandos-de-gestión-de-ia-post-s12)).
+
 
 **`raw_response` y `prompt_version` no son columnas de esta tabla**: viajan en el payload
 de `audit_logs` (D15 y D16 del contrato), con `raw_response` truncada a 8.000 caracteres. La
@@ -220,6 +239,7 @@ económico no puede perder su sujeto, su origen ni su institución.
 | `credit_delta` | `integer` | not null | **Inmutable** tras la inserción |
 | `status` | `varchar(20)` | not null | Único campo económicamente relevante que muta |
 | `related_transaction_id` | UUID | nullable | Autorreferencia `PROTECT`: enlaza `REVERSAL` con su original |
+| `resolution_cycle` | entero no negativo | nullable | S10: ciclo al que corresponde el asiento; puede ser NULL o 0 según su origen histórico |
 | `credited_at` · `voided_at` · `reversed_at` | `timestamptz` | nullable | **Columnas de soporte creadas en la migración inicial** (C-09, CT-07) |
 
 Índices: `(user_id, institution_id, status, created_at)` para los saldos y
@@ -245,8 +265,14 @@ Restricciones:
   reporte**.
 - `reward_tx_confirmation_created_unico` — índice único parcial: **un solo
   `CONFIRMATION_CREATED` por confirmación**.
-- Las restricciones de ciclo incorporadas en S10 se conservan: una revalidación legítima
-  genera movimientos del ciclo nuevo, sin reactivar los originales.
+- `reward_tx_cycle_nonnegative_or_null`: ciclo NULL o ≥ 0.
+- `reward_tx_bonus_cycle_required`: bonus de validación/resolución exige reporte y ciclo ≥ 1.
+- `reward_tx_reversal_fields_required`: `REVERSAL` exige reporte, ciclo ≥ 1 y original.
+- `reward_tx_related_only_reversal`: solo `REVERSAL` puede referenciar un original.
+- `reward_tx_validation_bonus_cycle_unique` y `reward_tx_resolution_bonus_cycle_unique`:
+  un bonus de cada tipo por `(report_id, resolution_cycle)`.
+- `reward_tx_reversal_original_unique`: una reversión por transacción original.
+  Una revalidación genera movimientos del ciclo nuevo, sin reactivar originales.
 - `reward_tx_redemption_only_redemption` (S12) — si `redemption_id` no es NULL, el evento
   debe ser `REDEMPTION`. La unicidad de la relación permite a lo sumo un débito por vale.
 - `reward_tx_redemption_shape` (S12) — un `REDEMPTION` exige `redemption_id` e
@@ -335,8 +361,9 @@ dataset, distinta de `created_at`), `report_id` (nullable, `SET_NULL`).
 
 ### Sin modelos propios
 
-`map_app` y `analytics_app` son capas de lectura sobre `reports_app` y `rewards_app`
-(ADR-0002); `core` solo aporta el modelo base abstracto, las enumeraciones transversales y
+`map_app` y `analytics_app` son capas de lectura sobre `reports_app` y `rewards_app`;
+`experiments_app` añade instrumentación experimental aislada, sin tablas de dominio
+(ADR-0002). `core` solo aporta el modelo base abstracto, las enumeraciones transversales y
 el servicio de auditoría.
 
 ## Saldos derivados
@@ -401,6 +428,8 @@ admin_app.0001_initial           institutions · categories · institution_opera
 reports_app.0001_initial         reports · report_media · report_status_history ·
                                  resolution_evidences · report_confirmations
    ├── ai_client_app.0001_initial            ai_classifications
+   │      └── ai_client_app.0002_aiclassification_justification_and_more
+   │             └── ai_client_app.0003_aiclassification_token_usage (post-S12)
    ├── rewards_app.0001_initial              rewards · reward_transactions · reward_redemptions
    ├── notifications_app.0001_initial        notifications
    └── social_ingestion_app.0001_initial     telegram_ingested_messages · x_mock_messages
@@ -415,7 +444,26 @@ reports_app.0001_initial         reports · report_media · report_status_histor
 implementar la revisión administrativa y las notificaciones, porque sus tablas ya
 existían desde el Sprint 2 con la forma necesaria.
 
-**Ampliación S12 (verificada en local, no aplicada en producción):**
+**Tramo S6/S8/S10 (implementado y aplicado antes de S12):**
+
+```text
+reports_app.0001_initial
+   └── 0002_reportmedia_report_media_foto_hash_unico
+          └── 0003_add_resolution_cycle_columns
+                 └── 0004_backfill_resolution_cycle
+                        └── 0005_enforce_resolution_cycles
+                               └── 0006_resolution_evidence_idempotency
+                                      └── 0007_report_closed_at
+rewards_app.0001_initial
+   └── 0002_add_resolution_cycle_column
+          └── 0003_enforce_resolution_cycle_constraints
+                 └── 0004_enforce_reward_event_linkage
+```
+
+Las dependencias cruzadas y operaciones exactas se conservan en los archivos de
+`migrations/`; los diagramas resumen sus cadenas, no sustituyen `migrate --plan`.
+
+**Ampliación S12 (aplicada en Heroku el 19/10/2026):**
 
 ```text
 rewards_app.0004_enforce_reward_event_linkage

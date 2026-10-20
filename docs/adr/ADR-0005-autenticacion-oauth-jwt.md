@@ -182,7 +182,7 @@ definen modelos, y no se toca ningún campo, `choices`, `default` ni `Meta`.
   desactivada» no debe ser observable.
 - `last_login` se actualiza **solo** en el login con Google, nunca al renovar el access
   (`UPDATE_LAST_LOGIN = False`).
-- Configuración manual pendiente en Google Cloud: un OAuth Client ID de tipo «aplicación
+- Configuración manual requerida en Google Cloud (login productivo ya verificado desde S3): un OAuth Client ID de tipo «aplicación
   web» con los orígenes JavaScript `http://localhost:3000` y
   `https://ciudadania-activa.vercel.app`. **Sin redirect URIs y sin client secret.** Hasta
   que exista esa credencial, la implementación y las pruebas funcionan con el verificador

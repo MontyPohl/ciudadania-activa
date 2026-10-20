@@ -34,7 +34,8 @@ la fila y no se modifican nunca. `REPORT_CREATED` nace con 20/20 y
 acreditado y crédito institucional queda determinada en el origen.
 
 **3. Lo que cambia es el estado, la institución y las marcas temporales.** Al acreditar,
-la fila fija **solo** `status`, `institution_id` y `credited_at`. Mientras una fila está
+la fila fija `status`, `institution_id`, `credited_at` y, desde S10, la metadata
+`resolution_cycle` (ADR-0013), sin modificar importes. Mientras una fila está
 `PENDIENTE` no participa de ningún saldo, porque todas las fórmulas filtran
 `status = 'ACREDITADO'`: los 20 puntos existen como valor potencial de la contribución,
 no como saldo utilizable.
@@ -67,8 +68,10 @@ y por tanto queda fuera de toda suma. Es rastro de auditoría, no un segundo des
 
 **7. Dos invariantes se garantizan en base de datos** mediante índices únicos parciales:
 un solo `REPORT_CREATED` por reporte y un solo `CONFIRMATION_CREATED` por confirmación.
-No se extienden a `VALIDATION_BONUS` ni `RESOLUTION_BONUS`, porque revalidar después de
-una reversión es legítimo y debe poder generar una fila nueva.
+Desde S10 se complementan con un bonus de cada tipo por `(report, resolution_cycle)`
+y una `REVERSAL` por transacción original. Revalidar tras una reversión genera un ciclo
+nuevo, sin reactivar los anteriores. S12 añade una única fila `REDEMPTION` por vale y
+CHECKs de forma/enlace. Ver [diccionario](../DICCIONARIO_DATOS.md).
 
 **8. Todas las claves foráneas del ledger son `PROTECT`.** Un movimiento económico no
 puede perder su sujeto, su origen ni su institución: borrar un usuario o un reporte con

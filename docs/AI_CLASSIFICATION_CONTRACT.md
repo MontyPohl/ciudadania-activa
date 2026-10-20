@@ -4,7 +4,7 @@
 **Estado:** ACCEPTED FOR S8
 **Fecha:** 2026-08-29
 **Alcance:** S8-A (contrato y documentación)
-**Proveedor:** Google Gemini **previsto, no integrado todavía**
+**Proveedor vigente:** OpenAI (ADR-0016); Gemini se conserva como antecedente histórico.
 
 > **Actualización 2026-09-26 (ADR-0016).** El proveedor pasa a ser **OpenAI** (Responses
 > API, `OPENAI_MODEL`), elegido con `AI_PROVIDER`. El contrato D1–D20 no cambia: misma
@@ -18,9 +18,27 @@ Sprint 8 **antes** de implementar cualquier integración real. Es la fuente norm
 S8-B (adapter y parser), S8-C (tarea, persistencia y auditoría), S8-D (API) y S8-E
 (dataset y concordancia).
 
-Nada de lo aquí decidido está implementado. `ai.classify_report` sigue siendo un no-op
-([`tasks.py:12`](../backend/apps/ai_client_app/tasks.py)), no hay SDK instalado y no hay
-secretos configurados.
+**Estado actualizado al 20/10/2026.** La integración, el parser, la tarea Celery,
+la persistencia y la auditoría están implementados. En producción se habilitó OpenAI con
+`gpt-6-luna`, esfuerzo `low` y prompt v2 en Heroku v22; al corte de 01:25 UTC aún había
+0 clasificaciones. El texto D1–D20 conserva el contrato original S8-A; las notas siguientes
+aclaran sus ampliaciones sin cambiar resultados de S11.
+
+`AI_PROMPT_VERSION` admite `v1` (default; ID auditado `s8-classification-v1`) y `v2`
+(ID `classification-v2`). La selección se aplica al adapter OpenAI: una versión desconocida
+lo desactiva sin llamar al proveedor ni escribir en DB. Gemini histórico conserva v1.
+La v2 añade matriz de prioridades, categoría → institución, desempates y reglas de evidencia;
+no cambia el esquema JSON v1 de seis campos, el parser ni el umbral 0,75. La v1 permanece
+intacta como prompt de EX-09. Ver [CT-57](CAMBIOS_TESIS_PENDIENTES.md).
+
+La migración `0002` ya incorporó justificación/modelo; `0003` añade contadores de uso
+nullables (`input_tokens`, `output_tokens`, `total_tokens`). Son metadata del proveedor,
+no campos de la salida del modelo. Solo se registran al persistir una clasificación;
+no incluyen todos los intentos facturados. Los comandos manuales y de resumen se documentan
+en [API §9](API.md#9-comandos-de-gestión-de-ia-post-s12).
+
+La medición exploratoria v2 de 13 casos del equipo tiene sesgo optimista y no sustituye
+EX-09 ni cierra CA-4/S8: ver [post-S12](PROGRESO_SPRINTS.md#post-s12--estabilización-y-activación-productiva-1920102026).
 
 ## Fuente normativa y numeración de anexos
 
@@ -135,7 +153,7 @@ debe devolver. **Este contrato se desvía deliberadamente de ese punto.**
 hecho que el backend conoce con certeza y el modelo solo puede estimar. Delegarlo al
 proveedor introduce una fuente de error evitable en un dato verificable localmente.
 
-- El prompt v1 **no** pide `hubo_cambio`.
+- Los prompts v1 y v2 **no** piden `hubo_cambio`.
 - El esquema v1 **no** lo acepta (D3: campos desconocidos ⇒ rechazo).
 - El backend lo **deriva** comparando la sugerencia validada con `Report.category`,
   `Report.institution` y `Report.priority`.
@@ -401,12 +419,12 @@ MAX_AI_RAW_RESPONSE_CHARS = 8000
 La respuesta se trunca a ese límite antes de auditarse. **Nunca** se almacenan cabeceras,
 autenticación de la petición, API key ni metadata sensible de transporte.
 
-## D17 — Modelo de datos futuro
+## D17 — Modelo de datos (contrato original y ampliaciones)
 
-`AiClassification` **permanece sin cambios en S8-A**. No se crea migración, no se ejecuta
-`makemigrations` ni `migrate`.
+En el corte original S8-A `AiClassification` permaneció sin cambios y no se creó
+ni aplicó migración. Las ampliaciones posteriores sí están implementadas:
 
-La futura migración `0002` —**especificada aquí, no creada**— añade exactamente dos campos:
+La migración `0002`, especificada en S8-A e implementada después, añadió dos campos:
 
 | Campo | Tipo previsto | Semántica | Compatibilidad histórica |
 | --- | --- | --- | --- |
@@ -423,9 +441,8 @@ reprocesos (D10).
 confianza **y justificación**»). `model_name` lo exige CT-32.
 
 > El test [`test_solo_estan_los_campos_del_anexo_a`](../backend/apps/ai_client_app/tests/test_models.py)
-> congela deliberadamente el conjunto actual de campos. La migración `0002` deberá
-> actualizarlo en el mismo cambio: es el mecanismo previsto para que ningún campo entre sin
-> decisión.
+> verifica el conjunto de campos implementados, incluidos los tres contadores de tokens
+> agregados en `0003` (PR #47). El [diccionario](DICCIONARIO_DATOS.md) detalla el esquema vigente.
 
 ## D18 — Frontend
 
@@ -466,10 +483,10 @@ CA-4 **permanece como requisito real del Sprint 8**. Estrategia de cumplimiento:
 Relacionado: [`PROGRESO_SPRINTS.md`](PROGRESO_SPRINTS.md), «Concordancia IA vs etiquetas de
 oro», y CT-32, que remite la documentación del modelo usado al informe de resultados.
 
-## D20 — Configuración futura
+## D20 — Configuración (previsión S8-A y estado vigente)
 
-Nombres de settings previstos. **Ninguno se implementa en S8-A**; se documentan para que
-S8-B los cablee sin reabrir la discusión.
+Settings previstos originalmente en S8-A e implementados después, junto con la
+selección explícita de proveedor y prompt de las ampliaciones posteriores:
 
 | Setting | Valor contractual | Notas |
 | --- | --- | --- |
@@ -478,6 +495,10 @@ S8-B los cablee sin reabrir la discusión.
 | `AI_CONFIDENCE_THRESHOLD` | `0.75` | D5 |
 | `AI_MAX_RETRIES` | `3` | D9 |
 | `AI_REQUEST_TIMEOUT_SECONDS` | `20` | timeout total de la petición |
+| `AI_CLASSIFICATION_ENABLED` | `false` por defecto | `true` en producción desde v22 |
+| `AI_PROVIDER` | vacío por defecto | `openai` en producción; desconocido falla cerrado |
+| `AI_PROMPT_VERSION` | `v1` por defecto | OpenAI: `v1` o `v2`; producción `v2`; desconocida falla cerrado |
+| `OPENAI_API_KEY` · `OPENAI_MODEL` · `OPENAI_REASONING_EFFORT` | clave/modelo vacíos por defecto | proveedor vigente; secreto solo en backend/worker |
 
 Si el SDK exige más adelante separar *connect* y *read timeout*, S8-B lo resuelve
 **conservando la intención total de 20 segundos**, sin reabrir este contrato.
@@ -497,7 +518,7 @@ Si el SDK exige más adelante separar *connect* y *read timeout*, S8-B lo resuel
 | Fallo del proveedor | el reporte permanece `CREADO` |
 | UI de operador | Sprint 9 |
 | Proveedor real en CI | **NO** |
-| Medición real con Gemini | gate separado, antes de cerrar S8 |
-| Versión del prompt | `s8-classification-v1` |
-| Campos de la migración futura | `justification` + `model_name` |
+| Medición real | OpenAI en gate separado; EX-09 v1 dio FAIL; exploración v2 no lo sustituye |
+| Versión del prompt | `s8-classification-v1` (v1) o `classification-v2` (v2; activa en producción) |
+| Migraciones implementadas | `0002`: `justification` + `model_name`; `0003`: tres contadores de tokens |
 | Columna `raw_response` | **NO** (va al `AuditLog`) |

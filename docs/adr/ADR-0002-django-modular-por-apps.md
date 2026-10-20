@@ -20,6 +20,10 @@ transversal `core`: `auth_app`, `reports_app`, `rewards_app`, `map_app`, `analyt
 nuevo: contiene utilidades compartidas (modelo base, auditoría, permisos, cliente de storage) y
 evita dependencias circulares entre apps.
 
+**Ampliación S11 (nota al 20/10/2026):** `experiments_app` se suma como infraestructura
+experimental aislada, sin modelos de dominio propios. No altera las nueve responsabilidades
+funcionales ni las 18 entidades del MVP. `analytics_app` sigue sin endpoints propios antes de S13.
+
 Cada app sigue la misma convención interna (`models/`, `serializers.py`, `services/`,
 `selectors.py`, `permissions.py`, `tasks.py`, `urls.py`, `views.py`, `tests/`). Regla
 transversal: **las vistas no contienen reglas de negocio**; toda escritura de dominio pasa por

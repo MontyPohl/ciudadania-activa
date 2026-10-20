@@ -1,5 +1,10 @@
 # Ciudadanía Activa
 
+**Estado al 20/10/2026:** S12 desplegado; preparación de S13 desde `origin/main`.
+Heroku v24, con backend de `main@d9e1c11` desplegado en v22; IA OpenAI activa con prompt v2
+y correo Brevo operativo. El repositorio es público desde el 19/10. Ver
+[trabajo post-S12](docs/PROGRESO_SPRINTS.md#post-s12--estabilización-y-activación-productiva-1920102026).
+
 Plataforma de reportes urbanos ciudadanos con verificación de identidad, validación institucional
 e incentivos (puntos de impacto y créditos canjeables). Trabajo de Conclusión de Carrera —
 Universidad Columbia del Paraguay.
@@ -76,8 +81,9 @@ Esto expone PostGIS en `localhost:5432` y Redis en `localhost:6379`, según lo d
 El contenedor `db` usa `postgis/postgis:17-3.5`, alineado con el major de PostgreSQL que entrega
 Supabase. **Cambiar el major de PostgreSQL invalida el volumen `infra_postgres_data`**: hay que
 eliminarlo y dejar que se reinicialice (`docker compose -f infra/docker-compose.yml stop db && docker
-volume rm infra_postgres_data`). En local esto no destruye información: los datos se regeneran con
-`migrate` y las cargas de prueba del sprint correspondiente.
+volume rm infra_postgres_data`). Eliminar el volumen **borra sus datos locales**. `migrate` y los
+seeds pueden reconstruir el esquema y las cargas sintéticas, pero no recuperan reportes ni cuentas creados a mano;
+respaldalos antes si necesitás conservarlos.
 
 > **Aislamiento deliberado:** `infra/docker-compose.yml` fija `DATABASE_URL` al contenedor local en
 > el bloque `environment` de `backend`, `worker` y `beat`, que tiene precedencia sobre `env_file`.
@@ -158,7 +164,8 @@ de demostración: no crean historiales ni anticipan los workflows de los Sprints
 
 ```bash
 cd frontend
-cp ../.env.example .env.local   # o crear .env.local con NEXT_PUBLIC_API_URL
+# Crear .env.local solo con las dos variables públicas:
+# NEXT_PUBLIC_API_URL y NEXT_PUBLIC_GOOGLE_CLIENT_ID (ver .env.example)
 npm install
 npm run dev
 ```
@@ -226,23 +233,28 @@ y repartir credenciales de más es un riesgo gratuito.
 | Variable | Backend web (Heroku) | Worker Celery (Heroku) | Celery Beat (Heroku) | Frontend (Vercel) |
 |---|:--:|:--:|:--:|:--:|
 | `DOCUMENT_HMAC_SECRET` | **Sí** | No | No | No |
-| `SUPABASE_URL` | **Sí** | No | No | No |
-| `SUPABASE_SERVICE_ROLE_KEY` | **Sí** | No | No | No |
+| `SUPABASE_URL` | **Sí** | **Sí** (IA) | No | No |
+| `SUPABASE_SERVICE_ROLE_KEY` | **Sí** | **Sí** (IA) | No | No |
 | `SUPABASE_STORAGE_BUCKET_PRIVATE` | **Sí** | No | No | No |
+| `SUPABASE_STORAGE_BUCKET_REPORTS` | **Sí** | **Sí** (IA) | No | No |
+| `AI_CLASSIFICATION_ENABLED` · `AI_PROVIDER` · `AI_PROMPT_VERSION` | No | **Sí** | No | No |
+| `OPENAI_API_KEY` · `OPENAI_MODEL` · `OPENAI_REASONING_EFFORT` | No | **Sí** | No | No |
+| `REDIS_SSL_CERT_REQS` | Opcional | Opcional | Opcional | No |
 | `BREVO_API_KEY` · `BREVO_API_URL` · `DEFAULT_FROM_EMAIL` | No | **Sí** | No | No |
 | `DATABASE_URL` · `REDIS_URL` · `DJANGO_SECRET_KEY` | **Sí** | **Sí** | **Sí** | No |
 | `REPORT_AUTO_CLOSE_HOURS` | No | **Opcional** | **Opcional** | No |
 | `PUBLIC_MAP_CACHE_TTL_SECONDS` | **Sí** | No | No | No |
 | `NEXT_PUBLIC_API_URL` · `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | No | No | No | **Sí** (públicas) |
 
-El backend web es el único que crea verificaciones y firma imágenes, así que es el único que
-necesita la clave del HMAC y la credencial de Storage. El worker es el único que envía correo,
-así que es el único que necesita la clave de Brevo. **Ninguna variable de Supabase llega al
+El backend web crea verificaciones y firma imágenes; el worker de IA descarga fotografías
+privadas de reportes y también necesita la credencial de Storage. Solo web usa la clave HMAC.
+El worker es el único que envía correo, así que es el único que necesita la clave de Brevo. **Ninguna variable de Supabase llega al
 frontend**: el navegador nunca habla con el almacenamiento.
 
 Sin estas variables la aplicación **arranca igual**. `config/settings/prod.py` no las exige:
-backend web y worker comparten ajustes, y obligar a que estén presentes forzaría a copiar una
-credencial con privilegios totales sobre el almacenamiento a un servicio que no la usa. El
+backend web y worker comparten ajustes. La configuración se exige en la operación que la
+necesita; un worker sin IA no necesita Storage. En Heroku los procesos de una misma app
+comparten las config vars: la tabla indica consumo, no aislamiento efectivo por proceso. El
 comportamiento es fallo cerrado **local**: el endpoint que las necesita responde `503` genérico
 y el resto del sistema sigue funcionando.
 
@@ -275,7 +287,7 @@ una **URL firmada de 300 segundos** en el detalle administrativo; no se persiste
 no se registra en logs.
 
 `SUPABASE_SERVICE_ROLE_KEY` tiene privilegios totales sobre el almacenamiento: solo se configura
-en el backend web.
+en backend web y worker de IA; nunca en Vercel.
 
 ### Correo transaccional
 
@@ -301,8 +313,8 @@ Tres precisiones que ahorran un rato de depuración:
   `Nombre <direccion>`; el cliente la separa y la envía como `{"name": ..., "email": ...}`. Si
   la dirección no figura como remitente verificado, Brevo rechaza el envío con `400`.
 - **No hay reintentos automáticos.** Un fallo deja la notificación en `FALLIDO` y ahí se queda:
-  reencolar la tarea sobre una notificación fallida **no la reenvía**. Los reintentos son
-  alcance de los Sprints 12-13.
+  reencolar la tarea sobre una notificación fallida **no la reenvía**. Los reintentos automáticos
+  quedan para S13.
 
 Para recuperar una notificación fallida hay una puerta explícita y solo una:
 
@@ -330,6 +342,10 @@ garantía del sistema.
 
 ## Comandos habituales
 
+`promote_user` exige una cuenta existente; operador requiere `--institution`, administrador
+no lo admite. No concede `is_staff` ni `is_superuser`. Los comandos `ai_*` son de gestión,
+no endpoints; sus opciones y efectos están en [API §9](docs/API.md#9-comandos-de-gestión-de-ia-post-s12).
+
 | Comando | Descripción |
 |---|---|
 | `cd backend && pytest --cov=apps` | Pruebas del backend con cobertura |
@@ -341,6 +357,9 @@ garantía del sistema.
 | `cd backend && python manage.py promote_user <email> --role operator --institution <slug>` | Promueve un usuario existente a operador |
 | `cd backend && python manage.py promote_user <email> --role admin` | Promueve un usuario existente a administrador |
 | `cd backend && python manage.py resend_notification <uuid>` | Reencola una notificación que quedó en `FALLIDO` |
+| `cd backend && python manage.py ai_usage_summary --input-usd-per-1m <precio> --output-usd-per-1m <precio>` | Resume tokens persistidos y estima costo; solo lectura |
+| `cd backend && python manage.py ai_try_classification --description <texto> --category <slug> --prompt both` | Prueba manual v1/v2; llama a OpenAI sin persistir clasificaciones |
+| `cd backend && python manage.py ai_compare_prompts --cases <casos.csv> --photos <carpeta> --out <resultados.csv>` | Compara prompts con casos y fotos locales; consume cuota |
 | `cd frontend && npm run lint` | Lint del frontend |
 | `cd frontend && npm test` | Pruebas unitarias y de componentes del frontend (Vitest + jsdom) |
 | `cd frontend && npm run typecheck` | Verificación de tipos (`next typegen && tsc --noEmit`) |
@@ -349,14 +368,15 @@ garantía del sistema.
 
 ## CI/CD
 
-Cada Pull Request ejecuta `ci-backend.yml` (Ruff + `pytest` con servicios PostGIS y Redis) y
+Los Pull Requests que cambian backend o frontend (o sus workflows) ejecutan, según
+los filtros `paths` de cada workflow, `ci-backend.yml` (Ruff + `pytest` con servicios PostGIS y Redis) y
 `ci-frontend.yml` (Prettier + Vitest + ESLint + `tsc --noEmit` + `next build`) mediante GitHub Actions. La
 rama `main` está protegida: solo se integra con ambos checks en verde.
 
 El frontend se despliega automáticamente en **Vercel** desde `main`. El backend y los procesos de
 Celery se publican por separado en **Heroku** mediante un push explícito a su remote Git; un merge
 en GitHub no despliega Heroku. Los procesos backend acceden a PostgreSQL en **Supabase** mediante
-`DATABASE_URL`; sólo el backend web accede a Storage con `SUPABASE_URL` y las credenciales privadas
+`DATABASE_URL`; web y worker de IA acceden a Storage con `SUPABASE_URL` y las credenciales privadas
 correspondientes. La configuración de los proveedores se administra desde sus paneles y no se
 versiona en el repositorio.
 
@@ -364,26 +384,32 @@ versiona en el repositorio.
 
 | Servicio | Proveedor | URL pública | Notas |
 |---|---|---|---|
-| Frontend | Vercel | `https://ciudadania-activa.vercel.app` | `Root Directory: frontend`; sólo necesita las variables públicas `NEXT_PUBLIC_*`. El proyecto conserva 28 variables de backend heredadas que no llegan al navegador, pero amplían el radio de exposición y deben retirarse en una operación de seguridad separada |
+| Frontend | Vercel | `https://ciudadania-activa.vercel.app` | `Root Directory: frontend`; solo las dos variables públicas que el código lee, `NEXT_PUBLIC_API_URL` y `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, ambas de tipo *Config*. **Ningún secreto de backend se carga en Vercel** (verificado en la remediación S9.5, ver [runbook](docs/runbooks/HEROKU_MIGRATION.md)) |
 | Backend | Heroku | `https://ciudadania-activa-api-5b4f8e81977b.herokuapp.com` | App `ciudadania-activa-api`, stack `container`; proceso `web`: `gunicorn config.wsgi:application --bind 0.0.0.0:$PORT`. **Sin fase `release`: ningún deploy migra la base** |
 | Worker de Celery | Heroku | — | Proceso `worker` de la misma app: `celery -A config.celery:app worker --loglevel=info --concurrency=2` |
 | Celery Beat | Heroku | — | Proceso `beat` activo con exactamente **1 dyno**; agenda `reports.auto_close` cada 15 minutos |
-| Redis | Heroku Key-Value Store | — | Plan `mini`. Entrega `rediss://`, que exige `?ssl_cert_reqs=none` en `REDIS_URL` |
+| Redis | Heroku Key-Value Store | — | Plan `mini`. Para `rediss://` sin `ssl_cert_reqs`, settings añade `REDIS_SSL_CERT_REQS` (default `none`, PR #46) |
 | Base de datos y storage | Supabase | — | PostgreSQL 17 + PostGIS en el esquema `gis` |
 
 Estado del backend: `GET /api/v1/health/` → `{"status":"ok","db":true,"redis":true}`. El backend
 restringe `CORS_ALLOWED_ORIGINS` al dominio del frontend.
 
-Estado operativo tras el cierre de S10: Heroku `v14`, `web=1`, `worker=1`, `beat=1` y
-`REPORT_AUTO_CLOSE_HOURS=72`. Pendientes conocidos que no deben confundirse con funcionalidad
-operativa completa:
+Estado operativo verificado el **20/10/2026, 01:25 UTC**: `web`, `worker` y un único
+`beat` arriba; health OK, migraciones al día y `check` limpio. Heroku v22 desplegó el
+commit de reconciliación `744e295` (árbol igual a `backend/` de `d9e1c11`) y aplicó
+`ai_client_app.0003`; v23 configuró Brevo y v24 el remitente verificado, sin publicar sus valores.
 
-- `BREVO_API_KEY` está ausente; el correo transaccional no está operativo. Las entregas fallan de
-  forma controlada y consultable, sin impedir el arranque del worker.
-- HSTS permanece pendiente.
-- Redis usa TLS con `CERT_NONE` (`ssl_cert_reqs=none`), deuda de seguridad conocida.
-- La clasificación por IA está intencionalmente deshabilitada mediante
-  `AI_CLASSIFICATION_ENABLED=false`.
+- IA activa: `AI_CLASSIFICATION_ENABLED=true`, `AI_PROVIDER=openai`,
+  `OPENAI_MODEL=gpt-6-luna`, `OPENAI_REASONING_EFFORT=low`, `AI_PROMPT_VERSION=v2`.
+  El default de código sigue en `v1`; una versión desconocida con OpenAI falla cerrado.
+- Correo disponible para `VERIFICACION_APROBADA`, `VERIFICACION_RECHAZADA` y
+  `CANJE_REALIZADO`; los demás tipos y reintentos automáticos quedan para S13.
+  El remitente usa Gmail verificado en Brevo: falta dominio propio autenticado por
+  el riesgo de spam (advertencias de DKIM/DMARC).
+- Corte productivo: 16 reportes, 0 clasificaciones IA, 0 recompensas, 0 canjes y dos
+  `VERIFICACION_APROBADA` en `ENVIADO` (del 23/08 y 29/08, previas a Heroku). Habilitar IA no demuestra su calidad con reportes reales.
+- HSTS y Redis con `CERT_NONE` siguen como deudas; #46 resuelve la pérdida del
+  parámetro tras rotación, sin cambiar esa política de certificados.
 
 ### Migraciones estructurales: orden obligatorio
 
@@ -398,6 +424,7 @@ acto explícito:
 4. activar mantenimiento y detener todos los writers (`web=0`, `worker=0`, `beat=0`);
 5. desplegar el backend con el artefacto autorizado mediante push al remote de Heroku. En esta
    infraestructura, ese push inicia inmediatamente el build y el deployment;
+   usar el commit de reconciliación del subtree descrito en el runbook, sin forzar el remote;
 6. comprobar que el deploy **no** alteró el esquema (`showmigrations`);
 7. aplicar la migración a mano, y solo entonces:
    `heroku run --app ciudadania-activa-api python manage.py migrate --noinput`;
