@@ -3,8 +3,10 @@
 Texto preparado al cierre del Sprint 14, el 20/10/2026, para incorporar al documento
 de tesis. Su incorporación al `.docx` sigue pendiente (CT-22 y CT-62). La base del
 sprint es `dc8c4b8`; el corte de integración local verificado es `07f3e08`, en
-`feat/s14-testing`. Las pruebas del sprint constituyen verificación de ingeniería;
-los veredictos de S11-D se conservan sin cambios (S14-D10).
+`feat/s14-testing`. El PR #54 quedó mergeado en `main` como `4bd05fb` y desplegado
+en Heroku v26 el 20/10/2026, con CI del candidato `f9a9da0` 6/6 verde y smoke productivo OK. Las pruebas
+del sprint constituyen verificación de ingeniería; los veredictos de S11-D se
+conservan sin cambios (S14-D10).
 
 ## H.1 Dataset sintético
 
@@ -137,8 +139,8 @@ pasó: format, lint, typecheck, 417 pruebas Vitest en 44 archivos, build y
 | Aparato experimental: duración | 1 h 40 min, una corrida local en paralelo con dominio, full-stack y frontend |
 | Aparato experimental: GOV-T054 | Pasó |
 | Frontend completo y E2E con build de producción | Format, lint, typecheck, 417 pruebas Vitest en 44 archivos, build y 58 E2E en verde; todos los E2E con fixture de `pageerror` |
-| PR y CI remota | [PR #54](https://github.com/MontyPohl/ciudadania-activa/pull/54), abierto el 20/10: `test` (dominio y compuerta) verde en 3 min, `build` y `frontend-e2e` verdes; `ci-experiments` en curso al escribir |
-| Despliegue | Pendiente de aprobación del usuario |
+| PR y CI remota | [PR #54](https://github.com/MontyPohl/ciudadania-activa/pull/54), mergeado el 20/10 como `4bd05fb`: 6/6 checks verdes en `f9a9da0`, `test` (dominio y compuerta) en 3 min, `experiments` en 47 min, `build` y `frontend-e2e` verdes |
+| Despliegue | Heroku v26, reconciliación `a7f775d`, árbol `51a9352` = `origin/main:backend`; `migrate --plan` vacío, `check` limpio y web/worker/beat = 1. Sin mantenimiento ni `pg_dump` por no haber cambios de esquema. Health db/redis OK; `public/categories`, `ranking/monthly` y `public/metrics`: 200 con `Cache-Control: public, max-age=60`; `/transparencia`, `/mapa` y `/ranking`: 200. Trazabilidad en el [runbook §15](../runbooks/HEROKU_MIGRATION.md) |
 
 La corrida local de `experiments_app` del 20/10 se ejecutó una vez, en paralelo
 con dominio, full-stack y frontend. Los 71 errores son `IsolationError` de

@@ -1,9 +1,11 @@
 # Ciudadanía Activa
 
-**Estado al 20/10/2026:** S12 desplegado; preparación de S13 desde `origin/main`.
-Heroku v24, con backend de `main@d9e1c11` desplegado en v22; IA OpenAI activa con prompt v2
-y correo Brevo operativo. El repositorio es público desde el 19/10. Ver
-[trabajo post-S12](docs/PROGRESO_SPRINTS.md#post-s12--estabilización-y-activación-productiva-1920102026).
+**Estado al 20/10/2026:** S14 completado — implementado, desplegado y verificado.
+El [PR #54](https://github.com/MontyPohl/ciudadania-activa/pull/54) se integró en `main`
+como `4bd05fb`, con CI del candidato `f9a9da0` 6/6 verde; Heroku v26 desplegó la reconciliación `a7f775d`.
+IA OpenAI activa con prompt v2 y correo Brevo configurado; el primer envío real con esta
+configuración sigue pendiente de observar. El repositorio es público desde el 19/10.
+Ver [progreso por sprint](docs/PROGRESO_SPRINTS.md) y [registro del despliegue, §15](docs/runbooks/HEROKU_MIGRATION.md#15-operación-vigente--corte-20102026-0125-utc).
 
 Plataforma de reportes urbanos ciudadanos con verificación de identidad, validación institucional
 e incentivos (puntos de impacto y créditos canjeables). Trabajo de Conclusión de Carrera —
@@ -397,6 +399,8 @@ ejecuta todas las specs de `e2e/` contra el build de producción con una API int
 La corrida local full-stack del S14 usa backend real y Storage falso, y se documenta aparte
 en [S14_E2E_FULLSTACK.md](docs/s14/S14_E2E_FULLSTACK.md). El informe y los resultados están en
 [S14_INFORME_PRUEBAS.md](docs/s14/S14_INFORME_PRUEBAS.md).
+El candidato `f9a9da0` del PR #54 cerró con **6/6 checks verdes**: `test` (dominio y compuerta)
+en unos 3 min, `experiments` en unos 47 min, y `build` y `frontend-e2e` también verdes.
 
 **`main` no tiene protección de rama configurada** (verificado el 20/10/2026, S14-D20).
 Esperar los checks aplicables en verde y revisar el PR antes de integrar es el procedimiento
@@ -423,19 +427,24 @@ versiona en el repositorio.
 Estado del backend: `GET /api/v1/health/` → `{"status":"ok","db":true,"redis":true}`. El backend
 restringe `CORS_ALLOWED_ORIGINS` al dominio del frontend.
 
-Estado operativo verificado el **20/10/2026, 01:25 UTC**: `web`, `worker` y un único
-`beat` arriba; health OK, migraciones al día y `check` limpio. Heroku v22 desplegó el
-commit de reconciliación `744e295` (árbol igual a `backend/` de `d9e1c11`) y aplicó
-`ai_client_app.0003`; v23 configuró Brevo y v24 el remitente verificado, sin publicar sus valores.
+Estado operativo verificado el **20/10/2026**, tras el despliegue de **Heroku v26**
+(`Deploy a7f775d9`, 14:58:43 −03): `web=1`, `worker=1` y `beat=1`; health OK con
+base de datos y Redis, `migrate --plan` vacío y `check` limpio. La reconciliación
+`a7f775d` despliega el árbol `51a9352`, igual a `origin/main:backend`. S14 no cambió
+el esquema: no requirió migraciones, mantenimiento ni `pg_dump`.
+El smoke confirmó 200 en categorías públicas, ranking mensual y métricas públicas,
+con `Cache-Control: public, max-age=60`, y en `/transparencia`, `/mapa` y `/ranking`.
+Los SHAs y la verificación están en el [registro del despliegue, §15](docs/runbooks/HEROKU_MIGRATION.md#15-operación-vigente--corte-20102026-0125-utc).
 
 - IA activa: `AI_CLASSIFICATION_ENABLED=true`, `AI_PROVIDER=openai`,
   `OPENAI_MODEL=gpt-6-luna`, `OPENAI_REASONING_EFFORT=low`, `AI_PROMPT_VERSION=v2`.
   El default de código sigue en `v1`; una versión desconocida con OpenAI falla cerrado.
-- Correo disponible para `VERIFICACION_APROBADA`, `VERIFICACION_RECHAZADA` y
-  `CANJE_REALIZADO`; los demás tipos y reintentos automáticos quedan para S13.
+- Correo configurado para identidad y canje; S13 agregó las notificaciones de reportes,
+  recompensa disponible y reintentos automáticos, desplegados en v25 y conservados en v26
+  (ver [API §10.5](docs/API.md#105-notificaciones-del-sprint-13)).
   El remitente usa Gmail verificado en Brevo: falta dominio propio autenticado por
   el riesgo de spam (advertencias de DKIM/DMARC).
-- Corte productivo: 16 reportes, 0 clasificaciones IA, 0 recompensas, 0 canjes y dos
+- Corte productivo previo (20/10/2026, 01:25 UTC): 16 reportes, 0 clasificaciones IA, 0 recompensas, 0 canjes y dos
   `VERIFICACION_APROBADA` en `ENVIADO` (del 23/08 y 29/08, previas a Heroku). Habilitar IA no demuestra su calidad con reportes reales.
 - HSTS sigue como deuda. Redis con `CERT_NONE` es un **riesgo aceptado** en S14-D18:
   Heroku Key-Value Store usa un certificado autofirmado sin CA verificable en esta
@@ -443,8 +452,8 @@ commit de reconciliación `744e295` (árbol igual a `backend/` de `d9e1c11`) y a
   servidor. #46 conserva el parámetro tras rotación, sin resolver ese riesgo.
 - S14 fija `REST_FRAMEWORK["NUM_PROXIES"] = 1` para los throttles por IP del cliente,
   detrás de un proxy: navegador → router de Heroku → dyno. Sin `X-Forwarded-For`, local
-  y CI usan `REMOTE_ADDR`. Agregar otro proxy exige revisar el ajuste. El cambio está
-  verificado localmente; su despliegue está pendiente de aprobación del usuario.
+  y CI usan `REMOTE_ADDR`. Agregar otro proxy exige revisar el ajuste. El cambio se
+  integró con PR #54 y está desplegado y verificado en Heroku v26.
 - Si cae Redis, mapa, ranking y métricas mantienen sus siete lecturas mediante el
   throttle fail-open del S14: se pierde temporalmente el contador y se registra solo el
   scope. Las escrituras siguen fallando cerrado; el detalle está en [API §10](docs/API.md#10-métricas-y-transparencia-sprint-13).
