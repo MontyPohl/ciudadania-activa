@@ -1,5 +1,6 @@
 import { expect, test } from "./support/test";
 import { mockMetricsApi } from "./metrics-fixtures";
+import { mockLandingResources } from "./landing-fixtures";
 import { MUNICIPAL_ID } from "./operator-report-fixtures";
 test("métricas institucionales y transparencia pública", async ({ page }) => {
   await test.step("el operador cambia de mes y consulta los KPI", async () => {
@@ -23,7 +24,13 @@ test("métricas institucionales y transparencia pública", async ({ page }) => {
   });
   await test.step("el anónimo navega desde el inicio y ve la supresión", async () => {
     await mockMetricsApi(page, "anonymous");
+    await mockLandingResources(page);
     await page.goto("/");
+    const received = page
+      .locator("dt")
+      .filter({ hasText: /^Reportes recibidos$/ })
+      .locator("..");
+    await expect(received.getByLabel("120", { exact: true })).toBeVisible();
     await page
       .getByRole("navigation", { name: "Navegación pública" })
       .getByRole("link", { name: "Estadísticas", exact: true })

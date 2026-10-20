@@ -153,3 +153,22 @@ body {
     max-width: calc(100% - 1.5rem);
   }
 }
+
+.landing-reveal {
+  transition:
+    opacity 500ms ease-out,
+    transform 500ms ease-out;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .landing-reveal[data-reveal="pending"] {
+    opacity: 0;
+    transform: translateY(1rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-reveal {
+    transition: none;
+  }
+}

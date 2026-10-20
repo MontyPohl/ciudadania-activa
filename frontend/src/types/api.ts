@@ -545,11 +545,26 @@ export interface PublicInstitutionMetrics extends PublicMetricsCells {
   sla: { configured: boolean; hours: number | null; compliance_rate: number | null };
 }
 
-/** Respuesta de `GET /api/v1/public/metrics/`. */
+export interface PublicTrendPoint {
+  period: MetricsPeriod;
+  received: number | null;
+  resolved: number | null;
+  suppressed: ("received" | "resolved")[];
+}
+
+export interface PublicCategoryCount {
+  category: OperatorCategory;
+  received: number | null;
+  suppressed: "received"[];
+}
+
+/** Respuesta de `GET /api/v1/public/metrics/` (S15-B1). */
 export interface PublicMetrics {
   window: { from: string; to: string; months: number };
   generated_at: ISODateTime;
   min_cell_size: number;
   totals: PublicMetricsCells;
   institutions: PublicInstitutionMetrics[];
+  trend: PublicTrendPoint[];
+  current_month_by_category: PublicCategoryCount[];
 }

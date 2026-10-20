@@ -1,6 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
 import { getPublicMetrics } from "@/lib/api/publicMetrics";
-import { publicMetrics } from "../../../../e2e/metrics-fixtures";
+import { publicMetrics } from "@/test/publicMetrics";
 import { PublicTransparencyPage } from "../PublicTransparencyPage";
 vi.mock("@/lib/api/publicMetrics", () => ({ getPublicMetrics: vi.fn() }));
 it("explica la celda suprimida y mantiene la nota de privacidad", async () => {
