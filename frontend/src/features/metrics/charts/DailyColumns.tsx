@@ -21,8 +21,8 @@ export function DailyColumns({ points }: { points: MetricsSeriesPoint[] }) {
       >
         <svg
           viewBox={`0 0 ${width} 370`}
-          style={{ minWidth: width }}
-          className="w-full"
+          style={{ minWidth: width, maxWidth: width }}
+          className="mx-auto w-full"
           aria-hidden="true"
         >
           {(["received", "resolved"] as const).map((key, series) => {
