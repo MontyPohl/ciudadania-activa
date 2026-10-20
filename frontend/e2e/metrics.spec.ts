@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./support/test";
 import { mockMetricsApi } from "./metrics-fixtures";
 import { MUNICIPAL_ID } from "./operator-report-fixtures";
 test("métricas institucionales y transparencia pública", async ({ page }) => {

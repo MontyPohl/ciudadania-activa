@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./support/test";
 
 import {
   CITIZEN_A,
@@ -59,7 +59,7 @@ test("reporte ya confirmado muestra estado bloqueado", async ({ page }) => {
   expect(metrics.postCount).toBe(0);
 });
 
-test("relato A/B: CITIZEN_B confirma una vez y recibe +10 pendientes", async ({ page }) => {
+test("@F3 relato A/B: CITIZEN_B confirma una vez y recibe +10 pendientes", async ({ page }) => {
   const metrics = await openConfirmationDetail(page, { actor: "citizen-b" });
   await expect(page.getByText(CITIZEN_B.email)).toBeVisible();
   await expect(page.getByText("0 confirmaciones ciudadanas")).toBeVisible();

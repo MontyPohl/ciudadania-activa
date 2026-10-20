@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./support/test";
 
 import {
   applyManualLocation,
@@ -204,7 +204,7 @@ test("drag real del marcador cambia la ubicación sin invalidarla", async ({ pag
   await expect(page.locator("[role='alert']:not(#__next-route-announcer__)")).toHaveCount(0);
 });
 
-test("duplicados se consulta una vez solo al confirmar y el warning no bloquea", async ({
+test("@F2 duplicados se consulta una vez solo al confirmar y el warning no bloquea", async ({
   page,
 }) => {
   const metrics = await openReportWizard(page, { duplicates: [DUPLICATE_RESPONSE] });
