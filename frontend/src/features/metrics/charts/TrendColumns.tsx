@@ -20,7 +20,7 @@ export function TrendColumns({ points }: { points: MetricsTrendPoint[] }) {
         </span>
       </p>
       <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Tendencia mensual">
-        <svg viewBox="0 0 420 220" className="w-full min-w-80" aria-hidden="true">
+        <svg viewBox="0 0 420 220" className="mx-auto w-full min-w-80 max-w-xl" aria-hidden="true">
           {[0, max / 2, max].map((value) => (
             <g key={value}>
               <line
