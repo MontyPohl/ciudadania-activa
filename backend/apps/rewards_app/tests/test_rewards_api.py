@@ -74,13 +74,15 @@ def _private(response):
         ("operator", "post", "redeem", 403),
         ("citizen", "get", "operator", 403),
         ("operator", "patch", "foreign_reward", 403),
+        ("operator", "get", "foreign_list", 403),
+        ("operator", "get", "foreign_redemptions", 403),
     ],
 )
 def test_permisos(
     actor, method, endpoint, expected_status, citizen, verified_citizen, operator_user, institution
 ):
     target = institution
-    if endpoint == "foreign_reward":
+    if endpoint in {"foreign_reward", "foreign_list", "foreign_redemptions"}:
         target = Institution.objects.create(name="Otra institución", slug="otra-api-s12")
     reward = Reward.objects.create(institution=target, name="Vale simulado")
     users = {
@@ -95,13 +97,15 @@ def test_permisos(
         "redeem": f"/api/v1/rewards/{reward.pk}/redeem/",
         "operator": "/api/v1/operator/rewards/",
         "foreign_reward": f"/api/v1/operator/rewards/{reward.pk}/",
+        "foreign_list": f"/api/v1/operator/rewards/?institution_id={target.pk}",
+        "foreign_redemptions": f"/api/v1/operator/rewards/redemptions/?institution_id={target.pk}",
     }
     client = _client(users[actor])
     response = getattr(client, method)(urls[endpoint])
 
     assert response.status_code == expected_status
     payload = _private(response)
-    if endpoint in {"operator", "foreign_reward"}:
+    if endpoint in {"operator", "foreign_reward", "foreign_list", "foreign_redemptions"}:
         assert payload == {
             "detail": "Se requiere ser operador de la institución solicitada.",
             "code": "INSTITUTION_OPERATOR_REQUIRED",
