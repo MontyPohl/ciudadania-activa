@@ -482,14 +482,21 @@ def test_b4_s08_original_identity_replacement_denied(rig, target, record_propert
 
 
 def test_b4_s09_100_readers_complete_while_global_writer_is_held(rig, record_property):
+    import traceback
+    from queue import Empty
+
     context = multiprocessing.get_context("fork")
     results = context.Queue()
     before = rig.journal.read()
 
     def read_only(index):
         started = time.monotonic()
-        state = rig.journal.read()
-        results.put((index, state == before, time.monotonic() - started))
+        try:
+            state = rig.journal.read()
+        except BaseException:
+            results.put((index, False, time.monotonic() - started, traceback.format_exc()))
+            raise
+        results.put((index, state == before, time.monotonic() - started, None))
 
     children = [context.Process(target=read_only, args=(i,)) for i in range(100)]
     observed = []
@@ -497,10 +504,30 @@ def test_b4_s09_100_readers_complete_while_global_writer_is_held(rig, record_pro
         rig.stores["lock"], "global.lock", fixture.h.identity(rig.lock)
     ):
         try:
+            # One budget includes all forks and reads, including coverage overhead
+            # on slow CI runners; receiving a result never renews the deadline.
+            deadline = time.monotonic() + 120
             for child in children:
                 child.start()
-            observed = [results.get(timeout=30) for _ in children]
-            assert all(result[1] for result in observed)
+            for _ in children:
+                try:
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        raise Empty
+                    result = results.get(timeout=remaining)
+                except Empty:
+                    received = {row[0] for row in observed}
+                    missing = {
+                        i: child.exitcode for i, child in enumerate(children) if i not in received
+                    }
+                    pytest.fail(
+                        f"Reader deadline exceeded: {len(observed)}/100 results; "
+                        f"missing reader indices/exit codes: {missing}"
+                    )
+                observed.append(result)
+                assert result[3] is None, f"Reader {result[0]} failed:\n{result[3]}"
+            assert {row[0] for row in observed} == set(range(100))
+            assert all(result[1] for result in observed), observed
         finally:
             for child in children:
                 if child.pid is None:
@@ -519,7 +546,7 @@ def test_b4_s09_100_readers_complete_while_global_writer_is_held(rig, record_pro
     _record(
         record_property,
         "B4-S09",
-        outcomes=sorted(observed),
+        outcomes=sorted(row[:3] for row in observed),
         state=before,
         reader_calls=100,
         exclusive_writer_held=True,
