@@ -1,22 +1,55 @@
 @import "tailwindcss";
 
 @theme {
-  --color-brand-pink: #f17db1;
-  --color-brand-green: #00b26b;
-  --color-brand-black: #000000;
-  --color-brand-purple: #6950a1;
-  --color-brand-orange: #f37043;
-  /* Text on white and brand tints needs darker tones than decorative brand fills. */
-  --color-brand-green-ink: #007749;
-  --color-brand-orange-ink: #a63d15;
-  --font-sans: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+  --color-primary: #1a5276;
+  --color-secondary: #2e86c1;
+  --color-canvas: #f4f6f9;
+  --color-surface: #ffffff;
+  --color-ink: #2c3e50;
+  --color-muted: #536466;
+  --color-muted-decorative: #7f8c8d;
+  --color-border: #e8ecef;
+  /* Base status colors are decorative; use the ink variants for text on light surfaces. */
+  --color-success: #27ae60;
+  --color-success-ink: #1c7340;
+  --color-warning: #e67e22;
+  --color-warning-ink: #9a4d0b;
+  --color-danger: #e74c3c;
+  --color-danger-ink: #b83226;
+  --color-on-primary: var(--color-surface);
+  --color-focus: var(--color-primary);
+  --color-control-border: var(--color-muted);
+
+  --color-report-created: var(--color-primary);
+  --color-report-classified: var(--color-secondary);
+  --color-report-assigned: var(--color-warning);
+  --color-report-in-progress: var(--color-warning);
+  --color-report-resolved: var(--color-success);
+  --color-report-closed: var(--color-muted);
+  --color-report-rejected: var(--color-danger);
+
+  /* Public pins group exact states; dark fills keep white symbols legible. */
+  --color-map-pending: var(--color-primary);
+  --color-map-in-progress: var(--color-warning-ink);
+  --color-map-resolved: var(--color-success-ink);
+
+  /* Temporary compatibility aliases until each screen migrates to semantic tokens.
+     Orange ink currently covers errors too; warnings migrate separately. */
+  --color-brand-pink: var(--color-secondary);
+  --color-brand-green: var(--color-success);
+  --color-brand-black: var(--color-ink);
+  --color-brand-purple: var(--color-primary);
+  --color-brand-orange: var(--color-warning);
+  --color-brand-green-ink: var(--color-success-ink);
+  --color-brand-orange-ink: var(--color-danger-ink);
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 
 :root {
   /* La app está diseñada en claro, incluidos los controles nativos. */
   color-scheme: light;
-  --background: #ffffff;
-  --foreground: var(--color-brand-black);
+  --background: var(--color-canvas);
+  --foreground: var(--color-ink);
 }
 
 body {
@@ -43,16 +76,16 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #ffffff;
+  color: var(--color-on-primary);
   font-family: var(--font-sans);
   font-weight: 700;
-  border: 3px solid #ffffff;
-  box-shadow: 0 2px 8px rgb(0 0 0 / 35%);
+  border: 3px solid var(--color-surface);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--color-ink) 35%, transparent);
 }
 
 .ca-cluster-icon {
   border-radius: 9999px;
-  background: var(--color-brand-purple);
+  background: var(--color-primary);
 }
 
 .ca-report-marker {
@@ -64,32 +97,23 @@ body {
   transform: rotate(45deg);
 }
 
-.ca-report-marker--creado {
-  background: var(--color-brand-purple);
-}
-
-.ca-report-marker--clasificado {
-  background: var(--color-brand-pink);
-}
-
+.ca-report-marker--creado,
+.ca-report-marker--clasificado,
 .ca-report-marker--asignado {
-  background: var(--color-brand-orange);
+  background: var(--color-map-pending);
 }
 
 .ca-report-marker--en_proceso {
-  background: #d79b00;
+  background: var(--color-map-in-progress);
 }
 
-.ca-report-marker--resuelto {
-  background: var(--color-brand-green);
-}
-
+.ca-report-marker--resuelto,
 .ca-report-marker--cerrado {
-  background: #4b5563;
+  background: var(--color-map-resolved);
 }
 
 .ca-report-marker--selected {
-  outline: 4px solid rgb(105 80 161 / 45%);
+  outline: 4px solid color-mix(in srgb, var(--color-focus) 45%, transparent);
   outline-offset: 2px;
 }
 
@@ -98,12 +122,12 @@ body {
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  border: 4px solid #ffffff;
+  border: 4px solid var(--color-surface);
   border-radius: 9999px;
-  outline: 3px solid var(--color-brand-purple);
-  background: var(--color-brand-orange);
-  color: #ffffff;
-  box-shadow: 0 3px 10px rgb(0 0 0 / 35%);
+  outline: 3px solid var(--color-focus);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  box-shadow: 0 3px 10px color-mix(in srgb, var(--color-ink) 35%, transparent);
   cursor: grab;
   font-family: var(--font-sans);
   font-size: 1.5rem;

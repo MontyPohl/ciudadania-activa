@@ -6,6 +6,7 @@ import { MapLegend } from "@/features/map/MapLegend";
 import { MapResultsStatus, type MapResultsPhase } from "@/features/map/MapResultsStatus";
 import { ReportList } from "@/features/map/ReportList";
 import { ReportSidePanel } from "@/features/map/ReportSidePanel";
+import { STATUS_MARKERS } from "@/features/map/presentation";
 import { publicReport } from "@/test/fixtures";
 
 describe("filtros públicos", () => {
@@ -63,6 +64,15 @@ describe("filtros públicos", () => {
 });
 
 describe("leyenda del mapa público", () => {
+  it("agrupa los pines en pendiente, en proceso y resuelto con símbolos distintos", () => {
+    expect(STATUS_MARKERS.CLASIFICADO).toEqual(STATUS_MARKERS.CREADO);
+    expect(STATUS_MARKERS.ASIGNADO).toEqual(STATUS_MARKERS.CREADO);
+    expect(STATUS_MARKERS.CERRADO).toEqual(STATUS_MARKERS.RESUELTO);
+    const groups = [STATUS_MARKERS.CREADO, STATUS_MARKERS.EN_PROCESO, STATUS_MARKERS.RESUELTO];
+    expect(new Set(groups.map((marker) => marker.symbol)).size).toBe(3);
+    expect(new Set(groups.map((marker) => marker.color)).size).toBe(3);
+  });
+
   it("renderiza exclusivamente los seis estados visibles sin depender del catálogo privado", () => {
     render(<MapLegend />);
 

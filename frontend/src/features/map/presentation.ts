@@ -17,12 +17,12 @@ export const STATUS_LABELS: Record<PublicReportStatus, string> = {
 export const PRIORITY_LABELS = REPORT_PRIORITY_LABELS;
 
 export const STATUS_MARKERS: Record<PublicReportStatus, { color: string; symbol: string }> = {
-  CREADO: { color: "#6950a1", symbol: "●" },
-  CLASIFICADO: { color: "#f17db1", symbol: "◆" },
-  ASIGNADO: { color: "#f37043", symbol: "■" },
-  EN_PROCESO: { color: "#d79b00", symbol: "▲" },
-  RESUELTO: { color: "#00b26b", symbol: "✓" },
-  CERRADO: { color: "#4b5563", symbol: "●" },
+  CREADO: { color: "var(--color-map-pending)", symbol: "●" },
+  CLASIFICADO: { color: "var(--color-map-pending)", symbol: "●" },
+  ASIGNADO: { color: "var(--color-map-pending)", symbol: "●" },
+  EN_PROCESO: { color: "var(--color-map-in-progress)", symbol: "▲" },
+  RESUELTO: { color: "var(--color-map-resolved)", symbol: "✓" },
+  CERRADO: { color: "var(--color-map-resolved)", symbol: "✓" },
 };
 
 export function formatPublicDate(value: string): string {

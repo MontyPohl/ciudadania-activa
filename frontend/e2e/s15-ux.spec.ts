@@ -76,6 +76,28 @@ async function capture(page: Page, testInfo: TestInfo, name: string) {
   });
 }
 
+test("S15 UI: fondo institucional e Inter sin desbordes en los cuatro anchos", async ({ page }) => {
+  await mockMetricsApi(page, "anonymous");
+  await page.goto("/transparencia");
+  await page.evaluate(() => document.fonts.ready);
+  for (const width of [320, 375, 768, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(244, 246, 249)");
+    await expect(page.locator("body")).toHaveCSS("color", "rgb(44, 62, 80)");
+    const font = await page.locator("body").evaluate((body) => {
+      const style = getComputedStyle(body);
+      return { family: style.fontFamily, inter: style.getPropertyValue("--font-inter").trim() };
+    });
+    expect(font.inter).not.toBe("");
+    const normalizeFamily = (value: string) => value.replace(/["']/g, "").replace(/\s+/g, " ");
+    expect(normalizeFamily(font.family)).toBe(
+      normalizeFamily(`${font.inter}, ui-sans-serif, system-ui, sans-serif`),
+    );
+    await expect(page.locator("#contenido-principal")).toHaveCount(1);
+    await expectNoHorizontalOverflow(page);
+  }
+});
+
 for (const width of [320, 1280]) {
   test(`S15: navegación y error de identidad legibles a ${width}px`, async ({
     page,
@@ -215,6 +237,24 @@ test("S15: mapa ofrece selección y regreso con teclado en móvil", async ({ pag
   await page.goto("/mapa");
   const trigger = page.locator(`[data-report-list-trigger="${report.id}"]`);
   await expect(trigger).toBeVisible();
+  const legend = page.getByRole("region", { name: "Leyenda de estados" });
+  const symbols = legend.locator("li > span[aria-hidden]");
+  const colors = [
+    "rgb(26, 82, 118)",
+    "rgb(26, 82, 118)",
+    "rgb(26, 82, 118)",
+    "rgb(154, 77, 11)",
+    "rgb(28, 115, 64)",
+    "rgb(28, 115, 64)",
+  ];
+  await expect(symbols).toHaveCount(colors.length);
+  for (const [index, color] of colors.entries()) {
+    await expect(symbols.nth(index)).toHaveCSS("background-color", color);
+    await assertTextContrast(symbols.nth(index), testInfo);
+  }
+  const pin = page.locator(".ca-report-marker--creado");
+  await expect(pin).toHaveCSS("background-color", colors[0]);
+  await expect(pin).toHaveText("●");
   await trigger.focus();
   await page.keyboard.press("Enter");
   const panel = page.getByRole("complementary", { name: "Baches", exact: true });
