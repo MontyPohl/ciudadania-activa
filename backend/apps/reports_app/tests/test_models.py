@@ -43,7 +43,7 @@ def test_el_reporte_admite_no_tener_ciudadano_ni_institucion(category):
     ingestado = Report.objects.create(
         category=category,
         description="Pre-reporte ingestado.",
-        source=ReportSource.TELEGRAM,
+        source=ReportSource.X_MOCK,
         location=Point(-57.63, -25.26, srid=4326),
     )
 

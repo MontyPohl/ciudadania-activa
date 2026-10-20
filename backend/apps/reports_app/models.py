@@ -15,8 +15,8 @@ class Report(BaseModel):
     la validación institucional del Sprint 9.
     """
 
-    # Nullable (CT-19 / O-03): los reportes ingestados desde Telegram o X simulado no
-    # tienen ciudadano verificado. SET_NULL conserva el reporte —dato público de
+    # Nullable (CT-19 / O-03): los reportes ingestados desde X simulado no tienen
+    # ciudadano verificado. SET_NULL conserva el reporte —dato público de
     # transparencia— si el autor se da de baja.
     citizen = models.ForeignKey(
         settings.AUTH_USER_MODEL,

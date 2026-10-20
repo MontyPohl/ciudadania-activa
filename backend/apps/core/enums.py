@@ -29,11 +29,12 @@ class ReportPriority(models.TextChoices):
 class ReportSource(models.TextChoices):
     """Origen del reporte (RF-17, CT-19).
 
-    Sostiene la regla "las fuentes no verificadas no generan puntos" (RF-45).
+    Sostiene la regla "las fuentes no verificadas no generan puntos" (RF-45). El
+    valor `telegram` se retiró en el Sprint 13: Telegram quedó fuera del MVP (D-04,
+    CT-43) y la única fuente social es la simulación de X.
     """
 
     PLATFORM = "platform", "Plataforma"
-    TELEGRAM = "telegram", "Telegram"
     X_MOCK = "x_mock", "X simulado"
 
 
