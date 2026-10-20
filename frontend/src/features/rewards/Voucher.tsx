@@ -20,7 +20,11 @@ export function Voucher({
     }
   }
   return (
-    <main className="mx-auto max-w-2xl space-y-6 bg-white px-6 py-10 text-brand-black">
+    <main
+      id="contenido-principal"
+      tabIndex={-1}
+      className="mx-auto max-w-2xl space-y-6 bg-white px-6 py-10 text-brand-black"
+    >
       <Link className="text-brand-purple underline" href="/recompensas">
         Volver a recompensas
       </Link>

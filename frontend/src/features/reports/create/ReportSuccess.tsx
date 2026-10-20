@@ -10,9 +10,14 @@ export function ReportSuccess({
   onCreateAnother: () => void;
 }) {
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-6 py-12" aria-live="polite">
+    <main
+      id="contenido-principal"
+      tabIndex={-1}
+      className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-6 py-12"
+      aria-live="polite"
+    >
       <header className="rounded-2xl bg-brand-green/10 p-6">
-        <p className="text-sm font-semibold uppercase tracking-wide text-brand-green">
+        <p className="text-sm font-semibold uppercase tracking-wide text-brand-green-ink">
           {humanReportStatus(result.status)}
         </p>
         <h1 className="mt-1 text-2xl font-bold text-brand-purple">Reporte creado correctamente</h1>
@@ -55,7 +60,7 @@ export function ReportSuccess({
         <button
           type="button"
           onClick={onCreateAnother}
-          className="rounded-md border border-brand-green px-4 py-2 text-sm font-semibold text-brand-green"
+          className="rounded-md border border-brand-green px-4 py-2 text-sm font-semibold text-brand-green-ink"
         >
           Crear otro reporte
         </button>

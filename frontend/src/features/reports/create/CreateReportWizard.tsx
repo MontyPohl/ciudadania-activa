@@ -301,7 +301,11 @@ export function CreateReportWizard() {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-8 sm:px-6 sm:py-10">
+    <main
+      id="contenido-principal"
+      tabIndex={-1}
+      className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-8 sm:px-6 sm:py-10"
+    >
       <header className="flex flex-col gap-2">
         <h1 className="text-2xl font-bold text-brand-purple sm:text-3xl">Crear un reporte</h1>
         <p className="max-w-2xl text-sm text-brand-black/70">
@@ -320,7 +324,9 @@ export function CreateReportWizard() {
             role="alert"
             className="rounded-xl border border-brand-orange/40 bg-brand-orange/10 p-4"
           >
-            <p className="text-sm font-semibold text-brand-orange">Revisá los campos señalados:</p>
+            <p className="text-sm font-semibold text-brand-orange-ink">
+              Revisá los campos señalados:
+            </p>
             <ul className="mt-2 list-disc pl-5 text-sm text-brand-black/75">
               {visibleValidationFields.map((field) => (
                 <li key={field}>{STEP_LABELS[FIELD_STEP[field]]}</li>
@@ -385,7 +391,7 @@ export function CreateReportWizard() {
                   <p
                     id="report-location-error"
                     role="alert"
-                    className="mt-2 text-sm font-medium text-brand-orange"
+                    className="mt-2 text-sm font-medium text-brand-orange-ink"
                   >
                     {errors.location}
                   </p>
@@ -478,7 +484,7 @@ const SubmissionMessage = forwardRef<
       aria-live="assertive"
       className={`rounded-xl border p-4 ${uncertain ? "border-brand-orange bg-brand-orange/10" : "border-brand-black/15 bg-white"}`}
     >
-      <h2 className="font-bold text-brand-orange">
+      <h2 className="font-bold text-brand-orange-ink">
         {uncertain
           ? "No pudimos confirmar si el reporte fue creado"
           : "No se pudo crear el reporte"}

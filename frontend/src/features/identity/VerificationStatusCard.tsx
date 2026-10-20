@@ -56,7 +56,7 @@ export function VerificationStatusCard({ estado }: { estado: IdentityStatus }) {
           </p>
           {estado.rejection_reason !== "" && (
             <div className="rounded-md bg-brand-orange/5 px-4 py-3">
-              <p className="text-xs font-semibold text-brand-orange">Motivo del rechazo</p>
+              <p className="text-xs font-semibold text-brand-orange-ink">Motivo del rechazo</p>
               <p className="mt-1 text-sm text-brand-black/80">{estado.rejection_reason}</p>
             </div>
           )}

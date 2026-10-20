@@ -138,7 +138,7 @@ export function RankingVisibilityForm({ nombreCompleto, inicial }: Props) {
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="ranking_alias" className="text-sm font-semibold">
-          Alias {modalidad === "ALIAS" && <span className="text-brand-orange">*</span>}
+          Alias {modalidad === "ALIAS" && <span className="text-brand-orange-ink">*</span>}
         </label>
         <input
           id="ranking_alias"
@@ -158,7 +158,7 @@ export function RankingVisibilityForm({ nombreCompleto, inicial }: Props) {
       </div>
 
       <div className="rounded-md bg-brand-green/5 px-4 py-3">
-        <p className="text-xs font-semibold text-brand-green">
+        <p className="text-xs font-semibold text-brand-green-ink">
           Vista previa aproximada en el ranking
         </p>
         <p className="mt-1 text-sm font-semibold">
@@ -167,12 +167,12 @@ export function RankingVisibilityForm({ nombreCompleto, inicial }: Props) {
       </div>
 
       {error !== null && (
-        <p role="alert" className="text-sm font-medium text-brand-orange">
+        <p role="alert" className="text-sm font-medium text-brand-orange-ink">
           {error}
         </p>
       )}
       {guardado && (
-        <p role="status" className="text-sm font-medium text-brand-green">
+        <p role="status" className="text-sm font-medium text-brand-green-ink">
           Preferencia guardada.
         </p>
       )}

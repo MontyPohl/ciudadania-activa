@@ -1,6 +1,6 @@
 const TONE_CLASSES = {
-  ok: "bg-brand-green/10 text-brand-green ring-brand-green/30",
-  error: "bg-brand-orange/10 text-brand-orange ring-brand-orange/30",
+  ok: "bg-brand-green/10 text-brand-green-ink ring-brand-green/30",
+  error: "bg-brand-orange/10 text-brand-orange-ink ring-brand-orange/30",
   pending: "bg-brand-purple/10 text-brand-purple ring-brand-purple/30",
 } as const;
 

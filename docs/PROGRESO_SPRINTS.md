@@ -5037,23 +5037,107 @@ coincide con `origin/main:backend`; trazabilidad en el runbook §15 e informe S1
 ## Sprint 15 — Carga, dataset definitivo y documentación
 
 **Fechas planificadas:** 07/11/2026 – 13/11/2026
-**Estado:** Pendiente
+**Estado:** En ejecución — validación local y diagnóstico remoto
+**Inicio real:** 20/10/2026
 **Fecha real de cierre:** —
 
+**Plan actualizado tras S14:** [implementación](s15/S15_PLAN_IMPLEMENTACION.md),
+[apertura y dependencias](s15/S15_APERTURA_Y_DEPENDENCIAS.md) y
+[protocolo local](s15/S15_PROTOCOLO_VALIDACION.md). La revisión exhaustiva previa
+se conserva en su [registro](s15/S15_REVISION_PLAN.md).
+Base `3d89182`, rama local `feat/s15-validation`. El usuario autorizó continuar
+todos los carriles independientes y utilizar el despliegue existente. El Excel/ZIP
+con fotos inéditas y oro humano sigue pendiente de entrega; no se exige otro entorno.
+El [informe de validación vigente](s15/S15_INFORME_VALIDACION.md) distingue la segunda
+etapa de los resultados anteriores.
+
 ### Funcionalidades terminadas
-_Pendiente._
+
+- Generador y verificador del dataset funcional sintético: 36 reportes, historia por
+  servicios de dominio, 16 actores, 32 confirmaciones y tres canjes financiados.
+- Formatos y ejecutor IA de validación/replay/rescore, con denominador congelado,
+  control de integridad e invalidación terminal ante fallos del instrumento.
+- Harness local k6 para creación, mapa, ranking y canjes/negativas; reconciliador SQL
+  antes/después y sustituto Storage persistente.
+- Aislamiento PostGIS/Redis/red interna, artefactos privados y compuerta CI de
+  herramientas offline. Implementación y resultados de esta etapa en el
+  [informe local](s15/S15_INFORME_PREPARACION_LOCAL.md).
+- Perfil de medición con Gunicorn, `DEBUG=False`, TTL explícitos y observación
+  de tareas; correo sustituido localmente, sin envío externo.
+- Correcciones UX de contraste, salto al contenido con teclado, títulos y texto
+  del perfil, con [auditoría y evidencias](s15/S15_AUDITORIA_UX.md).
+- [Diagnóstico Heroku ↔ Supabase](s15/S15_DIAGNOSTICO_REMOTO.md) ejecutado en un
+  dyno temporal con SQL constante de solo lectura; smoke público de seis rutas.
 
 ### Pruebas realizadas
-_Pendiente._
+
+Primera preparación local: dataset original **1.257/1.257** controles; auditoría obligatoria
+268/268 y notificaciones 116/116. Restauración independiente DB + objetos verificada
+antes de consumir su copia en carga. Primer smoke k6: 50/50 creaciones HTTP y SQL,
+sin errores, en ventana de 60 s. Herramientas offline: IA 28, carga 28 y Storage/SQL
+11 pruebas. La compuerta global y sus alcances figuran en el informe local.
+Backend: **2.347 pruebas PASS**, cobertura de producto **94,46 %**; HT5-01
+**96,91 %** en su universo separado y GOV-T054 **1/1 PASS**.
+Lecturas HTTP con expectativas SQL congeladas: mapa **90/90** y ranking **90/90**,
+sin errores en las corridas finales; caché sin adjudicar como fría o caliente.
+
+Segunda etapa: restauración del carril API **1.329/1.329** con el verificador
+reforzado; corrida API final 005 **180/180**, repetida tras bloquear proxies
+heredados. UX: **67/67 E2E** y **417 pruebas Vitest**, con build, tipos, lint y formato
+correctos. Harness de carga: **37 pruebas** y binding exacto aprobados por revisión
+independiente. Carga: tres ventanas finales gthread/4 con **50 persistencias** cada una,
+P50 **234–377 ms**, P99 **470–1.008 ms** y drenaje completo de sus tareas locales.
+Se conservan también los tres baselines, incluida una ventana que incumple latencia;
+360 lecturas y tres negativas de canje verificadas por separado. El
+[informe de rendimiento](s15/S15_INFORME_RENDIMIENTO.md) detalla perfil, caché y límites.
+
+Compuerta final de dominio: **2.349/2.349**, producto **94,46 %** (7.351
+sentencias, 407 sin cubrir), HT5-01 **96,91 %** en su universo separado y
+GOV-T054 **1/1**. Auxiliares: **43 pruebas**, IA offline 28 y carga Node 37.
+
+Navegador con API real local: **9/9**, F1…F8 y dashboard, conciliación SQL
+**63/63**; datos sintéticos, HMAC y canario con superficies delimitadas. **18/18**
+navegaciones descriptivas posteriores, sin incidencias, con perfiles y proxies
+explícitos. Suplemento de canje separado: **3/3**, saldo 1.010→10 y tres duplicados
+409, diez tablas conciliadas. Informes vinculados en el corte vigente.
+
+Remoto: **30 consultas `SELECT 1`**, mediana **66,18 ms**, cinco aperturas con mediana
+**409,30 ms**, TLS y transacciones readonly confirmados. Seis rutas públicas HTTP 200.
+No son tiempos de navegador/API autenticada ni capacidad sostenida del despliegue.
 
 ### Problemas encontrados
-_Pendiente._
+
+La revisión independiente detectó rutas que podían aceptar corridas IA corruptas y
+enlaces incompletos en la auditoría del dataset; se corrigieron con regresiones.
+La primera suite global expuso una interacción de fixtures transaccionales y un
+montaje readonly para dos fixtures Storage; correcciones y repetición documentadas.
+La segunda revisión reforzó el vínculo manifiesto/serie/SQL y la comprobación de
+ubicación/SRID/institución. La primera repetición representativa alcanzó 50 altas,
+pero superó los objetivos de latencia; se conserva y se compara con las demás
+repeticiones y el candidato gthread/4, sin seleccionar solo el mejor resultado. El ajuste
+del comando Gunicorn está preparado en Dockerfile/Heroku, sin despliegue ejecutado.
 
 ### Commits relevantes
-_Pendiente._
+
+Base de S14: `3d89182`. Cambios S15 locales aún sin commit ni publicación.
 
 ### Observaciones y desvíos respecto del plan
-_Pendiente._
+
+P0-L permite preparar y verificar instrumentos locales; P0-M conserva los requisitos
+de medición final. El smoke usa Django de desarrollo y sustitutos, sin proveedores
+externos ni workers: no adjudica RNF productivos ni modifica los resultados de S11.
+S15 permanece abierto por la evaluación IA, comprobaciones con cuentas/proveedores
+reales, operación pendiente y cierre/integración técnica
+que detalla el [informe vigente](s15/S15_INFORME_VALIDACION.md). La pasada UX y el
+diagnóstico acotado Heroku ↔ Supabase ya tienen sus propios resultados observados.
+
+**Decisiones posteriores del usuario (20/10):** presupuesto API USD 5–10 con reserva
+para pruebas y demo; uso del despliegue existente sin exigir otro entorno remoto;
+defensa aproximadamente el 16/12/2026 y resultados técnicos antes. El usuario entregará
+el Excel/ZIP preparado con Claude; se propone reunir 100 casos reservados y 20 de
+piloto/pruebas. La incorporación del `.docx` se traslada explícitamente a después de
+completar S16; preparar evidencia y documentación técnica sigue siendo trabajo del sprint.
+Ver [decisiones y pendientes actualizados](s15/S15_DECISIONES_Y_PENDIENTES.md).
 
 ---
 
@@ -5086,7 +5170,7 @@ Se completa a medida que las mediciones estén disponibles (Sprints 14 y 15).
 
 | Indicador | Umbral | Medición | Estado |
 |---|---|---|---|
-| Cobertura backend de producto y crítico | ≥ 80 % en cada alcance | S14 (20/10): compuerta de producto 95,62 % (6.388 sentencias, 280 sin cubrir); HT5-01 96,91 % (2.233 sentencias, 69 sin cubrir; 33 archivos congelados) | PASS de ingeniería; alcances distintos. HT-5 de S11 conserva PASS (96,76 %); ver [informe S14](s14/S14_INFORME_PRUEBAS.md) y [S11-D](s11/S11_D_ANALISIS_Y_DECISIONES.md) |
+| Cobertura backend de producto y crítico | ≥ 80 % en cada alcance | S15 local (20/10): compuerta de producto 94,46 % (7.351 sentencias, 407 sin cubrir; incorpora los comandos/herramientas Django nuevos según la configuración vigente); HT5-01 96,91 % (2.233 sentencias, 69 sin cubrir; 33 archivos congelados) | PASS de ingeniería del árbol local; alcances distintos. HT-5 de S11 conserva PASS (96,76 %); ver [informe S15](s15/S15_INFORME_VALIDACION.md) y [S11-D](s11/S11_D_ANALISIS_Y_DECISIONES.md) |
 | Concordancia IA vs etiquetas de oro | ≥ 85 % | 67,86 % (19/28): CA-4 de `EX-09` OpenAI, run `s11-a156a68c-c422-5e57-ae2b-3336d3b55e6c`, 26/09/2026 | `FAIL` |
 | Latencia P50 endpoints críticos | ≤ 800 ms | — | Pendiente |
 | Latencia de red Heroku ↔ Supabase | Medida y documentada | — | Pendiente |

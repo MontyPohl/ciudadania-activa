@@ -286,7 +286,7 @@ export function AdminAuditConsole() {
           <h2
             ref={reversalHeading}
             tabIndex={-1}
-            className="text-lg font-bold text-brand-orange focus:outline-none"
+            className="text-lg font-bold text-brand-orange-ink focus:outline-none"
           >
             Revertir validación
           </h2>
@@ -295,7 +295,7 @@ export function AdminAuditConsole() {
             {selected.cycle}. El backend volverá a comprobar estado y ciclo antes de cambiar nada.
           </p>
           <div className="mt-3 rounded-xl border border-brand-orange/30 bg-brand-orange/5 p-4 text-sm text-brand-black/80">
-            <p className="font-semibold text-brand-orange">Consecuencias de esta reversión</p>
+            <p className="font-semibold text-brand-orange-ink">Consecuencias de esta reversión</p>
             <p className="mt-1">
               El reporte volverá a Clasificado y se retirarán los puntos y créditos derivados de
               esta validación, incluido el bono de resolución si existe. Los canjes ya emitidos no
@@ -326,7 +326,7 @@ export function AdminAuditConsole() {
             <button
               type="submit"
               disabled={busy}
-              className="min-h-11 rounded-lg bg-brand-orange px-4 py-2 font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-orange disabled:cursor-not-allowed disabled:opacity-55"
+              className="min-h-11 rounded-lg bg-brand-orange px-4 py-2 font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-orange-ink disabled:cursor-not-allowed disabled:opacity-55"
             >
               {busy ? "Revirtiendo…" : "Confirmar reversión"}
             </button>
@@ -407,7 +407,7 @@ export function AdminAuditConsole() {
                           setMessage(null);
                           setSelected(context);
                         }}
-                        className="mt-5 min-h-11 rounded-lg border border-brand-orange px-4 py-2 text-sm font-semibold text-brand-orange focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-orange"
+                        className="mt-5 min-h-11 rounded-lg border border-brand-orange px-4 py-2 text-sm font-semibold text-brand-orange-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-orange-ink"
                       >
                         Preparar reversión del ciclo {context.cycle}
                       </button>

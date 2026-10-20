@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:ciudadania-activa:s15:gold:v1",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "s15-gold-v1"
+    },
+    "dataset_id": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+    },
+    "review": {
+      "type": "object",
+      "properties": {
+        "reviewer_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+          },
+          "minItems": 2,
+          "uniqueItems": true
+        },
+        "rubric": {
+          "const": "classification-v2"
+        },
+        "adjudicated_before_prediction": {
+          "const": true
+        }
+      },
+      "required": [
+        "reviewer_ids",
+        "rubric",
+        "adjudicated_before_prediction"
+      ],
+      "additionalProperties": false
+    },
+    "labels": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "case_id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+          },
+          "category_slug": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "institution_slug": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "priority": {
+            "enum": [
+              "BAJA",
+              "MEDIA",
+              "ALTA"
+            ]
+          }
+        },
+        "required": [
+          "case_id",
+          "category_slug",
+          "institution_slug",
+          "priority"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 1
+    }
+  },
+  "required": [
+    "schema_version",
+    "dataset_id",
+    "review",
+    "labels"
+  ],
+  "additionalProperties": false
+}

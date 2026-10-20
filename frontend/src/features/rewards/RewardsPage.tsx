@@ -75,7 +75,11 @@ export function RewardsPage() {
     }
   }
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 bg-white px-6 py-10 text-brand-black">
+    <main
+      id="contenido-principal"
+      tabIndex={-1}
+      className="mx-auto flex w-full max-w-5xl flex-col gap-8 bg-white px-6 py-10 text-brand-black"
+    >
       <header className="space-y-2">
         <h1 className="text-3xl font-bold text-brand-purple">Recompensas</h1>
         <p className="text-brand-black/75">

@@ -1,0 +1,5 @@
+FROM ca-s12-backend-test:dev
+
+# Mismo major fijado por requirements/prod.txt, sin cambiar la imagen de tests
+# ni los archivos congelados del producto. La versión queda en cada recibo S15.
+RUN python -m pip install --no-cache-dir gunicorn==22.0.0

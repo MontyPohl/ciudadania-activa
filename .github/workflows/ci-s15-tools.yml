@@ -1,0 +1,48 @@
+name: CI S15 local tools
+
+on:
+  pull_request:
+    paths:
+      - "tools/**"
+      - "backend/**"
+      - ".github/workflows/ci-s15-tools.yml"
+  push:
+    branches: [main]
+    paths:
+      - "tools/**"
+      - "backend/**"
+      - ".github/workflows/ci-s15-tools.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  offline-tools:
+    runs-on: ubuntu-24.04
+    env:
+      AI_CLASSIFICATION_ENABLED: "false"
+      OPENAI_API_KEY: ""
+      GEMINI_API_KEY: ""
+      BREVO_API_KEY: ""
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Dependencias del backend existentes
+        run: pip install -r backend/requirements/test.txt
+      - name: Lint y formato de herramientas Python
+        run: |
+          ruff check --config backend/pyproject.toml tools/evaluation tools/s15
+          ruff format --check --config backend/pyproject.toml tools/evaluation tools/s15
+          bash -n tools/s15/check_local.sh
+      - name: Contratos de Storage local y reconciliación SQL
+        run: python -m unittest discover -s tools/s15 -p 'test_*.py' -v
+      - name: Evaluación y replay de IA sin proveedor
+        run: python -m unittest discover -s tools/evaluation/tests -v
+      - name: Contratos del harness sin k6 ni peticiones HTTP
+        run: npm test --prefix tools/performance

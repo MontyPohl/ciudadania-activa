@@ -3,6 +3,7 @@ import { Poppins } from "next/font/google";
 import "leaflet/dist/leaflet.css";
 import "./globals.css";
 
+import { SkipToContent } from "@/components/ui/SkipToContent";
 import { SessionProvider } from "@/features/auth/SessionProvider";
 import { SessionStatus } from "@/features/auth/SessionStatus";
 
@@ -21,6 +22,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="es" className={`${poppins.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
+        <SkipToContent />
         <SessionProvider>
           <SessionStatus />
           {children}

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "actors": [
+    {
+      "id": "load_citizen_1",
+      "userId": "00000000-0000-4000-8000-000000000001",
+      "role": "citizen",
+      "verified": true,
+      "accessToken": "REPLACE.PRIVATE_ACCESS_TOKEN.REPLACE"
+    },
+    {
+      "id": "demo_operator",
+      "userId": "00000000-0000-4000-8000-000000000002",
+      "role": "operator",
+      "verified": false,
+      "accessToken": "REPLACE.PRIVATE_ACCESS_TOKEN.REPLACE"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "case_id": null,
+  "scene_id": null,
+  "origin_id": null,
+  "request": {
+    "description": null,
+    "current_category_slug": null,
+    "current_institution_slug": null
+  },
+  "photo": {
+    "original_path": null,
+    "original_sha256": null,
+    "normalized_sha256": null,
+    "normalized_bytes": null,
+    "mime_type": null
+  },
+  "review": {
+    "rights_confirmed": false,
+    "pii_reviewed": false,
+    "scene_reserved": false,
+    "not_used_for_prompt_tuning": false
+  }
+}

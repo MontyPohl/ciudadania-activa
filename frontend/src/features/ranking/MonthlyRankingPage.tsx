@@ -32,7 +32,11 @@ export function MonthlyRankingPage() {
   const viewer = session.status === "authenticated" ? session.user.id : session.status;
 
   return (
-    <main className="mx-auto w-full max-w-2xl space-y-6 px-6 py-10">
+    <main
+      id="contenido-principal"
+      tabIndex={-1}
+      className="mx-auto w-full max-w-2xl space-y-6 px-6 py-10"
+    >
       {session.status === "loading" ? (
         <>
           <h1 className="text-2xl font-bold text-brand-purple">Ranking del mes</h1>

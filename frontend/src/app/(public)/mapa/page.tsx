@@ -11,7 +11,13 @@ export const metadata: Metadata = {
 
 export default function PublicMapPage() {
   return (
-    <Suspense fallback={<MapLoading />}>
+    <Suspense
+      fallback={
+        <main id="contenido-principal" tabIndex={-1}>
+          <MapLoading />
+        </main>
+      }
+    >
       <MapPageClient />
     </Suspense>
   );

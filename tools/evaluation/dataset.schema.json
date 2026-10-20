@@ -1,0 +1,359 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:ciudadania-activa:s15:dataset:v1",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "s15-multimodal-v1"
+    },
+    "dataset_id": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+    },
+    "state": {
+      "const": "frozen"
+    },
+    "purpose": {
+      "enum": [
+        "reserved-evaluation",
+        "offline-test"
+      ]
+    },
+    "frozen_n": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "protocol": {
+      "type": "object",
+      "properties": {
+        "protocol_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+        },
+        "frozen_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "error_policy": {
+          "enum": [
+            "invalidate",
+            "count_as_miss"
+          ]
+        },
+        "attempt_limit": {
+          "const": 1
+        },
+        "primary_metric": {
+          "const": "exact-category-institution-priority-before-policy"
+        },
+        "secondary_metric": {
+          "const": "exact-category-priority-before-policy"
+        },
+        "threshold_percent": {
+          "const": 85
+        },
+        "sdk_max_retries": {
+          "const": 0
+        },
+        "script_max_retries": {
+          "const": 0
+        },
+        "celery_used": {
+          "const": false
+        }
+      },
+      "required": [
+        "protocol_id",
+        "frozen_at",
+        "error_policy",
+        "attempt_limit",
+        "primary_metric",
+        "secondary_metric",
+        "threshold_percent",
+        "sdk_max_retries",
+        "script_max_retries",
+        "celery_used"
+      ],
+      "additionalProperties": false
+    },
+    "provider": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "const": "openai"
+        },
+        "model": {
+          "type": "string",
+          "pattern": "^(?:gpt-|chatgpt-|o[1-9]|ft:)[a-zA-Z0-9_.:-]{0,120}$"
+        },
+        "prompt_version": {
+          "const": "v2"
+        },
+        "reasoning_effort": {
+          "enum": [
+            "",
+            "none",
+            "minimal",
+            "low",
+            "medium",
+            "high",
+            "xhigh"
+          ]
+        },
+        "timeout_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 300
+        }
+      },
+      "required": [
+        "name",
+        "model",
+        "prompt_version",
+        "reasoning_effort",
+        "timeout_seconds"
+      ],
+      "additionalProperties": false
+    },
+    "implementation_sha256": {
+      "type": "object",
+      "properties": {
+        "prompt_v2": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "parser": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "normalization": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "adapter_openai": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "contracts": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "prompt_renderer": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "required": [
+        "prompt_v2",
+        "parser",
+        "normalization",
+        "adapter_openai",
+        "contracts",
+        "prompt_renderer"
+      ],
+      "additionalProperties": false
+    },
+    "catalog": {
+      "type": "object",
+      "properties": {
+        "captured_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "environment": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+        },
+        "source": {
+          "const": "active-orm+GET /api/v1/public/categories/"
+        },
+        "categories": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "slug": {
+                "type": "string",
+                "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+              },
+              "institution_slug": {
+                "type": "string",
+                "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+              }
+            },
+            "required": [
+              "slug",
+              "institution_slug"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 1
+        },
+        "institutions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "public_category_slugs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "captured_at",
+        "environment",
+        "source",
+        "categories",
+        "institutions",
+        "public_category_slugs"
+      ],
+      "additionalProperties": false
+    },
+    "gold_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "exclusions_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "cases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "case_id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+          },
+          "scene_id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+          },
+          "origin_id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+          },
+          "request": {
+            "type": "object",
+            "properties": {
+              "description": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 10000
+              },
+              "current_category_slug": {
+                "type": "string",
+                "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+              },
+              "current_institution_slug": {
+                "type": "string",
+                "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+              }
+            },
+            "required": [
+              "description",
+              "current_category_slug",
+              "current_institution_slug"
+            ],
+            "additionalProperties": false
+          },
+          "photo": {
+            "type": "object",
+            "properties": {
+              "original_path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "original_sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "normalized_sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "normalized_bytes": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 5242880
+              },
+              "mime_type": {
+                "enum": [
+                  "image/jpeg",
+                  "image/png"
+                ]
+              }
+            },
+            "required": [
+              "original_path",
+              "original_sha256",
+              "normalized_sha256",
+              "normalized_bytes",
+              "mime_type"
+            ],
+            "additionalProperties": false
+          },
+          "review": {
+            "type": "object",
+            "properties": {
+              "rights_confirmed": {
+                "const": true
+              },
+              "pii_reviewed": {
+                "const": true
+              },
+              "scene_reserved": {
+                "const": true
+              },
+              "not_used_for_prompt_tuning": {
+                "const": true
+              }
+            },
+            "required": [
+              "rights_confirmed",
+              "pii_reviewed",
+              "scene_reserved",
+              "not_used_for_prompt_tuning"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "case_id",
+          "scene_id",
+          "origin_id",
+          "request",
+          "photo",
+          "review"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 1
+    }
+  },
+  "required": [
+    "schema_version",
+    "dataset_id",
+    "state",
+    "purpose",
+    "frozen_n",
+    "protocol",
+    "provider",
+    "implementation_sha256",
+    "catalog",
+    "gold_sha256",
+    "exclusions_sha256",
+    "cases"
+  ],
+  "additionalProperties": false
+}

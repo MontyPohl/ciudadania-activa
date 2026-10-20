@@ -19,7 +19,11 @@ export default function IdentidadDetallePage() {
   const id = typeof params.id === "string" ? params.id : "";
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 py-10">
+    <main
+      id="contenido-principal"
+      tabIndex={-1}
+      className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 py-10"
+    >
       <header className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold text-brand-purple">Revisar verificación</h1>
         <p className="text-sm text-brand-black/70">
@@ -29,7 +33,7 @@ export default function IdentidadDetallePage() {
 
       {id === "" ? (
         <div className="flex flex-col items-start gap-3">
-          <p role="alert" className="text-sm font-medium text-brand-orange">
+          <p role="alert" className="text-sm font-medium text-brand-orange-ink">
             No encontramos lo que buscabas.
           </p>
           <Link href="/identidades" className="text-sm font-medium text-brand-purple underline">

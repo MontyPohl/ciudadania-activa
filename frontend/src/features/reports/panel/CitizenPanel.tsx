@@ -206,7 +206,11 @@ export function CitizenPanel() {
 
   if (state.phase === "loading") {
     return (
-      <main className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6">
+      <main
+        id="contenido-principal"
+        tabIndex={-1}
+        className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6"
+      >
         <h1 className="text-3xl font-bold text-brand-purple">Panel ciudadano</h1>
         <p className="mt-6 text-sm text-brand-black/70" role="status" aria-live="polite">
           Cargando tu resumen y tus reportes…
@@ -217,10 +221,14 @@ export function CitizenPanel() {
 
   if (state.phase === "error") {
     return (
-      <main className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6">
+      <main
+        id="contenido-principal"
+        tabIndex={-1}
+        className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6"
+      >
         <h1 className="text-3xl font-bold text-brand-purple">Panel ciudadano</h1>
         <section className="mt-6 rounded-2xl border border-brand-orange/40 p-6" role="alert">
-          <h2 className="text-xl font-bold text-brand-orange">No pudimos cargar el panel</h2>
+          <h2 className="text-xl font-bold text-brand-orange-ink">No pudimos cargar el panel</h2>
           <p className="mt-2 text-sm">{state.message}</p>
           <button
             type="button"
@@ -244,9 +252,13 @@ export function CitizenPanel() {
   const totalPages = Math.max(1, Math.ceil(state.reports.count / REPORTS_PER_PAGE));
 
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-col gap-10 overflow-x-hidden px-4 py-8 sm:px-6">
+    <main
+      id="contenido-principal"
+      tabIndex={-1}
+      className="mx-auto flex w-full max-w-6xl flex-col gap-10 overflow-x-hidden px-4 py-8 sm:px-6"
+    >
       <header>
-        <p className="text-sm font-semibold text-brand-green">Tu actividad</p>
+        <p className="text-sm font-semibold text-brand-green-ink">Tu actividad</p>
         <h1 className="text-3xl font-bold text-brand-purple sm:text-4xl">Panel ciudadano</h1>
         <p className="mt-2 max-w-2xl text-sm text-brand-black/70">
           Consultá el estado de tus reportes y los puntos de impacto que generaste.
@@ -471,7 +483,7 @@ export function CitizenPanel() {
                 </p>
                 {tracking.detail.resolution_bonus ? (
                   <div className="mt-4 rounded-lg bg-brand-green/10 p-3 text-sm">
-                    <p className="font-semibold text-brand-green">Bono de resolución</p>
+                    <p className="font-semibold text-brand-green-ink">Bono de resolución</p>
                     <p className="mt-1">
                       +{tracking.detail.resolution_bonus.impact_points} puntos y +
                       {tracking.detail.resolution_bonus.credits} créditos ·{" "}

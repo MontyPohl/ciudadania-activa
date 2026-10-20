@@ -133,7 +133,7 @@ export function ReviewDetail({ id }: { id: string }) {
   if (vista.fase === "error") {
     return (
       <div className="flex flex-col items-start gap-3">
-        <p role="alert" className="text-sm font-medium text-brand-orange">
+        <p role="alert" className="text-sm font-medium text-brand-orange-ink">
           {vista.mensaje}
         </p>
         <Link href="/identidades" className="text-sm font-medium text-brand-purple underline">
@@ -267,7 +267,7 @@ export function ReviewDetail({ id }: { id: string }) {
           )}
 
           {error !== null && (
-            <p role="alert" className="text-sm font-medium text-brand-orange">
+            <p role="alert" className="text-sm font-medium text-brand-orange-ink">
               {error}
             </p>
           )}
@@ -316,7 +316,7 @@ export function ReviewDetail({ id }: { id: string }) {
                   setError(null);
                 }}
                 disabled={enviando}
-                className="rounded-md border border-brand-orange px-5 py-2 text-sm font-semibold text-brand-orange disabled:opacity-50"
+                className="rounded-md border border-brand-orange px-5 py-2 text-sm font-semibold text-brand-orange-ink disabled:opacity-50"
               >
                 Rechazar
               </button>
@@ -326,7 +326,7 @@ export function ReviewDetail({ id }: { id: string }) {
       )}
 
       {!pendiente && error !== null && (
-        <p role="alert" className="text-sm font-medium text-brand-orange">
+        <p role="alert" className="text-sm font-medium text-brand-orange-ink">
           {error}
         </p>
       )}

@@ -32,7 +32,7 @@ export function SessionStatus() {
         <nav aria-label="Navegación pública" className="flex flex-wrap items-center gap-4">
           <Link
             href="/mapa"
-            className="font-semibold text-[#00B26B] underline-offset-4 hover:underline"
+            className="font-semibold text-brand-green-ink underline-offset-4 hover:underline"
           >
             Mapa público
           </Link>
@@ -74,7 +74,7 @@ export function SessionStatus() {
             {SECCION_ROL[session.user.role].roleLabel}
           </span>
           {session.user.role === "citizen" && (
-            <span className="rounded-full bg-[#00B26B]/10 px-2 py-0.5 text-xs text-[#00B26B]">
+            <span className="rounded-full bg-[#00B26B]/10 px-2 py-0.5 text-xs text-brand-green-ink">
               {ETIQUETA_VERIFICACION[session.user.verification_status] ??
                 session.user.verification_status}
             </span>
@@ -82,7 +82,7 @@ export function SessionStatus() {
           <button
             type="button"
             onClick={() => void session.signOut()}
-            className="font-medium text-[#F37043] underline"
+            className="font-medium text-brand-orange-ink underline"
           >
             Salir
           </button>

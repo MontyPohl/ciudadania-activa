@@ -472,7 +472,7 @@ export function OperatorReportDetail({
               <button
                 type="button"
                 onClick={() => setDecision("reject-reason")}
-                className="min-h-11 rounded-lg border border-brand-orange px-4 py-2 font-semibold text-brand-orange focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-orange"
+                className="min-h-11 rounded-lg border border-brand-orange px-4 py-2 font-semibold text-brand-orange-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-orange-ink"
               >
                 Rechazar
               </button>
@@ -763,7 +763,7 @@ function ActionRow({
         onClick={primaryType === "button" ? onPrimary : undefined}
         className={`min-h-11 rounded-lg px-4 py-2 font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-55 ${
           tone === "orange"
-            ? "bg-brand-orange focus-visible:outline-brand-orange"
+            ? "bg-brand-orange focus-visible:outline-brand-orange-ink"
             : "bg-brand-purple focus-visible:outline-brand-purple"
         }`}
       >

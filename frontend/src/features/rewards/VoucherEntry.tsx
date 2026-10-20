@@ -30,7 +30,11 @@ function VoucherContent({ id, existing }: { id: string; existing: boolean }) {
   }, [id, retry]);
   if (error)
     return (
-      <main className="mx-auto max-w-2xl space-y-4 bg-white p-6 text-brand-black">
+      <main
+        id="contenido-principal"
+        tabIndex={-1}
+        className="mx-auto max-w-2xl space-y-4 bg-white p-6 text-brand-black"
+      >
         <Link href="/recompensas" className="text-brand-purple underline">
           Volver a recompensas
         </Link>
@@ -50,8 +54,10 @@ function VoucherContent({ id, existing }: { id: string; existing: boolean }) {
   return redemption ? (
     <Voucher redemption={redemption} existing={existing} />
   ) : (
-    <p role="status" className="p-6">
-      Cargando tu vale…
-    </p>
+    <main id="contenido-principal" tabIndex={-1}>
+      <p role="status" className="p-6">
+        Cargando tu vale…
+      </p>
+    </main>
   );
 }

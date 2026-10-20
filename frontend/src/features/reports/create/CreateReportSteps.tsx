@@ -65,7 +65,7 @@ export function CategoryStep({
   if (catalog.status === "error") {
     return (
       <div className="flex flex-col items-start gap-3">
-        <p role="alert" className="text-sm font-medium text-brand-orange">
+        <p role="alert" className="text-sm font-medium text-brand-orange-ink">
           No pudimos cargar las categorías. No se puede continuar sin un catálogo válido.
         </p>
         <button
@@ -106,7 +106,7 @@ export function CategoryStep({
         <p
           id="report-category-error"
           role="alert"
-          className="text-sm font-medium text-brand-orange"
+          className="text-sm font-medium text-brand-orange-ink"
         >
           {error}
         </p>
@@ -149,7 +149,7 @@ export function DescriptionStep({
         <p
           id="report-description-error"
           role="alert"
-          className="text-sm font-medium text-brand-orange"
+          className="text-sm font-medium text-brand-orange-ink"
         >
           {error}
         </p>
