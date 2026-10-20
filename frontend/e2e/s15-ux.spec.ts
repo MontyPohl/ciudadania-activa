@@ -98,7 +98,7 @@ test("S15 UI: fondo institucional e Inter sin desbordes en los cuatro anchos", a
   }
 });
 
-for (const width of [320, 1280]) {
+for (const width of [320, 375, 1280]) {
   test(`S15: navegación y error de identidad legibles a ${width}px`, async ({
     page,
     baseURL,
@@ -113,13 +113,24 @@ for (const width of [320, 1280]) {
     const error = page.getByText("Escribí tu número de cédula.", { exact: true });
     await expect(error).toBeVisible();
     await assertTextContrast(error, testInfo);
-    await assertTextContrast(page.getByRole("link", { name: "Mapa público" }), testInfo);
-    await assertTextContrast(page.getByText("Identidad sin verificar", { exact: true }), testInfo);
-    await assertTextContrast(page.getByRole("button", { name: "Salir", exact: true }), testInfo);
-    await expect(page.getByRole("link", { name: "Verificación", exact: true })).toHaveAttribute(
-      "aria-current",
-      "page",
+    if (width < 1024) await page.getByRole("button", { name: "Abrir menú", exact: true }).click();
+    await assertTextContrast(page.getByRole("link", { name: "Mapa", exact: true }), testInfo);
+    await page.getByText("Mi cuenta", { exact: true }).filter({ visible: true }).click();
+    await assertTextContrast(
+      page.getByText("Identidad sin verificar", { exact: true }).filter({ visible: true }),
+      testInfo,
     );
+    await assertTextContrast(page.getByRole("button", { name: "Salir", exact: true }), testInfo);
+    await page.keyboard.press("Escape");
+    if (width < 1024) {
+      await page.keyboard.press("Escape");
+      await page.getByRole("button", { name: "Secciones: Verificación", exact: true }).click();
+    }
+    await expect(
+      page
+        .getByRole("navigation", { name: "Secciones", exact: true })
+        .getByRole("link", { name: "Verificación", exact: true }),
+    ).toHaveAttribute("aria-current", "page");
     await expectNoHorizontalOverflow(page);
     await capture(page, testInfo, `identity-${width}`);
   });
@@ -207,8 +218,11 @@ test("S15: bandeja móvil conserva contexto institucional y contiene su tabla", 
   await page.getByRole("combobox", { name: "Contexto institucional" }).selectOption(ANDE_ID);
   const detail = page.getByRole("link", { name: "Abrir detalle", exact: true });
   await expect(detail).toHaveAttribute("href", new RegExp(`institution_id=${ANDE_ID}`));
+  await page.getByRole("button", { name: "Secciones: Bandeja institucional", exact: true }).click();
   await expect(
-    page.getByRole("link", { name: "Bandeja institucional", exact: true }).last(),
+    page
+      .getByRole("navigation", { name: "Secciones", exact: true })
+      .getByRole("link", { name: "Bandeja institucional", exact: true }),
   ).toHaveAttribute("aria-current", "page");
   await expectNoHorizontalOverflow(page);
   await capture(page, testInfo, "operator-mobile");
@@ -328,3 +342,133 @@ test("S15: las rutas heredadas tienen títulos específicos incluso sin sesión"
     await expect(page.locator("#contenido-principal")).toHaveCount(1);
   }
 });
+
+for (const width of [320, 375, 768, 1280]) {
+  test(`S15 F3: cabecera pública y menú con teclado a ${width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    await mockMetricsApi(page, "anonymous");
+    await page.goto("/transparencia");
+    const header = page.getByRole("banner");
+    await expect(header).toHaveCSS("position", "sticky");
+    await expect(header).toHaveCSS("height", "64px");
+    const trigger = page.getByRole("button", { name: "Abrir menú", exact: true });
+    if (width < 1024) {
+      await trigger.focus();
+      await page.keyboard.press("Enter");
+      const dialog = page.getByRole("dialog", { name: "Menú de navegación", exact: true });
+      const close = dialog.getByRole("button", { name: "Cerrar menú", exact: true });
+      await expect(close).toBeFocused();
+      await page.keyboard.press("Shift+Tab");
+      await expect(dialog.getByRole("link", { name: "Registrarse", exact: true })).toBeFocused();
+      await page.keyboard.press("Tab");
+      await expect(close).toBeFocused();
+      await expectNoHorizontalOverflow(page);
+      await capture(page, testInfo, `public-menu-${width}`);
+      await page.keyboard.press("Escape");
+      await expect(dialog).toHaveCount(0);
+      await expect(trigger).toBeFocused();
+      await page.keyboard.press("Enter");
+    } else {
+      await expect(trigger).toBeHidden();
+    }
+    const nav = page.getByRole("navigation", { name: "Navegación pública", exact: true });
+    for (const [name, href] of [
+      ["Inicio", "/"],
+      ["Mapa", "/mapa"],
+      ["Estadísticas", "/transparencia"],
+      ["Cómo funciona", "/como-funciona"],
+    ]) {
+      await expect(nav.getByRole("link", { name, exact: true })).toHaveAttribute("href", href);
+    }
+    await expect(nav.getByRole("link", { name: "Estadísticas", exact: true })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    for (const name of ["Iniciar sesión", "Registrarse"]) {
+      await expect(page.getByRole("link", { name, exact: true })).toHaveAttribute("href", "/login");
+    }
+    await assertTextContrast(nav.getByRole("link", { name: "Mapa", exact: true }), testInfo);
+    await nav.getByRole("link", { name: "Estadísticas", exact: true }).click();
+    if (width < 1024) await expect(page.getByRole("dialog")).toHaveCount(0);
+    if (width === 375) {
+      await trigger.click();
+      await expect(page.getByRole("dialog")).toBeVisible();
+      await page.setViewportSize({ width: 1280, height: 900 });
+      await expect(page.getByRole("dialog")).toHaveCount(0);
+      await expect(page.locator("body")).not.toHaveCSS("overflow", "hidden");
+      await nav.getByRole("link", { name: "Mapa", exact: true }).focus();
+      await expect(nav.getByRole("link", { name: "Mapa", exact: true })).toBeFocused();
+      await page.setViewportSize({ width, height: 900 });
+    }
+    await page.evaluate(() => window.scrollTo(0, 200));
+    await expect(header).not.toHaveCSS("box-shadow", "none");
+    await expect(page.locator("#contenido-principal")).toHaveCount(1);
+    await expectNoHorizontalOverflow(page);
+    await capture(page, testInfo, `public-header-${width}`);
+  });
+}
+
+for (const width of [320, 375, 1280]) {
+  test(`S15 F3: secciones de ciudadano, operador y admin a ${width}px`, async ({
+    page,
+    baseURL,
+  }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    const state = createIdentityState();
+    state.signedIn = true;
+    await mockIdentityApi(page, state, baseURL!);
+    await page.goto("/verificacion");
+    const sections = page.getByRole("navigation", { name: "Secciones", exact: true });
+    if (width < 1024) {
+      const toggle = sections.getByRole("button");
+      await toggle.focus();
+      await page.keyboard.press("Enter");
+      await sections.getByRole("link", { name: "Perfil", exact: true }).focus();
+      await page.keyboard.press("Escape");
+      await expect(toggle).toBeFocused();
+      await expect(toggle).toHaveAttribute("aria-expanded", "false");
+      await page.keyboard.press("Enter");
+    }
+    await expect(sections.getByRole("link", { name: "Ranking", exact: true })).toHaveAttribute(
+      "href",
+      "/ranking",
+    );
+    await expect(sections.getByRole("link", { name: "Verificación", exact: true })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    await expect(sections).toHaveCSS("background-color", "rgb(255, 255, 255)");
+    await expectNoHorizontalOverflow(page);
+    await capture(page, testInfo, `citizen-navigation-${width}`);
+
+    await mockMetricsApi(page, "operator");
+    await page.goto("/institucion/metricas");
+    if (width < 1024) await sections.getByRole("button").click();
+    await expect(sections.getByRole("link")).toHaveCount(3);
+    await assertTextContrast(
+      sections.getByRole("link", { name: "Métricas", exact: true }),
+      testInfo,
+    );
+    await expect(sections).toHaveCSS("background-color", "rgb(26, 82, 118)");
+    await expectNoHorizontalOverflow(page);
+    await capture(page, testInfo, `operator-navigation-${width}`);
+
+    await mockIdentityApi(page, state, baseURL!, "admin");
+    await page.goto("/identidades");
+    if (width < 1024) await sections.getByRole("button").click();
+    await expect(sections.getByRole("link")).toHaveCount(3);
+    await expect(sections.getByRole("link", { name: "Identidades", exact: true })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    await expect(sections).toHaveCSS("background-color", "rgb(26, 82, 118)");
+    if (width >= 1024) {
+      const sidebar = await sections.boundingBox();
+      const main = await page.getByRole("main").boundingBox();
+      expect(main!.x).toBeGreaterThanOrEqual(sidebar!.x + sidebar!.width);
+    }
+    await expect(page.locator("#contenido-principal")).toHaveCount(1);
+    await expectNoHorizontalOverflow(page);
+    await capture(page, testInfo, `admin-navigation-${width}`);
+  });
+}

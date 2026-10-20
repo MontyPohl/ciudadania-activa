@@ -27,9 +27,11 @@ test("@F1 registro con Google simulado, verificación y aprobación", async ({
     await expect(page.getByRole("main", { name: "", exact: true })).toContainText(
       `Ya iniciaste sesión como ${IDENTITY_CITIZEN.email}.`,
     );
+    await page.getByText("Mi cuenta", { exact: true }).click();
     await expect(page.getByRole("banner", { name: "", exact: true })).toContainText(
       "Identidad sin verificar",
     );
+    await page.keyboard.press("Escape");
     expect(state.googleBodies).toEqual([{ token_google: "e2e-credencial-ficticia" }]);
   });
 
@@ -125,9 +127,11 @@ test("@F1 registro con Google simulado, verificación y aprobación", async ({
     await expect(page.getByRole("main", { name: "", exact: true })).toContainText(
       "Tu verificación de identidad fue aprobada. Tu cuenta ya figura como verificada para las funcionalidades que lo requieren.",
     );
+    await page.getByText("Mi cuenta", { exact: true }).click();
     await expect(page.getByRole("banner", { name: "", exact: true })).toContainText(
       "Identidad verificada",
     );
+    await page.keyboard.press("Escape");
     await expect(
       page.getByRole("button", { name: "Enviar verificación", exact: true }),
     ).toHaveCount(0);

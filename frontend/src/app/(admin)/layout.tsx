@@ -10,8 +10,10 @@ const LINKS = [
 export default function AdminLayout({ children }: LayoutProps<"/">) {
   return (
     <RoleGuard role="admin">
-      <SectionNav links={LINKS} />
-      {children}
+      <div className="flex min-w-0 flex-1 flex-col lg:flex-row">
+        <SectionNav links={LINKS} role="admin" />
+        <div className="min-w-0 flex-1">{children}</div>
+      </div>
     </RoleGuard>
   );
 }

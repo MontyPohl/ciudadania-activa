@@ -48,8 +48,13 @@
 :root {
   /* La app está diseñada en claro, incluidos los controles nativos. */
   color-scheme: light;
+  --public-header-height: 4rem;
   --background: var(--color-canvas);
   --foreground: var(--color-ink);
+}
+
+html {
+  scroll-padding-top: calc(var(--public-header-height) + 1rem);
 }
 
 body {

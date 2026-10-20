@@ -32,7 +32,7 @@ export default function MapView({
   onSelect,
 }: MapViewProps) {
   return (
-    <div className="relative h-[32rem] min-h-[28rem] overflow-hidden rounded-2xl border border-black/10 bg-brand-purple/5 lg:h-[calc(100vh-13rem)]">
+    <div className="relative h-[32rem] min-h-[28rem] overflow-hidden rounded-2xl border border-black/10 bg-brand-purple/5 lg:h-[calc(100dvh-var(--public-header-height)-13rem)]">
       <MapContainer
         bounds={INITIAL_MAP_BOUNDS}
         boundsOptions={{ padding: [20, 20] }}

@@ -24,7 +24,10 @@ test("métricas institucionales y transparencia pública", async ({ page }) => {
   await test.step("el anónimo navega desde el inicio y ve la supresión", async () => {
     await mockMetricsApi(page, "anonymous");
     await page.goto("/");
-    await page.getByRole("link", { name: "Transparencia", exact: true }).click();
+    await page
+      .getByRole("navigation", { name: "Navegación pública" })
+      .getByRole("link", { name: "Estadísticas", exact: true })
+      .click();
     await expect(page).toHaveURL(/\/transparencia$/);
     await expect(
       page.getByRole("heading", { name: "Transparencia: últimos 6 meses", exact: true }),
