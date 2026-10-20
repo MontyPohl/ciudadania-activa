@@ -2,11 +2,11 @@
 
 **Corte:** 20/10/2026. **Base:** `dc8c4b8`. **Árbol integrado de carriles:**
 `07f3e08ccf7c5efb0a79c5079384b0ecbe0cea19`, rama `feat/s14-testing`.
-Implementado y verificado en los alcances detallados abajo; la integración de
-carriles no implica integración en `main`. El [PR #54](https://github.com/MontyPohl/ciudadania-activa/pull/54)
-se abrió el 20/10: CI `test` (dominio + compuerta) en verde en 3 min, `build` y
-`frontend-e2e` en verde; `ci-experiments` seguía en curso al escribir.
-Despliegue: pendiente de aprobación del usuario.
+Implementado, desplegado y verificado en los alcances detallados abajo. El
+[PR #54](https://github.com/MontyPohl/ciudadania-activa/pull/54) quedó mergeado en
+`main` como `4bd05fb` el 20/10, con **6/6 checks verdes en `f9a9da0`**: `test` (dominio +
+compuerta) en 3 min, `experiments` en 47 min, `build` y `frontend-e2e` en verde.
+Despliegue: Heroku **v26**, reconciliación `a7f775d`, con smoke productivo OK.
 
 Las cifras provienen de la verificación única del dominio (`domain.log`,
 `junit-domain.xml`, `coverage-gate.json` y `ht5.txt`), de los logs de los carriles
@@ -231,10 +231,40 @@ El frontend completo quedó en verde: **format, lint, typecheck, 417 pruebas
 Vitest en 44 archivos, build y 58 E2E con build de producción**. Todas las E2E
 usaron la fixture que falla ante `pageerror`.
 
-El [PR #54](https://github.com/MontyPohl/ciudadania-activa/pull/54), abierto el
-**20/10**, tiene CI `test` (dominio + compuerta) en verde en **3 min**, además de
-`build` y `frontend-e2e` en verde. `ci-experiments` seguía en curso al escribir;
-ese estado remoto se distingue del resultado local detallado arriba.
+El [PR #54](https://github.com/MontyPohl/ciudadania-activa/pull/54) quedó mergeado
+el **20/10/2026** como `4bd05fb`, con **6/6 checks verdes en `f9a9da0`**: `test` (dominio +
+compuerta) en **3 min**, `experiments` en **47 min**, `build` y `frontend-e2e`
+en verde. Ese resultado remoto se informa por separado y no modifica los
+conteos de la corrida local detallada arriba.
+
+La corrida verde corresponde al candidato `f9a9da0` (run de `experiments`
+[39461308520](https://github.com/MontyPohl/ciudadania-activa/actions/runs/39461308520),
+unos 47 min). El head final `b069e63` solo cambió documentación: sus árboles de
+`backend/` y `frontend/` son idénticos a los del candidato verificado. Al consultar
+GitHub para este registro, la repetición de `experiments` de `b069e63` y la de
+`main@4bd05fb` todavía estaban en ejecución; `test`, `build` y `frontend-e2e`
+ya habían pasado en ambas. El 6/6 informado corresponde a `f9a9da0`, sin
+anticipar el resultado de esas repeticiones.
+
+### 4.5 Despliegue productivo
+
+Heroku registró la release **v26** (`Deploy a7f775d9`) el **20/10/2026 a las
+14:58:43 −03**. El candidato fue `4bd05fb`, el remoto previo `82eafce` y el
+split de backend `98acfe5`. La reconciliación `a7f775d` tiene como padres
+`82eafce` y `98acfe5`, y su árbol `51a9352` coincide con `origin/main:backend`.
+El [runbook §15](../runbooks/HEROKU_MIGRATION.md)
+registra el procedimiento y la trazabilidad del despliegue.
+
+- `migrate --plan` vacío y `check` limpio. Sin cambios de esquema, no se usaron
+  mantenimiento ni `pg_dump`.
+- Dynos web, worker y beat: **1 cada uno**.
+- Health OK con db y Redis operativos. `public/categories`, `ranking/monthly`
+  y `public/metrics` respondieron **200** con
+  `Cache-Control: public, max-age=60`.
+- `/transparencia`, `/mapa` y `/ranking` en Vercel respondieron **200**.
+
+El smoke autenticado con Google de `/institucion/metricas` y `/metricas`, y el
+primer envío real de Brevo, siguen pendientes por separado.
 
 ## 5. E2E en dos capas
 
@@ -318,7 +348,7 @@ el rescate acotado de `dispatch_due`, documentado en API §10.5.
 | `main` sin protección efectiva | README corregido (D20); activar protección queda a decisión del responsable |
 | Revisión final de integración y seguridad | Este documento registra controles y riesgos; no presenta una auditoría adicional como ejecutada |
 | B4 y trazabilidad | Pasada UX y dataset definitivo en S15; EX-11 sigue diferido |
-| PR/CI y despliegue | PR #54 abierto el 20/10; CI `test` (dominio + compuerta) en verde en 3 min, `build` y `frontend-e2e` en verde; `ci-experiments` en curso al escribir. Despliegue pendiente de aprobación del usuario |
+| Smoke autenticado y correo real | PR #54 mergeado, CI del candidato `f9a9da0` 6/6 verde y Heroku v26 verificado mediante smoke público (§4.5). Siguen pendientes el smoke con Google de `/institucion/metricas` y `/metricas`, y el primer envío real de Brevo |
 
 No se aplicó ningún recorte de D24: entraron BFF, corrección tipográfica,
 full-stack F1…F8 y fail-open, además de los componentes obligatorios.

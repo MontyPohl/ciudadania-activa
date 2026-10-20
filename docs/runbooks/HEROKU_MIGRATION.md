@@ -526,6 +526,9 @@ seguridad real y consciente**, no un descuido.
 
 ## 15. Operación vigente — corte 20/10/2026, 01:25 UTC
 
+El inventario corresponde a ese corte; los registros de entregas posteriores de
+S13 (v25) y S14 (v26) se incluyen abajo, con sus horarios y verificaciones.
+
 ### Inventario de Heroku (nombres, sin valores)
 
 Estas son las **25 variables presentes** al corte, no una lista de todos los settings
@@ -639,6 +642,20 @@ mismo árbol desplegado. Beat agenda desde v25 también `notifications.dispatch_
 Desvío menor: el mantenimiento se retiró con `web=1` arriba y antes de escalar worker y
 beat, no al final. Estos hashes son trazabilidad, no una
 instrucción para volver a desplegar un candidato antiguo.
+
+**S14 (20/10/2026, release v26):** candidato `4bd05fb` (merge del PR #54 en
+`main`), remote previo `82eafce`, split `98acfe5`, reconciliación `a7f775d` (padres
+`82eafce` y `98acfe5`), árbol de `backend/` `51a9352`. Heroku registra
+`Deploy a7f775d9` a las 14:58:43 −03; `origin/main:backend` coincide con el árbol
+desplegado. `migrate --plan` quedó vacío y `check` limpio. Al no haber cambios de
+esquema, no se activó mantenimiento ni se ejecutó `pg_dump` para esta entrega.
+`web=1`, `worker=1` y `beat=1` arriba. Smoke productivo OK: health `ok`, con DB y
+Redis disponibles; `/api/v1/public/categories/`, `/api/v1/ranking/monthly/` y
+`/api/v1/public/metrics/` respondieron **200** con
+`Cache-Control: public, max-age=60`; `/transparencia`, `/mapa` y `/ranking` del
+frontend respondieron **200**. El PR #54 quedó mergeado con **6/6 checks verdes en `f9a9da0`**:
+`test` en unos 3 min, `experiments` en unos 47 min, `build` y `frontend-e2e` verdes.
+La entrega no cambia los veredictos históricos de S11 ni cierra Sprint 8.
 
 ### IA, Brevo y comprobación productiva
 

@@ -4,12 +4,15 @@ Contrato de la API tal como está **implementada**, no como se planificó. Se am
 cada sprint que añade endpoints; hoy incluye autenticación, identidad, mapa, creación y
 confirmación ciudadana, ciclo institucional S10 y recompensas, canje y ranking S12.
 La sección 8 describe S12 integrado en PR #43 y desplegado el 19/10/2026.
-Referencia productiva previa: 20/10/2026, backend de `main@d9e1c11`, IA v2 y Brevo activos en
-Heroku. Este documento incorpora el contrato verificado localmente del S14 en
-`feat/s14-testing@07f3e08`. El [PR #54](https://github.com/MontyPohl/ciudadania-activa/pull/54)
-se abrió el 20/10: el job `test` (dominio y compuerta) pasó en 3 min; `build` y
-`frontend-e2e` también están en verde. `ci-experiments` seguía en curso al momento
-de escribir. El despliegue está pendiente de aprobación del usuario.
+Referencia productiva: S14 implementado, desplegado y verificado el **20/10/2026**.
+El [PR #54](https://github.com/MontyPohl/ciudadania-activa/pull/54) se integró en `main`
+como `4bd05fb`, con **CI del candidato `f9a9da0` 6/6 verde**: `test` (dominio y compuerta) en unos 3 min,
+`experiments` en unos 47 min, y `build` y `frontend-e2e` también verdes.
+Heroku v26 desplegó la reconciliación `a7f775d` (`Deploy a7f775d9`, 14:58:43 −03),
+con árbol `51a9352`, igual a `origin/main:backend`. Sin cambio de esquema ni migraciones;
+`migrate --plan` vacío, `check` limpio, `web/worker/beat=1` y smoke público OK.
+IA v2 y Brevo siguen configurados; el primer envío real con esta configuración y el
+smoke autenticado con Google siguen pendientes. Detalle en el [runbook §15](runbooks/HEROKU_MIGRATION.md#15-operación-vigente--corte-20102026-0125-utc).
 
 - **Plan de referencia:** [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md) §14 (Sprint 4), §19
   (Sprint 9) y §29 (seguridad).
