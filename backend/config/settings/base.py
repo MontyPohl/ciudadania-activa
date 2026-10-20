@@ -6,6 +6,8 @@ import environ
 from celery.schedules import crontab
 from django.core.exceptions import ImproperlyConfigured
 
+from config.redis_url import with_ssl_cert_reqs
+
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 REPO_ROOT = BASE_DIR.parent
 
@@ -258,7 +260,14 @@ SIMPLE_JWT = {
 
 CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=[])
 
-REDIS_URL = env("REDIS_URL", default="redis://localhost:6379/0")
+# Heroku Redis usa un certificado autofirmado y su rotación de credenciales borra el
+# `ssl_cert_reqs` de la URL. `REDIS_SSL_CERT_REQS` solo se aplica a `rediss://` sin el
+# parámetro; con un proveedor de certificado válido conviene fijarlo en "required".
+REDIS_SSL_CERT_REQS = env("REDIS_SSL_CERT_REQS", default="none")
+REDIS_URL = with_ssl_cert_reqs(
+    env("REDIS_URL", default="redis://localhost:6379/0"),
+    REDIS_SSL_CERT_REQS,
+)
 
 # El backend nativo de Django reutiliza el Redis ya aprovisionado. ``KEY_PREFIX``
 # separa las claves ordinarias de la caché, pero no vuelve seguro ``cache.clear()``:
