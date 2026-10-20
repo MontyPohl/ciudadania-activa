@@ -27,6 +27,8 @@ export default defineConfig({
     command: WEB_SERVER_COMMAND,
     env: {
       NEXT_PUBLIC_API_URL: BASE_URL,
+      NEXT_PUBLIC_GOOGLE_CLIENT_ID:
+        process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "e2e-ficticio.apps.googleusercontent.com",
     },
     url: `${BASE_URL}/reportes/nuevo`,
     reuseExistingServer: !process.env.CI,

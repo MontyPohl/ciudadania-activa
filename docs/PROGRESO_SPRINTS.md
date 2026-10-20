@@ -1,10 +1,10 @@
 # Progreso de Sprints — Ciudadanía Activa
 
-**Última actualización:** 20/10/2026 (post-S12; corte productivo 01:25 UTC).
+**Última actualización:** 20/10/2026 (cierre técnico y documental S14; PR #54 abierto, CI de dominio y frontend en verde, CI experimental en curso; despliegue pendiente de aprobación del usuario).
 
 Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes de iniciar el siguiente.
 
-- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 **completado** (inicio el 22/08/2026, cierre el 23/08/2026: verificación de identidad con HMAC y almacenamiento privado, revisión administrativa manual con cotejo de la cédula, notificaciones asíncronas entregadas por la API HTTPS de Brevo y privacidad configurable del ranking, todo verificado en producción con una identidad real). Sprint 5 **completado** el 27/08/2026: S5-A, S5-B y S5-C están cerradas, integradas y validadas. Sprint 6 **completado** el 28/08/2026: S6-A y S6-B están cerrados. Sprint 7 **completado** el 29/08/2026: S7-A, S7-B y S7-C están integrados en `main`, y S7-D quedó probado en producción y cerrado con evidencia funcional y de base de datos en modo solo lectura. Sprint 8 continúa **en curso**. Sprint 9 quedó **completado** el 09/09/2026: S9-A, S9-B1, S9-B2 y el cierre documental S9-B3 están integrados en `main`; PR #38 fue mergeado mediante `7e95856c1b494d562ce1c267c06d5bebaec28cc8`. Sprint 10 quedó **implementado, desplegado, verificado y reconciliado** el 21/09/2026: el candidato `171f8c8b8f448a4092e73aeb5f67406e6b81ef09` se desplegó en Heroku, PR #39 se integró en `main` mediante `7ae82b865d90c4cade02dd3378b44107f088b7dd`, y backend, frontend, migraciones, backfill, workers e invariantes productivas quedaron verificados. Sprint 11 quedó **completado con observaciones** el 19/10/2026: S11-A quedó oficialmente congelada en `main@35f850eb24df552805fe8694f50fcbb3588a4141`; S11-B dejó preparada la instrumentación aislada y reproducible, sin generar resultados; S11-C registra seis runs de `EX-02` (21 y 22/09/2026): cinco `NOT_DEMONSTRATED` por causas de infraestructura y de harness, y el sexto, `s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af`, **demostrado en `PASS`**; `EX-03` quedó **demostrado en `PASS`** con el run `s11-6dc3ea66-08c9-51ef-9fe3-70e7dcc67959` `EX-04` con el run `s11-03adb9bc-c9e4-5f8f-b64c-c4360d0c2085` `EX-06` con el run `s11-989218f3-4808-5c6f-ac23-6e8870fec153` y `EX-08` con el run `s11-b567289c-9fe2-5349-a384-e9284bdde863`; `EX-05` quedó demostrado en `PASS` con el run `s11-0e2feac0-6583-513c-a6aa-33430394d14a`; `EX-07` quedó demostrado en `PASS` con el run `s11-545491b8-01fe-55e6-8f08-1a0ebbdca8d3`; S11-C2 quedó **cerrado** el 23/09/2026 con sus siete escenarios en `PASS`; `EX-09`, en su instancia OpenAI, se ejecutó el 26/09/2026 con el run `s11-a156a68c-c422-5e57-ae2b-3336d3b55e6c` y resultado **`FAIL`** (CA-4 19/28 = 67,86 %, bajo el umbral ≥ 85,00 %, es decir, al menos 24/28; run válido con manifest `COMPLETED` y `custody_verification = PASS` según la salida de `finalize`); `EX-10` quedó `NOT_DEMONSTRATED` (el run 1 no es vinculante y los intentos oficiales W22 en las sesiones c47, c51 y c52 terminaron en CP2 `UNCERTAIN` sin run nuevo ni efectos de autoridad); HT5 obtuvo 96,76 % en sus 33 archivos críticos, y S11-D y S11-E quedaron cerrados. Sprint 12 quedó **completado — implementado, desplegado y verificado** el 19/10/2026: PR #43 se integró mediante `aebf900`, las migraciones se aplicaron en Heroku y el frontend se desplegó en Vercel. El smoke productivo sin canjear quedó verificado; el autenticado con Google sigue pendiente del usuario. Los tres tests preexistentes de EX-10/S11 se corrigieron en PR #48; el defecto real de enumeración tras fork se trata en PR #50, aún abierto. IA v2 y Brevo quedaron activos el 20/10 (ver anexo post-S12).
+- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 **completado** (inicio el 22/08/2026, cierre el 23/08/2026: verificación de identidad con HMAC y almacenamiento privado, revisión administrativa manual con cotejo de la cédula, notificaciones asíncronas entregadas por la API HTTPS de Brevo y privacidad configurable del ranking, todo verificado en producción con una identidad real). Sprint 5 **completado** el 27/08/2026: S5-A, S5-B y S5-C están cerradas, integradas y validadas. Sprint 6 **completado** el 28/08/2026: S6-A y S6-B están cerrados. Sprint 7 **completado** el 29/08/2026: S7-A, S7-B y S7-C están integrados en `main`, y S7-D quedó probado en producción y cerrado con evidencia funcional y de base de datos en modo solo lectura. Sprint 8 continúa **en curso**. Sprint 9 quedó **completado** el 09/09/2026: S9-A, S9-B1, S9-B2 y el cierre documental S9-B3 están integrados en `main`; PR #38 fue mergeado mediante `7e95856c1b494d562ce1c267c06d5bebaec28cc8`. Sprint 10 quedó **implementado, desplegado, verificado y reconciliado** el 21/09/2026: el candidato `171f8c8b8f448a4092e73aeb5f67406e6b81ef09` se desplegó en Heroku, PR #39 se integró en `main` mediante `7ae82b865d90c4cade02dd3378b44107f088b7dd`, y backend, frontend, migraciones, backfill, workers e invariantes productivas quedaron verificados. Sprint 11 quedó **completado con observaciones** el 19/10/2026: S11-A quedó oficialmente congelada en `main@35f850eb24df552805fe8694f50fcbb3588a4141`; S11-B dejó preparada la instrumentación aislada y reproducible, sin generar resultados; S11-C registra seis runs de `EX-02` (21 y 22/09/2026): cinco `NOT_DEMONSTRATED` por causas de infraestructura y de harness, y el sexto, `s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af`, **demostrado en `PASS`**; `EX-03` quedó **demostrado en `PASS`** con el run `s11-6dc3ea66-08c9-51ef-9fe3-70e7dcc67959` `EX-04` con el run `s11-03adb9bc-c9e4-5f8f-b64c-c4360d0c2085` `EX-06` con el run `s11-989218f3-4808-5c6f-ac23-6e8870fec153` y `EX-08` con el run `s11-b567289c-9fe2-5349-a384-e9284bdde863`; `EX-05` quedó demostrado en `PASS` con el run `s11-0e2feac0-6583-513c-a6aa-33430394d14a`; `EX-07` quedó demostrado en `PASS` con el run `s11-545491b8-01fe-55e6-8f08-1a0ebbdca8d3`; S11-C2 quedó **cerrado** el 23/09/2026 con sus siete escenarios en `PASS`; `EX-09`, en su instancia OpenAI, se ejecutó el 26/09/2026 con el run `s11-a156a68c-c422-5e57-ae2b-3336d3b55e6c` y resultado **`FAIL`** (CA-4 19/28 = 67,86 %, bajo el umbral ≥ 85,00 %, es decir, al menos 24/28; run válido con manifest `COMPLETED` y `custody_verification = PASS` según la salida de `finalize`); `EX-10` quedó `NOT_DEMONSTRATED` (el run 1 no es vinculante y los intentos oficiales W22 en las sesiones c47, c51 y c52 terminaron en CP2 `UNCERTAIN` sin run nuevo ni efectos de autoridad); HT5 obtuvo 96,76 % en sus 33 archivos críticos, y S11-D y S11-E quedaron cerrados. Sprint 12 quedó **completado — implementado, desplegado y verificado** el 19/10/2026: PR #43 se integró mediante `aebf900`, las migraciones se aplicaron en Heroku y el frontend se desplegó en Vercel. El smoke productivo sin canjear quedó verificado; el autenticado con Google sigue pendiente del usuario. Los tres tests preexistentes de EX-10/S11 se corrigieron en PR #48; el defecto real de enumeración tras fork se trata en PR #50, aún abierto. IA v2 y Brevo quedaron activos el 20/10 (ver anexo post-S12). Sprint 13 quedó **completado — implementado, desplegado y verificado** el 20/10/2026. Sprint 14 quedó **completado — implementado y verificado (PR #54 abierto; CI experimental en curso; despliegue pendiente de aprobación del usuario)** el 20/10/2026: carriles integrados, 2.325 pruebas de dominio en verde, compuerta de producto 95,62 %, HT5 de seguimiento 96,91 % y 9/9 E2E full-stack locales; la corrida local de `experiments_app` terminó con 3.385 pasadas, 17 omitidas, 4 fallos y 71 errores en 1 h 40 min (diagnóstico y repetición focalizada en la sección S14). El frontend completo pasó format, lint, typecheck, 417 pruebas Vitest (44 archivos), build y 58 E2E con build de producción y fixture de `pageerror`. El [PR #54](https://github.com/MontyPohl/ciudadania-activa/pull/54), abierto el 20/10, tiene `test` (dominio y compuerta) en verde en 3 min, además de `build` y `frontend-e2e` en verde; `ci-experiments` seguía en curso al escribir. El despliegue está pendiente de aprobación del usuario.
 - **Plan de referencia:** [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md)
 - **Ventana de desarrollo:** 01/08/2026 → 15/11/2026 (16 sprints semanales, Anexo F revisado)
 - **Estados posibles:** `Pendiente` · `En curso` · `Completado` · `Completado con observaciones` · `Bloqueado`
@@ -28,11 +28,11 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 | 11 | 10/10 – 16/10 | Metodología, instrumentación, experimentos, análisis y evidencia de tesis | Completado con observaciones (19/10/2026) — S11-A congelada; S11-B preparada; S11-C2 cerrado con `EX-02`…`EX-08` en `PASS`; `EX-09` OpenAI `FAIL` válido (CA-4 19/28); `EX-10` `NOT_DEMONSTRATED`; HT5 96,76 % (33 archivos críticos); S11-D y S11-E cerrados |
 | 12 | 17/10 – 23/10 | Catálogo de recompensas, canje simulado, saldos y ranking mensual | Completado — implementado, desplegado y verificado (19/10/2026) |
 | 13 | 24/10 – 30/10 | Dashboards, integración e ingesta social | Completado — implementado, desplegado y verificado (20/10/2026) |
-| 14 | 31/10 – 06/11 | Pruebas unitarias, integración, seguridad y E2E | Pendiente |
+| 14 | 31/10 – 06/11 | Pruebas unitarias, integración, seguridad y E2E | Completado — implementado y verificado (PR #54 abierto; CI experimental en curso; despliegue pendiente de aprobación del usuario) |
 | 15 | 07/11 – 13/11 | Carga, dataset definitivo y documentación | Pendiente |
 | 16 | 14/11 – 15/11 | Cierre y preparación de la defensa | Pendiente |
 
-**Progreso:** 12 / 16 sprints completados (Sprints 1, 2 y 3 cerrados el 20/08/2026; Sprint 4 el 23/08/2026; Sprint 5 el 27/08/2026; Sprint 6 el 28/08/2026; Sprint 7 el 29/08/2026; Sprint 9 el 09/09/2026; Sprint 10 el 21/09/2026; Sprint 11 el 19/10/2026, con observaciones; Sprint 12 el 19/10/2026; Sprint 13 el 20/10/2026). La ejecución real arrastra el desvío de calendario registrado en CT-29. Sprint 8 continúa **en curso**: R2 permanece prerregistrado/no ejecutado y la serie S8 con Gemini no produjo ninguna medición válida de CA-4; la primera medición válida, `EX-09` OpenAI en S11-C3, dio `FAIL` (19/28), y su efecto sobre el cierre del Sprint 8 no está decidido. Sprint 11 completó la congelación S11-A y la preparación técnica S11-B; S11-C cerró `EX-02` en `PASS` con el run `s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af` —tras cinco intentos previos `NOT_DEMONSTRATED`—, `EX-03` en `PASS` con el run `s11-6dc3ea66-08c9-51ef-9fe3-70e7dcc67959`, `EX-04` en `PASS` con el run `s11-03adb9bc-c9e4-5f8f-b64c-c4360d0c2085` `EX-06` en `PASS` con el run `s11-989218f3-4808-5c6f-ac23-6e8870fec153` y `EX-08` en `PASS` con el run `s11-b567289c-9fe2-5349-a384-e9284bdde863`; `EX-05` quedó en `PASS` con el run `s11-0e2feac0-6583-513c-a6aa-33430394d14a`; `EX-07` en `PASS` con el run `s11-545491b8-01fe-55e6-8f08-1a0ebbdca8d3`; S11-C2 quedó cerrado el 23/09/2026; `EX-09` OpenAI se ejecutó el 26/09/2026 con el run `s11-a156a68c-c422-5e57-ae2b-3336d3b55e6c` y resultado `FAIL` (CA-4 19/28 = 67,86 %; run válido); `EX-10` quedó `NOT_DEMONSTRATED` y el análisis S11-D y el dossier S11-E cerraron el Sprint 11 el 19/10/2026; S12 quedó implementado, desplegado y verificado el 19/10/2026; S13 quedó implementado, desplegado y verificado el 20/10/2026.
+**Progreso:** 13 / 16 sprints completados (Sprints 1, 2 y 3 cerrados el 20/08/2026; Sprint 4 el 23/08/2026; Sprint 5 el 27/08/2026; Sprint 6 el 28/08/2026; Sprint 7 el 29/08/2026; Sprint 9 el 09/09/2026; Sprint 10 el 21/09/2026; Sprint 11 el 19/10/2026, con observaciones; Sprint 12 el 19/10/2026; Sprints 13 y 14 el 20/10/2026). La ejecución real arrastra el desvío de calendario registrado en CT-29. Sprint 8 continúa **en curso**: R2 permanece prerregistrado/no ejecutado y la serie S8 con Gemini no produjo ninguna medición válida de CA-4; la primera medición válida, `EX-09` OpenAI en S11-C3, dio `FAIL` (19/28), y su efecto sobre el cierre del Sprint 8 no está decidido. Sprint 11 completó la congelación S11-A y la preparación técnica S11-B; S11-C cerró `EX-02` en `PASS` con el run `s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af` —tras cinco intentos previos `NOT_DEMONSTRATED`—, `EX-03` en `PASS` con el run `s11-6dc3ea66-08c9-51ef-9fe3-70e7dcc67959`, `EX-04` en `PASS` con el run `s11-03adb9bc-c9e4-5f8f-b64c-c4360d0c2085` `EX-06` en `PASS` con el run `s11-989218f3-4808-5c6f-ac23-6e8870fec153` y `EX-08` en `PASS` con el run `s11-b567289c-9fe2-5349-a384-e9284bdde863`; `EX-05` quedó en `PASS` con el run `s11-0e2feac0-6583-513c-a6aa-33430394d14a`; `EX-07` en `PASS` con el run `s11-545491b8-01fe-55e6-8f08-1a0ebbdca8d3`; S11-C2 quedó cerrado el 23/09/2026; `EX-09` OpenAI se ejecutó el 26/09/2026 con el run `s11-a156a68c-c422-5e57-ae2b-3336d3b55e6c` y resultado `FAIL` (CA-4 19/28 = 67,86 %; run válido); `EX-10` quedó `NOT_DEMONSTRATED` y el análisis S11-D y el dossier S11-E cerraron el Sprint 11 el 19/10/2026; S12 quedó implementado, desplegado y verificado el 19/10/2026; S13 quedó implementado, desplegado y verificado el 20/10/2026. S14 quedó implementado y verificado localmente el 20/10/2026, con la corrida local de `experiments_app` finalizada (3.385 pasadas, 17 omitidas, 4 fallos y 71 errores en 1 h 40 min; diagnóstico en la sección S14), el frontend completo en verde (format, lint, typecheck, 417 pruebas Vitest en 44 archivos, build y 58 E2E de producción con fixture de `pageerror`) y el PR #54 abierto el 20/10. El job `test` pasó en 3 min; `build` y `frontend-e2e` también pasaron. Al escribir, `ci-experiments` seguía en curso y el despliegue estaba pendiente de aprobación del usuario; ese avance no cambia los veredictos de S11-D ni cierra Sprint 8.
 
 ### Decisiones que condicionan el avance
 
@@ -4884,23 +4884,145 @@ comparables con las anteriores; esto no cambia los resultados históricos de S11
 ## Sprint 14 — Pruebas unitarias, integración, seguridad y E2E
 
 **Fechas planificadas:** 31/10/2026 – 06/11/2026
-**Estado:** Pendiente
-**Fecha real de cierre:** —
+**Estado:** Completado — implementado y verificado (PR #54 abierto; CI experimental en curso; despliegue pendiente de aprobación del usuario)
+**Fecha real de cierre técnico y documental:** 20/10/2026
+**Estado de verificación y publicación:** corrida local de experimentos finalizada y frontend completo en verde; [PR #54](https://github.com/MontyPohl/ciudadania-activa/pull/54) abierto el 20/10, con `test` (dominio y compuerta), `build` y `frontend-e2e` en verde. `ci-experiments` seguía en curso al escribir. Despliegue pendiente de aprobación del usuario.
 
 ### Funcionalidades terminadas
-_Pendiente._
+
+- **Compuerta y separación de CI:** `ci-backend.yml` verifica lint, formato,
+  migraciones y dominio con cobertura de producto ≥ 80 %; `ci-experiments.yml`
+  separa el aparato experimental y conserva la ejecución completa en `main`, manual
+  y en los PR que afecten el aparato o los archivos congelados. HT5-01 se reporta
+  aparte sobre el manifiesto congelado de **33 archivos**. No cambia la metodología
+  ni la política de custodia de S11.
+- **Incentivos y consistencia:** suite explícita S-01…S-12, con seis pruebas nuevas
+  y seis existentes; S-10 usa X simulado (CT-43). LED-01 contrasta el resumen de cada
+  ciudadano por API con una agregación SQL directa del ledger, sin ORM ni selectores.
+- **Seguridad H.5:** mapa SEC-01…SEC-11 con los diez casos del anexo más la
+  reversión; cubre las lecturas de recompensas ajenas, el guard del servicio de
+  reversión y la salida de texto no confiable en el frontend. Sanitización significa
+  codificar al mostrar y rechazar caracteres de control; el texto libre se conserva
+  tal como se recibió (S14-D05).
+- **Pendientes heredados cerrados:** throttles por IP del cliente con
+  `NUM_PROXIES = 1`, coherente con un router de Heroku; `send()` revalida `is_active`
+  antes de enviar. Las siete lecturas que prometen cálculo en vivo siguen
+  respondiendo ante una caída de Redis, incluido el throttle; las escrituras
+  conservan el cierre ante fallos. El log de esa degradación no incluye IP ni URL.
+- **Contrato de API:** inventario verificable de **45 rutas reales + 3 inexistentes**,
+  métodos y respuestas al anónimo; publicado en [API §11](API.md#11-índice-de-endpoints-y-verificación-sprint-14).
+  Los contratos de respuesta siguen cubiertos por las pruebas de cada app.
+- **Frontend y E2E:** pruebas de formularios críticos, sesión BFF y texto no
+  confiable; ocho flujos `@F1`…`@F8` con API simulada y fixture que falla ante un
+  `pageerror`. Arnés full-stack local con backend real, PostGIS, Redis y Storage
+  falso; datos y sesiones de prueba con guards de ejecución local. La corrección
+  del ancho del gráfico de tendencia quedó verificada mediante captura a 1280 px
+  (S14-D17).
+- **Documentación:** [informe de pruebas](s14/S14_INFORME_PRUEBAS.md),
+  [matriz con resultados](s14/S14_MATRIZ_PRUEBAS.md),
+  [ejecución full-stack](s14/S14_E2E_FULLSTACK.md) y
+  [Anexo H actualizado](tesis/ANEXO_H_ACTUALIZADO.md), listo para trasladar al `.docx`
+  mediante CT-62. El `.docx` y la política congelada S11-A siguen sin cambios.
 
 ### Pruebas realizadas
-_Pendiente._
+
+- **Paso 0:** Ruff, formato y migraciones en verde; **8 pruebas** del manifiesto
+  HT-5, throttle con `NUM_PROXIES`, settings y GOV-T054 pasadas. Ejecutar una sola
+  prueba no alcanza la compuerta y falla, como se esperaba.
+- **Por carril:** A **7/7**; B **169 pasadas**, incluidas las pruebas existentes de
+  las vistas tocadas; C1 **22 pruebas Vitest** más lint, typecheck y formato; C2
+  **8/8 flujos `@F`** con API simulada. Son corridas parciales y no se suman al
+  total de la verificación única.
+- **Verificación única, dominio (20/10, `07f3e08`):** Ruff y formato en verde;
+  `makemigrations --check --dry-run` sin cambios; **2.325 pasadas, 0 fallos y
+  0 errores en 2 min 38 s**. El JUnit confirma S-01…S-12 **12/12** y LED-01.
+  Los casos backend de H.5 y la salida de texto verificada en C1 completan
+  SEC-01…SEC-11 **11/11** en sus niveles correspondientes.
+- **Cobertura:** compuerta de producto **95,62 %** (**6.388 sentencias, 280 sin
+  cubrir**), por encima de 80 %; HT5-01 de seguimiento **96,91 %** (**2.233
+  sentencias, 69 sin cubrir**, 33 archivos). Umbral forzado a **101 % → exit 1**
+  sobre los mismos datos: la CI falla cuando no alcanza la cobertura requerida.
+  Los alcances de la compuerta y HT5-01 son distintos; detalle por app y archivo en
+  el informe.
+- **Verificación única local, `experiments_app` (20/10):** **3.385 pasadas,
+  17 omitidas, 4 fallos y 71 errores en 1 h 40 min**, en paralelo con dominio,
+  full-stack y frontend. **GOV-T054 pasó.** Los 71 errores son `IsolationError`
+  de `test_ex10_prepare.py`: el host `s12-dev-db` está fuera de la allowlist
+  local de S11. Dos fallos son los esperados de `test_ex10_preflight`; los
+  otros dos corresponden a
+  `test_ex10_executor.py::test_official_not_demonstrated_runs_need_each_exact_acknowledgement[none]`
+  y `[exact]`, por `CAPABILITY_EXPIRED` ante la carga del host. Al repetir solo
+  esa prueba con la máquina libre pasaron sus **7 variantes**; esa repetición no
+  cambia los totales de la corrida original. S14 no modifica `experiments_app`.
+- **E2E full-stack local (20/10): 9/9 en 57,7 s**, correspondientes a F1…F8 y la
+  captura del dashboard, contra el backend real con Storage falso. El post-chequeo
+  del ledger dio **32 `ACREDITADO` y 1 `PENDIENTE`**. Videos, captura, log y
+  `SHA256SUMS` se conservan en la carpeta de evidencia **fuera del repositorio**.
+- **Frontend completo:** format, lint, typecheck, **417 pruebas Vitest en
+  44 archivos**, build y **58 E2E con build de producción**, en verde. Todas
+  las E2E usan la fixture de `pageerror`.
+- **PR y CI:** [PR #54](https://github.com/MontyPohl/ciudadania-activa/pull/54)
+  abierto el 20/10. `test` (dominio y compuerta) pasó en **3 min**; `build` y
+  `frontend-e2e` también están en verde. `ci-experiments` seguía en curso al
+  momento de escribir. **Despliegue y smoke productivo:** pendiente de aprobación
+  del usuario.
 
 ### Problemas encontrados
-_Pendiente._
+
+- `rewards.spec` falló una vez durante la compilación inicial del servidor dev;
+  pasó al repetir. Los ocho flujos `@F` quedaron en verde en la verificación de C2;
+  la verificación completa posterior pasó las 58 E2E con build de producción.
+- Las pruebas motivaron correcciones acotadas del producto: contador por IP detrás
+  del proxy, destinatarios inactivos, lecturas que no alcanzaban el cálculo en vivo
+  cuando Redis caía y escala del gráfico. No cambian contratos de API ni el esquema.
+- **Riesgos abiertos:** `CERT_NONE` para Redis con certificado autofirmado es un
+  riesgo aceptado (S14-D18); la rotación de secretos queda para S15 (S14-D19).
+  `NUM_PROXIES = 1` exige revisar la configuración si cambia la topología. Ante una
+  caída de Redis, las siete lecturas quedan disponibles sin límite de tasa mientras
+  dura la falla; las escrituras siguen cerradas (S14-D14).
+- El rescate de `dispatch_due` puede reencolar una `PENDIENTE`, sin duplicar correos
+  por el lock y el control de estado de `send()`. Se descartó cambiarlo: la ventana
+  de 24 h y `SWEEP_LIMIT` lo acotan y permiten recuperar tareas perdidas (S14-D15).
 
 ### Commits relevantes
-_Pendiente._
+
+| Etapa | Commits |
+|---|---|
+| Base S14 | `dc8c4b8` |
+| Paso 0 | `2386f2e` (dos workflows y compuerta), `eed106d` (`NUM_PROXIES`), `02aa6ab` (esqueleto E2E), `6a8a4aa` (decisiones y matriz) |
+| Carril A | `b87289c` (escenarios de incentivos y consistencia API/SQL) |
+| Carril B | `8beed07` (lecturas sin Redis y destinatarios activos), `7723ee8` (huecos H.5 e inventario de API) |
+| Carril C1 | `8088b95` (ancho del gráfico), `69d13e2` (formularios, BFF y texto no confiable) |
+| Carril C2 | `98c79b5` (F1, F4, F6, F7 y guard de errores no controlados) |
+| Carril D | `3759370` (arnés full-stack, Storage falso, seed y F1…F8) |
+| Merges en `feat/s14-testing` | `5bbed3d` (A), `8ffcd7d` (B), `75a28fe` (C1), `1976528` (C2), `07f3e08` (D) |
 
 ### Observaciones y desvíos respecto del plan
-_Pendiente._
+
+La implementación, integración y verificación local se adelantaron al **20/10**,
+sin cambiar las fechas planificadas. **No se aplicó ningún recorte de S14-D24:**
+entraron las pruebas del BFF, la corrección tipográfica, los ocho flujos full-stack
+y el manejo de lecturas sin Redis. B4, la pasada UX general del portal, pasa a S15
+con el dataset definitivo y las capturas de la tesis (S14-D17). Mostrar el motivo
+del rechazo en el panel queda como mejora post-MVP porque exige funcionalidad y
+contrato nuevos (S14-D16). La rotación de secretos se planifica para S15 (S14-D19).
+
+**Límites de la evidencia (S14-D09/D10):** la capa con API simulada comprueba el
+frontend y no cuenta para HT4-01 según el diccionario S11-A. El full-stack local es
+evidencia complementaria de ingeniería: usa sesión sembrada por cookie y Storage
+falso; no automatiza Google, no ejecuta clasificación por IA ni entrega correo
+(sin worker, las notificaciones quedan `PENDIENTE`). Estas mediciones no
+re-adjudican los veredictos de S11-D: HT-2 sigue `FAIL` (19/28), HT-5 sigue `PASS`
+con su medición S11 (96,76 %) y EX-11 continúa diferido. La trazabilidad completa
+y la síntesis de tesis quedan para S15/S16. Sprint 8 sigue en curso.
+
+**Publicación:** los carriles están integrados en `feat/s14-testing` y el
+[PR #54](https://github.com/MontyPohl/ciudadania-activa/pull/54) está abierto
+desde el 20/10. `test` (dominio y compuerta) pasó en 3 min; `build` y
+`frontend-e2e` están en verde. `ci-experiments` seguía en curso al escribir.
+El PR aún no está integrado en `main`; el despliegue posterior, con
+reconciliación del backend y sin migraciones, está pendiente de aprobación del
+usuario. No se registran un release ni un smoke productivo S14.
 
 ---
 
@@ -4956,16 +5078,16 @@ Se completa a medida que las mediciones estén disponibles (Sprints 14 y 15).
 
 | Indicador | Umbral | Medición | Estado |
 |---|---|---|---|
-| Cobertura backend crítico | ≥ 80 % | 96,76 % (2119/2190 líneas; 33 archivos prospectivamente fijados, medición S11 del 18/10/2026) | PASS en alcance HT5; no equivale a CI global. Ver [S11-D](s11/S11_D_ANALISIS_Y_DECISIONES.md) |
+| Cobertura backend de producto y crítico | ≥ 80 % en cada alcance | S14 (20/10): compuerta de producto 95,62 % (6.388 sentencias, 280 sin cubrir); HT5-01 96,91 % (2.233 sentencias, 69 sin cubrir; 33 archivos congelados) | PASS de ingeniería; alcances distintos. HT-5 de S11 conserva PASS (96,76 %); ver [informe S14](s14/S14_INFORME_PRUEBAS.md) y [S11-D](s11/S11_D_ANALISIS_Y_DECISIONES.md) |
 | Concordancia IA vs etiquetas de oro | ≥ 85 % | 67,86 % (19/28): CA-4 de `EX-09` OpenAI, run `s11-a156a68c-c422-5e57-ae2b-3336d3b55e6c`, 26/09/2026 | `FAIL` |
 | Latencia P50 endpoints críticos | ≤ 800 ms | — | Pendiente |
 | Latencia de red Heroku ↔ Supabase | Medida y documentada | — | Pendiente |
 | Latencia P99 bajo carga | ≤ 2.000 ms | — | Pendiente |
 | Throughput de creación de reportes | ≥ 50 rep/min | — | Pendiente |
-| Flujos E2E críticos | 100 % | — | Pendiente |
-| Reglas de incentivos (S-01…S-12) | 100 % | — | Pendiente |
-| Pruebas de seguridad (Anexo H.5) | 100 % | — | Pendiente |
-| Trazabilidad | 100 % | — | Pendiente |
+| Flujos E2E críticos | 100 % | S14: 8/8 con API simulada (carril C2), suite completa de 58 E2E con build de producción y fixture de `pageerror`, y 8/8 full-stack local; captura adicional (9/9 en 57,7 s) | PASS de ingeniería en ambas capas; `frontend-e2e` del PR #54 en verde. API simulada excluida de HT4-01; full-stack complementario, sin re-adjudicar S11-D (D10) |
+| Reglas de incentivos (S-01…S-12) | 100 % | S14: 12/12, más LED-01 (JUnit de dominio, 20/10) | PASS de ingeniería; EX-11 sigue diferido (D10) |
+| Pruebas de seguridad (Anexo H.5) | 100 % | S14: SEC-01…SEC-11, 11/11 (dominio + salida de texto en C1) | PASS de ingeniería en los niveles definidos; ver riesgos abiertos en el informe S14 |
+| Trazabilidad | 100 % | — | Pendiente S15; la matriz de ingeniería S14 no sustituye la medición de HT4-02 |
 
 ## Seguimiento de ADR
 

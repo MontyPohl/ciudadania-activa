@@ -237,6 +237,11 @@ REST_FRAMEWORK = {
         "dashboard_metrics": "60/min",
         "public_metrics": "120/min",
     },
+    # Heroku agrega exactamente un salto (su router) al final de X-Forwarded-For.
+    # Sin esto, DRF usa el encabezado completo y un cliente que mande el suyo
+    # cambia de contador en cada petición. Sin el encabezado (local y CI), usa
+    # REMOTE_ADDR. Si se agrega otro proxy delante (CDN), hay que subirlo.
+    "NUM_PROXIES": 1,
 }
 
 # JWT propio del sistema, emitido tras verificar el ID token de Google (ADR-0005).

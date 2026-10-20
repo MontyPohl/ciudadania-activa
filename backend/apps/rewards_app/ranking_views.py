@@ -2,9 +2,9 @@ from django.utils import timezone
 from rest_framework import serializers
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
+from apps.core.throttling import FailOpenScopedRateThrottle
 from apps.reports_app.serializers import StrictInputMixin
 from apps.rewards_app import periods, ranking
 
@@ -15,7 +15,7 @@ class RankingQuerySerializer(StrictInputMixin, serializers.Serializer):
 
 class MonthlyRankingView(APIView):
     permission_classes = [AllowAny]
-    throttle_classes = [ScopedRateThrottle]
+    throttle_classes = [FailOpenScopedRateThrottle]
     throttle_scope = "public_ranking"
 
     def get(self, request):

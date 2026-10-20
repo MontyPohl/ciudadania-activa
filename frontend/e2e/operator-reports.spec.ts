@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./support/test";
 
 import { ANDE_ID, openOperatorQueue } from "./operator-report-fixtures";
 
@@ -39,7 +39,7 @@ test("operador selecciona motivo, confirma y rechaza", async ({ page }) => {
   expect(metrics.detailGets).toBeGreaterThanOrEqual(2);
 });
 
-test("operador completa ciclo con evidencia y cierre", async ({ page }) => {
+test("@F5 operador completa ciclo con evidencia y cierre", async ({ page }) => {
   const metrics = await openOperatorQueue(page);
   await page.getByLabel("Contexto institucional").selectOption(ANDE_ID);
   await page.getByRole("link", { name: "Abrir detalle" }).click();

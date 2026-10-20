@@ -11,7 +11,7 @@ CATEGORIES_URL = "/api/v1/public/categories/"
 
 def test_tarifa_publica_central_es_120_por_minuto(settings):
     assert settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["public_map"] == "120/min"
-    assert "NUM_PROXIES" not in settings.REST_FRAMEWORK
+    assert settings.REST_FRAMEWORK["NUM_PROXIES"] == 1
 
 
 def test_lista_y_detalle_comparten_scope_y_las_ip_se_separan(api_client, public_report_factory):
@@ -39,3 +39,20 @@ def test_lista_y_detalle_comparten_scope_y_las_ip_se_separan(api_client, public_
         == 200
     )
     assert blocked.status_code == 429
+
+
+def test_un_x_forwarded_for_falsificado_no_cambia_el_contador(api_client, settings, monkeypatch):
+    monkeypatch.setitem(settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"], "public_map", "2/min")
+    first_ip = "198.51.100.20"
+    second_ip = "198.51.100.21"
+    cache.delete(f"throttle_public_map_{first_ip}")
+    cache.delete(f"throttle_public_map_{second_ip}")
+
+    for forged_ip in ("203.0.113.1", "203.0.113.2"):
+        response = api_client.get(CATEGORIES_URL, HTTP_X_FORWARDED_FOR=f"{forged_ip}, {first_ip}")
+        assert response.status_code == 200
+    blocked = api_client.get(CATEGORIES_URL, HTTP_X_FORWARDED_FOR=f"203.0.113.3, {first_ip}")
+    other_ip = api_client.get(CATEGORIES_URL, HTTP_X_FORWARDED_FOR=f"203.0.113.4, {second_ip}")
+
+    assert blocked.status_code == 429
+    assert other_ip.status_code == 200
