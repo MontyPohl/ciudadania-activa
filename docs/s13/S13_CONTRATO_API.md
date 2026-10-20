@@ -167,6 +167,8 @@ Errores:
 
 `suppressed` distingue "suprimido" de "no aplica": un SLA no configurado da `null` **sin** figurar en `suppressed`.
 
+**Supresión complementaria (enmienda del 20/10/2026, aprobada por el usuario tras la revisión §7.4).** Las celdas aditivas (`confirmations`, `redemptions` y `credits_issued`) se podrían despejar restando `totals` menos las instituciones publicadas. Por eso, si en una columna queda **exactamente una** institución suprimida y el total se publica, también se suprime la celda publicada más chica de esa columna; si no queda otra, se suprime el total. Las dos llevan `null` y figuran en `suppressed`. Las tasas y medianas no son aditivas y no se tocan. El shape no cambia.
+
 **Nunca aparecen:** IDs de usuario, nombres, emails, coordenadas, descripciones, ni desgloses más finos que la institución, como categoría × institución.
 
 ## 6. Tipos TypeScript (`frontend/src/types/api.ts`, sección S13)

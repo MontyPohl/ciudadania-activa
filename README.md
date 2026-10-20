@@ -244,6 +244,7 @@ y repartir credenciales de más es un riesgo gratuito.
 | `DATABASE_URL` · `REDIS_URL` · `DJANGO_SECRET_KEY` | **Sí** | **Sí** | **Sí** | No |
 | `REPORT_AUTO_CLOSE_HOURS` | No | **Opcional** | **Opcional** | No |
 | `PUBLIC_MAP_CACHE_TTL_SECONDS` | **Sí** | No | No | No |
+| `DASHBOARD_METRICS_CACHE_TTL_SECONDS` (default `120`) · `PUBLIC_METRICS_CACHE_TTL_SECONDS` (default `300`) | Opcional | No | No | No |
 | `NEXT_PUBLIC_API_URL` · `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | No | No | No | **Sí** (públicas) |
 
 El backend web crea verificaciones y firma imágenes; el worker de IA descarga fotografías
@@ -259,9 +260,10 @@ comportamiento es fallo cerrado **local**: el endpoint que las necesita responde
 y el resto del sistema sigue funcionando.
 
 El scheduler se despliega como un proceso único separado del worker, con el comando
-`celery -A config.celery:app beat --loglevel=info`. Beat agenda `reports.auto_close`, pero es el
-worker quien ejecuta la tarea y consulta `REPORT_AUTO_CLOSE_HOURS`; si se sobrescribe el valor por
-defecto, debe configurarse de forma consistente al menos en todos los workers que consuman esa
+`celery -A config.celery:app beat --loglevel=info`. Beat agenda tres tareas: `reports.auto_close`
+(cada 15 min), `notifications.dispatch_due` (cada 5 min) y `rewards.notify_available_rewards`
+(09:00 locales). Es el worker quien las ejecuta, y para `reports.auto_close` consulta
+`REPORT_AUTO_CLOSE_HOURS`; si se sobrescribe el valor por defecto, debe configurarse de forma consistente al menos en todos los workers que consuman esa
 cola. La variable es opcional, debe ser un entero positivo y vale `72` por defecto; un valor
 inválido impide el arranque del proceso que lo reciba. Ejecutar más de una instancia de Beat
 duplicaría entregas innecesarias, aunque el servicio conserva idempotencia bajo lock del reporte.
@@ -312,9 +314,11 @@ Tres precisiones que ahorran un rato de depuración:
 - **El remitente debe estar verificado en Brevo.** `DEFAULT_FROM_EMAIL` admite la forma
   `Nombre <direccion>`; el cliente la separa y la envía como `{"name": ..., "email": ...}`. Si
   la dirección no figura como remitente verificado, Brevo rechaza el envío con `400`.
-- **No hay reintentos automáticos.** Un fallo deja la notificación en `FALLIDO` y ahí se queda:
-  reencolar la tarea sobre una notificación fallida **no la reenvía**. Los reintentos automáticos
-  quedan para S13.
+- **Reintentos automáticos acotados (S13).** Solo los fallos transitorios (red, timeout, 5xx o
+  429) se reintentan: 3 intentos en total, con esperas de 5 y 30 minutos, mediante el barrido
+  `notifications.dispatch_due`, que nunca envía notificaciones de más de 24 h sin intentos. Un
+  fallo permanente deja la notificación en `FALLIDO` y ahí se queda: reencolar la tarea sobre
+  una notificación fallida **no la reenvía**.
 
 Para recuperar una notificación fallida hay una puerta explícita y solo una:
 
@@ -356,7 +360,8 @@ no endpoints; sus opciones y efectos están en [API §9](docs/API.md#9-comandos-
 | `cd backend && python manage.py seed_reports` | Carga 14 reportes sintéticos del mapa (idempotente; requiere catálogos) |
 | `cd backend && python manage.py promote_user <email> --role operator --institution <slug>` | Promueve un usuario existente a operador |
 | `cd backend && python manage.py promote_user <email> --role admin` | Promueve un usuario existente a administrador |
-| `cd backend && python manage.py resend_notification <uuid>` | Reencola una notificación que quedó en `FALLIDO` |
+| `cd backend && python manage.py resend_notification <uuid>` | Reencola una notificación que quedó en `FALLIDO` y reinicia sus intentos; convive con los reintentos automáticos de fallos transitorios |
+| `cd backend && python manage.py load_x_mock_dataset apps/social_ingestion_app/data/x_mock_dataset_v1.json [--dry-run]` | Carga el dataset **ficticio** de X simulado (S13): sin red, Celery ni IA, atómico e idempotente. Cargarlo en producción es una decisión aparte |
 | `cd backend && python manage.py ai_usage_summary --input-usd-per-1m <precio> --output-usd-per-1m <precio>` | Resume tokens persistidos y estima costo; solo lectura |
 | `cd backend && python manage.py ai_try_classification --description <texto> --category <slug> --prompt both` | Prueba manual v1/v2; llama a OpenAI sin persistir clasificaciones |
 | `cd backend && python manage.py ai_compare_prompts --cases <casos.csv> --photos <carpeta> --out <resultados.csv>` | Compara prompts con casos y fotos locales; consume cuota |
@@ -387,7 +392,7 @@ versiona en el repositorio.
 | Frontend | Vercel | `https://ciudadania-activa.vercel.app` | `Root Directory: frontend`; solo las dos variables públicas que el código lee, `NEXT_PUBLIC_API_URL` y `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, ambas de tipo *Config*. **Ningún secreto de backend se carga en Vercel** (verificado en la remediación S9.5, ver [runbook](docs/runbooks/HEROKU_MIGRATION.md)) |
 | Backend | Heroku | `https://ciudadania-activa-api-5b4f8e81977b.herokuapp.com` | App `ciudadania-activa-api`, stack `container`; proceso `web`: `gunicorn config.wsgi:application --bind 0.0.0.0:$PORT`. **Sin fase `release`: ningún deploy migra la base** |
 | Worker de Celery | Heroku | — | Proceso `worker` de la misma app: `celery -A config.celery:app worker --loglevel=info --concurrency=2` |
-| Celery Beat | Heroku | — | Proceso `beat` activo con exactamente **1 dyno**; agenda `reports.auto_close` cada 15 minutos |
+| Celery Beat | Heroku | — | Proceso `beat` activo con exactamente **1 dyno**; agenda `reports.auto_close` (cada 15 min), `notifications.dispatch_due` (cada 5 min) y `rewards.notify_available_rewards` (09:00 locales) |
 | Redis | Heroku Key-Value Store | — | Plan `mini`. Para `rediss://` sin `ssl_cert_reqs`, settings añade `REDIS_SSL_CERT_REQS` (default `none`, PR #46) |
 | Base de datos y storage | Supabase | — | PostgreSQL 17 + PostGIS en el esquema `gis` |
 

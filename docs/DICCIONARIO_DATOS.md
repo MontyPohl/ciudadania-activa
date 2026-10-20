@@ -2,12 +2,15 @@
 
 Estado del modelo de datos **tal como está implementado**, contrastado con el Anexo A de
 `Tesis_Ciudadania_Activa_Revisada_Recompensas.docx`. Las 18 entidades se crearon en el
-Sprint 2; el Sprint 4 añadió `citizen_profiles.rejection_reason` y el Sprint 8 incorporó
+Sprint 2 y S13 retiró `telegram_ingested_messages` (CT-43): hoy son **17**; el Sprint 4 añadió `citizen_profiles.rejection_reason` y el Sprint 8 incorporó
 `ai_classifications.justification` y `ai_classifications.model_name`. S12 añade la
 institución y el período mensual al vale, su vínculo con el ledger y la referencia desde
 notificaciones, con las restricciones descritas abajo. Este esquema está verificado en
 local y desplegado: S12 se migró en Heroku el 19/10/2026; `ai_client_app.0003`
-añadió los tres contadores de tokens y se aplicó en v22 el 20/10/2026.
+añadió los tres contadores de tokens y se aplicó en v22 el 20/10/2026. S13 suma a
+`notifications` la institución, la clave de idempotencia y el estado de reintentos
+(`notifications_app.0003`); ese tramo está verificado en local y se aplica con el
+despliegue del S13.
 
 - **Fuente rectora:** Anexo A (A.1 entidades · A.2 enumeraciones · A.4 diccionario · A.5 índices · A.6 SQL de referencia).
 - **Plan:** [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md) §6.4, §6.5 y §12.
@@ -21,7 +24,7 @@ añadió los tres contadores de tokens y se aplicó en v22 el 20/10/2026.
 | Convención | Detalle |
 |---|---|
 | Clave primaria | `UUID` generada en el cliente (`uuid4`), no editable. Definida una sola vez en `apps.core.models.BaseModel` |
-| Marcas temporales | `created_at` (`auto_now_add`) y `updated_at` (`auto_now`) en las 17 entidades nuevas |
+| Marcas temporales | `created_at` (`auto_now_add`) y `updated_at` (`auto_now`) en las entidades nuevas (16 desde S13) |
 | `users` | Conserva su estructura del Sprint 1 (`date_joined`, PK `UUID`) y **no** hereda de `BaseModel`: `AUTH_USER_MODEL` y `auth_app.0001_initial` no se tocan (ADR-0014) |
 | Nombres de tabla | `db_table` explícito, idéntico al del Anexo A (`users`, `institutions`, `reward_transactions`, …) |
 | Enumeraciones | `models.TextChoices` sobre `varchar`. **No** se usan tipos `ENUM` nativos de PostgreSQL: ampliar un `ENUM` exige `ALTER TYPE` en migración manual. Cambiar `choices` genera un `AlterField` que no emite DDL sobre la columna |
@@ -34,7 +37,7 @@ añadió los tres contadores de tokens y se aplicó en v22 el 20/10/2026.
 |---|---|---|
 | `ReportStatus` | `core.enums` | `CREADO` · `CLASIFICADO` · `ASIGNADO` · `EN_PROCESO` · `RESUELTO` · `CERRADO` · `RECHAZADO` |
 | `ReportPriority` | `core.enums` | `BAJA` · `MEDIA` · `ALTA` |
-| `ReportSource` | `core.enums` | `platform` · `telegram` · `x_mock` |
+| `ReportSource` | `core.enums` | `platform` · `x_mock` (S13 retiró `telegram`, `reports_app.0008`) |
 | `RejectionReason` | `core.enums` | `fuera_de_competencia` · `duplicado` · `informacion_insuficiente` · `contenido_inapropiado` |
 | `ActorType` | `core.enums` | `human` · `ai` · `system` |
 | `UserRole` | `auth_app.enums` | `citizen` · `operator` · `admin` |
@@ -59,7 +62,7 @@ añadió los tres contadores de tokens y se aplicó en v22 el 20/10/2026.
    tipo de notificación se llama por eso `VALIDACION_INSTITUCIONAL`, aunque su etiqueta
    visible para el ciudadano sea «Reporte validado».
 
-## Las 18 entidades
+## Las 17 entidades
 
 ### `auth_app`
 
@@ -333,7 +336,17 @@ de verificación no se refieren a un reporte), `notification_type`, `channel`
 `notifications_app.0002_notification_redemption` depende de `rewards_app.0005`. No añade
 unicidad ni CHECK de tipo: el servicio crea `CANJE_REALIZADO` con el canje y el envío
 marca `FALLIDO` si falta esa referencia. El correo no transporta el código del vale.
-`RECOMPENSA_DISPONIBLE` y los reintentos automáticos quedan para S13.
+
+| Campo nuevo S13 | Tipo | Restricción | Notas |
+|---|---|---|---|
+| `institution_id` | UUID | nullable, `SET_NULL` | FK a `institutions`, relación inversa `notifications`: la institución que valida, rechaza o resuelve, o la de la recompensa disponible |
+| `dedup_key` | varchar(160) | nullable; `UNIQUE` con nombre `notification_dedup_key_unica` | Clave de idempotencia de los correos de reporte y de `RECOMPENSA_DISPONIBLE`; `NULL` en identidad y canje (varios `NULL` no chocan) |
+| `attempts` | smallint ≥ 0 | `default 0` | Intentos de envío; 3 como máximo para fallos transitorios |
+| `next_attempt_at` | timestamptz | nullable | Próximo reintento (5 y 30 min); `NULL` si no hay reintento pendiente |
+
+Índice `notification_due_idx` sobre (`status`, `next_attempt_at`), para el barrido
+`notifications.dispatch_due`. `notifications_app.0003_notification_retry_and_dedup` es
+aditiva: las filas existentes quedan con `attempts = 0` y `dedup_key = NULL`.
 
 ### Frontera de datos al cierre S9-B3
 
@@ -353,8 +366,8 @@ emisión y `transaction.on_commit`.
 
 ### `social_ingestion_app`
 
-**`telegram_ingested_messages`** — `telegram_chat_id`, `sender_alias`, `raw_text`,
-`report_id` (nullable, `SET_NULL`).
+`telegram_ingested_messages` existió desde el Sprint 2 y S13 la eliminó
+(`social_ingestion_app.0002_remove_telegram`, con un guard que aborta si hay filas; CT-43).
 
 **`x_mock_messages`** — `source_handle`, `raw_text`, `simulated_at` (fecha **simulada** del
 dataset, distinta de `created_at`), `report_id` (nullable, `SET_NULL`).
@@ -478,6 +491,24 @@ rewards_app.0004_enforce_reward_event_linkage
 `rewards_app.0005` depende también de `admin_app.0002_seed_catalogs`;
 `notifications_app.0002` depende además de `notifications_app.0001_initial`. Este tramo
 extiende el grafo histórico anterior y conserva las migraciones intermedias de S10.
+
+**Tramo S13 (verificado en local; se aplica con el despliegue del S13):**
+
+```text
+social_ingestion_app.0001_initial
+   └── social_ingestion_app.0002_remove_telegram     DeleteModel(TelegramIngestedMessage) + guard
+reports_app.0007_report_closed_at
+   └── reports_app.0008_report_source_without_telegram   AlterField(source.choices) + guard
+notifications_app.0002_notification_redemption
+   └── notifications_app.0003_notification_retry_and_dedup
+          +institution_id, dedup_key, attempts, next_attempt_at
+          +notification_due_idx, notification_dedup_key_unica
+```
+
+Los dos guards cuentan filas (mensajes de Telegram o reportes con `source = 'telegram'`)
+y abortan la migración si encuentran alguna; ninguno agrega un CHECK sobre `source`.
+`notifications_app.0003` depende además de `admin_app.0002_seed_catalogs`,
+`reports_app.0008` y `rewards_app.0005`.
 
 ---
 

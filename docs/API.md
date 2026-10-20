@@ -1181,9 +1181,10 @@ consulta, validación y rechazo institucionales ya descritos. El alcance posteri
   se implementaron en S12, absorbiendo el S11 funcional;
 - catálogo, gestión institucional de recompensas y canje se implementaron en S12 (§8);
 - resolución, evidencia, cierre y reversión del ciclo institucional se implementaron en S10 (§7.6);
-- dashboards e ingesta social siguen asignados a S13;
-- `CANJE_REALIZADO` se implementó en S12; `RECOMPENSA_DISPONIBLE` y reintentos automáticos
-  quedan para S13. Las notificaciones completas de eventos de reporte siguen fuera de este cierre.
+- dashboards e ingesta social se implementaron en S13 (§10 y el comando
+  `load_x_mock_dataset`);
+- `CANJE_REALIZADO` se implementó en S12; `RECOMPENSA_DISPONIBLE`, los reintentos automáticos
+  y los correos de eventos de reporte se implementaron en S13 (§10.5).
 
 Antes de ampliar esas notificaciones deben definirse destinatarios, contenido, privacidad,
 idempotencia, asociación con reportes, comportamiento ante fallos del broker, momento de emisión
@@ -1640,7 +1641,7 @@ Activa y **no tiene valor económico real**."
   "mejor `FALLIDO` visible que un correo inventado" que aplica hoy `dispatch`. El servicio la
   crea vinculada al canje.
 
-`RECOMPENSA_DISPONIBLE` y los reintentos automáticos quedan para S13. El diálogo de
+`RECOMPENSA_DISPONIBLE` y los reintentos automáticos se implementaron en S13 (§10.5). El diálogo de
 confirmación y el vale también muestran el aviso de simulación. El vale usa el formato
 `CA-XXXX-XXXX-XXXX-XXXX`, con 80 bits Crockford base32 generados con `secrets`, sin bucle de
 reintento.
@@ -1690,3 +1691,126 @@ Los contadores `input_tokens`, `output_tokens`, `total_tokens` se guardan en cla
 persistidas desde `ai_client_app.0003` (PR #47); `null` significa uso no informado o fila
 anterior. No se añaden al esquema de seis campos del modelo ni a la respuesta pública.
 La versión auditada sigue en `audit_logs`: `s8-classification-v1` o `classification-v2`.
+
+## 10. Métricas y transparencia (Sprint 13)
+
+Contrato común: [S13_CONTRATO_API.md](s13/S13_CONTRATO_API.md). Son tres lecturas sin
+efectos: no escriben, no auditan y no crean tablas. Se calculan en vivo y se cachean en
+Redis por TTL (`DASHBOARD_METRICS_CACHE_TTL_SECONDS`, 120 s;
+`PUBLIC_METRICS_CACHE_TTL_SECONDS`, 300 s); si Redis falla, se calculan igual. No hay
+precálculo con Beat ni invalidación por evento (S13-D05, CT-61).
+
+| Ruta | Permiso | Query (estricta) | Throttle | `Cache-Control` |
+|---|---|---|---|---|
+| `GET /api/v1/operator/metrics/` | `IsInstitutionOperator` + contexto `institution_id` (§7.1) | `institution_id`, `period` | `dashboard_metrics` 60/min | `private, no-store` |
+| `GET /api/v1/admin/metrics/` | `IsAdmin` | `institution_id` (opcional), `period` | `dashboard_metrics` 60/min | `private, no-store` |
+| `GET /api/v1/public/metrics/` | `AllowAny`, sin autenticación | ninguna (cualquier query → 400) | `public_metrics` 120/min por IP | `public, max-age=60` (solo en 200; los errores, `no-store`) |
+
+- **`period`:** `YYYY-MM`, mes local (`America/Asuncion`), por defecto el actual; 400 si no
+  matchea, si es anterior a `2026-01` o si es futuro.
+- **Errores:** 400 por parámetro inválido, desconocido o repetido, o por `institution_id`
+  omitido con varios vínculos; 401 sin sesión; 403 genérico por rol incorrecto o institución
+  ajena (un admin en `/operator/` y un operador en `/admin/` reciben 403); 404 si el admin
+  pide una institución inexistente; 429 por throttle.
+- **Admin sin `institution_id`:** `scope = "all"`, `institution = null` y `by_institution`
+  con una fila por institución (activas e inactivas, por nombre). Con `institution_id`, el
+  mismo shape que el operador.
+- **Lo público** ignora cualquier `Authorization` (un token vencido no da 401) y cubre una
+  ventana móvil de 6 meses: del inicio del mes local − 5 meses hasta ahora.
+
+### 10.1 Fórmulas
+
+**P** es el mes local `[inicio, fin)` y **E** el alcance (una institución o todas). Un
+reporte está en E si su **institución efectiva**, `report.institution ??
+report.category.default_institution` (la regla de la bandeja), es la de E. Las métricas usan
+los valores vigentes: un reporte reclasificado por la IA cuenta en su categoría e
+institución actuales.
+
+| Campo | Fórmula |
+|---|---|
+| `reports.received` | Reportes en E con `created_at ∈ P` |
+| `reports.by_status` / `by_priority` | Esos reportes por estado y prioridad **actuales**; siempre las 7 y las 3 claves |
+| `reports.by_category` | Ídem por categoría, `count` ↓ y nombre ↑, solo con `count > 0` |
+| `reports.resolution_rate` | De los recibidos no `RECHAZADO`, la fracción hoy `RESUELTO` o `CERRADO` |
+| `decisions.validated` | Reportes cuya **primera** fila de historial `ASIGNADO` cae en P (una revalidación no recuenta) |
+| `decisions.rejected` | Reportes con una fila `RECHAZADO` en P |
+| `decisions.validation_rate` / `rejection_rate` | `validated / (validated + rejected)` y su complemento |
+| `resolution.resolved` | Reportes cuya **primera** fila `RESUELTO` cae en P |
+| `resolution.mean_hours` / `median_hours` | Sobre esos reportes, `primera resolución − created_at` en horas |
+| `sla.hours` / `configured` | `institution.sla_hours` (sin valor por defecto). En "todas", `hours = null` y `configured` si alguna lo tiene |
+| `sla.within` / `breached` / `compliance_rate` | Resueltos dentro y fuera de `sla_hours`, y `within / (within + breached)`. En "todas", solo instituciones con SLA |
+| `sla.open_over_sla` | Foto del momento: reportes activos (`CREADO`, `CLASIFICADO`, `ASIGNADO`, `EN_PROCESO`) con `now − created_at > sla_hours` |
+| `confirmations.count` | Confirmaciones con `created_at ∈ P` sobre reportes en E |
+| `incentives.points_credited` / `credits_issued` | Σ `impact_delta` / Σ `credit_delta` del ledger `ACREDITADO`, sin `REDEMPTION`, de la institución, con `credited_at ∈ P` |
+| `incentives.credits_reverted` | Σ `credit_delta` de filas originales `REVERTIDO` con `reversed_at ∈ P` |
+| `incentives.redemptions` / `credits_redeemed` | Cantidad y Σ `credits_spent` de canjes de la institución en P |
+| `series.points[]` | Un punto por día local de P (hasta hoy en el mes en curso) con `received` y `resolved` |
+| `trend[]` | Los 6 meses que terminan en P, siempre 6 puntos (en 0 si no hay datos) |
+
+Las tasas van en [0, 1] con 3 decimales y las horas con 1; una tasa o una media sin
+denominador es `null`.
+
+### 10.2 Supresión pública (k = 5)
+
+Cada institución **activa** y los `totals` publican `received`, `validated`, `rejected` y
+`resolved` siempre. Las demás celdas salen `null` y su nombre figura en `suppressed` si las
+respaldan menos de 5 casos:
+
+| Celda | Respaldo |
+|---|---|
+| `confirmations`, `redemptions`, `credits_issued` | Ciudadanos **distintos** que confirmaron, canjearon o recibieron créditos |
+| `resolution_rate` | Denominador (recibidos no rechazados) |
+| `median_resolution_hours` | Reportes resueltos |
+| `sla.compliance_rate` | `within + breached` |
+
+**Supresión complementaria:** si en `confirmations`, `redemptions` o `credits_issued` queda
+una sola institución suprimida, también se suprime la celda publicada más chica de esa
+columna (o el total, si no queda otra), para que no pueda despejarse restando del total.
+
+Un SLA no configurado sale `null` **sin** figurar en `suppressed`. La respuesta nunca lleva
+IDs de usuario, nombres, emails, coordenadas, descripciones ni desgloses más finos que la
+institución.
+
+### 10.3 Carga del dataset de X simulado
+
+`python manage.py load_x_mock_dataset apps/social_ingestion_app/data/x_mock_dataset_v1.json
+[--dry-run]`, solo por consola: sin red, Celery ni IA. Valida todo el archivo antes de
+escribir (handles `@ficticio_*`, fechas no futuras, textos de 1 a 280 caracteres, categoría
+activa y coordenadas del Gran Asunción) y es idempotente por (`source_handle`,
+`simulated_at`). Cada ítem crea un reporte `source = x_mock` sin autor en `CREADO`, su
+historial, el `XMockMessage` y la auditoría `report.ingested` (actor sistema). No acredita
+puntos, no encola la clasificación de IA ni crea notificaciones. No existe
+`POST /api/v1/x-mock/messages/` (CT-61).
+
+### 10.4 Tareas de Beat nuevas
+
+| Tarea | Agenda | Efecto |
+|---|---|---|
+| `notifications.dispatch_due` | cada 5 min | Encola hasta 200 `PENDIENTE` con reintento vencido, o sin intentos y creadas hace entre 15 min y 24 h |
+| `rewards.notify_available_rewards` | 09:00 locales | Crea `RECOMPENSA_DISPONIBLE` para cada ciudadano elegible, una por (usuario, institución, mes) |
+
+Beat corre en **exactamente un** proceso.
+
+### 10.5 Notificaciones del Sprint 13
+
+| Tipo | Disparador | `dedup_key` |
+|---|---|---|
+| `REPORTE_CREADO` | creación del reporte | `REPORTE_CREADO:{report_id}` |
+| `VALIDACION_INSTITUCIONAL` | validación | `VALIDACION_INSTITUCIONAL:{report_id}:{cycle}` |
+| `REPORTE_RECHAZADO` | rechazo | `REPORTE_RECHAZADO:{report_id}` |
+| `REPORTE_RESUELTO` | transición a `RESUELTO` | `REPORTE_RESUELTO:{report_id}:{cycle}` |
+| `RECOMPENSA_DISPONIBLE` | lote diario | `RECOMPENSA_DISPONIBLE:{user_id}:{institution_id}:{YYYY-MM}` |
+
+- Solo al **autor**, y no si el reporte no tiene autor (X) o el autor está inactivo. No hay
+  correo por `CLASIFICADO`, `EN_PROCESO`, cierre, reversión ni confirmación.
+- Los correos no llevan descripción, ubicación, fotos, puntos, motivo ni enlaces.
+  `REPORTE_CREADO` tampoco nombra la categoría.
+- Se crean dentro de la transacción y se encolan en `on_commit`; un choque de `dedup_key`
+  no crea nada ni aborta la transacción.
+- **Reintentos:** solo los fallos transitorios (red, timeout, 5xx o 429), 3 intentos con
+  esperas de 5 y 30 min, mientras la notificación siga `PENDIENTE`. Un fallo permanente
+  (otro 4xx, falta de configuración o de contexto) la deja `FALLIDO`, que sigue siendo
+  terminal: `resend_notification` es la recuperación manual y reinicia los intentos (CT-51).
+- Ninguna respuesta existente cambia de forma (S13-D14).
+- Elegibilidad de `RECOMPENSA_DISPONIBLE`: ciudadano activo y verificado con ≥ 1.000
+  créditos acreditados en una institución activa con recompensa activa, y sin canje ese mes.

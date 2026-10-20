@@ -56,3 +56,46 @@ Estado al inicio del paso 0. Todas fueron aprobadas el 19/10, y la v3 del plan (
 ## Pendiente heredado de S12
 
 `test_un_tipo_sin_plantilla_queda_fallido_y_no_envia` deja de usar `RECOMPENSA_DISPONIBLE`, que en S13 pasa a tener plantilla. Ahora prueba un tipo inexistente forzado en la fila (carril C, N13).
+
+## Estado final
+
+**Corte: 20/10/2026.** Implementado e integrado en `feat/s13-dashboards-integration`;
+el despliegue sigue pendiente al escribir. Esta tabla actualiza el estado de inicio
+sin reescribir las decisiones aprobadas.
+
+| ID | Estado final |
+|---|---|
+| S13-D01 | Aplicada: base `origin/main@3243362`, con S12 y #44–#51 incluidos. |
+| S13-D02 | Aplicada en código y verificada en local: retiro de `TelegramIngestedMessage` y de `telegram` en `ReportSource`, con guards. Al desplegar, de 18 a 17 entidades; migración productiva pendiente con D18. |
+| S13-D03 | Aplicada: las tres rutas de UI y los tres endpoints separados de métricas. |
+| S13-D04 | Aplicada: gráficos SVG propios con tablas accesibles, sin dependencia nueva. |
+| S13-D05 | Aplicada: caché por TTL (120/300 s), sin precálculo ni tablas nuevas. El fallback en vivo no se alcanza si cae Redis porque el throttle usa la misma caché; pendiente heredado del ranking. |
+| S13-D06 | Aplicada: mes local, métricas por eventos e institución efectiva, serie diaria y tendencia de 6 meses visible incluso con mes vacío (`a203ece`); ventana pública móvil de 6 meses. |
+| S13-D07 | Aplicada: sin SLA por defecto; `configured=false` y «Sin SLA definido» cuando no está cargado. |
+| S13-D08 | Aplicada con enmienda aprobada por el usuario el 20/10: k = 5 más supresión complementaria en `confirmations`, `redemptions` y `credits_issued`. Si queda una sola institución suprimida en una columna, se suprime además la publicada más chica o el total. Caché pública solo en 200; errores con `no-store`. |
+| S13-D09 | Aplicada: correos por evento al autor, contenido mínimo, creación transaccional y encolado en `on_commit`, con deduplicación. La elegibilidad se controla al crear; `send()` no revalida `is_active` (pendiente). |
+| S13-D10 | Aplicada: lote a las 09:00 locales, una notificación por usuario/institución/mes. Smoke: 1 en la primera corrida y 0 en la segunda. |
+| S13-D11 | Aplicada: reintentos transitorios acotados, `FALLIDO` terminal y recuperación manual. Corregida también la rama de reintentos vencidos con `created_at ≥ now − 24 h`. |
+| S13-D12 | Ejecutada: carril D integrado; 30 publicaciones ficticias, carga atómica e idempotente sin red, Celery, IA, puntos ni correos. Smoke: 30 creados y luego 30 omitidos. La carga productiva es una decisión aparte del usuario. |
+| S13-D13 | Aplicada: una llamada por servicio de reporte, con import diferido y después de los `on_commit` existentes. |
+| S13-D14 | Aplicada: sin cambios de forma en respuestas existentes ni insignia de origen X. |
+| S13-D15 | Aplicada: entorno local reutilizado y bases por carril; se mantuvo la exclusión de los tres launchers de EX-10. |
+| S13-D16 | Aplicada: CI de backend y frontend fijado en `ubuntu-24.04` (`eb3874d`). |
+| S13-D17 | Aplicada con el recorte de B4 (pasada UX), pendiente para S14/S15. X y la página del admin se conservaron; no se creó `S13_UX_HALLAZGOS.md`. |
+| S13-D18 | Pendiente. Se conserva backend primero en Heroku con reconciliación, conteo, respaldos, mantenimiento y migración manual; después merge/Vercel y comprobación del árbol desplegado. |
+
+Recortes y desvíos:
+
+- B4 quedó recortada; el smoke anotó que la tipografía del gráfico de tendencia escala
+  mucho en escritorio. No hubo informe de pasada UX.
+- Sin Chrome conectado, las acciones del smoke se hicieron por la API real que usa la UI;
+  Playwright headless verificó 8 páginas a 1280 y 375 px, sin errores JS ni scroll horizontal.
+- X sí se ejecutó en local. Desvío aceptado: `created_at` es el momento de carga y los
+  reportes suman en ese mes, no en el de `simulated_at`; cargarlo en producción queda aparte.
+- La revisión de código y seguridad (§7.4) no dejó críticos ni altos. Además de los
+  pendientes de D05/D09, quedan `NUM_PROXIES` para el throttle por IP (PR de configuración
+  aparte, también mapa y ranking), el rescate que puede reencolar la misma `PENDIENTE`
+  cada 5 min sin duplicar correos y la atomicidad por migración, no del conjunto
+  (mitigada por conteo previo y mantenimiento).
+- EX-10 suma una tarea por reporte (`REPORTE_CREADO` en `on_commit`); las corridas
+  posteriores a S13 no son directamente comparables con las anteriores.
