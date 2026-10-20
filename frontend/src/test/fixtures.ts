@@ -19,6 +19,7 @@ export function publicReport(overrides: Partial<PublicReport> = {}): PublicRepor
     latitude: -25.3,
     longitude: -57.6,
     created_at: "2026-08-27T12:00:00Z",
+    photo_url: null,
     ...overrides,
   };
 }
@@ -26,5 +27,5 @@ export function publicReport(overrides: Partial<PublicReport> = {}): PublicRepor
 export function publicReportDetail(
   overrides: Partial<PublicReportDetailData> = {},
 ): PublicReportDetailData {
-  return { ...publicReport(), confirmation_count: 0, ...overrides };
+  return { ...publicReport(), confirmation_count: 0, resolution_evidences: [], ...overrides };
 }

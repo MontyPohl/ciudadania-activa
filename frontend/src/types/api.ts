@@ -166,6 +166,7 @@ export interface PublicInstitution {
 
 /** Lista blanca exacta expuesta por la API pública; no contiene autor ni ubicación exacta. */
 export interface PublicReport {
+  photo_url: string | null;
   id: string;
   category: PublicCategory;
   institution: PublicInstitution | null;
@@ -180,6 +181,7 @@ export interface PublicReport {
 /** El contador existe solo en el detalle; el listado público cacheado no lo incluye. */
 export interface PublicReportDetailData extends PublicReport {
   confirmation_count: number;
+  resolution_evidences: { id: UUID; evidence_url: string; created_at: ISODateTime }[];
 }
 
 export type PublicReportsPage = PaginatedResponse<PublicReport>;

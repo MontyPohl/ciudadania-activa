@@ -207,3 +207,54 @@ describe("cliente de reportes públicos", () => {
     expect(fetch).toHaveBeenCalledOnce();
   });
 });
+
+describe("contrato B1 de medios públicos", () => {
+  beforeEach(() => {
+    vi.stubEnv("NEXT_PUBLIC_API_URL", API_ORIGIN);
+    vi.resetModules();
+    vi.stubGlobal("fetch", vi.fn());
+  });
+  afterEach(() => vi.unstubAllEnvs());
+  it("acepta foto y evidencia del proxy para un reporte resuelto", async () => {
+    const id = publicReport().id;
+    const evidenceId = "55555555-5555-4555-8555-555555555555";
+    const detail = publicReportDetail({
+      status: "RESUELTO",
+      photo_url: `/api/v1/public/reports/${id}/photo/`,
+      resolution_evidences: [
+        {
+          id: evidenceId,
+          evidence_url: `/api/v1/public/reports/${id}/evidence/${evidenceId}/`,
+          created_at: "2026-10-20T12:00:00Z",
+        },
+      ],
+    });
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(detail));
+    const { getPublicReport } = await import("@/lib/api/publicReports");
+    await expect(getPublicReport(id)).resolves.toEqual(detail);
+  });
+  it.each([
+    { photo_url: "https://external.example/photo.jpg" },
+    { photo_url: `/api/v1/public/reports/${publicReport().id}/photo/` },
+    { resolution_evidences: [{ id: "bad", evidence_url: "/private/", created_at: "bad" }] },
+    { resolution_evidences: null },
+  ])("rechaza medios fuera del contrato o del estado publicable: %j", async (override) => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse({ ...publicReportDetail(), ...override }));
+    const { getPublicReport } = await import("@/lib/api/publicReports");
+    await expect(getPublicReport(publicReport().id)).rejects.toMatchObject({ status: 502 });
+  });
+  it("valida también la lista blanca en el listado", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      jsonResponse({
+        count: 1,
+        next: null,
+        previous: null,
+        results: [{ ...publicReport(), citizen_id: "private" }],
+      }),
+    );
+    const { getPublicReports } = await import("@/lib/api/publicReports");
+    await expect(
+      getPublicReports({ bbox: "-57.7,-25.4,-57.4,-25.15", stateFilter: "all", category: null }),
+    ).rejects.toMatchObject({ status: 502 });
+  });
+});

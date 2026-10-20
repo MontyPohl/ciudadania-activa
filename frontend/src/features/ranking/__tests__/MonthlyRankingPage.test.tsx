@@ -97,10 +97,7 @@ it.each(cases)("muestra $name según el contrato mensual", async ({ entries, aut
         expect(row).not.toHaveClass("bg-brand-purple/10");
       }
       if (entry.is_private) {
-        expect(within(row).getByText("Usuario privado")).toHaveClass(
-          "italic",
-          "text-brand-black/60",
-        );
+        expect(within(row).getByText("Usuario privado")).toHaveClass("italic", "text-muted");
         expect(row.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
       }
     });

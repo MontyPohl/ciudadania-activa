@@ -1,3 +1,4 @@
+import { MapPin } from "lucide-react";
 import type { PublicCategory, PublicReportStateFilter } from "@/types/api";
 
 interface MapFiltersProps {
@@ -24,7 +25,7 @@ export function MapFilters({
       className="rounded-2xl border border-black/10 bg-white p-4"
       aria-label="Filtros del mapa"
     >
-      <div className="flex flex-col gap-4 md:flex-row md:items-end">
+      <div className="flex min-w-0 flex-col gap-4">
         <fieldset className="flex-1">
           <legend className="mb-2 text-sm font-semibold">Estado</legend>
           <div className="flex flex-wrap gap-2">
@@ -37,7 +38,7 @@ export function MapFilters({
             ).map(([value, label]) => (
               <label
                 key={value}
-                className="flex cursor-pointer items-center gap-2 rounded-full border border-brand-purple/25 px-3 py-2 text-sm has-checked:bg-brand-purple has-checked:text-white"
+                className="flex cursor-pointer items-center gap-2 rounded-full border border-brand-purple/25 px-3 py-2 text-sm has-checked:bg-primary has-checked:text-white"
               >
                 <input
                   type="radio"
@@ -53,13 +54,13 @@ export function MapFilters({
           </div>
         </fieldset>
 
-        <label className="flex min-w-56 flex-col gap-2 text-sm font-semibold">
+        <label className="flex min-w-0 flex-col gap-2 text-sm font-semibold">
           Categoría
           <select
             value={category ?? ""}
             disabled={categoriesLoading}
             onChange={(event) => onCategoryChange(event.target.value || null)}
-            className="rounded-lg border border-black/20 bg-white px-3 py-2 font-normal text-brand-black disabled:opacity-60"
+            className="rounded-lg border border-black/20 bg-white px-3 py-2 font-normal text-ink disabled:opacity-60"
           >
             <option value="">Todas las categorías</option>
             {categories.map((item) => (
@@ -71,8 +72,28 @@ export function MapFilters({
         </label>
       </div>
 
+      <div
+        className="mt-3 flex max-w-full gap-2 overflow-x-auto pb-2"
+        role="group"
+        aria-label="Categorías del mapa"
+      >
+        {[{ id: "all", slug: "", name: "Todas" }, ...categories].map((item) => (
+          <button
+            type="button"
+            key={item.id}
+            disabled={categoriesLoading}
+            aria-pressed={(category ?? "") === item.slug}
+            onClick={() => onCategoryChange(item.slug || null)}
+            className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border border-border px-3 text-sm text-primary aria-pressed:bg-primary aria-pressed:text-on-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+          >
+            <MapPin size={16} aria-hidden="true" />
+            {item.name}
+          </button>
+        ))}
+      </div>
+
       {categoriesLoading && (
-        <p className="mt-3 text-xs text-black/60" role="status">
+        <p className="mt-3 text-xs text-muted" role="status">
           Cargando categorías…
         </p>
       )}

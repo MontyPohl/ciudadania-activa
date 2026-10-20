@@ -35,7 +35,9 @@ test("CITIZEN_A autor no puede confirmar su reporte", async ({ page }) => {
     eligibilityCode: "SELF_CONFIRMATION_NOT_ALLOWED",
   });
   await expect(page.getByText("No puedes confirmar tu propio reporte.")).toBeVisible();
+  await page.getByText("Mi cuenta", { exact: true }).filter({ visible: true }).click();
   await expect(page.getByText(CITIZEN_A.email)).toBeVisible();
+  await page.keyboard.press("Escape");
   expect(metrics.postCount).toBe(0);
 });
 
@@ -61,7 +63,9 @@ test("reporte ya confirmado muestra estado bloqueado", async ({ page }) => {
 
 test("@F3 relato A/B: CITIZEN_B confirma una vez y recibe +10 pendientes", async ({ page }) => {
   const metrics = await openConfirmationDetail(page, { actor: "citizen-b" });
+  await page.getByText("Mi cuenta", { exact: true }).filter({ visible: true }).click();
   await expect(page.getByText(CITIZEN_B.email)).toBeVisible();
+  await page.keyboard.press("Escape");
   await expect(page.getByText("0 confirmaciones ciudadanas")).toBeVisible();
   await page.getByRole("button", { name: "Confirmo que el problema sigue ahí" }).click();
   await expect(page.getByText("Confirmación registrada.")).toBeVisible();

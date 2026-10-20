@@ -66,13 +66,19 @@ for (const width of [375, 1280]) {
         route.fulfill({ json: { db: true, redis: true } }),
       );
       const statuses = ["CREADO", "ASIGNADO", "EN_PROCESO", "RESUELTO", "CERRADO"] as const;
-      const reports = statuses.map((status, index) =>
-        publicReport({
-          id: `11111111-1111-4111-8111-11111111111${index}`,
+      const reports = statuses.map((status, index) => {
+        const id = `11111111-1111-4111-8111-11111111111${index}`;
+        return publicReport({
+          id,
           status,
+          photo_url: status === "CREADO" ? null : `/api/v1/public/reports/${id}/photo/`,
           latitude: -25.2867 + index * 0.004,
           longitude: -57.6333 + index * 0.005,
-        }),
+        });
+      });
+      await page.route(
+        /\/api\/v1\/public\/reports\/[^/]+\/(?:photo\/|evidence\/[^/]+\/)$/,
+        (route) => route.fulfill({ contentType: "image/png", body: syntheticPhoto().buffer }),
       );
       await page.route("**/api/v1/public/reports/?*", (route) =>
         route.fulfill({
@@ -107,7 +113,15 @@ for (const width of [375, 1280]) {
       );
       if (name.startsWith("bandeja")) await openOperatorQueue(page);
       await page.goto(url);
-      await page.waitForLoadState("networkidle");
+      // Esperar contenido verificable: Leaflet puede seguir solicitando teselas.
+      if (name === "mapa") {
+        await expect(
+          page.getByRole("heading", { name: `Reportes visibles (${reports.length})` }),
+        ).toBeVisible();
+        await expect(page.locator("[data-report-list-trigger]")).toHaveCount(reports.length);
+      } else {
+        await page.waitForLoadState("networkidle");
+      }
       await expect(page.locator("#contenido-principal")).toHaveCount(1);
       await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
       // Next.js mantiene un anunciador de rutas vacío con role="alert".

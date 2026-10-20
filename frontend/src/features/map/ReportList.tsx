@@ -1,3 +1,4 @@
+import { PublicPhoto } from "./PublicPhoto";
 import Link from "next/link";
 import { useCallback, type Ref } from "react";
 
@@ -35,7 +36,7 @@ function ReportListItem({
 
   return (
     <li
-      className={`rounded-xl border p-3 ${selected ? "border-brand-purple bg-brand-purple/5" : "border-black/10"}`}
+      className={`min-w-0 rounded-xl border p-3 wrap-anywhere ${selected ? "border-brand-purple bg-primary/5" : "border-black/10"}`}
     >
       <button
         ref={triggerRef}
@@ -44,15 +45,16 @@ function ReportListItem({
         onClick={(event) => onSelect(report, event.currentTarget)}
         className="w-full text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple"
       >
+        <PublicPhoto report={report} thumbnail />
         <span className="block font-semibold">{report.category.name}</span>
-        <span className="mt-1 block text-xs text-black/65">
+        <span className="mt-1 block text-xs text-muted">
           {STATUS_LABELS[report.status]} · {report.institution?.name ?? "Sin institución"}
         </span>
         <span className="mt-2 line-clamp-2 block text-sm">{report.description}</span>
       </button>
       <Link
         href={detailHref}
-        className="mt-3 inline-block text-sm font-semibold text-brand-purple underline"
+        className="mt-3 inline-block text-sm font-semibold text-primary underline"
       >
         Abrir detalle
       </Link>
@@ -77,13 +79,13 @@ export function ReportList({
       className="rounded-2xl border border-black/10 bg-white p-4"
       aria-labelledby="visible-reports-title"
     >
-      <h2 id="visible-reports-title" className="text-lg font-bold text-brand-purple">
+      <h2 id="visible-reports-title" className="text-lg font-bold text-primary">
         Reportes visibles ({reports.length})
       </h2>
-      <p className="mt-1 text-xs text-black/65">
+      <p className="mt-1 text-xs text-muted">
         Para navegar y seleccionar reportes con teclado, usá esta lista.
       </p>
-      <ul className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <ul className="mt-3 grid gap-3">
         {reports.map((report) => (
           <ReportListItem
             key={report.id}

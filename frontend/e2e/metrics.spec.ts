@@ -36,9 +36,7 @@ test("métricas institucionales y transparencia pública", async ({ page }) => {
       .getByRole("link", { name: "Estadísticas", exact: true })
       .click();
     await expect(page).toHaveURL(/\/transparencia$/);
-    await expect(
-      page.getByRole("heading", { name: "Transparencia: últimos 6 meses", exact: true }),
-    ).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Estadísticas", exact: true })).toBeVisible();
     const canjes = page
       .getByRole("region", { name: "Totales del período", exact: true })
       .getByText("Canjes", { exact: true })
@@ -56,4 +54,22 @@ test("métricas institucionales y transparencia pública", async ({ page }) => {
       ),
     ).toBeVisible();
   });
+});
+
+test("Estadísticas ofrece tabla neutral, categorías suprimidas y ciudadanos del mes", async ({
+  page,
+}) => {
+  await mockMetricsApi(page, "anonymous");
+  await mockLandingResources(page);
+  await page.goto("/transparencia");
+  await expect(page.getByRole("table", { name: "Gestión por institución" })).toBeVisible();
+  const category = page.getByRole("figure", { name: "Reportes por categoría del mes actual" });
+  await category.getByRole("button", { name: /Ver como tabla/ }).click();
+  await expect(category.getByRole("table").getByRole("cell").first()).toHaveText("—");
+  await page.getByRole("tab", { name: "Ciudadanos del mes" }).click();
+  await expect(page.getByText("Todavía no hay puntos acreditados este mes")).toBeVisible();
+  await expect(page.locator("#contenido-principal")).toHaveCount(1);
+  await expect(page.getByRole("region", { name: "Indicadores de la zona del mapa" })).toContainText(
+    "No son totales de la ciudad",
+  );
 });

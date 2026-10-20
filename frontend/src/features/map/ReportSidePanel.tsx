@@ -1,5 +1,6 @@
 "use client";
 
+import { PublicPhoto } from "./PublicPhoto";
 import Link from "next/link";
 import { useEffect, useRef } from "react";
 
@@ -29,11 +30,11 @@ export function ReportSidePanel({ report, detailHref, onClose }: ReportSidePanel
       ref={panelRef}
       tabIndex={-1}
       aria-labelledby="report-panel-title"
-      className="fixed inset-x-3 bottom-3 z-[1000] max-h-[45dvh] overflow-y-auto rounded-2xl border border-black/10 bg-white p-5 shadow-2xl outline-none focus-visible:ring-2 focus-visible:ring-brand-purple lg:static lg:z-auto lg:max-h-none lg:self-start lg:shadow-sm"
+      className="fixed inset-x-3 bottom-3 z-[1000] max-h-[45dvh] overflow-y-auto rounded-2xl border border-black/10 bg-white p-5 shadow-2xl outline-none focus-visible:ring-2 focus-visible:ring-brand-purple lg:absolute lg:inset-x-auto lg:top-4 lg:right-4 lg:bottom-auto lg:max-h-[calc(100%-6rem)] lg:w-80"
     >
       <div className="mb-5 flex items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold tracking-wide text-brand-purple uppercase">Reporte</p>
+          <p className="text-xs font-semibold tracking-wide text-primary uppercase">Reporte</p>
           <h2 id="report-panel-title" className="text-xl font-bold">
             {report.category.name}
           </h2>
@@ -48,11 +49,12 @@ export function ReportSidePanel({ report, detailHref, onClose }: ReportSidePanel
         </button>
       </div>
 
+      <PublicPhoto report={report} thumbnail />
       <ReportFields report={report} />
 
       <Link
         href={detailHref}
-        className="mt-6 inline-flex rounded-lg bg-brand-purple px-4 py-2 text-sm font-semibold text-white"
+        className="mt-6 inline-flex rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white"
       >
         Ver detalle
       </Link>

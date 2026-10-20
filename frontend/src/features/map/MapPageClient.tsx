@@ -43,6 +43,7 @@ interface FocusOrigin {
 }
 
 export function MapPageClient() {
+  const [mobileView, setMobileView] = useState<"list" | "map">("list");
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -377,6 +378,7 @@ export function MapPageClient() {
   );
 
   const handleClose = useCallback(() => {
+    setMobileView("list");
     const origin = focusOrigin.current;
     focusOrigin.current = null;
     pendingFocusReportId.current = origin?.reportId ?? null;
@@ -404,58 +406,87 @@ export function MapPageClient() {
     <main
       id="contenido-principal"
       tabIndex={-1}
-      className="mx-auto flex w-full max-w-[96rem] flex-1 flex-col gap-5 px-4 py-6 sm:px-6"
+      className="relative flex min-w-0 flex-1 flex-col bg-canvas lg:h-[calc(100dvh-var(--public-header-height))] lg:min-h-[38rem] lg:flex-none lg:flex-row lg:overflow-hidden"
     >
-      <header>
-        <p className="text-sm font-semibold text-brand-green-ink">Participación abierta</p>
-        <h1 className="text-3xl font-bold text-brand-purple">Mapa público de reportes</h1>
-        <p className="mt-2 max-w-3xl text-sm text-black/65">
-          Explorá reportes urbanos con ubicación aproximada. Acercá el mapa y usá los filtros para
-          consultar la zona visible.
-        </p>
-        <Link
-          href="/transparencia"
-          className="mt-2 inline-flex min-h-11 items-center rounded font-semibold text-brand-purple underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple"
-        >
-          Ver métricas de transparencia
-        </Link>
-      </header>
-
-      <MapFilters
-        stateFilter={query.stateFilter}
-        category={categoryIsKnown ? query.category : null}
-        categories={categories.items}
-        categoriesLoading={categories.phase === "loading"}
-        categoriesError={categories.phase === "error"}
-        onStateChange={(value: PublicReportStateFilter) =>
-          replaceQuery({ estado: value, reporte: null })
-        }
-        onCategoryChange={(value) => replaceQuery({ categoria: value, reporte: null })}
-      />
-
-      <div
-        ref={resultsStatusRef}
-        tabIndex={-1}
-        aria-label="Estado de resultados del mapa"
-        className="min-h-6 text-sm text-black/70"
-        aria-live="polite"
-      >
-        <MapResultsStatus phase={resultsPhase} />
-        {deepLinkMessage !== null && (
-          <p role="alert" className="text-brand-orange-ink">
-            {deepLinkMessage}
-          </p>
-        )}
+      <div className="flex gap-2 p-3 lg:hidden" role="group" aria-label="Vista del mapa">
+        {(
+          [
+            ["list", "Lista"],
+            ["map", "Mapa"],
+          ] as const
+        ).map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            aria-pressed={mobileView === value}
+            onClick={() => setMobileView(value)}
+            className="min-h-11 flex-1 rounded-lg border border-border bg-surface px-4 font-semibold text-primary aria-pressed:bg-primary aria-pressed:text-on-primary focus-visible:outline-2 focus-visible:outline-focus"
+          >
+            {label}
+          </button>
+        ))}
       </div>
-
       <div
-        className={
-          selectedReport === null
-            ? "min-w-0"
-            : "grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_22rem]"
-        }
+        className={`${mobileView === "list" ? "flex" : "hidden"} min-w-0 flex-col gap-4 bg-surface p-4 lg:flex lg:min-h-0 lg:w-[380px] lg:shrink-0 lg:overflow-y-auto lg:[&>*]:shrink-0`}
+      >
+        <header>
+          <p className="text-sm font-semibold text-primary">Participación abierta</p>
+          <h1 className="mt-1 text-2xl font-bold text-primary">Mapa público de reportes</h1>
+          <p className="mt-2 text-sm text-muted">
+            Explorá reportes urbanos con ubicación aproximada. Acercá el mapa y usá los filtros para
+            consultar la zona visible.
+          </p>
+          <p className="mt-3 font-semibold text-primary">
+            {resultsPhase === "ready" || resultsPhase === "empty"
+              ? `${reports.length} reportes del área visible`
+              : "Consultá el área visible"}
+          </p>
+          <Link
+            href="/transparencia"
+            className="inline-flex min-h-11 items-center text-sm font-semibold text-primary underline"
+          >
+            Ver estadísticas
+          </Link>
+        </header>
+        <MapFilters
+          stateFilter={query.stateFilter}
+          category={categoryIsKnown ? query.category : null}
+          categories={categories.items}
+          categoriesLoading={categories.phase === "loading"}
+          categoriesError={categories.phase === "error"}
+          onStateChange={(value: PublicReportStateFilter) =>
+            replaceQuery({ estado: value, reporte: null })
+          }
+          onCategoryChange={(value) => replaceQuery({ categoria: value, reporte: null })}
+        />
+        <div
+          ref={resultsStatusRef}
+          tabIndex={-1}
+          aria-label="Estado de resultados del mapa"
+          className="min-h-6 text-sm text-muted"
+          aria-live="polite"
+        >
+          <MapResultsStatus phase={resultsPhase} />
+          {deepLinkMessage !== null && (
+            <p role="alert" className="text-warning-ink">
+              {deepLinkMessage}
+            </p>
+          )}
+        </div>
+        <ReportList
+          listRef={reportListRef}
+          reports={reports}
+          selectedId={selectedReport?.id ?? null}
+          detailHref={detailHref}
+          onSelect={handleSelect}
+          onTriggerRef={handleReportTriggerRef}
+        />
+      </div>
+      <div
+        className={`${mobileView === "map" ? "relative" : "invisible absolute inset-x-0 pointer-events-none"} min-w-0 flex-1 lg:pointer-events-auto lg:visible lg:relative`}
       >
         <MapView
+          detailHref={detailHref}
           reports={reports}
           viewport={viewport}
           selectedId={selectedReport?.id ?? null}
@@ -463,23 +494,14 @@ export function MapPageClient() {
           onViewport={handleViewport}
           onSelect={handleSelect}
         />
-        {selectedReport !== null && (
-          <ReportSidePanel
-            report={selectedReport}
-            detailHref={detailHref(selectedReport)}
-            onClose={handleClose}
-          />
-        )}
       </div>
-
-      <ReportList
-        listRef={reportListRef}
-        reports={reports}
-        selectedId={selectedReport?.id ?? null}
-        detailHref={detailHref}
-        onSelect={handleSelect}
-        onTriggerRef={handleReportTriggerRef}
-      />
+      {selectedReport !== null && (
+        <ReportSidePanel
+          report={selectedReport}
+          detailHref={detailHref(selectedReport)}
+          onClose={handleClose}
+        />
+      )}
     </main>
   );
 }

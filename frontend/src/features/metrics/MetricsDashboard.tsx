@@ -70,7 +70,7 @@ export function MetricsDashboard({ metrics: m }: { metrics: InstitutionMetrics }
         </dl>
       </div>
       {empty ? (
-        <p role="status" className="rounded-2xl bg-brand-purple/5 p-6">
+        <p role="status" className="rounded-2xl bg-primary/5 p-6">
           Todavía no hay reportes en {monthLabel(m.period)}.
         </p>
       ) : (
@@ -171,7 +171,7 @@ export function MetricsDashboard({ metrics: m }: { metrics: InstitutionMetrics }
           </div>
         </section>
       )}
-      <p className="text-sm text-brand-black/70">
+      <p className="text-sm text-muted">
         Datos calculados a las{" "}
         {new Intl.DateTimeFormat("es-PY", {
           hour: "2-digit",

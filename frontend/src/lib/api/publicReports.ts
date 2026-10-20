@@ -98,9 +98,22 @@ export async function getPublicReports(
     }
     visited.add(url.href);
 
-    const page = await publicApiFetch<PublicReportsPage>(url.href, { signal });
+    const raw = await publicApiFetch<unknown>(url.href, { signal });
+    if (
+      !isRecord(raw) ||
+      !hasExactKeys(raw, ["count", "next", "previous", "results"]) ||
+      typeof raw.count !== "number" ||
+      !Number.isSafeInteger(raw.count) ||
+      raw.count < 0 ||
+      !(raw.next === null || typeof raw.next === "string") ||
+      !(raw.previous === null || typeof raw.previous === "string") ||
+      !Array.isArray(raw.results)
+    ) {
+      throw new PublicApiError("La API devolvió un listado público inválido.", 502);
+    }
+    const page = raw as unknown as PublicReportsPage;
     firstPage ??= page;
-    results.push(...page.results);
+    results.push(...page.results.map((item) => parsePublicReport(item)));
     next = page.next;
   }
 
@@ -132,7 +145,9 @@ function isSummary(value: unknown): boolean {
   );
 }
 
-function parsePublicReportDetail(value: unknown): PublicReportDetailData {
+function parsePublicReport(value: unknown, detail: true): PublicReportDetailData;
+function parsePublicReport(value: unknown, detail?: false): PublicReport;
+function parsePublicReport(value: unknown, detail = false): PublicReport | PublicReportDetailData {
   if (
     !isRecord(value) ||
     !hasExactKeys(value, [
@@ -145,7 +160,8 @@ function parsePublicReportDetail(value: unknown): PublicReportDetailData {
       "latitude",
       "longitude",
       "created_at",
-      "confirmation_count",
+      "photo_url",
+      ...(detail ? ["confirmation_count", "resolution_evidences"] : []),
     ]) ||
     typeof value.id !== "string" ||
     !UUID_PATTERN.test(value.id) ||
@@ -166,9 +182,28 @@ function parsePublicReportDetail(value: unknown): PublicReportDetailData {
     value.longitude > 180 ||
     typeof value.created_at !== "string" ||
     Number.isNaN(Date.parse(value.created_at)) ||
-    typeof value.confirmation_count !== "number" ||
-    !Number.isInteger(value.confirmation_count) ||
-    value.confirmation_count < 0
+    !(
+      value.photo_url === null || value.photo_url === `/api/v1/public/reports/${value.id}/photo/`
+    ) ||
+    (value.photo_url !== null &&
+      !["ASIGNADO", "EN_PROCESO", "RESUELTO", "CERRADO"].includes(String(value.status))) ||
+    (detail &&
+      (typeof value.confirmation_count !== "number" ||
+        !Number.isSafeInteger(value.confirmation_count) ||
+        value.confirmation_count < 0 ||
+        !Array.isArray(value.resolution_evidences) ||
+        (!["RESUELTO", "CERRADO"].includes(String(value.status)) &&
+          value.resolution_evidences.length > 0) ||
+        !value.resolution_evidences.every(
+          (item: unknown) =>
+            isRecord(item) &&
+            hasExactKeys(item, ["id", "evidence_url", "created_at"]) &&
+            typeof item.id === "string" &&
+            UUID_PATTERN.test(item.id) &&
+            item.evidence_url === `/api/v1/public/reports/${value.id}/evidence/${item.id}/` &&
+            typeof item.created_at === "string" &&
+            !Number.isNaN(Date.parse(item.created_at)),
+        )))
   ) {
     throw new PublicApiError("La API devolvió un detalle público inválido.", 502);
   }
@@ -183,5 +218,5 @@ export async function getPublicReport(
     `/api/v1/public/reports/${encodeURIComponent(id)}/`,
     { signal },
   );
-  return parsePublicReportDetail(response);
+  return parsePublicReport(response, true);
 }

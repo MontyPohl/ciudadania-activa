@@ -1,4 +1,5 @@
 "use client";
+import { Card } from "@/components/ui/Card";
 import { useId, useState, type ReactNode } from "react";
 export function ChartFigure({
   title,
@@ -14,10 +15,7 @@ export function ChartFigure({
   const [table, setTable] = useState(false);
   const id = useId();
   return (
-    <figure
-      className="min-w-0 rounded-2xl border border-brand-black/10 bg-white p-4 sm:p-6"
-      aria-labelledby={`${id}-caption`}
-    >
+    <Card as="figure" aria-labelledby={`${id}-caption`}>
       <figcaption id={`${id}-caption`} className="mb-4 text-lg font-semibold">
         {title}
       </figcaption>
@@ -27,7 +25,7 @@ export function ChartFigure({
         onClick={() => setTable(!table)}
         aria-expanded={table}
         aria-controls={`${id}-table`}
-        className="mt-3 min-h-11 rounded-lg px-3 text-sm font-semibold text-brand-purple underline underline-offset-4 hover:bg-brand-purple/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple"
+        className="mt-3 min-h-11 rounded-lg px-3 text-sm font-semibold text-primary underline underline-offset-4 hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple"
       >
         {table ? "Ocultar tabla" : "Ver como tabla"}
         <span className="sr-only">: {title}</span>
@@ -63,7 +61,7 @@ export function ChartFigure({
           </tbody>
         </table>
       </div>
-    </figure>
+    </Card>
   );
 }
 /** Máximo lineal redondeado a 1, 2 o 5 × 10ⁿ. */

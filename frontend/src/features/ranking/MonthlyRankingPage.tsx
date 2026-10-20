@@ -1,5 +1,7 @@
 "use client";
 
+import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -26,41 +28,45 @@ function periodLabel(period: string): string {
     .replace(" de ", " ");
 }
 
-export function MonthlyRankingPage() {
+export function MonthlyRankingPage({ embedded = false }: { embedded?: boolean }) {
+  const Container = embedded ? "section" : "main";
+  const Heading = embedded ? "h2" : "h1";
   const session = useSession();
   const [reload, setReload] = useState(0);
   const viewer = session.status === "authenticated" ? session.user.id : session.status;
 
   return (
-    <main
-      id="contenido-principal"
+    <Container
+      id={embedded ? undefined : "contenido-principal"}
       tabIndex={-1}
-      className="mx-auto w-full max-w-2xl space-y-6 px-6 py-10"
+      className="mx-auto w-full max-w-2xl space-y-6 rounded-2xl bg-surface px-4 py-6 shadow-sm sm:px-6"
     >
       {session.status === "loading" ? (
         <>
-          <h1 className="text-2xl font-bold text-brand-purple">Ranking del mes</h1>
-          <p role="status" className="text-brand-black/70">
+          <Heading className="text-2xl font-bold text-primary">Ranking del mes</Heading>
+          <p role="status" className="text-muted">
             Cargando el ranking…
           </p>
         </>
       ) : (
         <RankingContent
           key={`${viewer}:${reload}`}
+          embedded={embedded}
           onRetry={() => setReload((value) => value + 1)}
         />
       )}
       <Link
         href="/perfil"
-        className="inline-block py-2 font-semibold text-brand-purple underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-4"
+        className="inline-block py-2 font-semibold text-primary underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-4"
       >
         Configurá cómo aparecés
       </Link>
-    </main>
+    </Container>
   );
 }
 
-function RankingContent({ onRetry }: { onRetry: () => void }) {
+function RankingContent({ onRetry, embedded }: { onRetry: () => void; embedded: boolean }) {
+  const Heading = embedded ? "h2" : "h1";
   const [state, setState] = useState<RankingState>({ phase: "loading" });
 
   useEffect(() => {
@@ -85,53 +91,53 @@ function RankingContent({ onRetry }: { onRetry: () => void }) {
   return (
     <>
       <div className="space-y-2">
-        <h1 className="text-2xl font-bold text-brand-purple">
+        <Heading className="text-2xl font-bold text-primary">
           {state.phase === "ready"
             ? `Ranking de ${periodLabel(state.ranking.period)}`
             : "Ranking del mes"}
-        </h1>
-        <p className="text-brand-black/70">
-          Los 10 ciudadanos con más puntos acreditados este mes.
-        </p>
+        </Heading>
+        <p className="text-muted">Los 10 ciudadanos con más puntos acreditados este mes.</p>
       </div>
       {state.phase === "loading" && (
-        <p role="status" className="text-brand-black/70">
+        <p role="status" className="text-muted">
           Cargando el ranking…
         </p>
       )}
       {state.phase === "error" && (
         <div className="space-y-3">
-          <p role="alert" className="text-brand-black/80">
+          <p role="alert" className="text-ink">
             {state.message}
           </p>
-          <button
+          <Button
+            variant="secondary"
             type="button"
             onClick={onRetry}
-            className="min-h-11 rounded-lg border border-brand-purple px-4 py-2 font-semibold text-brand-purple hover:bg-brand-purple/5 focus-visible:outline-2 focus-visible:outline-offset-4"
+            className="min-h-11 rounded-lg border border-brand-purple px-4 py-2 font-semibold text-primary hover:bg-brand-purple/5 focus-visible:outline-2 focus-visible:outline-offset-4"
           >
             Reintentar
-          </button>
+          </Button>
         </div>
       )}
       {state.phase === "ready" &&
         (state.ranking.entries.length === 0 ? (
-          <p role="status" className="rounded-xl bg-brand-black/5 p-6 text-brand-black/70">
+          <p role="status" className="rounded-xl bg-brand-black/5 p-6 text-muted">
             Todavía no hay puntos acreditados este mes
           </p>
         ) : (
           <ol aria-label="Ranking mensual" className="space-y-2">
             {state.ranking.entries.map((entry) => (
-              <li
+              <Card
+                as="li"
                 key={entry.position}
                 value={entry.position}
                 className={`flex items-center gap-3 rounded-xl border p-4 ${entry.is_me ? "border-brand-purple bg-brand-purple/10" : "border-brand-black/10 bg-white"}`}
               >
-                <span className="w-6 shrink-0 text-center font-semibold tabular-nums text-brand-black/60">
+                <span className="w-6 shrink-0 text-center font-semibold tabular-nums text-muted">
                   {entry.position}
                 </span>
                 <div className="min-w-0 flex-1">
                   <span
-                    className={`break-words ${entry.is_private ? "italic text-brand-black/60" : "font-semibold text-brand-black"}`}
+                    className={`break-words ${entry.is_private ? "italic text-muted" : "font-semibold text-brand-black"}`}
                   >
                     {entry.is_private && (
                       <svg
@@ -154,11 +160,11 @@ function RankingContent({ onRetry }: { onRetry: () => void }) {
                     </span>
                   )}
                 </div>
-                <span className="shrink-0 text-right text-sm tabular-nums text-brand-black/80">
+                <span className="shrink-0 text-right text-sm tabular-nums text-ink">
                   <strong className="font-semibold">{entry.points.toLocaleString("es-PY")}</strong>
                   <span className="block text-xs">puntos</span>
                 </span>
-              </li>
+              </Card>
             ))}
           </ol>
         ))}

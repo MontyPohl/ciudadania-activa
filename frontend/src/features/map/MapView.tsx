@@ -1,5 +1,7 @@
 "use client";
 
+import { Button } from "@/components/ui/Button";
+import { Plus } from "lucide-react";
 import { MapContainer, TileLayer } from "react-leaflet";
 
 import { MapResizeWatcher } from "@/components/maps/MapResizeWatcher";
@@ -15,6 +17,7 @@ import { OSM_ATTRIBUTION, OSM_TILE_URL } from "@/lib/maps/osm";
 import type { PublicReport } from "@/types/api";
 
 interface MapViewProps {
+  detailHref: (report: PublicReport) => string;
   reports: PublicReport[];
   viewport: { bbox: MapBbox; zoom: number } | null;
   selectedId: string | null;
@@ -24,6 +27,7 @@ interface MapViewProps {
 }
 
 export default function MapView({
+  detailHref,
   reports,
   viewport,
   selectedId,
@@ -32,8 +36,11 @@ export default function MapView({
   onSelect,
 }: MapViewProps) {
   return (
-    <div className="relative h-[32rem] min-h-[28rem] overflow-hidden rounded-2xl border border-black/10 bg-brand-purple/5 lg:h-[calc(100dvh-var(--public-header-height)-13rem)]">
+    <div className="relative h-[calc(100dvh-var(--public-header-height)-5rem)] min-h-[32rem] overflow-hidden bg-canvas lg:h-full">
       <MapContainer
+        fadeAnimation={false}
+        zoomAnimation={false}
+        markerZoomAnimation={false}
         bounds={INITIAL_MAP_BOUNDS}
         boundsOptions={{ padding: [20, 20] }}
         maxZoom={19}
@@ -46,6 +53,7 @@ export default function MapView({
         <MapDeepLinkFocus target={focusTarget} />
         {viewport !== null && isQueryableBbox(viewport.bbox) && (
           <MapMarkers
+            detailHref={detailHref}
             reports={reports}
             bbox={viewport.bbox}
             zoom={viewport.zoom}
@@ -55,6 +63,10 @@ export default function MapView({
         )}
       </MapContainer>
       <MapLegend />
+      <Button href="/reportes/nuevo" className="absolute right-3 bottom-8 z-[500] shadow-lg">
+        <Plus size={18} aria-hidden="true" />
+        Crear reporte
+      </Button>
     </div>
   );
 }

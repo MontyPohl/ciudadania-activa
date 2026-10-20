@@ -253,14 +253,8 @@ test("S15: mapa ofrece selección y regreso con teclado en móvil", async ({ pag
   await expect(trigger).toBeVisible();
   const legend = page.getByRole("region", { name: "Leyenda de estados" });
   const symbols = legend.locator("li > span[aria-hidden]");
-  const colors = [
-    "rgb(26, 82, 118)",
-    "rgb(26, 82, 118)",
-    "rgb(26, 82, 118)",
-    "rgb(154, 77, 11)",
-    "rgb(28, 115, 64)",
-    "rgb(28, 115, 64)",
-  ];
+  await page.getByRole("button", { name: "Mapa", exact: true }).click();
+  const colors = ["rgb(26, 82, 118)", "rgb(154, 77, 11)", "rgb(28, 115, 64)"];
   await expect(symbols).toHaveCount(colors.length);
   for (const [index, color] of colors.entries()) {
     await expect(symbols.nth(index)).toHaveCSS("background-color", color);
@@ -269,6 +263,7 @@ test("S15: mapa ofrece selección y regreso con teclado en móvil", async ({ pag
   const pin = page.locator(".ca-report-marker--creado");
   await expect(pin).toHaveCSS("background-color", colors[0]);
   await expect(pin).toHaveText("●");
+  await page.getByRole("button", { name: "Lista", exact: true }).click();
   await trigger.focus();
   await page.keyboard.press("Enter");
   const panel = page.getByRole("complementary", { name: "Baches", exact: true });
@@ -278,6 +273,15 @@ test("S15: mapa ofrece selección y regreso con teclado en móvil", async ({ pag
   await expect(panel).not.toBeVisible();
   await expect(trigger).toBeFocused();
   await expectNoHorizontalOverflow(page);
+  await page.getByRole("button", { name: "Mapa", exact: true }).click();
+  await pin.click();
+  await expect(panel).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(trigger).toBeFocused();
+  await expect(page.getByRole("button", { name: "Lista", exact: true })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
 });
 
 test("S15: primer Tab salta la navegación durante la carga y en perfil", async ({
@@ -470,5 +474,80 @@ for (const width of [320, 375, 1280]) {
     await expect(page.locator("#contenido-principal")).toHaveCount(1);
     await expectNoHorizontalOverflow(page);
     await capture(page, testInfo, `admin-navigation-${width}`);
+  });
+}
+
+for (const width of [320, 375, 768, 1280]) {
+  test(`S15: medios públicos y detalle a ${width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    await mockMetricsApi(page, "anonymous");
+    const report = publicReport({ status: "RESUELTO" });
+    const evidenceId = "55555555-5555-4555-8555-555555555555";
+    const photoPath = `/api/v1/public/reports/${report.id}/photo/`;
+    const evidencePath = `/api/v1/public/reports/${report.id}/evidence/${evidenceId}/`;
+    report.photo_url = photoPath;
+    const png = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+      "base64",
+    );
+    await page.route("https://tile.openstreetmap.org/**", (route) =>
+      route.fulfill({ contentType: "image/png", body: png }),
+    );
+    await page.route("**/api/v1/public/reports/**", (route) => {
+      const path = new URL(route.request().url()).pathname;
+      if (path === photoPath || path === evidencePath)
+        return route.fulfill({ contentType: "image/png", body: png });
+      if (path === `/api/v1/public/reports/${report.id}/`)
+        return route.fulfill({
+          json: {
+            ...report,
+            confirmation_count: 0,
+            resolution_evidences: [
+              { id: evidenceId, evidence_url: evidencePath, created_at: "2026-10-20T12:00:00Z" },
+            ],
+          },
+        });
+      return route.fulfill({ json: { count: 1, next: null, previous: null, results: [report] } });
+    });
+    await page.route("**/api/v1/public/categories/", (route) =>
+      route.fulfill({ json: [report.category] }),
+    );
+    await page.goto("/mapa?estado=resolved");
+    const trigger = page.locator(`[data-report-list-trigger="${report.id}"]`);
+    await expect(trigger).toBeVisible();
+    await trigger.scrollIntoViewIfNeeded();
+    const thumbnail = trigger.getByRole("img", {
+      name: "Reporte de Baches · Resuelto",
+      exact: true,
+    });
+    await expect(thumbnail).toHaveAttribute("loading", "lazy");
+    await expect(thumbnail).toHaveAttribute("src", new RegExp(`${photoPath}$`));
+    await expect(thumbnail).toBeVisible();
+    await expect
+      .poll(() =>
+        thumbnail.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0),
+      )
+      .toBe(true);
+    await expectNoHorizontalOverflow(page);
+    if (width < 1024) await page.getByRole("button", { name: "Mapa", exact: true }).click();
+    await page.locator(".ca-report-marker--resuelto").click();
+    await expect(page.locator(".leaflet-popup").getByRole("img")).toBeVisible();
+    await page
+      .getByRole("link", { name: "Ver detalle", exact: true })
+      .filter({ visible: true })
+      .last()
+      .click();
+    await expect(page).toHaveURL(new RegExp(`/reporte/${report.id}`));
+    await expect(page.getByRole("link", { name: /Ampliar foto/ })).toHaveAttribute(
+      "target",
+      "_blank",
+    );
+    await expect(
+      page.getByRole("img", { name: "Evidencia de resolución de Baches · Resuelto" }),
+    ).toBeVisible();
+    await expect(page.locator('[aria-current="step"]')).toHaveText("Resuelto");
+    await expect(page.locator("#contenido-principal")).toHaveCount(1);
+    await expectNoHorizontalOverflow(page);
+    await capture(page, testInfo, `report-detail-${width}`);
   });
 }

@@ -22,6 +22,7 @@ export function ReportPhotoField({
   const inputId = generatedId + "-photo";
   const helpId = generatedId + "-help";
   const errorId = generatedId + "-error";
+  const publicNoticeId = generatedId + "-public-notice";
   const inputRef = useRef<HTMLInputElement>(null);
   const [localError, setLocalError] = useState<string | null>(null);
   const visibleError = localError ?? error;
@@ -60,12 +61,15 @@ export function ReportPhotoField({
           accept="image/jpeg,image/png"
           disabled={disabled}
           aria-invalid={visibleError !== undefined && visibleError !== null}
-          aria-describedby={`${helpId}${visibleError ? ` ${errorId}` : ""}`}
+          aria-describedby={`${helpId} ${publicNoticeId}${visibleError ? ` ${errorId}` : ""}`}
           onChange={selectPhoto}
           className="max-w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-brand-purple file:px-4 file:py-2 file:font-semibold file:text-white disabled:opacity-55"
         />
         <p id={helpId} className="text-xs text-brand-black/65">
           JPEG o PNG, hasta 5 MiB. La imagen no se comprime ni se transforma.
+        </p>
+        <p id={publicNoticeId} className="rounded-lg bg-primary/5 p-3 text-sm text-primary">
+          La foto será pública: evitá caras, patentes y datos personales.
         </p>
         {visibleError && (
           <p id={errorId} role="alert" className="text-sm font-medium text-brand-orange-ink">

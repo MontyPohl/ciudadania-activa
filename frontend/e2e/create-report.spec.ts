@@ -61,7 +61,7 @@ test.describe("guards browser", () => {
 test("happy path envía un multipart exacto y usa reward/link del 201", async ({ page }) => {
   const metrics = await openReportWizard(page);
   await reachConfirmation(page);
-  await page.getByRole("button", { name: "Crear reporte" }).click();
+  await page.getByRole("button", { name: "Crear reporte", exact: true }).click();
 
   await expect(page.getByRole("heading", { name: "Reporte creado correctamente" })).toBeVisible();
   await expect(page.locator("main[aria-live='polite']")).toBeVisible();
@@ -136,7 +136,7 @@ test("GPS sintético solo actúa tras el click y conserva sus coordenadas canón
   await page.getByRole("button", { name: "Usar mi ubicación" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Ubicación obtenida" })).toBeVisible();
   await page.getByRole("button", { name: "Continuar" }).click();
-  await page.getByRole("button", { name: "Crear reporte" }).click();
+  await page.getByRole("button", { name: "Crear reporte", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Reporte creado correctamente" })).toBeVisible();
   expect(metrics.postBodies[0].get("lat")).toBe(String(latitude));
   expect(metrics.postBodies[0].get("lng")).toBe(String(longitude));
@@ -165,7 +165,7 @@ test("coordenadas por teclado mantienen precisión completa en el POST", async (
   await longitude.fill(PRECISE_LONGITUDE);
   await page.getByRole("button", { name: "Aplicar coordenadas" }).click();
   await page.getByRole("button", { name: "Continuar" }).click();
-  await page.getByRole("button", { name: "Crear reporte" }).click();
+  await page.getByRole("button", { name: "Crear reporte", exact: true }).click();
   await expect.poll(() => metrics.postCount).toBe(1);
   expect(metrics.postBodies[0].get("lat")).toBe(PRECISE_LATITUDE);
   expect(metrics.postBodies[0].get("lng")).toBe(PRECISE_LONGITUDE);
@@ -223,16 +223,16 @@ test("@F2 duplicados se consulta una vez solo al confirmar y el warning no bloqu
     "href",
     `/reporte/${DUPLICATE_ID}`,
   );
-  await expect(page.getByRole("button", { name: "Crear reporte" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Crear reporte", exact: true })).toBeEnabled();
   await page.getByRole("button", { name: "Continuar de todos modos" }).click();
-  await expect(page.getByRole("button", { name: "Crear reporte" })).toBeFocused();
+  await expect(page.getByRole("button", { name: "Crear reporte", exact: true })).toBeFocused();
 });
 
 test("fallo de duplicados es advisory y permite completar el 201", async ({ page }) => {
   const metrics = await openReportWizard(page, { duplicates: "error" });
   await reachConfirmation(page);
   await expect(page.getByText(/Esto no impide crear/)).toBeVisible();
-  await page.getByRole("button", { name: "Crear reporte" }).click();
+  await page.getByRole("button", { name: "Crear reporte", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Reporte creado correctamente" })).toBeVisible();
   expect(metrics.duplicateCount).toBe(1);
   expect(metrics.postCount).toBe(1);
@@ -250,7 +250,7 @@ test("doble click browser produce exactamente un POST", async ({ page }) => {
     },
   });
   await reachConfirmation(page);
-  await page.getByRole("button", { name: "Crear reporte" }).dblclick();
+  await page.getByRole("button", { name: "Crear reporte", exact: true }).dblclick();
   await expect.poll(() => metrics.postCount).toBe(1);
   releaseCreate?.();
   await expect(page.getByRole("heading", { name: "Reporte creado correctamente" })).toBeVisible();
@@ -269,7 +269,7 @@ test("Enter repetido en el submit semántico produce exactamente un POST", async
     },
   });
   await reachConfirmation(page);
-  const submit = page.getByRole("button", { name: "Crear reporte" });
+  const submit = page.getByRole("button", { name: "Crear reporte", exact: true });
   await submit.focus();
   await page.keyboard.press("Enter");
   await page.keyboard.press("Enter");
@@ -283,7 +283,7 @@ test("401 no repite el POST, conserva los datos y ofrece recuperar sesión", asy
   const metrics = await openReportWizard(page, { createStatus: 401 });
   await reachConfirmation(page);
   const refreshBeforeSubmit = metrics.refreshCount;
-  await page.getByRole("button", { name: "Crear reporte" }).click();
+  await page.getByRole("button", { name: "Crear reporte", exact: true }).click();
   const alert = page.locator("[role='alert']").filter({ hasText: /sesión venció/i });
   await expect(alert).toContainText(/sesión venció/i);
   await expect(alert).toBeFocused();
@@ -302,7 +302,7 @@ test("401 no repite el POST, conserva los datos y ofrece recuperar sesión", asy
 test("409 conserva el formulario y permite volver a foto sin auto-submit", async ({ page }) => {
   const metrics = await openReportWizard(page, { createStatus: 409 });
   await reachConfirmation(page);
-  await page.getByRole("button", { name: "Crear reporte" }).click();
+  await page.getByRole("button", { name: "Crear reporte", exact: true }).click();
   await expect(page.getByText(/fotografía ya fue utilizada/i)).toBeVisible();
   await page.getByRole("button", { name: "Reemplazar fotografía" }).click();
   await expect(page.getByRole("heading", { name: "Foto" })).toBeVisible();
@@ -317,7 +317,7 @@ for (const scenario of [
   test(`${scenario.status} conserva datos y nunca reintenta`, async ({ page }) => {
     const metrics = await openReportWizard(page, { createStatus: scenario.status });
     await reachConfirmation(page);
-    await page.getByRole("button", { name: "Crear reporte" }).click();
+    await page.getByRole("button", { name: "Crear reporte", exact: true }).click();
     await expect(page.getByText(scenario.message)).toBeVisible();
     await expect(
       page.getByText("Bache profundo en una calle sintética", { exact: false }),
@@ -330,13 +330,13 @@ for (const scenario of [
 test("fallo de red produce UNCERTAIN_RESULT terminal y un solo POST", async ({ page }) => {
   const metrics = await openReportWizard(page, { abortCreate: true });
   await reachConfirmation(page);
-  await page.getByRole("button", { name: "Crear reporte" }).click();
+  await page.getByRole("button", { name: "Crear reporte", exact: true }).click();
   const alert = page.locator("[role='alert']").filter({
     hasText: "No pudimos confirmar si el reporte fue creado",
   });
   await expect(alert).toContainText("No pudimos confirmar si el reporte fue creado");
   await expect(alert).toBeFocused();
-  await expect(page.getByRole("button", { name: "Crear reporte" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Crear reporte", exact: true })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Volver" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Crear otro reporte" })).toHaveCount(0);
   await expect(
@@ -386,7 +386,7 @@ test.describe("viewport móvil", () => {
     await expectNoHorizontalOverflow(page);
     await page.getByRole("button", { name: "Continuar" }).click();
     await expect(page.getByRole("heading", { name: "Ya existe un reporte similar" })).toBeVisible();
-    const submit = page.getByRole("button", { name: "Crear reporte" });
+    const submit = page.getByRole("button", { name: "Crear reporte", exact: true });
     await submit.scrollIntoViewIfNeeded();
     await expect(submit).toBeInViewport();
     await expectNoHorizontalOverflow(page);

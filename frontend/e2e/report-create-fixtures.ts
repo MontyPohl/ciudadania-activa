@@ -194,6 +194,11 @@ export async function reachPhotoStep(page: Page): Promise<void> {
   await page.getByRole("textbox", { name: "Descripción" }).fill(DESCRIPTION);
   await page.getByRole("button", { name: "Continuar" }).click();
   await expect(page.getByRole("heading", { name: "Foto" })).toBeFocused();
+  await expect(
+    page.getByText("La foto será pública: evitá caras, patentes y datos personales.", {
+      exact: true,
+    }),
+  ).toBeVisible();
 }
 
 export async function reachLocationStep(page: Page): Promise<void> {

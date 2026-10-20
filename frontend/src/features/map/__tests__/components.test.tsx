@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { MapFilters } from "@/features/map/MapFilters";
@@ -73,13 +73,13 @@ describe("leyenda del mapa público", () => {
     expect(new Set(groups.map((marker) => marker.color)).size).toBe(3);
   });
 
-  it("renderiza exclusivamente los seis estados visibles sin depender del catálogo privado", () => {
+  it("renderiza los tres grupos públicos sin depender del catálogo privado", () => {
     render(<MapLegend />);
 
     const legend = screen.getByRole("region", { name: "Leyenda de estados" });
     expect(legend).toBeVisible();
-    expect(legend.querySelectorAll("li")).toHaveLength(6);
-    expect(screen.getByText("Cerrado")).toBeVisible();
+    expect(legend.querySelectorAll("li")).toHaveLength(3);
+    expect(screen.getByText("Pendiente")).toBeVisible();
     expect(screen.queryByText("Rechazado")).not.toBeInTheDocument();
   });
 });
@@ -120,6 +120,34 @@ describe("ficha y lista textual", () => {
 
     await user.keyboard("{Escape}");
     expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it.each([true, false])("la lista conserva la miniatura pública (foto: %s)", (hasPhoto) => {
+    const id = "11111111-1111-4111-8111-111111111111";
+    const report = publicReport({
+      id,
+      status: "RESUELTO",
+      photo_url: hasPhoto ? `/api/v1/public/reports/${id}/photo/` : null,
+    });
+    render(
+      <ReportList
+        reports={[report]}
+        selectedId={null}
+        detailHref={(item) => `/reporte/${item.id}`}
+        onSelect={vi.fn()}
+      />,
+    );
+    const trigger = screen.getByRole("button", { name: /Baches/ });
+    const image = within(trigger).queryByRole("img", {
+      name: "Reporte de Baches · Resuelto",
+    });
+    if (hasPhoto) {
+      expect(image).toBeVisible();
+      expect(image).toHaveAttribute("loading", "lazy");
+      expect(image?.getAttribute("src")).toContain(report.photo_url);
+    } else {
+      expect(image).not.toBeInTheDocument();
+    }
   });
 
   it("la lista es visible, seleccionable y enlaza al detalle", async () => {

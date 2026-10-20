@@ -16,12 +16,12 @@ export function AdminMetricsPage() {
   return (
     <main id="contenido-principal" tabIndex={-1} className={metricsPageClass}>
       <header>
-        <h1 className="text-3xl font-bold text-brand-purple">Métricas de atención</h1>
-        <p className="mt-2 max-w-2xl text-brand-black/70">
+        <h1 className="text-3xl font-bold text-primary">Métricas de atención</h1>
+        <p className="mt-2 max-w-2xl text-muted">
           Consultá el consolidado o elegí una institución para ver su actividad.
         </p>
       </header>
-      <div className="grid items-start gap-4 rounded-2xl bg-brand-purple/5 p-4 sm:grid-cols-2 sm:p-6">
+      <div className="grid items-start gap-4 rounded-2xl bg-primary/5 p-4 sm:grid-cols-2 sm:p-6">
         <label className="flex max-w-md flex-col gap-1 text-sm font-medium">
           Institución
           <select
