@@ -1,6 +1,7 @@
-"""Rutas de métricas del operador (`/api/v1/operator/metrics/`).
+"""Rutas de métricas: operator."""
 
-Las completa el carril A del Sprint 13.
-"""
+from django.urls import path
 
-urlpatterns = []
+from apps.analytics_app.views_operator import OperatorMetricsView
+
+urlpatterns = [path("", OperatorMetricsView.as_view(), name="metrics")]
