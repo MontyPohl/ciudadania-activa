@@ -1,6 +1,6 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./support/test";
 import { mockRewardsApi, REDEMPTION_ID, voucher } from "./rewards-fixtures";
-test("canje simulado y recuperación del vale existente", async ({ page }) => {
+test("@F8 canje simulado y recuperación del vale existente", async ({ page }) => {
   const metrics = await mockRewardsApi(page);
   await test.step("catálogo → canje → vale con aviso de simulación", async () => {
     await page.goto("/recompensas");
