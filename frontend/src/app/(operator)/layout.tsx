@@ -4,6 +4,7 @@ import { RoleGuard } from "@/features/auth/RoleGuard";
 const LINKS = [
   { href: "/bandeja", label: "Bandeja institucional" },
   { href: "/institucion/recompensas", label: "Recompensas" },
+  { href: "/institucion/metricas", label: "Métricas" },
 ];
 
 export default function OperatorLayout({ children }: LayoutProps<"/">) {

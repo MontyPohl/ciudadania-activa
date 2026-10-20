@@ -4,38 +4,12 @@ from apps.core.models import BaseModel
 from apps.reports_app.models import Report
 
 
-class TelegramIngestedMessage(BaseModel):
-    """Mensaje recibido por el bot de Telegram (Anexo A.1).
-
-    La ingesta es condicional y pertenece al Sprint 13. El mensaje se conserva
-    aunque su pre-reporte no llegue a materializarse, de ahí que `report` sea
-    nullable y `SET_NULL`.
-    """
-
-    telegram_chat_id = models.CharField(max_length=64)
-    sender_alias = models.CharField(max_length=120, blank=True)
-    raw_text = models.TextField()
-    report = models.ForeignKey(
-        Report,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="telegram_messages",
-    )
-
-    class Meta:
-        db_table = "telegram_ingested_messages"
-        ordering = ["-created_at"]
-
-    def __str__(self) -> str:
-        return f"telegram:{self.telegram_chat_id}"
-
-
 class XMockMessage(BaseModel):
-    """Mensaje del dataset simulado de X/Twitter (Anexo A.1).
+    """Mensaje del dataset simulado de X/Twitter (Anexo A.1, CU-13).
 
-    `simulated_at` es la fecha simulada del dataset y no coincide con `created_at`,
-    que registra cuándo se cargó la fila.
+    Es el único origen social del MVP: Telegram quedó fuera del alcance y su modelo se
+    eliminó en el Sprint 13 (D-04, CT-43). `simulated_at` es la fecha simulada del
+    dataset y no coincide con `created_at`, que registra cuándo se cargó la fila.
     """
 
     source_handle = models.CharField(max_length=120)

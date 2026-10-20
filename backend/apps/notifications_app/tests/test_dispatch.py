@@ -8,9 +8,11 @@ cédula, ni el HMAC, ni la selfie, ni su clave de objeto, ni el motivo libre del
 """
 
 import logging
+from datetime import timedelta
 
 import pytest
 import requests
+from django.utils import timezone
 
 from apps.notifications_app.enums import NotificationChannel, NotificationStatus, NotificationType
 from apps.notifications_app.models import Notification
@@ -191,22 +193,23 @@ def test_send_no_reenvia_lo_que_ya_no_esta_pendiente(citizen, brevo_api, estado)
 
 
 def test_una_notificacion_fallida_no_se_reintenta_sola(citizen, brevo_api):
-    """Comportamiento **actual y deliberado**: FALLIDO es terminal en el Sprint 4.
+    """Comportamiento **deliberado** desde el Sprint 4: FALLIDO es terminal (CT-51).
 
     Volver a invocar el envío sobre una notificación fallida no la reintenta y no la
-    modifica: la devuelve tal cual. Los reintentos automáticos son alcance de los
-    Sprints 12-13. Recuperar una notificación fallida exige una acción explícita que
-    la devuelva a PENDIENTE; hoy no existe ninguna, y esta prueba lo deja escrito para
-    que un cambio futuro sea deliberado y no accidental.
+    modifica: la devuelve tal cual. Los reintentos automáticos de S13 solo actúan
+    mientras la notificación sigue PENDIENTE y ante fallos transitorios; un rechazo
+    permanente como este 400 deja FALLIDO en el acto. Recuperarla exige
+    `resend_notification`, y esta prueba lo deja escrito para que un cambio futuro sea
+    deliberado y no accidental.
     """
-    brevo_api.excepcion = requests.exceptions.ReadTimeout("timeout")
+    brevo_api.status_code = 400
     notificacion = _crear(citizen)
     dispatch.send(notificacion.pk)
     envios_tras_el_fallo = brevo_api.envios
     notificacion.refresh_from_db()
     actualizada_en = notificacion.updated_at
 
-    brevo_api.excepcion = None
+    brevo_api.status_code = 201
     resultado = dispatch.send(notificacion.pk)
 
     assert resultado.status == NotificationStatus.FALLIDO
@@ -239,7 +242,7 @@ def test_send_sobre_una_notificacion_inexistente_no_rompe(citizen, brevo_api, ca
 # --------------------------------------------------------------------------- #
 
 
-@pytest.mark.parametrize("estado", [400, 401, 402, 403, 429])
+@pytest.mark.parametrize("estado", [400, 401, 402, 403])  # 429 es transitorio (S13)
 def test_un_rechazo_4xx_deja_la_notificacion_en_fallido(citizen, brevo_api, estado):
     brevo_api.status_code = estado
     notificacion = _crear(citizen)
@@ -251,12 +254,23 @@ def test_un_rechazo_4xx_deja_la_notificacion_en_fallido(citizen, brevo_api, esta
     assert notificacion.status == NotificationStatus.FALLIDO
 
 
+def _assert_reprogramada(notificacion, ahora):
+    """Un fallo transitorio en el primer intento deja PENDIENTE con reintento a +5 min."""
+    notificacion.refresh_from_db()
+    assert notificacion.status == NotificationStatus.PENDIENTE
+    assert notificacion.attempts == 1
+    assert notificacion.next_attempt_at == ahora + timedelta(minutes=5)
+
+
 @pytest.mark.parametrize("estado", [500, 502, 503])
-def test_un_error_5xx_deja_la_notificacion_en_fallido(citizen, brevo_api, estado):
+def test_un_error_5xx_reprograma_el_envio(citizen, brevo_api, estado):
     brevo_api.status_code = estado
     notificacion = _crear(citizen)
+    ahora = timezone.now()
 
-    assert dispatch.send(notificacion.pk).status == NotificationStatus.FALLIDO
+    dispatch.send(notificacion.pk, now=ahora)
+
+    _assert_reprogramada(notificacion, ahora)
 
 
 @pytest.mark.parametrize(
@@ -266,22 +280,25 @@ def test_un_error_5xx_deja_la_notificacion_en_fallido(citizen, brevo_api, estado
         requests.exceptions.ReadTimeout("timeout"),
     ],
 )
-def test_un_timeout_deja_la_notificacion_en_fallido(citizen, brevo_api, fallo):
-    """El fallo exacto del E2E productivo del 23/08/2026, ahora sobre HTTPS."""
+def test_un_timeout_reprograma_el_envio(citizen, brevo_api, fallo):
+    """El fallo exacto del E2E productivo del 23/08/2026, ahora transitorio (S13)."""
     brevo_api.excepcion = fallo
     notificacion = _crear(citizen)
+    ahora = timezone.now()
 
-    resultado = dispatch.send(notificacion.pk)
+    dispatch.send(notificacion.pk, now=ahora)
 
-    assert resultado.status == NotificationStatus.FALLIDO
-    notificacion.refresh_from_db()
-    assert notificacion.status == NotificationStatus.FALLIDO
+    _assert_reprogramada(notificacion, ahora)
 
 
-def test_un_fallo_de_conexion_deja_la_notificacion_en_fallido(citizen, brevo_api):
+def test_un_fallo_de_conexion_reprograma_el_envio(citizen, brevo_api):
     brevo_api.excepcion = requests.exceptions.ConnectionError("connection refused")
+    notificacion = _crear(citizen)
+    ahora = timezone.now()
 
-    assert dispatch.send(_crear(citizen).pk).status == NotificationStatus.FALLIDO
+    dispatch.send(notificacion.pk, now=ahora)
+
+    _assert_reprogramada(notificacion, ahora)
 
 
 def test_sin_clave_de_api_la_notificacion_queda_fallida(citizen, brevo_api, settings):
@@ -328,8 +345,14 @@ def test_la_clave_de_api_no_aparece_en_los_logs_del_servicio(citizen, brevo_api,
 
 
 def test_un_tipo_sin_plantilla_queda_fallido_y_no_envia(citizen, brevo_api):
-    """Mejor una fila FALLIDO visible que un correo inventado."""
-    notificacion = _crear(citizen, NotificationType.RECOMPENSA_DISPONIBLE)
+    """Mejor una fila FALLIDO visible que un correo inventado.
+
+    Desde S13 los ocho tipos tienen plantilla, así que se fuerza en la fila un tipo
+    inexistente (`choices` no lo impide en la base). La regla deja de depender del
+    enumerado.
+    """
+    notificacion = _crear(citizen)
+    Notification.objects.filter(pk=notificacion.pk).update(notification_type="TIPO_INEXISTENTE")
 
     resultado = dispatch.send(notificacion.pk)
 

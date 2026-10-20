@@ -58,14 +58,20 @@ def test_la_tarea_es_idempotente(citizen, brevo_api):
 
 @pytest.mark.django_db
 def test_la_tarea_no_propaga_el_fallo_de_red(citizen, brevo_api):
-    """Sin reintentos, relanzar solo ensuciaría el broker: el estado es el registro."""
+    """Relanzar solo ensuciaría el broker: el estado es el registro.
+
+    Desde S13 un fallo de red es transitorio: la fila queda PENDIENTE y reprogramada, y
+    la retoma el barrido de Beat, no un reintento de Celery.
+    """
     brevo_api.excepcion = requests.exceptions.ReadTimeout("timeout")
     notificacion = dispatch.create(citizen, NotificationType.VERIFICACION_APROBADA)
 
     send_notification(notificacion.pk)
 
     notificacion.refresh_from_db()
-    assert notificacion.status == NotificationStatus.FALLIDO
+    assert notificacion.status == NotificationStatus.PENDIENTE
+    assert notificacion.attempts == 1
+    assert notificacion.next_attempt_at is not None
 
 
 @pytest.mark.django_db
@@ -75,7 +81,7 @@ def test_la_tarea_sobre_una_notificacion_fallida_no_hace_nada(citizen, brevo_api
     Reencolar la tarea sobre la notificación que falló en producción **no la recupera**.
     Recuperarla exige una acción explícita que la devuelva a PENDIENTE.
     """
-    brevo_api.status_code = 500
+    brevo_api.status_code = 400  # permanente: FALLIDO al primer intento (S13)
     notificacion = dispatch.create(citizen, NotificationType.VERIFICACION_APROBADA)
     send_notification(notificacion.pk)
     envios = brevo_api.envios
@@ -90,7 +96,7 @@ def test_la_tarea_sobre_una_notificacion_fallida_no_hace_nada(citizen, brevo_api
 
 @pytest.mark.django_db
 def test_la_tarea_no_declara_reintentos_automaticos():
-    """Los reintentos son alcance de los Sprints 12-13 (§14 del plan)."""
+    """La tarea no reintenta: los reintentos de S13 viven en la base y en el barrido."""
     assert send_notification.max_retries in (None, 3)  # 3 es el default inerte de Celery
     assert getattr(send_notification, "autoretry_for", ()) == ()
     assert send_notification.name == "notifications.send_notification"

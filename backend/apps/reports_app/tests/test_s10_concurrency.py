@@ -309,6 +309,8 @@ def test_race_3_manual_and_auto_close_create_one_closure(
     operation_at = timezone.now()
     report.resolved_at = operation_at - timedelta(hours=73)
     report.save(update_fields=["resolved_at", "updated_at"])
+    # El armado avisó la validación y la resolución (S13); ningún cierre avisa.
+    avisos_previos = Notification.objects.count()
 
     def manually_close():
         return _transition(report, operator_user, institution, ReportStatus.CERRADO).changed
@@ -330,7 +332,7 @@ def test_race_3_manual_and_auto_close_create_one_closure(
         == 1
     )
     assert AuditLog.objects.filter(action="report.closed").count() == 1
-    assert Notification.objects.count() == 0
+    assert Notification.objects.count() == avisos_previos
 
 
 def test_race_4_reversal_and_revalidation_preserve_cycle_monotonicity(

@@ -5,6 +5,7 @@ from django.utils import timezone
 
 from apps.admin_app.models import AuditLog
 from apps.core.enums import ActorType, ReportStatus
+from apps.notifications_app.enums import NotificationType
 from apps.notifications_app.models import Notification
 from apps.reports_app.models import ReportStatusHistory, ResolutionEvidence
 from apps.reports_app.services import lifecycle
@@ -152,7 +153,13 @@ def test_resolution_creates_projection_history_audit_and_single_cycle_bonus(
         "evidence_ids": [str(evidence.pk)],
         "resolution_bonus_transaction_id": str(bonus.pk),
     }
-    assert Notification.objects.count() == 0
+    # S13: la resolución avisa al autor una vez por ciclo. La VALIDACION_INSTITUCIONAL del
+    # armado no se cuenta acá.
+    aviso = Notification.objects.get(notification_type=NotificationType.REPORTE_RESUELTO)
+    assert aviso.report == report
+    assert aviso.user == report.citizen
+    assert aviso.institution == institution
+    assert aviso.dedup_key == f"REPORTE_RESUELTO:{report.pk}:1"
 
 
 def test_manual_close_is_idempotent_and_has_no_economic_or_notification_effect(
@@ -164,6 +171,9 @@ def test_manual_close_is_idempotent_and_has_no_economic_or_notification_effect(
     _transition(report, operator_user, institution, ReportStatus.EN_PROCESO)
     _evidence(report, operator_user)
     _transition(report, operator_user, institution, ReportStatus.RESUELTO)
+    # El armado valida y resuelve por servicio, que desde S13 avisan por correo; lo que se
+    # prueba es que el cierre no agregue ninguno.
+    avisos_previos = Notification.objects.count()
 
     first = _transition(report, operator_user, institution, ReportStatus.CERRADO)
     counts = (
@@ -197,7 +207,7 @@ def test_manual_close_is_idempotent_and_has_no_economic_or_notification_effect(
         AuditLog.objects.count(),
         RewardTransaction.objects.count(),
     ) == counts
-    assert Notification.objects.count() == 0
+    assert Notification.objects.count() == avisos_previos
 
 
 def test_repeated_resolution_is_noop_without_duplicate_bonus_history_or_audit(

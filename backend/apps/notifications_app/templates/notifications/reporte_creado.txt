@@ -1,0 +1,10 @@
+{% autoescape off %}Hola {{ nombre }}:
+
+Recibimos tu reporte del {{ fecha }}. La institución responsable lo va a revisar.
+
+Podés seguir su estado en Ciudadanía Activa → Panel.
+
+--
+Ciudadanía Activa
+Este es un mensaje automático. No respondas a esta dirección.
+{% endautoescape %}

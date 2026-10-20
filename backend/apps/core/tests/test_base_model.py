@@ -50,7 +50,7 @@ def test_todas_las_entidades_del_sprint_2_heredan_de_base_model():
         ResolutionEvidence,
     )
     from apps.rewards_app.models import Reward, RewardRedemption, RewardTransaction
-    from apps.social_ingestion_app.models import TelegramIngestedMessage, XMockMessage
+    from apps.social_ingestion_app.models import XMockMessage
 
     entidades = [
         CitizenProfile,
@@ -68,12 +68,12 @@ def test_todas_las_entidades_del_sprint_2_heredan_de_base_model():
         Reward,
         RewardRedemption,
         Notification,
-        TelegramIngestedMessage,
         XMockMessage,
     ]
 
-    # 17 tablas nuevas; `users` conserva su propia estructura del Sprint 1.
-    assert len(entidades) == 17
+    # 16 tablas nuevas + `users`, que conserva su estructura del Sprint 1: 17 entidades.
+    # `telegram_ingested_messages` se eliminó en el Sprint 13 (CT-43).
+    assert len(entidades) == 16
     for modelo in entidades:
         assert issubclass(modelo, BaseModel), modelo.__name__
         assert modelo._meta.get_field("id").primary_key

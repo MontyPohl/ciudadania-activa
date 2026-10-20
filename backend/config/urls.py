@@ -16,4 +16,7 @@ urlpatterns = [
     path("api/v1/rewards/", include("apps.rewards_app.urls")),
     path("api/v1/operator/rewards/", include("apps.rewards_app.urls_operator")),
     path("api/v1/ranking/", include("apps.rewards_app.urls_ranking")),
+    path("api/v1/operator/metrics/", include("apps.analytics_app.urls_operator")),
+    path("api/v1/admin/metrics/", include("apps.analytics_app.urls_admin")),
+    path("api/v1/public/metrics/", include("apps.analytics_app.urls_public")),
 ]

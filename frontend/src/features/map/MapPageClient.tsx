@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -408,6 +409,12 @@ export function MapPageClient() {
           Explorá reportes urbanos con ubicación aproximada. Acercá el mapa y usá los filtros para
           consultar la zona visible.
         </p>
+        <Link
+          href="/transparencia"
+          className="mt-2 inline-flex min-h-11 items-center rounded font-semibold text-brand-purple underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple"
+        >
+          Ver métricas de transparencia
+        </Link>
       </header>
 
       <MapFilters

@@ -1,0 +1,246 @@
+{
+  "dataset": "x_mock_v1",
+  "notice": "Publicaciones ficticias creadas por el proyecto. No corresponden a cuentas reales.",
+  "items": [
+    {
+      "source_handle": "@ficticio_tramo01",
+      "simulated_at": "2026-08-25T08:00:00-03:00",
+      "raw_text": "Hay un bache hondo en la calzada. Cuando llueve se llena de agua y cuesta verlo.",
+      "category": "baches",
+      "latitude": -25.2953,
+      "longitude": -57.62265
+    },
+    {
+      "source_handle": "@ficticio_tramo02",
+      "simulated_at": "2026-08-27T03:00:00-03:00",
+      "raw_text": "Quedaron bolsas de basura en la vía pública y ya se están rompiendo.",
+      "category": "basura-acumulada",
+      "latitude": -25.26946,
+      "longitude": -57.5922
+    },
+    {
+      "source_handle": "@ficticio_tramo03",
+      "simulated_at": "2026-08-28T22:00:00-03:00",
+      "raw_text": "La luminaria del paseo público no prende de noche. El tramo queda muy oscuro.",
+      "category": "alumbrado-publico",
+      "latitude": -25.29808,
+      "longitude": -57.63796
+    },
+    {
+      "source_handle": "@ficticio_tramo04",
+      "simulated_at": "2026-08-30T17:00:00-03:00",
+      "raw_text": "Sale agua de una grieta en la calzada y corre hasta el cordón todo el día.",
+      "category": "agua-potable-perdidas",
+      "latitude": -25.27762,
+      "longitude": -57.58056
+    },
+    {
+      "source_handle": "@ficticio_tramo05",
+      "simulated_at": "2026-09-01T12:00:00-03:00",
+      "raw_text": "La rejilla del desagüe público está tapada y el agua ya no baja cuando llueve.",
+      "category": "drenaje-desague-cloaca",
+      "latitude": -25.30881,
+      "longitude": -57.56556
+    },
+    {
+      "source_handle": "@ficticio_tramo06",
+      "simulated_at": "2026-09-03T02:00:00-03:00",
+      "raw_text": "El semáforo del cruce público quedó apagado. Hay que pasar con mucho cuidado.",
+      "category": "semaforos",
+      "latitude": -25.26912,
+      "longitude": -57.62806
+    },
+    {
+      "source_handle": "@ficticio_tramo07",
+      "simulated_at": "2026-09-04T21:00:00-03:00",
+      "raw_text": "Dejaron escombros sobre la vereda pública y bloquean el paso peatonal.",
+      "category": "escombros",
+      "latitude": -25.28608,
+      "longitude": -57.60761
+    },
+    {
+      "source_handle": "@ficticio_tramo08",
+      "simulated_at": "2026-09-06T16:00:00-03:00",
+      "raw_text": "Una rama grande cayó sobre la vereda pública y no deja pasar.",
+      "category": "arbol-caido",
+      "latitude": -25.28509,
+      "longitude": -57.62347
+    },
+    {
+      "source_handle": "@ficticio_tramo09",
+      "simulated_at": "2026-09-08T11:00:00-03:00",
+      "raw_text": "Hay un cable colgando muy bajo sobre la vía pública. No te acerques ni lo toques.",
+      "category": "cables-expuestos-riesgo-electrico",
+      "latitude": -25.28767,
+      "longitude": -57.63801
+    },
+    {
+      "source_handle": "@ficticio_tramo10",
+      "simulated_at": "2026-09-10T06:00:00-03:00",
+      "raw_text": "Falta una tapa en el registro de la vereda pública. El hueco está sin señalizar.",
+      "category": "otros",
+      "latitude": -25.31019,
+      "longitude": -57.57859
+    },
+    {
+      "source_handle": "@ficticio_tramo11",
+      "simulated_at": "2026-09-11T20:00:00-03:00",
+      "raw_text": "El asfalto se hundió al costado de la calzada. Pasá despacio si venís por acá.",
+      "category": "baches",
+      "latitude": -25.28834,
+      "longitude": -57.58259
+    },
+    {
+      "source_handle": "@ficticio_tramo12",
+      "simulated_at": "2026-09-13T15:00:00-03:00",
+      "raw_text": "Hay residuos acumulados junto al cordón. Con el viento terminan en la calzada.",
+      "category": "basura-acumulada",
+      "latitude": -25.28978,
+      "longitude": -57.59482
+    },
+    {
+      "source_handle": "@ficticio_tramo13",
+      "simulated_at": "2026-09-15T10:00:00-03:00",
+      "raw_text": "Hay varias luces apagadas sobre la vía pública. Cuesta ver el borde de la vereda.",
+      "category": "alumbrado-publico",
+      "latitude": -25.26948,
+      "longitude": -57.64032
+    },
+    {
+      "source_handle": "@ficticio_tramo14",
+      "simulated_at": "2026-09-17T05:00:00-03:00",
+      "raw_text": "Hay una pérdida de agua junto al cordón de la vía pública. El pavimento sigue mojado.",
+      "category": "agua-potable-perdidas",
+      "latitude": -25.28737,
+      "longitude": -57.56583
+    },
+    {
+      "source_handle": "@ficticio_tramo15",
+      "simulated_at": "2026-09-19T00:00:00-03:00",
+      "raw_text": "Hay agua estancada con mal olor alrededor de la boca de desagüe de la calle.",
+      "category": "drenaje-desague-cloaca",
+      "latitude": -25.28022,
+      "longitude": -57.56507
+    },
+    {
+      "source_handle": "@ficticio_tramo16",
+      "simulated_at": "2026-09-20T14:00:00-03:00",
+      "raw_text": "Una luz del semáforo no enciende y cuesta saber cuándo avanzar en el cruce.",
+      "category": "semaforos",
+      "latitude": -25.27959,
+      "longitude": -57.64211
+    },
+    {
+      "source_handle": "@ficticio_tramo17",
+      "simulated_at": "2026-09-22T09:00:00-03:00",
+      "raw_text": "Hay restos de cemento y ladrillos junto al cordón. Están ocupando parte de la calzada.",
+      "category": "escombros",
+      "latitude": -25.26983,
+      "longitude": -57.61107
+    },
+    {
+      "source_handle": "@ficticio_tramo18",
+      "simulated_at": "2026-09-24T04:00:00-03:00",
+      "raw_text": "Hay un árbol caído ocupando parte de la calzada. Hace falta despejar el carril.",
+      "category": "arbol-caido",
+      "latitude": -25.30056,
+      "longitude": -57.56379
+    },
+    {
+      "source_handle": "@ficticio_tramo19",
+      "simulated_at": "2026-09-25T23:00:00-03:00",
+      "raw_text": "Se ve un cable suelto junto a un poste del alumbrado público. Hace falta señalizar.",
+      "category": "cables-expuestos-riesgo-electrico",
+      "latitude": -25.30528,
+      "longitude": -57.64088
+    },
+    {
+      "source_handle": "@ficticio_tramo20",
+      "simulated_at": "2026-09-27T18:00:00-03:00",
+      "raw_text": "La baranda del paseo público está suelta y se mueve al apoyarse.",
+      "category": "otros",
+      "latitude": -25.29669,
+      "longitude": -57.57654
+    },
+    {
+      "source_handle": "@ficticio_tramo21",
+      "simulated_at": "2026-09-29T08:00:00-03:00",
+      "raw_text": "Se abrió otro bache en el carril de circulación. Hace falta señalizar y reparar.",
+      "category": "baches",
+      "latitude": -25.27074,
+      "longitude": -57.58287
+    },
+    {
+      "source_handle": "@ficticio_tramo22",
+      "simulated_at": "2026-10-01T03:00:00-03:00",
+      "raw_text": "Hace días que hay basura amontonada en la vereda pública. Casi no queda paso.",
+      "category": "basura-acumulada",
+      "latitude": -25.30616,
+      "longitude": -57.60729
+    },
+    {
+      "source_handle": "@ficticio_tramo23",
+      "simulated_at": "2026-10-02T22:00:00-03:00",
+      "raw_text": "La luz del poste público parpadea y se apaga a cada rato. ¿Podrían revisarla?",
+      "category": "alumbrado-publico",
+      "latitude": -25.27717,
+      "longitude": -57.62772
+    },
+    {
+      "source_handle": "@ficticio_tramo24",
+      "simulated_at": "2026-10-04T17:00:00-03:00",
+      "raw_text": "Se junta agua limpia en la calle aunque no llovió. Parece una pérdida de cañería.",
+      "category": "agua-potable-perdidas",
+      "latitude": -25.29852,
+      "longitude": -57.60705
+    },
+    {
+      "source_handle": "@ficticio_tramo25",
+      "simulated_at": "2026-10-06T12:00:00-03:00",
+      "raw_text": "El sumidero de la calzada está lleno de hojas y barro. Hace falta limpiarlo.",
+      "category": "drenaje-desague-cloaca",
+      "latitude": -25.26568,
+      "longitude": -57.56257
+    },
+    {
+      "source_handle": "@ficticio_tramo26",
+      "simulated_at": "2026-10-08T02:00:00-03:00",
+      "raw_text": "El semáforo peatonal del cruce no cambia. La gente espera sin saber cuándo pasar.",
+      "category": "semaforos",
+      "latitude": -25.30978,
+      "longitude": -57.62217
+    },
+    {
+      "source_handle": "@ficticio_tramo27",
+      "simulated_at": "2026-10-09T21:00:00-03:00",
+      "raw_text": "Un montón de escombros quedó al borde del paseo público. Hace falta retirarlo.",
+      "category": "escombros",
+      "latitude": -25.30875,
+      "longitude": -57.59327
+    },
+    {
+      "source_handle": "@ficticio_tramo28",
+      "simulated_at": "2026-10-11T16:00:00-03:00",
+      "raw_text": "El viento tiró un árbol sobre el paseo público. La senda quedó bloqueada.",
+      "category": "arbol-caido",
+      "latitude": -25.30018,
+      "longitude": -57.59123
+    },
+    {
+      "source_handle": "@ficticio_tramo29",
+      "simulated_at": "2026-10-13T11:00:00-03:00",
+      "raw_text": "Hay cables expuestos cerca del cordón en la calle. Conviene aislar el tramo.",
+      "category": "cables-expuestos-riesgo-electrico",
+      "latitude": -25.27738,
+      "longitude": -57.59322
+    },
+    {
+      "source_handle": "@ficticio_tramo30",
+      "simulated_at": "2026-10-15T06:00:00-03:00",
+      "raw_text": "Hay baldosas levantadas en la senda pública. Cuesta pasar con un cochecito.",
+      "category": "otros",
+      "latitude": -25.27973,
+      "longitude": -57.60906
+    }
+  ]
+}

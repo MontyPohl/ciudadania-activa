@@ -66,6 +66,9 @@ def test_exact_cutoff_closes_with_system_history_audit_and_no_side_effects(
     _resolved(report, operator_user, institution)
     _age_resolution(report, delta=timedelta(hours=72))
     reward_count = RewardTransaction.objects.count()
+    # El armado valida y resuelve por servicio, que desde S13 avisan por correo; el cierre
+    # automático no debe agregar ningún aviso.
+    avisos_previos = Notification.objects.count()
     invalidations = []
     monkeypatch.setattr(
         auto_close,
@@ -99,7 +102,7 @@ def test_exact_cutoff_closes_with_system_history_audit_and_no_side_effects(
     assert (
         RewardTransaction.objects.filter(event_type=RewardEventType.RESOLUTION_BONUS).count() == 1
     )
-    assert Notification.objects.count() == 0
+    assert Notification.objects.count() == avisos_previos
     assert invalidations == []
     assert len(callbacks) == 1
     callbacks[0]()

@@ -30,7 +30,7 @@ def test_prioridades():
 
 
 def test_origenes_del_reporte():
-    assert ReportSource.values == ["platform", "telegram", "x_mock"]
+    assert ReportSource.values == ["platform", "x_mock"]
 
 
 def test_motivos_de_rechazo_tipificados():

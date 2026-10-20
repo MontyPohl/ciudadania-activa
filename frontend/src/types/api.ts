@@ -442,3 +442,114 @@ export interface MonthlyRanking {
     is_me: boolean;
   }>;
 }
+
+// ---------------------------------------------------------------------------
+// Sprint 13: métricas institucionales y transparencia (contrato S13 §2–§6)
+// ---------------------------------------------------------------------------
+
+/** Mes local `YYYY-MM` (America/Asuncion). */
+export type MetricsPeriod = string;
+
+export interface SlaMetrics {
+  hours: number | null;
+  configured: boolean;
+  within: number | null;
+  breached: number | null;
+  compliance_rate: number | null;
+  open_over_sla: number | null;
+}
+
+export interface MetricsSeriesPoint {
+  date: string;
+  received: number;
+  resolved: number;
+}
+
+export interface MetricsTrendPoint {
+  period: MetricsPeriod;
+  received: number;
+  resolved: number;
+}
+
+export interface InstitutionMetricsRow {
+  institution: SessionInstitution;
+  received: number;
+  validated: number;
+  rejected: number;
+  resolved: number;
+  median_hours: number | null;
+  sla: { hours: number | null; configured: boolean; compliance_rate: number | null };
+}
+
+/** Respuesta de `GET /api/v1/operator/metrics/` y `GET /api/v1/admin/metrics/`. */
+export interface InstitutionMetrics {
+  scope: "institution" | "all";
+  institution: SessionInstitution | null;
+  period: MetricsPeriod;
+  period_start: ISODateTime;
+  period_end: ISODateTime;
+  is_current_period: boolean;
+  generated_at: ISODateTime;
+  reports: {
+    received: number;
+    by_status: Record<ReportStatus, number>;
+    by_priority: Record<ReportPriority, number>;
+    by_category: Array<{ category: OperatorCategory; count: number }>;
+    resolution_rate: number | null;
+  };
+  decisions: {
+    validated: number;
+    rejected: number;
+    validation_rate: number | null;
+    rejection_rate: number | null;
+  };
+  resolution: { resolved: number; mean_hours: number | null; median_hours: number | null };
+  sla: SlaMetrics;
+  confirmations: { count: number };
+  incentives: {
+    points_credited: number;
+    credits_issued: number;
+    credits_reverted: number;
+    redemptions: number;
+    credits_redeemed: number;
+  };
+  series: { granularity: "day"; points: MetricsSeriesPoint[] };
+  trend: MetricsTrendPoint[];
+  by_institution: InstitutionMetricsRow[] | null;
+}
+
+/** Celdas públicas que pueden suprimirse por tener menos de `min_cell_size` casos. */
+export type PublicSuppressible =
+  | "confirmations"
+  | "redemptions"
+  | "credits_issued"
+  | "resolution_rate"
+  | "median_resolution_hours"
+  | "sla.compliance_rate";
+
+export interface PublicMetricsCells {
+  received: number;
+  validated: number;
+  rejected: number;
+  resolved: number;
+  resolution_rate: number | null;
+  median_resolution_hours: number | null;
+  confirmations: number | null;
+  redemptions: number | null;
+  credits_issued: number | null;
+  suppressed: PublicSuppressible[];
+}
+
+export interface PublicInstitutionMetrics extends PublicMetricsCells {
+  institution: SessionInstitution;
+  sla: { configured: boolean; hours: number | null; compliance_rate: number | null };
+}
+
+/** Respuesta de `GET /api/v1/public/metrics/`. */
+export interface PublicMetrics {
+  window: { from: string; to: string; months: number };
+  generated_at: ISODateTime;
+  min_cell_size: number;
+  totals: PublicMetricsCells;
+  institutions: PublicInstitutionMetrics[];
+}

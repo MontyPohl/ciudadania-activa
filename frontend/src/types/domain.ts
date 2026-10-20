@@ -30,7 +30,7 @@ export type ReportStatus =
 
 export type ReportPriority = "BAJA" | "MEDIA" | "ALTA";
 
-export type ReportSource = "platform" | "telegram" | "x_mock";
+export type ReportSource = "platform" | "x_mock";
 
 export type RejectionReason =
   "fuera_de_competencia" | "duplicado" | "informacion_insuficiente" | "contenido_inapropiado";
@@ -233,17 +233,14 @@ export interface Notification extends Timestamped {
   id: UUID;
   userId: UUID;
   reportId: UUID | null;
+  redemptionId: UUID | null;
+  institutionId: UUID | null;
   notificationType: NotificationType;
   channel: NotificationChannel;
   status: NotificationStatus;
-}
-
-export interface TelegramIngestedMessage extends Timestamped {
-  id: UUID;
-  telegramChatId: string;
-  senderAlias: string;
-  rawText: string;
-  reportId: UUID | null;
+  /** Intentos de envío; los reintentos automáticos solo ocurren mientras está PENDIENTE (S13). */
+  attempts: number;
+  nextAttemptAt: ISODateTime | null;
 }
 
 export interface XMockMessage extends Timestamped {

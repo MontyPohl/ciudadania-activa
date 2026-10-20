@@ -27,12 +27,12 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 | 10 | 03/10 – 09/10 | Estados, evidencias, auditoría y reversión | Completado — implementado, desplegado, verificado y reconciliado |
 | 11 | 10/10 – 16/10 | Metodología, instrumentación, experimentos, análisis y evidencia de tesis | Completado con observaciones (19/10/2026) — S11-A congelada; S11-B preparada; S11-C2 cerrado con `EX-02`…`EX-08` en `PASS`; `EX-09` OpenAI `FAIL` válido (CA-4 19/28); `EX-10` `NOT_DEMONSTRATED`; HT5 96,76 % (33 archivos críticos); S11-D y S11-E cerrados |
 | 12 | 17/10 – 23/10 | Catálogo de recompensas, canje simulado, saldos y ranking mensual | Completado — implementado, desplegado y verificado (19/10/2026) |
-| 13 | 24/10 – 30/10 | Dashboards, integración e ingesta social | Pendiente |
+| 13 | 24/10 – 30/10 | Dashboards, integración e ingesta social | Implementado e integrado (20/10/2026); despliegue pendiente |
 | 14 | 31/10 – 06/11 | Pruebas unitarias, integración, seguridad y E2E | Pendiente |
 | 15 | 07/11 – 13/11 | Carga, dataset definitivo y documentación | Pendiente |
 | 16 | 14/11 – 15/11 | Cierre y preparación de la defensa | Pendiente |
 
-**Progreso:** 11 / 16 sprints completados (Sprints 1, 2 y 3 cerrados el 20/08/2026; Sprint 4 el 23/08/2026; Sprint 5 el 27/08/2026; Sprint 6 el 28/08/2026; Sprint 7 el 29/08/2026; Sprint 9 el 09/09/2026; Sprint 10 el 21/09/2026; Sprint 11 el 19/10/2026, con observaciones; Sprint 12 el 19/10/2026). La ejecución real arrastra el desvío de calendario registrado en CT-29. Sprint 8 continúa **en curso**: R2 permanece prerregistrado/no ejecutado y la serie S8 con Gemini no produjo ninguna medición válida de CA-4; la primera medición válida, `EX-09` OpenAI en S11-C3, dio `FAIL` (19/28), y su efecto sobre el cierre del Sprint 8 no está decidido. Sprint 11 completó la congelación S11-A y la preparación técnica S11-B; S11-C cerró `EX-02` en `PASS` con el run `s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af` —tras cinco intentos previos `NOT_DEMONSTRATED`—, `EX-03` en `PASS` con el run `s11-6dc3ea66-08c9-51ef-9fe3-70e7dcc67959`, `EX-04` en `PASS` con el run `s11-03adb9bc-c9e4-5f8f-b64c-c4360d0c2085` `EX-06` en `PASS` con el run `s11-989218f3-4808-5c6f-ac23-6e8870fec153` y `EX-08` en `PASS` con el run `s11-b567289c-9fe2-5349-a384-e9284bdde863`; `EX-05` quedó en `PASS` con el run `s11-0e2feac0-6583-513c-a6aa-33430394d14a`; `EX-07` en `PASS` con el run `s11-545491b8-01fe-55e6-8f08-1a0ebbdca8d3`; S11-C2 quedó cerrado el 23/09/2026; `EX-09` OpenAI se ejecutó el 26/09/2026 con el run `s11-a156a68c-c422-5e57-ae2b-3336d3b55e6c` y resultado `FAIL` (CA-4 19/28 = 67,86 %; run válido); `EX-10` quedó `NOT_DEMONSTRATED` y el análisis S11-D y el dossier S11-E cerraron el Sprint 11 el 19/10/2026; S12 quedó implementado, desplegado y verificado el 19/10/2026; S13 no se inició.
+**Progreso:** 11 / 16 sprints completados (Sprints 1, 2 y 3 cerrados el 20/08/2026; Sprint 4 el 23/08/2026; Sprint 5 el 27/08/2026; Sprint 6 el 28/08/2026; Sprint 7 el 29/08/2026; Sprint 9 el 09/09/2026; Sprint 10 el 21/09/2026; Sprint 11 el 19/10/2026, con observaciones; Sprint 12 el 19/10/2026). La ejecución real arrastra el desvío de calendario registrado en CT-29. Sprint 8 continúa **en curso**: R2 permanece prerregistrado/no ejecutado y la serie S8 con Gemini no produjo ninguna medición válida de CA-4; la primera medición válida, `EX-09` OpenAI en S11-C3, dio `FAIL` (19/28), y su efecto sobre el cierre del Sprint 8 no está decidido. Sprint 11 completó la congelación S11-A y la preparación técnica S11-B; S11-C cerró `EX-02` en `PASS` con el run `s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af` —tras cinco intentos previos `NOT_DEMONSTRATED`—, `EX-03` en `PASS` con el run `s11-6dc3ea66-08c9-51ef-9fe3-70e7dcc67959`, `EX-04` en `PASS` con el run `s11-03adb9bc-c9e4-5f8f-b64c-c4360d0c2085` `EX-06` en `PASS` con el run `s11-989218f3-4808-5c6f-ac23-6e8870fec153` y `EX-08` en `PASS` con el run `s11-b567289c-9fe2-5349-a384-e9284bdde863`; `EX-05` quedó en `PASS` con el run `s11-0e2feac0-6583-513c-a6aa-33430394d14a`; `EX-07` en `PASS` con el run `s11-545491b8-01fe-55e6-8f08-1a0ebbdca8d3`; S11-C2 quedó cerrado el 23/09/2026; `EX-09` OpenAI se ejecutó el 26/09/2026 con el run `s11-a156a68c-c422-5e57-ae2b-3336d3b55e6c` y resultado `FAIL` (CA-4 19/28 = 67,86 %; run válido); `EX-10` quedó `NOT_DEMONSTRATED` y el análisis S11-D y el dossier S11-E cerraron el Sprint 11 el 19/10/2026; S12 quedó implementado, desplegado y verificado el 19/10/2026; S13 quedó implementado e integrado el 20/10/2026; despliegue pendiente.
 
 ### Decisiones que condicionan el avance
 
@@ -4761,41 +4761,113 @@ requiere revisar aportes antes de eliminarlas. Detalle en [BACKLOG.md](BACKLOG.m
 ## Sprint 13 — Dashboards, integración e ingesta social
 
 **Fechas planificadas:** 24/10/2026 – 30/10/2026
-**Estado:** Pendiente
-**Fecha real de cierre:** —
-
-> **Alcance revisado el 20/08/2026 (decisión D-04 · CT-43).** La integración social del MVP se
-> limita a una **simulación interna de publicaciones de X/Twitter**, cargada desde un dataset del
-> propio proyecto y persistida en `x_mock_messages`. **Telegram ya no forma parte del MVP** y **no
-> habrá integración real con la API de X**: sin Bot API, sin webhook, sin *polling*, sin tokens, sin
-> OAuth de X, sin *scraping*, sin credenciales sociales y sin Celery para la ingesta. `XMockMessage`
-> y `source='x_mock'` se conservan, igual que la regla RF-45.
->
-> **Trabajo estructural previsto para el inicio de este sprint:** eliminar `TelegramIngestedMessage`
-> (modelo, admin, pruebas y tipo TypeScript espejo), retirar el valor `telegram` del enumerado
-> `ReportSource`, generar las migraciones correspondientes en `social_ingestion_app` y `reports_app`,
-> y actualizar entonces `DICCIONARIO_DATOS.md` de 18 a 17 entidades. Al ser una migración
-> **destructiva** (`DROP TABLE telegram_ingested_messages`), exige **respaldo productivo previo al
-> push a `main`** según ADR-0003, y verificación productiva y respaldo posterior tras el
-> procedimiento manual de migración de Heroku.
->
-> **A día de hoy nada de eso se ha ejecutado:** `TelegramIngestedMessage` sigue en el modelo, la
-> tabla sigue en producción (sin filas) y el esquema conserva **18 entidades**.
+**Estado:** Implementado e integrado (20/10/2026); despliegue pendiente
+**Fecha real de cierre:** — (despliegue pendiente al escribir)
 
 ### Funcionalidades terminadas
-_Pendiente._
+
+- **Métricas y transparencia:** API separada para operador, admin y público; páginas
+  `/institucion/metricas`, `/metricas` y `/transparencia`. Alcance por institución efectiva,
+  mes local, métricas por eventos, serie diaria y tendencia de 6 meses; SLA sin valor por
+  defecto. Gráficos SVG propios con tablas accesibles y clientes con parsers estrictos,
+  sin cambiar respuestas existentes. Caché Redis por TTL (120 s privada, 300 s pública),
+  sin precálculo con Beat ni tablas nuevas. Fórmulas en [API §10](API.md#10-métricas-y-transparencia-sprint-13)
+  y desvíos de tesis en CT-61.
+- **Privacidad pública:** supresión k = 5 y supresión complementaria de celdas aditivas;
+  sin datos personales ni desgloses más finos que la institución.
+- **Notificaciones:** las 8 plantillas del MVP; correos de creación, validación, rechazo
+  y resolución al autor, idempotentes y encolados en `on_commit`. Lote diario de
+  `RECOMPENSA_DISPONIBLE` a las 09:00 locales. Reintentos solo transitorios, 3 intentos
+  con esperas de 5 y 30 min y barrido cada 5 min, limitado a 24 h; `FALLIDO` sigue
+  terminal y convive con la recuperación manual de CT-51.
+- **X simulado (S13-D12): ejecutado.** El carril D entró: dataset de 30 publicaciones
+  ficticias, con fechas no futuras y 30 ubicaciones sintéticas distintas; comando
+  `load_x_mock_dataset` atómico e idempotente, sin red, Celery, IA, puntos ni correos.
+  Se conservan `XMockMessage`, `source='x_mock'` y RF-45; no hay integración real con X.
+- **Retiro técnico de Telegram (CT-43):** eliminado `TelegramIngestedMessage` del modelo,
+  admin, pruebas y espejo TypeScript; retirado `telegram` de `ReportSource`. Las
+  migraciones `social_ingestion_app.0002` y `reports_app.0008`, con guards que abortan
+  si hay filas de Telegram, se verificaron en local. **Al desplegar, el esquema pasa de
+  18 a 17 entidades**; la eliminación productiva sigue pendiente, con conteo previo,
+  respaldo y mantenimiento según S13-D18.
 
 ### Pruebas realizadas
-_Pendiente._
+
+- **Por carril:** paso 0 con Ruff, migraciones, 27 + 12 pruebas, GOV-T054, typecheck,
+  lint y `SessionStatus.test.tsx` en verde; A con **38 pruebas de `analytics_app`** en
+  verde; C con **263 pruebas en orden natural de apps**, **15 ajustadas (N1–N15)** y
+  **7 nuevas**; D con **7 pruebas** en verde. Son corridas parciales, no totales sumables.
+- **Smoke local (§7.1), 20/10:** backend real y frontend dev. Se llevaron **10 reportes
+  a `RESUELTO` por los servicios reales** y se recorrió otro con confirmación del
+  ciudadano B, validación, `EN_PROCESO` y resolución. Ranking con puntos;
+  `RECOMPENSA_DISPONIBLE`: **1** en la primera corrida y **0** en la segunda; canje de
+  **1.000 créditos**. `send` sin `BREVO_API_KEY` dejó `FALLIDO` permanente;
+  `dispatch_due` encoló la vencida y excluyó la de **25 h**. La carga de X creó **30**
+  y omitió **30** en la segunda corrida.
+- **Resultado de métricas del smoke:** ANDE mostró **17 recibidos, 11 validados,
+  11 resueltos y 1 canje de 1.000 créditos**; `/transparencia` suprimió las celdas con
+  menos de 5. Sin Chrome conectado, las acciones previstas en UI se hicieron por la
+  API real que usa la UI. Playwright headless verificó **8 páginas**, a **1280 y 375 px**,
+  sin errores de JavaScript ni scroll horizontal. No equivale a un recorrido manual
+  completo desde el navegador.
+- **Verificación única (§7.3), frontend:** formato, lint, typecheck, **401 pruebas de
+  Vitest (39 archivos)**, build y e2e `metrics.spec.ts` en verde.
+- **Verificación única (§7.3), backend:** Ruff, formato y `makemigrations --check` en verde; `pytest --cov=apps` (excluidos los 3 launchers de EX-10): **5.639 pasadas, 17 omitidas, 2 fallos y 71 errores**, en 1 h 36 min, con cobertura total del 77 %. Es exactamente lo esperado (07 §7.3): los 2 fallos son de `test_ex10_preflight` y los 71 errores son `IsolationError` de `test_ex10_prepare.py`, porque el host `s12-dev-db` no está en la allowlist local de S11. **GOV-T054 pasó.** Tras los arreglos de §7.4 se re-corrieron solo `analytics_app` y `notifications_app`: 169 pasadas.
+- **Revisiones (§7.4):** `requesting-code-review` y `security-best-practices`, sin
+  hallazgos críticos ni altos. Se registran las correcciones y pendientes abajo.
 
 ### Problemas encontrados
-_Pendiente._
+
+- **Corregidos en revisión:** fechas futuras y coordenadas repetidas del dataset de X;
+  etiquetas fraccionarias del eje; tendencia oculta cuando el mes estaba vacío
+  (`a203ece`, Codex). La tendencia de 6 meses ahora se ve también en ese caso.
+- **Corregidos en §7.4:** la rama de reintentos vencidos del barrido también exige
+  `created_at ≥ now − 24 h`; `Cache-Control` público solo en respuestas 200 (errores
+  con `no-store`); supresión complementaria en `/public/metrics/` para `confirmations`,
+  `redemptions` y `credits_issued`: si queda una sola institución suprimida en una
+  columna, se suprime además la publicada más chica o el total. Esta enmienda de
+  **S13-D08 fue aprobada por el usuario el 20/10**.
+- **Anotados sin corregir:** `NUM_PROXIES` para el throttle por IP (PR de configuración
+  aparte, también afecta mapa y ranking); `send()` no revalida `is_active` del
+  destinatario; el cálculo en vivo ante caída de Redis no se alcanza porque el throttle
+  usa la misma caché (heredado del ranking); el rescate puede reencolar la misma
+  `PENDIENTE` cada 5 min, sin duplicar correos; la atomicidad es por migración y no del
+  conjunto, mitigada por el conteo previo y el mantenimiento.
+- **Hallazgo menor del smoke:** la tipografía del gráfico de tendencia escala mucho
+  en escritorio; queda para el pulido posterior.
 
 ### Commits relevantes
-_Pendiente._
+
+| Etapa | Commits |
+|---|---|
+| Paso 0 | `61b5c36` (Telegram, CT-43), `e39f804` (esqueleto y contrato), `eb3874d` (CI en `ubuntu-24.04`) |
+| Carril A | `0067142` (A1), `1edab78` (A2), hechos por Codex y revisados por Claude |
+| Carril B | `2d6b31e` (B1), `851c94d` (B2), `9864fde` (B3), Codex + revisión de Claude y corrección de etiquetas fraccionarias |
+| Carril C | `9a2231e` (notificaciones, Claude) |
+| Carril D | `1306ef0` (Codex + correcciones de Claude: fechas y 30 ubicaciones distintas) |
+| Merges en `feat/s13-dashboards-integration` | `cf0e165` (A), `8e86da5` (C), `0251ee3` (D), `17c4290` (B) |
+| Hallazgo de revisión | `a203ece` (tendencia visible con mes vacío, Codex) |
 
 ### Observaciones y desvíos respecto del plan
-_Pendiente. La parte social se reduce a la simulación de X/Twitter (D-04 · CT-43) y solo se implementa si el núcleo obligatorio está estable; registrar aquí la decisión tomada y su justificación, junto con el resultado de la eliminación de `TelegramIngestedMessage`._
+
+La implementación y la integración se adelantaron al **20/10**, sin cambiar las fechas
+planificadas. **B4 (pasada UX) se recortó por S13-D17** y queda para S14/S15; no existe
+`S13_UX_HALLAZGOS.md`. Se conservaron X y la página del admin. X se ejecutó como parte
+condicional del alcance al entrar el carril D y quedar integrado con A–C. **Cargar el
+dataset en producción es una decisión aparte del usuario, no parte del despliegue.**
+Desvío aceptado: los reportes de X tienen `created_at` igual al momento de carga y
+cuentan en las métricas del mes de carga, no del mes de `simulated_at`.
+
+El smoke usó la API real para las acciones de UI por falta de Chrome conectado y
+Playwright headless para verificar las páginas. No se probó entrega real de correo;
+`REPORTE_CREADO` queda cubierto por pruebas, porque los reportes locales se prepararon
+sin fotos ni Storage. El despliegue está pendiente: **pendiente**. Se mantiene el
+orden aprobado: backend en Heroku con reconciliación, respaldos y migración manual;
+después merge y frontend en Vercel ([S13_DECISIONES.md](s13/S13_DECISIONES.md)).
+
+**Comparabilidad de EX-10 (07 §7.6):** S13 agrega una tarea por reporte, el correo
+`REPORTE_CREADO` en `on_commit`. Las corridas posteriores de EX-10 no son directamente
+comparables con las anteriores; esto no cambia los resultados históricos de S11.
 
 ---
 

@@ -1,0 +1,10 @@
+{% autoescape off %}Hola {{ nombre }}:
+
+{{ institucion }} validó tu reporte de {{ categoria }} del {{ fecha }}.
+
+Podés ver tus puntos y créditos en Ciudadanía Activa → Recompensas.
+
+--
+Ciudadanía Activa
+Este es un mensaje automático. No respondas a esta dirección.
+{% endautoescape %}

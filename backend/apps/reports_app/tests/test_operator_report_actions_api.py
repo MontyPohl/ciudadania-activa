@@ -96,7 +96,8 @@ def test_validate_http_persiste_estado_y_ledger(
     assert created.institution == institution
     assert (bonus.impact_delta, bonus.credit_delta) == (30, 30)
     assert invalidations == []
-    assert len(callbacks) == 1
+    # Invalidación del mapa y, registrado después (S13-D13), el aviso de validación.
+    assert len(callbacks) == 2
     callbacks[0]()
     assert invalidations == ["called"]
 

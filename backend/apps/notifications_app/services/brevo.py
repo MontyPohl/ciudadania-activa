@@ -55,7 +55,15 @@ class BrevoConfigurationError(BrevoError):
 
 
 class BrevoUnavailableError(BrevoError):
-    """Brevo no respondió, o respondió con un error."""
+    """Brevo no respondió, o respondió con un error.
+
+    `status_code` es el código HTTP de la respuesta, o `None` si no hubo respuesta (red o
+    timeout). `dispatch` lo usa para distinguir un fallo transitorio de uno permanente.
+    """
+
+    def __init__(self, message: str = "", *, status_code: int | None = None):
+        super().__init__(message)
+        self.status_code = status_code
 
 
 def send_email(*, to: str, subject: str, text_content: str) -> None:
@@ -66,8 +74,8 @@ def send_email(*, to: str, subject: str, text_content: str) -> None:
     esta API no redirige y una redirección indicaría que la petición no llegó donde
     debía.
 
-    No hay reintentos aquí ni en quien llama: los reintentos automáticos son alcance de
-    los Sprints 12-13. Un fallo se traduce a `FALLIDO` en la notificación.
+    No hay reintentos aquí: los decide `dispatch` (Sprint 13), que reprograma los fallos
+    transitorios mientras la notificación sigue PENDIENTE.
     """
     url, cabeceras = _configuracion()
     cuerpo = {
@@ -89,7 +97,9 @@ def send_email(*, to: str, subject: str, text_content: str) -> None:
 
     if not 200 <= estado < 300:
         logger.error("Brevo respondió %s al entregar un correo.", estado)
-        raise BrevoUnavailableError(f"El servicio de correo respondió con el estado {estado}.")
+        raise BrevoUnavailableError(
+            f"El servicio de correo respondió con el estado {estado}.", status_code=estado
+        )
 
 
 # --------------------------------------------------------------------------- #
