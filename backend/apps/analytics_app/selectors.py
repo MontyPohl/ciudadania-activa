@@ -13,7 +13,7 @@ from django.utils import timezone
 from apps.admin_app.models import Institution
 from apps.analytics_app import periods
 from apps.analytics_app.constants import MIN_CELL_SIZE, PUBLIC_WINDOW_MONTHS, TREND_MONTHS
-from apps.analytics_app.privacy import suppress
+from apps.analytics_app.privacy import complement, suppress
 from apps.core.enums import ReportPriority, ReportStatus
 from apps.reports_app.models import Report, ReportConfirmation, ReportStatusHistory
 from apps.rewards_app.enums import RewardEventType, RewardTxStatus
@@ -538,6 +538,9 @@ def public_metrics(*, now=None):
                 counts["sla.compliance_rate"] = inst_sla["within"] + inst_sla["breached"]
         return suppress(result, counts=counts)
 
+    totals = cells(None)
+    rows = [cells(i) for i in data.institutions if i.is_active]
+    complement(totals, rows)
     return {
         "window": {
             "from": start.date().isoformat(),
@@ -546,6 +549,6 @@ def public_metrics(*, now=None):
         },
         "generated_at": now.astimezone(LOCAL_TZ).isoformat(),
         "min_cell_size": MIN_CELL_SIZE,
-        "totals": cells(None),
-        "institutions": [cells(i) for i in data.institutions if i.is_active],
+        "totals": totals,
+        "institutions": rows,
     }

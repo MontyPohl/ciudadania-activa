@@ -9,6 +9,7 @@ from django.contrib.gis.geos import Point
 
 from apps.admin_app.models import Category, Institution
 from apps.analytics_app import selectors
+from apps.analytics_app.privacy import complement
 from apps.core.enums import ReportPriority, ReportStatus
 from apps.reports_app.models import Report, ReportConfirmation, ReportStatusHistory
 from apps.rewards_app.enums import RewardEventType, RewardTxStatus
@@ -341,3 +342,26 @@ def test_supresion_publica(
     assert ("sla.compliance_rate" in row["suppressed"]) == (
         sla_hours is not None and resolutions < 5
     )
+
+
+@pytest.mark.parametrize(
+    "values,expected",
+    [
+        # Una sola suprimida: también la publicada más chica, así la resta no la despeja.
+        ([None, 7, 9], [None, None, 9]),
+        # Dos suprimidas: la resta solo da su suma; no se suprime nada más.
+        ([None, None, 9], [None, None, 9]),
+        # Sin otra institución publicada, se suprime el total.
+        ([None], [None]),
+    ],
+)
+def test_supresion_complementaria(values, expected):
+    def cell(value):
+        return {"confirmations": value, "suppressed": [] if value else ["confirmations"]}
+
+    totals = cell(20)
+    rows = [cell(v) for v in values]
+    complement(totals, rows, cells=("confirmations",))
+    assert [r["confirmations"] for r in rows] == expected
+    assert all((r["confirmations"] is None) == ("confirmations" in r["suppressed"]) for r in rows)
+    assert totals["confirmations"] == (None if len(values) == 1 else 20)

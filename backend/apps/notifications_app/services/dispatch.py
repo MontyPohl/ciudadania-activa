@@ -260,15 +260,19 @@ def dispatch_due(*, now=None) -> int:
     """Barrido periódico de reintentos (Beat, cada 5 min). Devuelve cuántas encoló.
 
     Encola las PENDIENTE cuyo reintento ya venció y rescata las que nunca tuvieron un
-    intento porque su encolado se perdió, **solo** si tienen entre 15 min y 24 h: una
-    notificación más vieja no se envía nunca de forma automática. No cambia estados: el
+    intento porque su encolado se perdió, si tienen entre 15 min y 24 h. Ninguna
+    de las dos ramas toma notificaciones de más de 24 h: nunca salen solas. No cambia estados: el
     envío —y su lock— sigue siendo de `send()`. Un fallo al encolar solo se registra;
     la siguiente corrida lo vuelve a intentar.
     """
     from apps.notifications_app.tasks import send_notification
 
     now = now or timezone.now()
-    vencidas = Q(attempts__gt=0, next_attempt_at__lte=now)
+    vencidas = Q(
+        attempts__gt=0,
+        next_attempt_at__lte=now,
+        created_at__gte=now - retry.RESCUE_WINDOW,
+    )
     perdidas = Q(
         attempts=0,
         created_at__lte=now - retry.RESCUE_AFTER,

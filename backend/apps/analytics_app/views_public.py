@@ -21,7 +21,10 @@ class PublicMetricsView(APIView):
 
     def finalize_response(self, request, response, *args, **kwargs):
         response = super().finalize_response(request, response, *args, **kwargs)
-        response["Cache-Control"] = "public, max-age=60"
+        # Un error (400, 429) no debe quedar guardado en una caché compartida.
+        response["Cache-Control"] = (
+            "public, max-age=60" if response.status_code == 200 else "no-store"
+        )
         return response
 
     def get(self, request):

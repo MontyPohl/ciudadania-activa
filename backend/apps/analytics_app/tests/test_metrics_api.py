@@ -96,6 +96,7 @@ def test_parametros_estrictos(request, path, query):
         )
     response = client.get(f"{BASE}{path}/metrics/?{query}")
     assert response.status_code == 400
+    assert response["Cache-Control"] == ("no-store" if path == "public" else "private, no-store")
     assert set(response.data) == {"detail"}
     assert isinstance(response.data["detail"], dict)
 

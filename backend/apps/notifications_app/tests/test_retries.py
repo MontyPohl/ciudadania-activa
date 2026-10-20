@@ -76,6 +76,8 @@ def test_barrido_reencola_lo_vencido_y_rescata_solo_lo_reciente(citizen, monkeyp
     perdida = fila(edad=timedelta(minutes=20))
     fila(edad=timedelta(minutes=2))
     fila(edad=timedelta(hours=30))
+    # Un reintento vencido de más de 24 h tampoco sale solo.
+    fila(attempts=1, next_at=ahora - timedelta(minutes=1), edad=timedelta(hours=25))
     fila(status=NotificationStatus.FALLIDO, attempts=3, edad=timedelta(hours=1))
 
     assert dispatch.dispatch_due(now=ahora) == 2
