@@ -3,7 +3,6 @@
 from django.conf import settings
 from django.utils import timezone
 from rest_framework.response import Response
-from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from apps.admin_app.selectors import resolve_operator_institution
@@ -11,11 +10,12 @@ from apps.analytics_app import periods, selectors
 from apps.analytics_app.cache import cached
 from apps.analytics_app.serializers import OperatorMetricsQuerySerializer
 from apps.core.permissions import IsInstitutionOperator
+from apps.core.throttling import FailOpenScopedRateThrottle
 
 
 class OperatorMetricsView(APIView):
     permission_classes = [IsInstitutionOperator]
-    throttle_classes = [ScopedRateThrottle]
+    throttle_classes = [FailOpenScopedRateThrottle]
     throttle_scope = "dashboard_metrics"
 
     def finalize_response(self, request, response, *args, **kwargs):

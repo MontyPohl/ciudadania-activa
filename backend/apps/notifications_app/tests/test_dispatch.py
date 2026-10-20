@@ -69,6 +69,23 @@ def test_send_entrega_y_marca_enviado(citizen, brevo_api):
     assert brevo_api.destinatario == citizen.email
 
 
+def test_send_no_envia_a_un_destinatario_inactivo(citizen, brevo_api):
+    notificacion = _crear(citizen)
+    citizen.is_active = False
+    citizen.save(update_fields=["is_active"])
+
+    resultado = dispatch.send(notificacion.pk)
+
+    assert resultado.status == NotificationStatus.FALLIDO
+    assert resultado.attempts == 1
+    assert resultado.next_attempt_at is None
+    notificacion.refresh_from_db()
+    assert notificacion.status == NotificationStatus.FALLIDO
+    assert notificacion.attempts == 1
+    assert notificacion.next_attempt_at is None
+    assert brevo_api.envios == 0
+
+
 def test_el_201_de_brevo_es_el_camino_normal(citizen, brevo_api):
     """Brevo acepta el mensaje con `201`, no con `200`."""
     brevo_api.status_code = 201

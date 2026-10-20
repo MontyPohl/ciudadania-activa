@@ -218,6 +218,18 @@ def send(notification_id, *, now=None) -> Notification | None:
             # Reintento programado que todavía no toca: lo retoma el barrido.
             return notificacion
 
+        if not notificacion.user.is_active:
+            # Destinatario dado de baja entre la creación y el envío: fallo permanente.
+            # Se cuenta el intento para que el admin vea que se procesó (CT-51).
+            notificacion.attempts += 1
+            notificacion.status = NotificationStatus.FALLIDO
+            notificacion.next_attempt_at = None
+            notificacion.save(update_fields=["status", "attempts", "next_attempt_at", "updated_at"])
+            logger.warning(
+                "La notificación %s no se envió: destinatario inactivo.", notificacion.pk
+            )
+            return notificacion
+
         notificacion.attempts += 1
         try:
             _enviar_email(notificacion)

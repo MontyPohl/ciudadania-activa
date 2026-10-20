@@ -7,9 +7,9 @@ from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework.throttling import ScopedRateThrottle
 
 from apps.admin_app.models import Category
+from apps.core.throttling import FailOpenScopedRateThrottle
 from apps.map_app.cache import (
     build_public_list_cache_key,
     get_public_list,
@@ -54,7 +54,7 @@ class _PublicReportPagination(PageNumberPagination):
 class PublicReportListView(ListAPIView):
     authentication_classes = []
     permission_classes = [AllowAny]
-    throttle_classes = [ScopedRateThrottle]
+    throttle_classes = [FailOpenScopedRateThrottle]
     throttle_scope = "public_map"
     serializer_class = PublicReportSerializer
     pagination_class = _PublicReportPagination
@@ -92,7 +92,7 @@ class PublicReportListView(ListAPIView):
 class PublicReportDetailView(RetrieveAPIView):
     authentication_classes = []
     permission_classes = [AllowAny]
-    throttle_classes = [ScopedRateThrottle]
+    throttle_classes = [FailOpenScopedRateThrottle]
     throttle_scope = "public_map"
     serializer_class = PublicReportDetailSerializer
     lookup_url_kwarg = "report_id"
@@ -102,7 +102,7 @@ class PublicReportDetailView(RetrieveAPIView):
 class PublicCategoryListView(ListAPIView):
     authentication_classes = []
     permission_classes = [AllowAny]
-    throttle_classes = [ScopedRateThrottle]
+    throttle_classes = [FailOpenScopedRateThrottle]
     throttle_scope = "public_map"
     serializer_class = PublicCategorySerializer
     pagination_class = None
