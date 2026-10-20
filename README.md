@@ -352,7 +352,9 @@ no endpoints; sus opciones y efectos están en [API §9](docs/API.md#9-comandos-
 
 | Comando | Descripción |
 |---|---|
-| `cd backend && pytest --cov=apps` | Pruebas del backend con cobertura |
+| `cd backend && pytest --cov=apps --cov-config=coverage-gate.toml --cov-report=term-missing --ignore=apps/experiments_app` | Pruebas del dominio con compuerta de cobertura de producto ≥ 80 %; mismo alcance que `ci-backend.yml` |
+| `cd backend && coverage report --rcfile=coverage-ht5.toml` | Reporte informativo HT5-01 sobre los mismos datos del dominio: manifiesto congelado de 33 archivos de S11A |
+| `cd backend && COVERAGE_FILE=.coverage-experiments pytest apps/experiments_app --cov=apps --cov-report=term-missing --ignore=apps/experiments_app/tests/test_ex10_official_launcher.py --ignore=apps/experiments_app/tests/test_ex10_launcher.py --ignore=apps/experiments_app/tests/test_ex10_preflight_launcher.py` | Aparato experimental separado, como `ci-experiments.yml`; no hereda la compuerta del dominio y conserva sus datos en otro archivo |
 | `cd backend && ruff check .` | Lint del backend |
 | `cd backend && python manage.py makemigrations --check` | Verifica que no falten migraciones |
 | `cd backend && ruff format --check .` | Verifica el formato del backend |
@@ -369,14 +371,36 @@ no endpoints; sus opciones y efectos están en [API §9](docs/API.md#9-comandos-
 | `cd frontend && npm test` | Pruebas unitarias y de componentes del frontend (Vitest + jsdom) |
 | `cd frontend && npm run typecheck` | Verificación de tipos (`next typegen && tsc --noEmit`) |
 | `cd frontend && npm run format` | Formatea el frontend con Prettier |
+| `cd frontend && npm run format:check` | Verifica el formato sin modificar archivos |
 | `cd frontend && npm run build` | Build de producción |
+| `cd frontend && PLAYWRIGHT_PRODUCTION=1 npm run test:e2e` | E2E del frontend con API interceptada; requiere el build con las variables públicas de la fixture de `ci-frontend.yml` |
+| `cd frontend && npm run test:e2e:fullstack` | E2E local contra backend real con Storage falso; preparación, variables y límites en [S14_E2E_FULLSTACK.md](docs/s14/S14_E2E_FULLSTACK.md) |
 
 ## CI/CD
 
-Los Pull Requests que cambian backend o frontend (o sus workflows) ejecutan, según
-los filtros `paths` de cada workflow, `ci-backend.yml` (Ruff + `pytest` con servicios PostGIS y Redis) y
-`ci-frontend.yml` (Prettier + Vitest + ESLint + `tsc --noEmit` + `next build`) mediante GitHub Actions. La
-rama `main` está protegida: solo se integra con ambos checks en verde.
+Los Pull Requests y los pushes a `main` ejecutan GitHub Actions según los filtros `paths`
+de cada workflow. Desde el S14 hay **dos workflows de backend**, ambos con PostGIS y Redis:
+
+- `ci-backend.yml`: Ruff (lint y formato), control de migraciones y pruebas del dominio,
+  excluyendo `experiments_app`. La compuerta de `backend/coverage-gate.toml` exige **≥ 80 %**
+  sobre el código de producto de `apps/`, sin el aparato experimental, el arnés de evaluación
+  de IA, pruebas ni migraciones. Si no alcanza el umbral, el job falla. Después informa
+  **HT5-01** sobre el manifiesto congelado de **33 archivos** de S11A mediante
+  `backend/coverage-ht5.toml`, con los mismos datos; los dos alcances no son equivalentes.
+- `ci-experiments.yml`: corre `experiments_app` por separado, sin la compuerta de producto;
+  excluye los tres launchers EX-10 que exceden las 6 h de Actions. En PR se activa si cambia
+  el aparato o su configuración y archivos de custodia; en pushes a `main` tiene un filtro
+  más amplio. También admite ejecución manual.
+
+`ci-frontend.yml` conserva Prettier, Vitest, ESLint, tipos y build; su job `frontend-e2e`
+ejecuta todas las specs de `e2e/` contra el build de producción con una API interceptada.
+La corrida local full-stack del S14 usa backend real y Storage falso, y se documenta aparte
+en [S14_E2E_FULLSTACK.md](docs/s14/S14_E2E_FULLSTACK.md). El informe y los resultados están en
+[S14_INFORME_PRUEBAS.md](docs/s14/S14_INFORME_PRUEBAS.md).
+
+**`main` no tiene protección de rama configurada** (verificado el 20/10/2026, S14-D20).
+Esperar los checks aplicables en verde y revisar el PR antes de integrar es el procedimiento
+del proyecto; GitHub no lo impone mediante una regla de protección.
 
 El frontend se despliega automáticamente en **Vercel** desde `main`. El backend y los procesos de
 Celery se publican por separado en **Heroku** mediante un push explícito a su remote Git; un merge
@@ -413,8 +437,17 @@ commit de reconciliación `744e295` (árbol igual a `backend/` de `d9e1c11`) y a
   el riesgo de spam (advertencias de DKIM/DMARC).
 - Corte productivo: 16 reportes, 0 clasificaciones IA, 0 recompensas, 0 canjes y dos
   `VERIFICACION_APROBADA` en `ENVIADO` (del 23/08 y 29/08, previas a Heroku). Habilitar IA no demuestra su calidad con reportes reales.
-- HSTS y Redis con `CERT_NONE` siguen como deudas; #46 resuelve la pérdida del
-  parámetro tras rotación, sin cambiar esa política de certificados.
+- HSTS sigue como deuda. Redis con `CERT_NONE` es un **riesgo aceptado** en S14-D18:
+  Heroku Key-Value Store usa un certificado autofirmado sin CA verificable en esta
+  configuración, por lo que el tráfico va cifrado pero no se verifica la identidad del
+  servidor. #46 conserva el parámetro tras rotación, sin resolver ese riesgo.
+- S14 fija `REST_FRAMEWORK["NUM_PROXIES"] = 1` para los throttles por IP del cliente,
+  detrás de un proxy: navegador → router de Heroku → dyno. Sin `X-Forwarded-For`, local
+  y CI usan `REMOTE_ADDR`. Agregar otro proxy exige revisar el ajuste. El cambio está
+  verificado localmente; su despliegue sigue como `PENDIENTE_DEPLOY`.
+- Si cae Redis, mapa, ranking y métricas mantienen sus siete lecturas mediante el
+  throttle fail-open del S14: se pierde temporalmente el contador y se registra solo el
+  scope. Las escrituras siguen fallando cerrado; el detalle está en [API §10](docs/API.md#10-métricas-y-transparencia-sprint-13).
 
 ### Migraciones estructurales: orden obligatorio
 
@@ -479,8 +512,9 @@ compatible con **3.3.7**. El procedimiento completo y sus límites están en
 
 ## Convenciones
 
-- Rama `main` protegida; una rama por funcionalidad (`feat/s06-creacion-reportes`, `fix/…`,
-  `docs/…`) con Pull Request y revisión antes de integrar.
+- Una rama por funcionalidad (`feat/s06-creacion-reportes`, `fix/…`, `docs/…`) con Pull Request,
+  revisión y checks aplicables en verde antes de integrar. `main` no tiene protección de rama
+  configurada (S14-D20); esta convención es un procedimiento del proyecto.
 - Commits con la convención `tipo(alcance): descripción` (p. ej. `feat(rewards): acreditar puntos
   pendientes al validar`).
 - Las vistas no contienen reglas de negocio: toda escritura de dominio pasa por `services/` dentro

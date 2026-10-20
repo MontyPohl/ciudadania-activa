@@ -69,7 +69,7 @@ un sprint concreto — ver [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md) y [PROGRESO_
 
 | Ítem | Estado y siguiente paso |
 |---|---|
-| Redis tras rotación de credenciales | Hecho en PR #46: normalización automática; `CERT_NONE` permanece como deuda de configuración |
+| Redis tras rotación de credenciales | Hecho en PR #46: normalización automática; `CERT_NONE` con certificado autofirmado se conserva como riesgo aceptado en S14-D18, documentado en el informe S14 y CT-62 |
 | Uso de IA y pruebas de prompts | Hecho en PR #47/#49: tokens, `ai_usage_summary`, v2 y comandos manuales; IA activa en Heroku v22 |
 | Correo Brevo | Configurado en v23/v24; las dos aprobaciones `ENVIADO` son del 23/08 y 29/08 (previas a Heroku); el primer envío con esta configuración aún no se observó. Plantillas actuales: identidad aprobada/rechazada y canje |
 | Medición v2 independiente | Pendiente: nuevas fotos de la planilla del usuario, incluida la foto del bache; los 13 casos conocidos tienen sesgo optimista |
@@ -77,12 +77,18 @@ un sprint concreto — ver [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md) y [PROGRESO_
 | EX-10 | Tres tests corregidos en PR #48; **en PR #50**, abierto/CI corriendo, se corrige descriptor compartido tras fork. Nueva corrida requiere reaprobación de fuentes; no cambia el resultado histórico |
 | Edición manual de prioridad | Función inexistente: definir permisos, contrato, UI y auditoría antes de implementarla |
 | Notificaciones S13 | Cerrado: desplegadas el 20/10 (v25); primer envío real observado pendiente (CT-59) |
-| Motivo del rechazo visible en el panel | Pendiente (09 V1 del plan S13): el detalle de un reporte `RECHAZADO` responde 404 y el correo no puede prometer el motivo |
-| Pasada UX del portal (B4 de S13) | Recortada por S13-D17; queda para S14/S15. Hallazgo menor del smoke: la tipografía del gráfico de tendencia escala mucho en escritorio |
+| Motivo del rechazo visible en el panel | Post-MVP (S14-D16): el detalle de un reporte `RECHAZADO` responde 404 y el correo no puede prometer el motivo. Mostrarlo exige funcionalidad nueva y cambiar el contrato del detalle, con parser estricto; puede reconsiderarse para la demo de S15 por decisión del usuario |
+| Pasada UX del portal (B4 de S13) | S15 con dataset definitivo y capturas de tesis (S14-D17). La tipografía del gráfico de tendencia se corrigió en S14 (`8088b95`) y se verificó con la captura full-stack del dashboard a 1280 px; la pasada UX general sigue pendiente |
+| Throttles por IP (`NUM_PROXIES`) | Cerrado en S14 (`eed106d`): `NUM_PROXIES = 1` para la IP del cliente detrás del router de Heroku, con prueba contra XFF falsificado. Revisar el valor si cambia la topología |
+| Destinatario inactivo en `send()` | Cerrado en S14 (`8beed07`): revalida `is_active`; deja `FALLIDO` permanente y no llama a Brevo |
+| Lecturas con Redis caído | Cerrado en S14 (`8beed07`): siete lecturas conservan cálculo en vivo aunque falle la caché del throttle; las escrituras siguen cerradas. Riesgo aceptado: sin límite de tasa durante esa falla |
+| CI de EX-10 | Separación implementada en S14 (`2386f2e`): dominio y compuerta en `ci-backend.yml`; aparato experimental en `ci-experiments.yml`, con disparadores de los archivos congelados. Corrida local de experimentos: `PENDIENTE_EXPERIMENTS`; validación en CI del PR: `PENDIENTE_PR` |
+| Rescate de `dispatch_due` | Cambio descartado (S14-D15): la reencolada recupera tareas perdidas, está acotada a 24 h y `SWEEP_LIMIT`, y el lock/estado de `send()` impide duplicar correos. Comportamiento documentado en API §10.5 |
 | Smoke S12 autenticado | Pendiente del usuario con Google; no se generaron canjes/recompensas para el smoke público |
-| Rotación de credenciales heredadas de Vercel | Retirada ya ejecutada en #41; rotaciones pendientes según [runbook §§12–13](runbooks/HEROKU_MIGRATION.md#12-rotación-de-secretos), sin evidencia de cierre posterior |
+| Rotación de credenciales heredadas de Vercel | S15 (S14-D19), junto con la carga del dataset definitivo. La retirada se ejecutó en #41; siguen pendientes las rotaciones de mayor impacto y la invalidación de cuatro credenciales heredadas sin uso, según [runbook §§12–13](runbooks/HEROKU_MIGRATION.md#12-rotación-de-secretos). El secreto HMAC documental depende de si se recrean identidades; la clave custodial local, de si se reabre EX-10. No se declara rotación realizada |
 | Ramas remotas S05–S09 | Unas 25 sin mergear; limpieza opcional, revisar aportes antes de borrar |
-| Plan S13 | Fuera del repo en `~/project-s13-plan-20261019/`; arrancar desde `origin/main` |
+| Plan S13 | Ejecutado y desplegado el 20/10/2026; plan y evidencia conservados fuera del repositorio. B4 y los pendientes operativos siguen trazados en esta tabla |
+| Plan S14 | Implementado e integrado en `feat/s14-testing` sobre `dc8c4b8` (tip `07f3e08`); verificación de dominio y full-stack registrada en [informe S14](s14/S14_INFORME_PRUEBAS.md). `PENDIENTE_EXPERIMENTS` (en curso), `PENDIENTE_FRONTEND` (verificación completa), `PENDIENTE_PR` (PR y CI) y `PENDIENTE_DEPLOY`. Plan y carpeta de evidencia fuera del repositorio; no se aplicaron recortes S14-D24 |
 
 ## Riesgos (Anexo E.2)
 

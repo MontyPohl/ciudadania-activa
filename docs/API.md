@@ -4,7 +4,9 @@ Contrato de la API tal como está **implementada**, no como se planificó. Se am
 cada sprint que añade endpoints; hoy incluye autenticación, identidad, mapa, creación y
 confirmación ciudadana, ciclo institucional S10 y recompensas, canje y ranking S12.
 La sección 8 describe S12 integrado en PR #43 y desplegado el 19/10/2026.
-Corte vigente: 20/10/2026, backend de `main@d9e1c11`, IA v2 y Brevo activos en Heroku.
+Referencia productiva previa: 20/10/2026, backend de `main@d9e1c11`, IA v2 y Brevo activos en
+Heroku. Este documento incorpora el contrato verificado localmente del S14 en
+`feat/s14-testing@07f3e08`; PR: `PENDIENTE_PR`; despliegue: `PENDIENTE_DEPLOY`.
 
 - **Plan de referencia:** [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md) §14 (Sprint 4), §19
   (Sprint 9) y §29 (seguridad).
@@ -179,7 +181,7 @@ Reglas transversales de este bloque:
 Envía la verificación. **Permiso `IsCitizen`** —el rol de ciudadano, verificado o no:
 quien envía su verificación es por definición alguien que todavía no lo está—.
 
-**Throttle:** `5/hour` por usuario. Es el único endpoint con límite en el proyecto.
+**Throttle:** `5/hour` por usuario, con el scope `identity_submit`.
 
 **Request** — `multipart/form-data`
 
@@ -460,8 +462,10 @@ dentro del bloqueo. Con dos administradores simultáneos, uno obtiene `200` y el
 Los tres endpoints de esta sección son anónimos, de solo lectura y declaran
 `authentication_classes = []`: un `Authorization: Bearer` inválido o vencido no convierte una
 ruta pública en `401`. Comparten el scope de throttle `public_map`, fijado en **120 peticiones por
-minuto**. Es un límite básico por IP; la IP efectiva detrás del proxy de Railway debe comprobarse
-durante la futura validación productiva antes de configurar `NUM_PROXIES`.
+minuto** por IP del cliente, detrás de un proxy (`NUM_PROXIES = 1`). La topología prevista es
+navegador → router de Heroku → dyno; sin `X-Forwarded-For` se usa `REMOTE_ADDR`. Si se agrega
+otro proxy, hay que revisar este ajuste. Desde el S14, si falla Redis, el throttle deja pasar
+estas tres lecturas y registra solo el scope; el listado conserva su cálculo en vivo (§10).
 
 ### 4.1 `GET /api/v1/public/reports/`
 
@@ -1577,12 +1581,14 @@ del ciudadano (S12-D04).
 
 #### `GET /api/v1/ranking/monthly/`
 
-- Usa `AllowAny` y throttle `public_ranking`. **No admite parámetros**: cualquier query devuelve
-  `400`.
+- Usa `AllowAny` y throttle `public_ranking`, **120/min por IP del cliente, detrás de un proxy
+  (`NUM_PROXIES = 1`)**. **No admite parámetros**: cualquier query devuelve `400`.
 - Sin cabecera de autenticación permite acceso anónimo. Si se envía un JWT inválido o vencido,
   responde **401**: la autenticación se evalúa antes de `AllowAny`. Para consultar como anónimo,
   omití `Authorization`.
 - `429` si se supera el throttle.
+- Desde el S14, una caída de Redis deja pasar esta lectura sin contador y el ranking se calcula
+  en vivo; se registra solo el scope (§10).
 
 ```json
 {
@@ -1697,14 +1703,20 @@ La versión auditada sigue en `audit_logs`: `s8-classification-v1` o `classifica
 Contrato común: [S13_CONTRATO_API.md](s13/S13_CONTRATO_API.md). Son tres lecturas sin
 efectos: no escriben, no auditan y no crean tablas. Se calculan en vivo y se cachean en
 Redis por TTL (`DASHBOARD_METRICS_CACHE_TTL_SECONDS`, 120 s;
-`PUBLIC_METRICS_CACHE_TTL_SECONDS`, 300 s); si Redis falla, se calculan igual. No hay
+`PUBLIC_METRICS_CACHE_TTL_SECONDS`, 300 s); si Redis falla, se calculan igual. Desde el S14,
+`FailOpenScopedRateThrottle` permite llegar a la vista aunque también falle la caché del
+throttle (S14-D14). Esta excepción cubre solo siete lecturas: los tres endpoints del mapa,
+ranking y las tres métricas. Registra únicamente el scope, sin IP, URL ni clave de caché.
+Con Redis disponible se conservan los contadores y los `429`; durante una caída se pierde
+temporalmente esa protección en estas lecturas. Las escrituras (`report_create`,
+`report_confirm`, `reward_redeem` e `identity_submit`) siguen fallando cerrado. No hay
 precálculo con Beat ni invalidación por evento (S13-D05, CT-61).
 
 | Ruta | Permiso | Query (estricta) | Throttle | `Cache-Control` |
 |---|---|---|---|---|
 | `GET /api/v1/operator/metrics/` | `IsInstitutionOperator` + contexto `institution_id` (§7.1) | `institution_id`, `period` | `dashboard_metrics` 60/min | `private, no-store` |
 | `GET /api/v1/admin/metrics/` | `IsAdmin` | `institution_id` (opcional), `period` | `dashboard_metrics` 60/min | `private, no-store` |
-| `GET /api/v1/public/metrics/` | `AllowAny`, sin autenticación | ninguna (cualquier query → 400) | `public_metrics` 120/min por IP | `public, max-age=60` (solo en 200; los errores, `no-store`) |
+| `GET /api/v1/public/metrics/` | `AllowAny`, sin autenticación | ninguna (cualquier query → 400) | `public_metrics` 120/min por IP del cliente, detrás de un proxy (`NUM_PROXIES = 1`) | `public, max-age=60` (solo en 200; los errores, `no-store`) |
 
 - **`period`:** `YYYY-MM`, mes local (`America/Asuncion`), por defecto el actual; 400 si no
   matchea, si es anterior a `2026-01` o si es futuro.
@@ -1803,6 +1815,9 @@ Beat corre en **exactamente un** proceso.
 
 - Solo al **autor**, y no si el reporte no tiene autor (X) o el autor está inactivo. No hay
   correo por `CLASIFICADO`, `EN_PROCESO`, cierre, reversión ni confirmación.
+- Desde el S14, `send()` vuelve a verificar `is_active` bajo el lock antes de cada envío. Un
+  destinatario desactivado desde la creación deja la notificación en `FALLIDO`, suma un intento
+  y borra `next_attempt_at`, sin llamar al proveedor ni registrar su dirección (S14-D13).
 - Los correos no llevan descripción, ubicación, fotos, puntos, motivo ni enlaces.
   `REPORTE_CREADO` tampoco nombra la categoría.
 - Se crean dentro de la transacción y se encolan en `on_commit`; un choque de `dedup_key`
@@ -1814,3 +1829,95 @@ Beat corre en **exactamente un** proceso.
 - Ninguna respuesta existente cambia de forma (S13-D14).
 - Elegibilidad de `RECOMPENSA_DISPONIBLE`: ciudadano activo y verificado con ≥ 1.000
   créditos acreditados en una institución activa con recompensa activa, y sin canje ese mes.
+
+**Rescate de `dispatch_due` (S14-D15).** El barrido de cada 5 minutos rescata notificaciones
+`PENDIENTE` con cero intentos y una antigüedad de entre 15 minutos y 24 horas; también toma
+reintentos vencidos dentro de esa ventana de 24 horas. Encola hasta `SWEEP_LIMIT = 200` por
+corrida y no cambia el estado ni marca la fila como encolada. Por eso puede volver a encolar
+la misma `PENDIENTE` mientras la tarea anterior no se haya procesado. Es un comportamiento
+conservado deliberadamente para recuperar tareas perdidas por el broker o el worker:
+`send()` toma el lock y vuelve a leer el estado, por lo que reencolar no duplica el correo.
+No se agregó una marca de rescate ni una migración; el barrido no reencola automáticamente
+notificaciones de más de 24 horas. Esa ventana no agrega un límite de antigüedad a `send()`: una
+tarea ya encolada puede procesarse después.
+
+## 11. Índice de endpoints y verificación (Sprint 14)
+
+Índice de las **45 rutas reales** del backend y las **3 ausencias documentadas**, tomado de
+[`test_api_inventory.py`](../backend/apps/core/tests/test_api_inventory.py). El inventario
+compara rutas y métodos con el resolver de Django, sin contar `HEAD` ni `OPTIONS`, y verifica
+la respuesta a una llamada anónima mínima por ruta. En rutas con varios métodos, la columna
+“Anónimo” indica cuál se prueba; no implica que se recorran todos sus métodos sin sesión.
+Los UUID y tokens se muestran como marcadores de posición.
+
+La llamada mínima no lleva cuerpo ni query: por eso Google y refresh devuelven **400** por
+campos obligatorios omitidos, el listado público devuelve **400** sin `bbox` y los detalles
+con un UUID inexistente o una capacidad firmada inválida devuelven **404**. Son respuestas
+esperadas, no fallos del inventario. La prueba de health sustituye únicamente el ping de
+Redis; el estado operativo sigue requiriendo inspeccionar el JSON (§1.1).
+
+| Método(s) | Ruta | Permiso (vista) | Anónimo (llamada mínima) | Contrato |
+|---|---|---|---|---|
+| GET | `/api/v1/health/` | `AllowAny` | GET → 200 | §1.1 |
+| POST | `/api/v1/auth/google/` | `AllowAny` | POST → 400 | §2.1 |
+| POST | `/api/v1/auth/refresh/` | `AllowAny` | POST → 400 | §2.1 |
+| GET | `/api/v1/auth/me/` | `IsAuthenticated` | GET → 401 | §2.1 |
+| POST | `/api/v1/identity/submit/` | `IsCitizen` | POST → 401 | §3.1 |
+| GET | `/api/v1/identity/status/` | `IsCitizen` | GET → 401 | §3.2 |
+| GET, PATCH | `/api/v1/profile/ranking-visibility/` | `IsCitizen` | GET → 401 | §3.3 |
+| GET | `/api/v1/admin/identity/` | `IsAdmin` | GET → 401 | §3.4 |
+| GET | `/api/v1/admin/identity/{id}/` | `IsAdmin` | GET → 401 | §3.5 |
+| PATCH | `/api/v1/admin/identity/{id}/review/` | `IsAdmin` | PATCH → 401 | §3.6 |
+| GET | `/api/v1/public/reports/` | `AllowAny`, sin autenticación | GET → 400 | §4.1 |
+| GET | `/api/v1/public/reports/{id}/` | `AllowAny`, sin autenticación | GET → 404 | §4.2 |
+| GET | `/api/v1/public/categories/` | `AllowAny`, sin autenticación | GET → 200 | §4.3 |
+| POST | `/api/v1/reports/` | `IsVerifiedCitizen` | POST → 401 | §5.1 |
+| GET | `/api/v1/reports/possible-duplicates/` | `IsVerifiedCitizen` | GET → 401 | §5.2 |
+| GET | `/api/v1/reports/mine/` | `IsVerifiedCitizen` | GET → 401 | §6.1 |
+| GET | `/api/v1/reports/{id}/` | `IsVerifiedCitizen` | GET → 401 | §6.2 |
+| GET | `/api/v1/reports/{id}/history/` | `IsVerifiedCitizen` | GET → 401 | §6.3 |
+| POST | `/api/v1/reports/{id}/confirm/` | `IsVerifiedCitizen` | POST → 401 | §6.4 |
+| GET | `/api/v1/citizen/summary/` | `IsVerifiedCitizen` | GET → 401 | §6.5 |
+| GET | `/api/v1/reports/{id}/evidence/` | `IsAuthenticated` | GET → 401 | §7.6 |
+| GET | `/api/v1/reports/evidence-access/{token}/` | `AllowAny` (capacidad firmada) | GET → 404 | §7.6 |
+| GET | `/api/v1/operator/reports/` | `IsInstitutionOperator` | GET → 401 | §7.2 |
+| GET | `/api/v1/operator/reports/{id}/` | `IsInstitutionOperator` | GET → 401 | §7.3 |
+| GET | `/api/v1/operator/reports/{id}/history/` | `IsInstitutionOperator` | GET → 401 | §7.4 |
+| POST | `/api/v1/operator/reports/{id}/validate/` | `IsAuthenticated` (+ operador) | POST → 401 | §7.5 |
+| POST | `/api/v1/operator/reports/{id}/reject/` | `IsAuthenticated` (+ operador) | POST → 401 | §7.5 |
+| PATCH | `/api/v1/operator/reports/{id}/status/` | `IsAuthenticated` (+ operador) | PATCH → 401 | §7.6 |
+| GET, POST | `/api/v1/operator/reports/{id}/evidence/` | `IsAuthenticated` (+ operador) | GET → 401 | §7.6 |
+| GET | `/api/v1/admin/audit-logs/` | `IsAuthenticated` + `IsAdmin` | GET → 401 | §7.6, §8.7 |
+| GET | `/api/v1/admin/reports/{id}/evidence/` | `IsAuthenticated` + `IsAdmin` | GET → 401 | §7.6 |
+| POST | `/api/v1/admin/reports/{id}/revert-validation/` | `IsAuthenticated` + `IsAdmin` | POST → 401 | §7.6 |
+| GET | `/api/v1/rewards/summary/` | `IsVerifiedCitizen` | GET → 401 | §8.3 |
+| GET | `/api/v1/rewards/transactions/` | `IsVerifiedCitizen` | GET → 401 | §8.3 |
+| GET | `/api/v1/rewards/catalog/` | `IsVerifiedCitizen` | GET → 401 | §8.3 |
+| GET | `/api/v1/rewards/redemptions/` | `IsVerifiedCitizen` | GET → 401 | §8.3 |
+| GET | `/api/v1/rewards/redemptions/{id}/` | `IsVerifiedCitizen` | GET → 401 | §8.3 |
+| POST | `/api/v1/rewards/{id}/redeem/` | `IsVerifiedCitizen` | POST → 401 | §8.3 |
+| GET, POST | `/api/v1/operator/rewards/` | `IsInstitutionOperator` | GET → 401 | §8.4 |
+| PATCH | `/api/v1/operator/rewards/{id}/` | `IsInstitutionOperator` | PATCH → 401 | §8.4 |
+| GET | `/api/v1/operator/rewards/redemptions/` | `IsInstitutionOperator` | GET → 401 | §8.4 |
+| GET | `/api/v1/ranking/monthly/` | `AllowAny` | GET → 200 | §8.5 |
+| GET | `/api/v1/operator/metrics/` | `IsInstitutionOperator` | GET → 401 | §10 |
+| GET | `/api/v1/admin/metrics/` | `IsAdmin` | GET → 401 | §10 |
+| GET | `/api/v1/public/metrics/` | `AllowAny`, sin autenticación | GET → 200 | §10 |
+
+Las siguientes rutas **no existen** en el backend; la prueba verifica su 404 explícito:
+
+| Método | Ruta ausente | Anónimo | Referencia |
+|---|---|---|---|
+| POST | `/api/v1/auth/logout/` | 404 | §2.1 |
+| POST | `/api/v1/x-mock/messages/` | 404 | §10.3 |
+| POST | `/api/v1/telegram/webhook/` | 404 | CT-43 |
+
+**Resultado local, 20/10/2026, `07f3e08`: 49/49 casos pasados** en el JUnit del dominio:
+1 comparación del resolver y 48 llamadas anónimas (45 reales + 3 ausentes). No sustituye las
+pruebas de permisos autenticados ni las de los cuerpos de cada app. Los contratos de respuesta
+se conservan en `test_auth_endpoints`, `test_identity_endpoints`, `test_identity_admin_api`,
+`test_public_reports_api`, `test_reports_api`, `test_s7_api`, `test_mine_api`,
+`test_operator_reports_api`, `test_operator_report_actions_api`, `test_resolution_evidence_api`,
+`test_reversal_api`, `test_audit_api`, `test_rewards_api`, `test_ranking` y `test_metrics_api`.
+Las rutas del BFF de Next.js (`/api/auth/google`, `/api/auth/refresh` y `/api/auth/logout`)
+se describen en §2.2 y se prueban aparte en `bff-routes.test.ts`.
