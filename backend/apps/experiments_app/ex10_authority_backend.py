@@ -272,7 +272,16 @@ class DurableFloor:
 
     def current(self):
         self.store.check()
-        names = os.listdir(self.store.fd)
+        # Fork shares the descriptor's directory position; use a private one (PR #50).
+        fd = os.open(
+            ".",
+            os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC,
+            dir_fd=self.store.fd,
+        )
+        try:
+            names = os.listdir(fd)
+        finally:
+            os.close(fd)
         sql.require(
             names
             and all(
