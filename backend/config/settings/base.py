@@ -234,6 +234,8 @@ REST_FRAMEWORK = {
         "report_confirm": "30/hour",
         "reward_redeem": "10/hour",
         "public_ranking": "120/min",
+        "dashboard_metrics": "60/min",
+        "public_metrics": "120/min",
     },
 }
 
@@ -284,6 +286,9 @@ CACHES = {
 
 PUBLIC_MAP_CACHE_TTL_SECONDS = env.int("PUBLIC_MAP_CACHE_TTL_SECONDS", default=60)
 PUBLIC_RANKING_CACHE_TTL_SECONDS = env.int("PUBLIC_RANKING_CACHE_TTL_SECONDS", default=60)
+# Métricas del Sprint 13: caché por TTL con cálculo en vivo si Redis falla (S13-D05).
+DASHBOARD_METRICS_CACHE_TTL_SECONDS = env.int("DASHBOARD_METRICS_CACHE_TTL_SECONDS", default=120)
+PUBLIC_METRICS_CACHE_TTL_SECONDS = env.int("PUBLIC_METRICS_CACHE_TTL_SECONDS", default=300)
 PUBLIC_MAP_MAX_BBOX_SPAN_DEGREES = Decimal("0.5")
 REPORT_DUPLICATE_RADIUS_METERS = env.int("REPORT_DUPLICATE_RADIUS_METERS", default=100)
 REPORT_AUTO_CLOSE_HOURS = env.int("REPORT_AUTO_CLOSE_HOURS", default=72)
@@ -301,6 +306,16 @@ CELERY_BEAT_SCHEDULE = {
     "reports-auto-close-every-15-minutes": {
         "task": "reports.auto_close",
         "schedule": crontab(minute="*/15"),
+    },
+    # Sprint 13: barrido de reintentos de correo (S13-D11) y aviso diario de recompensa
+    # disponible a las 09:00 locales (S13-D10, CELERY_TIMEZONE = America/Asuncion).
+    "notifications-dispatch-due-every-5-minutes": {
+        "task": "notifications.dispatch_due",
+        "schedule": crontab(minute="*/5"),
+    },
+    "rewards-available-daily-0900": {
+        "task": "rewards.notify_available_rewards",
+        "schedule": crontab(hour=9, minute=0),
     },
 }
 

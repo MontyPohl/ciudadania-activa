@@ -233,9 +233,14 @@ export interface Notification extends Timestamped {
   id: UUID;
   userId: UUID;
   reportId: UUID | null;
+  redemptionId: UUID | null;
+  institutionId: UUID | null;
   notificationType: NotificationType;
   channel: NotificationChannel;
   status: NotificationStatus;
+  /** Intentos de envío; los reintentos automáticos solo ocurren mientras está PENDIENTE (S13). */
+  attempts: number;
+  nextAttemptAt: ISODateTime | null;
 }
 
 export interface XMockMessage extends Timestamped {

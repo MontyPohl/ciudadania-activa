@@ -42,6 +42,12 @@ export function SessionStatus() {
           >
             Ranking
           </Link>
+          <Link
+            href="/transparencia"
+            className="font-semibold text-[#6950A1] underline-offset-4 hover:underline"
+          >
+            Transparencia
+          </Link>
           {session.status === "authenticated" && (
             <Link
               href={SECCION_ROL[session.user.role].href}
