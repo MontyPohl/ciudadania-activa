@@ -4,8 +4,12 @@ Este documento conserva el contrato de pruebas del S14 y registra los resultados
 del 20/10/2026 sobre `07f3e08` (base `dc8c4b8`). La fuente backend es
 `junit-domain.xml`, conservado fuera del repositorio: se cotejaron `classname` y
 `name`, incluidos los parámetros, y se comprobó la ausencia de `failure`, `error`
-y `skipped`. Las pruebas de frontend se distinguen de la verificación completa
-que sigue `PENDIENTE_FRONTEND`. PR/CI: `PENDIENTE_PR`; despliegue: `PENDIENTE_DEPLOY`.
+y `skipped`. El frontend completo quedó en verde: format, lint, typecheck,
+417 pruebas Vitest en 44 archivos, build y 58 E2E con build de producción,
+todas con la fixture de `pageerror`. El [PR #54](https://github.com/MontyPohl/ciudadania-activa/pull/54)
+se abrió el 20/10: CI `test` (dominio + compuerta) en verde en 3 min, `build` y
+`frontend-e2e` en verde; `ci-experiments` seguía en curso al escribir.
+Despliegue pendiente de aprobación del usuario.
 
 # 02 — Matriz de pruebas: el contrato del S14
 
@@ -84,14 +88,14 @@ Capa CI, con API simulada (carril C2). Todas las specs usan `e2e/support/test.ts
 
 | ID | Flujo (§24) | CI (`frontend/e2e/`) | Full-stack (paso de `flows.spec.ts`) | Resultado (20/10/2026, `07f3e08`) |
 |---|---|---|---|---|
-| F1 | Registro y verificación de identidad | **NUEVA** `identity.spec.ts`: `@F1 registro con Google simulado, verificación y aprobación`. *Stub* de GIS → `/api/auth/google` simulado → `/verificacion` (multipart con cédula y selfie) → `/identidades` del admin → aprobación con cotejo → el ciudadano ve "verificada" | **NUEVO** `@F1 verificación de identidad real`. Ciudadano C sembrado sin verificar, con sesión por cookie → `/verificacion` → admin `/identidades/{id}` (la selfie se sirve desde el Storage falso) → aprobar con la cédula ficticia. El login con Google no se automatiza (D09) | C2: PASS (selección 8 @F); full-stack: PASS (8/8); suite completa: `PENDIENTE_FRONTEND` |
-| F2 | Creación de reporte con aviso de duplicado | EXISTENTE `create-report.spec.ts:207` "duplicados se consulta una vez solo al confirmar y el warning no bloquea" → se le agrega `@F2` al título | **NUEVO** `@F2`: A crea un reporte de alumbrado (ANDE) a menos de 100 m de uno sembrado → ve el aviso → continúa → 201 | C2: PASS (selección 8 @F); full-stack: PASS (8/8); suite completa: `PENDIENTE_FRONTEND` |
-| F3 | Confirmación por un segundo ciudadano | EXISTENTE `confirm-report.spec.ts:62` "relato A/B: CITIZEN_B confirma una vez y recibe +10 pendientes" → `@F3` | **NUEVO** `@F3`: B confirma → "+10 pendientes". Además, la **consulta pública**: un anónimo ve el reporte en `/reporte/{id}` (D09, HT-4) | C2: PASS (selección 8 @F); full-stack: PASS (8/8); suite completa: `PENDIENTE_FRONTEND` |
-| F4 | Validación institucional y acreditación | **NUEVA** `incentives-journey.spec.ts`: `@F4 la validación acredita al autor`. El operador valida en `/bandeja/{id}` y después el autor ve en `/recompensas` los 50 de impacto y los 50 créditos de ANDE. El mock tiene estado compartido | **NUEVO** `@F4`: el operador de ANDE valida; A ve +50 | C2: PASS (selección 8 @F); full-stack: PASS (8/8); suite completa: `PENDIENTE_FRONTEND` |
-| F5 | Resolución con evidencia | EXISTENTE `operator-reports.spec.ts:42` "operador completa ciclo con evidencia y cierre" → `@F5` | **NUEVO** `@F5`: `EN_PROCESO` → evidencia subida por la UI (Storage falso) → `RESUELTO`; A ve +50 | C2: PASS (selección 8 @F); full-stack: PASS (8/8); suite completa: `PENDIENTE_FRONTEND` |
-| F6 | Actualización del ranking | **NUEVA** `incentives-journey.spec.ts`: `@F6 el ranking refleja los puntos acreditados` (`/ranking` antes y después de la validación simulada) | **NUEVO** `@F6`: anónimo en `/ranking` → A en el Top 10 con sus puntos (TTL de 1 s en el contenedor) | C2: PASS (selección 8 @F); full-stack: PASS (8/8); suite completa: `PENDIENTE_FRONTEND` |
-| F7 | Consulta de saldos | **NUEVA** `incentives-journey.spec.ts`: `@F7 saldos por institución y movimientos` (`/recompensas`: saldo por institución, uno negativo incluido, y movimientos paginados) | **NUEVO** `@F7`: A ve 1.000 créditos de ANDE (900 sembrados por servicios + los 100 de F4 y F5) y sus movimientos | C2: PASS (selección 8 @F); full-stack: PASS (8/8); suite completa: `PENDIENTE_FRONTEND` |
-| F8 | Canje y bloqueo del segundo canje mensual | EXISTENTE `rewards.spec.ts:3` "canje simulado y recuperación del vale existente" → `@F8` | **NUEVO** `@F8`: A canjea → vale `CA-…` con aviso de simulación → segundo intento → "Este vale ya estaba emitido" | C2: PASS (selección 8 @F); full-stack: PASS (8/8); suite completa: `PENDIENTE_FRONTEND` |
+| F1 | Registro y verificación de identidad | **NUEVA** `identity.spec.ts`: `@F1 registro con Google simulado, verificación y aprobación`. *Stub* de GIS → `/api/auth/google` simulado → `/verificacion` (multipart con cédula y selfie) → `/identidades` del admin → aprobación con cotejo → el ciudadano ve "verificada" | **NUEVO** `@F1 verificación de identidad real`. Ciudadano C sembrado sin verificar, con sesión por cookie → `/verificacion` → admin `/identidades/{id}` (la selfie se sirve desde el Storage falso) → aprobar con la cédula ficticia. El login con Google no se automatiza (D09) | C2: PASS (selección 8 @F); full-stack: PASS (8/8); suite completa: PASS (58/58 E2E con build de producción) |
+| F2 | Creación de reporte con aviso de duplicado | EXISTENTE `create-report.spec.ts:207` "duplicados se consulta una vez solo al confirmar y el warning no bloquea" → se le agrega `@F2` al título | **NUEVO** `@F2`: A crea un reporte de alumbrado (ANDE) a menos de 100 m de uno sembrado → ve el aviso → continúa → 201 | C2: PASS (selección 8 @F); full-stack: PASS (8/8); suite completa: PASS (58/58 E2E con build de producción) |
+| F3 | Confirmación por un segundo ciudadano | EXISTENTE `confirm-report.spec.ts:62` "relato A/B: CITIZEN_B confirma una vez y recibe +10 pendientes" → `@F3` | **NUEVO** `@F3`: B confirma → "+10 pendientes". Además, la **consulta pública**: un anónimo ve el reporte en `/reporte/{id}` (D09, HT-4) | C2: PASS (selección 8 @F); full-stack: PASS (8/8); suite completa: PASS (58/58 E2E con build de producción) |
+| F4 | Validación institucional y acreditación | **NUEVA** `incentives-journey.spec.ts`: `@F4 la validación acredita al autor`. El operador valida en `/bandeja/{id}` y después el autor ve en `/recompensas` los 50 de impacto y los 50 créditos de ANDE. El mock tiene estado compartido | **NUEVO** `@F4`: el operador de ANDE valida; A ve +50 | C2: PASS (selección 8 @F); full-stack: PASS (8/8); suite completa: PASS (58/58 E2E con build de producción) |
+| F5 | Resolución con evidencia | EXISTENTE `operator-reports.spec.ts:42` "operador completa ciclo con evidencia y cierre" → `@F5` | **NUEVO** `@F5`: `EN_PROCESO` → evidencia subida por la UI (Storage falso) → `RESUELTO`; A ve +50 | C2: PASS (selección 8 @F); full-stack: PASS (8/8); suite completa: PASS (58/58 E2E con build de producción) |
+| F6 | Actualización del ranking | **NUEVA** `incentives-journey.spec.ts`: `@F6 el ranking refleja los puntos acreditados` (`/ranking` antes y después de la validación simulada) | **NUEVO** `@F6`: anónimo en `/ranking` → A en el Top 10 con sus puntos (TTL de 1 s en el contenedor) | C2: PASS (selección 8 @F); full-stack: PASS (8/8); suite completa: PASS (58/58 E2E con build de producción) |
+| F7 | Consulta de saldos | **NUEVA** `incentives-journey.spec.ts`: `@F7 saldos por institución y movimientos` (`/recompensas`: saldo por institución, uno negativo incluido, y movimientos paginados) | **NUEVO** `@F7`: A ve 1.000 créditos de ANDE (900 sembrados por servicios + los 100 de F4 y F5) y sus movimientos | C2: PASS (selección 8 @F); full-stack: PASS (8/8); suite completa: PASS (58/58 E2E con build de producción) |
+| F8 | Canje y bloqueo del segundo canje mensual | EXISTENTE `rewards.spec.ts:3` "canje simulado y recuperación del vale existente" → `@F8` | **NUEVO** `@F8`: A canjea → vale `CA-…` con aviso de simulación → segundo intento → "Este vale ya estaba emitido" | C2: PASS (selección 8 @F); full-stack: PASS (8/8); suite completa: PASS (58/58 E2E con build de producción) |
 
 - **Selección por etiqueta:** `npx playwright test --grep @F` corre los 8 de la CI.
 - **Errores no controlados (HT4-01):** la *fixture* de `pageerror` corre en **todas** las specs de `e2e/`, no solo en las 8: C2 cambia el import en las 6 specs existentes.
@@ -101,16 +105,16 @@ Capa CI, con API simulada (carril C2). Todas las specs usan `e2e/support/test.ts
 
 | Formulario | Prueba | Tipo | Resultado (20/10/2026, `07f3e08`) |
 |---|---|---|---|
-| Crear reporte | `src/features/reports/create/__tests__/CreateReportWizard.test.tsx`, `ReportPhotoField.test.tsx` y `validation.test.ts` | EXISTENTE | `PENDIENTE_FRONTEND` (suite completa) |
-| Confirmar | `src/features/reports/confirmation/__tests__/ReportConfirmation.test.tsx` | EXISTENTE | `PENDIENTE_FRONTEND` (suite completa) |
-| Validar, rechazar, evidencia y estados (operador) | `src/features/reports/operator/__tests__/OperatorReports.test.tsx` (12 casos) | EXISTENTE | `PENDIENTE_FRONTEND` (suite completa) |
-| Recompensa del operador | `src/features/rewards/operator/__tests__/OperatorRewardForm.test.tsx` | EXISTENTE | `PENDIENTE_FRONTEND` (suite completa) |
-| Canje | `src/features/rewards/__tests__/RewardCard.test.tsx` y `e2e/rewards.spec.ts` | EXISTENTE | @F8 focalizado: PASS; suite completa: `PENDIENTE_FRONTEND` |
-| Reversión (admin) | `src/features/audit/__tests__/AdminAuditConsole.test.tsx` | EXISTENTE | `PENDIENTE_FRONTEND` (suite completa) |
-| **Verificación de identidad** | `src/features/identity/__tests__/VerificationForm.test.tsx`: `envía cédula y selfie en multipart y muestra el estado pendiente` y `rechaza enviar sin selfie y conserva la cédula ante un 400` | **NUEVA** (C1) | C1: PASS (parte de 22/22); suite completa: `PENDIENTE_FRONTEND` |
-| **Revisión de identidad (admin)** | `src/features/identity/__tests__/ReviewDetail.test.tsx`: `aprobar exige transcribir la cédula y manda document_number` y `rechazar exige motivo y no manda la cédula` | **NUEVA** (C1) | C1: PASS (parte de 22/22); suite completa: `PENDIENTE_FRONTEND` |
-| **Privacidad del ranking** | `src/features/identity/__tests__/RankingVisibilityForm.test.tsx`: `cambia la visibilidad con PATCH y muestra la vista previa` | **NUEVA** (C1) | C1: PASS (parte de 22/22); suite completa: `PENDIENTE_FRONTEND` |
-| **BFF de sesión** (API §2.2) | `src/app/api/auth/__tests__/bff-routes.test.ts` (`// @vitest-environment node`, `next/headers` y `fetch` simulados): google 400 sin `token_google`, 200 que guarda `ca_refresh` `HttpOnly` sin devolver el refresh, 502 si Django no responde; refresh 401 sin cookie; logout 204 que borra la cookie | **NUEVA** (C1, recortable: D24-1) | C1: PASS (parte de 22/22); suite completa: `PENDIENTE_FRONTEND` |
+| Crear reporte | `src/features/reports/create/__tests__/CreateReportWizard.test.tsx`, `ReportPhotoField.test.tsx` y `validation.test.ts` | EXISTENTE | PASS — suite completa Vitest |
+| Confirmar | `src/features/reports/confirmation/__tests__/ReportConfirmation.test.tsx` | EXISTENTE | PASS — suite completa Vitest |
+| Validar, rechazar, evidencia y estados (operador) | `src/features/reports/operator/__tests__/OperatorReports.test.tsx` (12 casos) | EXISTENTE | PASS — suite completa Vitest |
+| Recompensa del operador | `src/features/rewards/operator/__tests__/OperatorRewardForm.test.tsx` | EXISTENTE | PASS — suite completa Vitest |
+| Canje | `src/features/rewards/__tests__/RewardCard.test.tsx` y `e2e/rewards.spec.ts` | EXISTENTE | @F8 focalizado: PASS; suite completa Vitest y E2E: PASS |
+| Reversión (admin) | `src/features/audit/__tests__/AdminAuditConsole.test.tsx` | EXISTENTE | PASS — suite completa Vitest |
+| **Verificación de identidad** | `src/features/identity/__tests__/VerificationForm.test.tsx`: `envía cédula y selfie en multipart y muestra el estado pendiente` y `rechaza enviar sin selfie y conserva la cédula ante un 400` | **NUEVA** (C1) | C1: PASS (parte de 22/22); suite completa Vitest: PASS |
+| **Revisión de identidad (admin)** | `src/features/identity/__tests__/ReviewDetail.test.tsx`: `aprobar exige transcribir la cédula y manda document_number` y `rechazar exige motivo y no manda la cédula` | **NUEVA** (C1) | C1: PASS (parte de 22/22); suite completa Vitest: PASS |
+| **Privacidad del ranking** | `src/features/identity/__tests__/RankingVisibilityForm.test.tsx`: `cambia la visibilidad con PATCH y muestra la vista previa` | **NUEVA** (C1) | C1: PASS (parte de 22/22); suite completa Vitest: PASS |
+| **BFF de sesión** (API §2.2) | `src/app/api/auth/__tests__/bff-routes.test.ts` (`// @vitest-environment node`, `next/headers` y `fetch` simulados): google 400 sin `token_google`, 200 que guarda `ca_refresh` `HttpOnly` sin devolver el refresh, 502 si Django no responde; refresh 401 sin cookie; logout 204 que borra la cookie | **NUEVA** (C1, recortable: D24-1) | C1: PASS (parte de 22/22); suite completa Vitest: PASS |
 
 ## 5. Contrato de API: inventario (D07)
 
@@ -241,10 +245,10 @@ Resultados completos en [S14_INFORME_PRUEBAS.md](S14_INFORME_PRUEBAS.md). **La c
 | HT-1 (asíncrono, ≥ 50 rep/min) | — (k6, S15) | No se mide | `NOT_DEMONSTRATED` | S15 |
 | HT-2 (IA ≥ 85 %) | Pruebas del parser, la política y la orquestación (sin proveedor real) | Solo correctitud estructural | `FAIL` (19/28) | No se re-mide |
 | HT-3 (HMAC) | `auth_app/tests/test_identity_hmac.py`, `test_identity_endpoints.py::test_persiste_el_hmac_y_no_la_cedula`, `…::test_una_cedula_ya_registrada_responde_409_generico` y F1 full-stack | PASS en pruebas HMAC y F1; complementario | `NOT_DEMONSTRATED` | Evidencia complementaria |
-| HT-4 (flujos E2E + trazabilidad) | F1…F8 full-stack (y en CI) | Full-stack 8/8; C2 focalizado 8/8; completo `PENDIENTE_FRONTEND` | `NOT_DEMONSTRATED` | El CI con API simulada no cuenta (S11A); el full-stack es complementario |
+| HT-4 (flujos E2E + trazabilidad) | F1…F8 full-stack (y en CI) | Full-stack 8/8; C2 focalizado 8/8; suite completa E2E 58/58 con build de producción y fixture de `pageerror` | `NOT_DEMONSTRATED` | El CI con API simulada no cuenta (S11A); el full-stack es complementario |
 | HT-5 (cobertura ≥ 80 %) | Compuerta de la CI + HT-5 sobre los 33 archivos | 95,62 % producto; 96,91 % HT5-01; umbral forzado 101 → exit 1 | `PASS` (96,76 %) | Seguimiento |
 | HT-6 (reglas al 100 %) | S-01…S-12 + LED-01 + `test_ranking.py` | 12/12 + LED-01 y ranking en verde en JUnit | `NOT_DEMONSTRATED` (EX-11 diferido) | Ranking y canje funcionan en pruebas; EX-11 sigue diferido |
-| Seguridad (§29, H.5) | SEC-01…SEC-11 | 11/11 (JUnit backend + render C1); completo frontend `PENDIENTE_FRONTEND` | (no es una HT) | — |
+| Seguridad (§29, H.5) | SEC-01…SEC-11 | 11/11 (JUnit backend + render C1); frontend completo en verde (417 Vitest, 58 E2E) | (no es una HT) | — |
 
 ## 9. Cierre de la verificación única
 
@@ -253,7 +257,23 @@ Dominio: **2325 pasadas, 0 fallos, 0 errores y 0 omitidas**, en **2 min 38 s**
 rotulados como estimación son la línea base del contrato; el resultado real y las
 tablas por app y por archivo están en el [informe](S14_INFORME_PRUEBAS.md#4-cobertura).
 
-Experimentos: pasadas `PENDIENTE_EXPERIMENTS`; fallos `PENDIENTE_EXPERIMENTS`;
-errores `PENDIENTE_EXPERIMENTS`; duración `PENDIENTE_EXPERIMENTS`; GOV-T054
-`PENDIENTE_EXPERIMENTS`. Se esperan dos fallos de `test_ex10_preflight` y 71
-`IsolationError` de `test_ex10_prepare.py`; no se registran como resultados obtenidos.
+La corrida local de `experiments_app` del **20/10/2026** se ejecutó una vez,
+en paralelo con el dominio, el full-stack y el frontend: **3385 pasadas,
+17 omitidas, 4 fallos y 71 errores, en 1 h 40 min**. **GOV-T054 pasó**.
+Los 71 errores son `IsolationError` de `test_ex10_prepare.py`, porque el host
+`s12-dev-db` queda fuera de la allowlist local de S11. Dos fallos son los
+esperados de `test_ex10_preflight`.
+
+Los otros dos fallos fueron `CAPABILITY_EXPIRED` por carga del host en
+`test_ex10_executor.py::test_official_not_demonstrated_runs_need_each_exact_acknowledgement[none]`
+y `test_ex10_executor.py::test_official_not_demonstrated_runs_need_each_exact_acknowledgement[exact]`.
+Al repetir solo esa prueba con la máquina libre pasaron sus **7 variantes**;
+la repetición focalizada no cambia los conteos de la corrida completa.
+El S14 no modifica `experiments_app`.
+
+El frontend completo quedó en verde: format, lint, typecheck, **417 pruebas
+Vitest en 44 archivos**, build y **58/58 E2E con build de producción**, todas
+con la fixture de `pageerror`. En el PR #54, abierto el 20/10, CI `test`
+(dominio + compuerta) pasó en **3 min**, y `build` y `frontend-e2e` quedaron en
+verde. `ci-experiments` seguía en curso al escribir. El despliegue queda
+pendiente de aprobación del usuario.

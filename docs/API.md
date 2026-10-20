@@ -6,7 +6,10 @@ confirmación ciudadana, ciclo institucional S10 y recompensas, canje y ranking 
 La sección 8 describe S12 integrado en PR #43 y desplegado el 19/10/2026.
 Referencia productiva previa: 20/10/2026, backend de `main@d9e1c11`, IA v2 y Brevo activos en
 Heroku. Este documento incorpora el contrato verificado localmente del S14 en
-`feat/s14-testing@07f3e08`; PR: `PENDIENTE_PR`; despliegue: `PENDIENTE_DEPLOY`.
+`feat/s14-testing@07f3e08`. El [PR #54](https://github.com/MontyPohl/ciudadania-activa/pull/54)
+se abrió el 20/10: el job `test` (dominio y compuerta) pasó en 3 min; `build` y
+`frontend-e2e` también están en verde. `ci-experiments` seguía en curso al momento
+de escribir. El despliegue está pendiente de aprobación del usuario.
 
 - **Plan de referencia:** [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md) §14 (Sprint 4), §19
   (Sprint 9) y §29 (seguridad).

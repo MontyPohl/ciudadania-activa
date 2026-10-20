@@ -444,7 +444,7 @@ commit de reconciliación `744e295` (árbol igual a `backend/` de `d9e1c11`) y a
 - S14 fija `REST_FRAMEWORK["NUM_PROXIES"] = 1` para los throttles por IP del cliente,
   detrás de un proxy: navegador → router de Heroku → dyno. Sin `X-Forwarded-For`, local
   y CI usan `REMOTE_ADDR`. Agregar otro proxy exige revisar el ajuste. El cambio está
-  verificado localmente; su despliegue sigue como `PENDIENTE_DEPLOY`.
+  verificado localmente; su despliegue está pendiente de aprobación del usuario.
 - Si cae Redis, mapa, ranking y métricas mantienen sus siete lecturas mediante el
   throttle fail-open del S14: se pierde temporalmente el contador y se registra solo el
   scope. Las escrituras siguen fallando cerrado; el detalle está en [API §10](docs/API.md#10-métricas-y-transparencia-sprint-13).

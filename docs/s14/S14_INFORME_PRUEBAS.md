@@ -3,8 +3,10 @@
 **Corte:** 20/10/2026. **Base:** `dc8c4b8`. **Árbol integrado de carriles:**
 `07f3e08ccf7c5efb0a79c5079384b0ecbe0cea19`, rama `feat/s14-testing`.
 Implementado y verificado en los alcances detallados abajo; la integración de
-carriles no implica integración en `main`. PR y CI: `PENDIENTE_PR`.
-Despliegue: `PENDIENTE_DEPLOY`.
+carriles no implica integración en `main`. El [PR #54](https://github.com/MontyPohl/ciudadania-activa/pull/54)
+se abrió el 20/10: CI `test` (dominio + compuerta) en verde en 3 min, `build` y
+`frontend-e2e` en verde; `ci-experiments` seguía en curso al escribir.
+Despliegue: pendiente de aprobación del usuario.
 
 Las cifras provienen de la verificación única del dominio (`domain.log`,
 `junit-domain.xml`, `coverage-gate.json` y `ht5.txt`), de los logs de los carriles
@@ -22,7 +24,7 @@ La síntesis final queda para el hito 2 (S15/S16), con decisión del responsable
 | HT-1 (asíncrono, ≥ 50 rep/min) | — (k6, S15) | No se mide | `NOT_DEMONSTRATED` | S15 |
 | HT-2 (IA ≥ 85 %) | Pruebas del parser, la política y la orquestación (sin proveedor real) | Pruebas de dominio en verde; solo correctitud estructural | `FAIL` (19/28) | No se re-mide |
 | HT-3 (HMAC) | `auth_app/tests/test_identity_hmac.py`, `test_identity_endpoints.py::test_persiste_el_hmac_y_no_la_cedula`, `…::test_una_cedula_ya_registrada_responde_409_generico` y F1 full-stack | Pruebas HMAC y F1 en verde | `NOT_DEMONSTRATED` | Evidencia complementaria |
-| HT-4 (flujos E2E + trazabilidad) | F1…F8 full-stack (y capa con API simulada) | Full-stack 8/8; C2 focalizado 8/8; suite completa frontend `PENDIENTE_FRONTEND` | `NOT_DEMONSTRATED` | El E2E con API interceptada no cuenta para HT4-01 (S11A); el full-stack es complementario |
+| HT-4 (flujos E2E + trazabilidad) | F1…F8 full-stack (y capa con API simulada) | Full-stack 8/8; C2 focalizado 8/8; suite completa E2E 58/58 con build de producción y fixture de `pageerror` | `NOT_DEMONSTRATED` | El E2E con API interceptada no cuenta para HT4-01 (S11A); el full-stack es complementario |
 | HT-5 (cobertura ≥ 80 %) | Compuerta de la CI + HT-5 sobre los 33 archivos | Producto 95,62 %; HT5-01 96,91 % | `PASS` (96,76 %) | Seguimiento; alcances y denominadores distintos |
 | HT-6 (reglas al 100 %) | S-01…S-12 + LED-01 + `test_ranking.py` | 12/12 escenarios; LED-01 y ranking en verde en JUnit | `NOT_DEMONSTRATED` (EX-11 diferido) | Ranking y canje funcionan en pruebas; EX-11 sigue diferido |
 | Seguridad (§29, H.5) | SEC-01…SEC-11 | 11/11 casos: JUnit backend + render C1 | (no es una HT) | No equivale a una auditoría integral ni cierra riesgos abiertos |
@@ -90,8 +92,9 @@ texto plano. Se rechazan caracteres de control donde el contrato lo exige. No
 se implementó ni se afirma limpieza de HTML en el servidor. C1 verifica dos
 entradas de HTML/script en tres componentes (`PublicReportDetail`,
 `OperatorReportDetail` y `RewardCard`): seis renderizados sin interpretación ni
-ejecución. C1 pasó **22 pruebas Vitest**, más lint, tipos y formato; el frontend
-completo mantiene `PENDIENTE_FRONTEND`.
+ejecución. C1 pasó **22 pruebas Vitest**, más lint, tipos y formato. La verificación
+completa posterior del frontend también quedó en verde: **417 pruebas Vitest en
+44 archivos**, además de los controles y E2E detallados en §4.4.
 
 SEC-06 verifica **403** tanto al modificar una recompensa ajena como al consultar
 su lista y sus canjes. SEC-11 cubre la API y el guard del servicio para ciudadano,
@@ -209,22 +212,35 @@ registran las versiones de parche de pytest y Ruff, por lo que no se inventan.
 ### 4.4 Aparato experimental y frontend completo
 
 La separación de `ci-experiments.yml` conserva el aparato fuera de la compuerta
-de producto y de HT5-01. Verificación única de `experiments_app`: **EN CURSO**.
-Pasadas: `PENDIENTE_EXPERIMENTS`; fallos: `PENDIENTE_EXPERIMENTS`; errores:
-`PENDIENTE_EXPERIMENTS`; duración: `PENDIENTE_EXPERIMENTS`; GOV-T054:
-`PENDIENTE_EXPERIMENTS`. Se esperan dos fallos de `test_ex10_preflight` y 71
-`IsolationError` de `test_ex10_prepare.py` por la allowlist local; esos valores
-son expectativas, no resultados obtenidos. El GOV-T054 verde del paso 0 no
-reemplaza el resultado pendiente de esta corrida.
+de producto y de HT5-01. La corrida local de `experiments_app` del **20/10/2026**
+se ejecutó una vez, en paralelo con el dominio, el full-stack y el frontend:
+**3385 pasadas, 17 omitidas, 4 fallos y 71 errores, en 1 h 40 min**.
+**GOV-T054 pasó** en esa corrida. Los 71 errores son `IsolationError` de
+`test_ex10_prepare.py`: el host `s12-dev-db` queda fuera de la allowlist local
+de S11. Dos fallos son los esperados de `test_ex10_preflight`.
 
-Frontend completo (format, test, lint, typecheck, build y todas las E2E con build
-de producción): `PENDIENTE_FRONTEND`. PR y CI remota: `PENDIENTE_PR`.
+Los otros dos fallos corresponden a
+`test_ex10_executor.py::test_official_not_demonstrated_runs_need_each_exact_acknowledgement[none]`
+y `test_ex10_executor.py::test_official_not_demonstrated_runs_need_each_exact_acknowledgement[exact]`:
+ambos devolvieron `CAPABILITY_EXPIRED` por carga del host. Al repetir solo esa
+prueba con la máquina libre pasaron sus **7 variantes**. Ese resultado focalizado
+se informa por separado y no cambia los conteos de la corrida completa.
+El S14 no modifica `experiments_app`.
+
+El frontend completo quedó en verde: **format, lint, typecheck, 417 pruebas
+Vitest en 44 archivos, build y 58 E2E con build de producción**. Todas las E2E
+usaron la fixture que falla ante `pageerror`.
+
+El [PR #54](https://github.com/MontyPohl/ciudadania-activa/pull/54), abierto el
+**20/10**, tiene CI `test` (dominio + compuerta) en verde en **3 min**, además de
+`build` y `frontend-e2e` en verde. `ci-experiments` seguía en curso al escribir;
+ese estado remoto se distingue del resultado local detallado arriba.
 
 ## 5. E2E en dos capas
 
 | Capa | Ejecución y alcance | Resultado al corte |
 |---|---|---|
-| Diseñada para CI, API simulada | Carril C2, selección `@F1`…`@F8`; Google Identity Services simulado y fixture común que falla ante `pageerror` | **8/8** focalizados en verde. `rewards.spec` falló una vez durante la compilación inicial del dev server y pasó al repetir. Suite completa con build de producción: `PENDIENTE_FRONTEND`; ejecución en CI: `PENDIENTE_PR` |
+| Diseñada para CI, API simulada | Carril C2, selección `@F1`…`@F8`; Google Identity Services simulado y fixture común que falla ante `pageerror` en todas las E2E | **8/8** focalizados en verde. `rewards.spec` falló una vez durante la compilación inicial del dev server y pasó al repetir. Suite completa con build de producción: **58/58 E2E** en verde; `frontend-e2e` en verde en el PR #54 |
 | Full-stack local | Backend y BFF reales, PostGIS, Redis y Storage REST falso; Chromium con un worker y sin reintentos | **8/8 flujos + captura = 9/9**, una corrida el 20/10, **57,7 s**, sin `pageerror`. Post-chequeo del ledger: **32 `ACREDITADO`, 1 `PENDIENTE`** |
 
 La captura `metricas-1280.png` confirma la corrección de D17 en el gráfico de
@@ -302,7 +318,7 @@ el rescate acotado de `dispatch_due`, documentado en API §10.5.
 | `main` sin protección efectiva | README corregido (D20); activar protección queda a decisión del responsable |
 | Revisión final de integración y seguridad | Este documento registra controles y riesgos; no presenta una auditoría adicional como ejecutada |
 | B4 y trazabilidad | Pasada UX y dataset definitivo en S15; EX-11 sigue diferido |
-| PR/CI y despliegue | `PENDIENTE_PR` / `PENDIENTE_DEPLOY` |
+| PR/CI y despliegue | PR #54 abierto el 20/10; CI `test` (dominio + compuerta) en verde en 3 min, `build` y `frontend-e2e` en verde; `ci-experiments` en curso al escribir. Despliegue pendiente de aprobación del usuario |
 
 No se aplicó ningún recorte de D24: entraron BFF, corrección tipográfica,
 full-stack F1…F8 y fail-open, además de los componentes obligatorios.

@@ -111,8 +111,9 @@ caracteres de control que el contrato no admite. Las pruebas de SEC-10 comprueba
 esa conducta; no presentan la persistencia literal como una falla.
 
 El conjunto reúne **11/11 casos cubiertos y en verde** en la combinación de
-dominio y pruebas focalizadas C1. El frontend completo sigue identificado como
-`PENDIENTE_FRONTEND`; esta tabla no anticipa su resultado.
+dominio y pruebas focalizadas C1. La verificación completa del frontend también
+pasó: format, lint, typecheck, 417 pruebas Vitest en 44 archivos, build y
+58 E2E con build de producción, todos los E2E con la fixture de `pageerror`.
 
 ## H.6 Resultados obtenidos y límites
 
@@ -129,20 +130,25 @@ dominio y pruebas focalizadas C1. El frontend completo sigue identificado como
 | E2E con API simulada, focalizado C2 | 8/8 flujos `@F` en verde; `rewards.spec` pasó al repetir tras una falla de compilación inicial del servidor de desarrollo |
 | E2E full-stack local | 9/9 pruebas: F1…F8 más captura del dashboard; 57,7 s; backend real y Storage falso |
 | Post-chequeo del ledger full-stack | 32 filas `ACREDITADO` y 1 `PENDIENTE` |
-| Aparato experimental: pasadas | PENDIENTE_EXPERIMENTS |
-| Aparato experimental: fallos | PENDIENTE_EXPERIMENTS |
-| Aparato experimental: errores | PENDIENTE_EXPERIMENTS |
-| Aparato experimental: duración | PENDIENTE_EXPERIMENTS |
-| Aparato experimental: GOV-T054 | PENDIENTE_EXPERIMENTS |
-| Frontend completo y E2E con build de producción | PENDIENTE_FRONTEND |
-| PR y CI remota | PENDIENTE_PR |
-| Despliegue | PENDIENTE_DEPLOY |
+| Aparato experimental: pasadas | 3385 |
+| Aparato experimental: omitidas | 17 |
+| Aparato experimental: fallos | 4: dos esperados de preflight y dos por `CAPABILITY_EXPIRED`; las siete variantes de la prueba afectada pasaron al repetirla con la máquina libre |
+| Aparato experimental: errores | 71 `IsolationError` en `test_ex10_prepare.py`, por la allowlist local de S11 |
+| Aparato experimental: duración | 1 h 40 min, una corrida local en paralelo con dominio, full-stack y frontend |
+| Aparato experimental: GOV-T054 | Pasó |
+| Frontend completo y E2E con build de producción | Format, lint, typecheck, 417 pruebas Vitest en 44 archivos, build y 58 E2E en verde; todos los E2E con fixture de `pageerror` |
+| PR y CI remota | [PR #54](https://github.com/MontyPohl/ciudadania-activa/pull/54), abierto el 20/10: `test` (dominio y compuerta) verde en 3 min, `build` y `frontend-e2e` verdes; `ci-experiments` en curso al escribir |
+| Despliegue | Pendiente de aprobación del usuario |
 
-La ejecución de `experiments_app` está en curso. Los dos fallos de
-`test_ex10_preflight` y los 71 `IsolationError` de `test_ex10_prepare.py` son el
-diagnóstico **esperado** por la allowlist del entorno local; no se registran como
-resultados obtenidos hasta contar con su reporte. GOV-T054 también queda pendiente
-en esa ejecución, aunque su comprobación focalizada del paso 0 pasó.
+La corrida local de `experiments_app` del 20/10 se ejecutó una vez, en paralelo
+con dominio, full-stack y frontend. Los 71 errores son `IsolationError` de
+`test_ex10_prepare.py`: el host `s12-dev-db` queda fuera de la allowlist local
+de S11. Dos fallos son los esperados de `test_ex10_preflight`. Los otros dos
+ocurrieron en
+`test_ex10_executor.py::test_official_not_demonstrated_runs_need_each_exact_acknowledgement[none]`
+y `[exact]`, con `CAPABILITY_EXPIRED` por carga del host. Al repetir solo esa
+prueba con la máquina libre, pasaron sus siete variantes. GOV-T054 pasó en la
+corrida local. S14 no modifica `experiments_app`.
 
 Los videos, la captura, el log y `SHA256SUMS` del full-stack se conservan en la
 carpeta de evidencia **fuera del repositorio**. La captura del dashboard a 1280 px

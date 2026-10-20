@@ -181,8 +181,14 @@ re-adjudican HT-4 o HT-6, y EX-11 sigue diferido (D10).
 
 La capa `frontend/e2e/` usa API simulada, con ocho etiquetas @F focalizadas en
 verde en C2. Por el diccionario S11A no cuenta para HT4-01. La verificación
-completa frontend con build de producción mantiene `PENDIENTE_FRONTEND`.
-PR/CI: `PENDIENTE_PR`; despliegue: `PENDIENTE_DEPLOY`.
+completa del frontend pasó: format, lint, typecheck, 417 pruebas Vitest en
+44 archivos, build y 58 E2E con build de producción. Todos los E2E usan la
+fixture de `pageerror`.
+
+El [PR #54](https://github.com/MontyPohl/ciudadania-activa/pull/54) se abrió el
+20/10: `test` (dominio y compuerta) pasó en 3 min, y `build` y `frontend-e2e`
+están en verde; `ci-experiments` seguía en curso al escribir. El despliegue está
+pendiente de aprobación del usuario.
 
 ## 7. Limpieza local
 
