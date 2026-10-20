@@ -34,6 +34,11 @@ const empty = {
   },
   decisions: { validated: 0, rejected: 0, validation_rate: null, rejection_rate: null },
   resolution: { resolved: 0, median_hours: null, mean_hours: null },
+  trend: base.trend.map((point, index) => ({
+    ...point,
+    received: index === 4 ? 10 : 0,
+    resolved: index === 4 ? 6 : 0,
+  })),
   incentives: {
     points_credited: 0,
     credits_issued: 0,
@@ -78,7 +83,7 @@ it.each([
   expect(screen.getAllByText(text).length).toBeGreaterThan(0);
   expect(screen.queryByRole("table", { name: "Métricas por institución" }) !== null).toBe(table);
   expect(screen.queryByRole("figure", { name: "Actividad diaria" }) === null).toBe(empty);
-  expect(screen.queryByRole("figure", { name: "Tendencia de los últimos 6 meses" }) === null).toBe(
-    empty,
-  );
+  expect(
+    screen.getByRole("figure", { name: "Tendencia de los últimos 6 meses" }),
+  ).toBeInTheDocument();
 });

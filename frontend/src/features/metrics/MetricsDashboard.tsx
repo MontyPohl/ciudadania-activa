@@ -15,6 +15,7 @@ import {
 } from "./metricsLabels";
 export function MetricsDashboard({ metrics: m }: { metrics: InstitutionMetrics }) {
   const empty = m.reports.received === 0;
+  const hasTrend = m.trend.some((point) => point.received > 0 || point.resolved > 0);
   return (
     <div className="space-y-8">
       <div>
@@ -113,7 +114,7 @@ export function MetricsDashboard({ metrics: m }: { metrics: InstitutionMetrics }
           <KpiTile label="Créditos canjeados" value={m.incentives.credits_redeemed} />
         </dl>
       </section>
-      {!empty && <TrendColumns points={m.trend} />}
+      {hasTrend && <TrendColumns points={m.trend} />}
       {m.by_institution !== null && (
         <section className="min-w-0 rounded-2xl border border-brand-black/10 p-4 sm:p-6">
           <h2 className="mb-4 text-xl font-semibold">Detalle por institución</h2>
