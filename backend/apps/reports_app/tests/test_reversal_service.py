@@ -69,6 +69,47 @@ def _reverse(report, admin_user, *, cycle=1, reason="Corrección administrativa 
     )
 
 
+@pytest.mark.parametrize("actor", ["citizen", "operator", "admin_inactivo"])
+def test_solo_un_admin_activo_puede_revertir(
+    actor,
+    report,
+    citizen,
+    operator_user,
+    institution,
+    admin_user,
+):
+    _reach_status(report, operator_user, institution, ReportStatus.ASIGNADO)
+    if actor == "admin_inactivo":
+        admin_user.is_active = False
+        admin_user.save(update_fields=["is_active"])
+    actors = {
+        "citizen": citizen,
+        "operator": operator_user,
+        "admin_inactivo": admin_user,
+    }
+    counts = (
+        ReportStatusHistory.objects.count(),
+        AuditLog.objects.count(),
+        RewardTransaction.objects.count(),
+    )
+
+    with pytest.raises(reversal.AdminRequired) as exc_info:
+        reversal.revert_report_validation(
+            report_id=report.pk,
+            admin_id=actors[actor].pk,
+            expected_cycle=report.resolution_cycle,
+            reason="Corrección administrativa fundada.",
+        )
+
+    assert exc_info.value.code == "ADMIN_REQUIRED"
+    assert not RewardTransaction.objects.filter(event_type=RewardEventType.REVERSAL).exists()
+    assert (
+        ReportStatusHistory.objects.count(),
+        AuditLog.objects.count(),
+        RewardTransaction.objects.count(),
+    ) == counts
+
+
 @pytest.mark.parametrize(
     "source_status",
     [
