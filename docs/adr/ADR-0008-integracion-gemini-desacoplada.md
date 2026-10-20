@@ -1,5 +1,13 @@
 # ADR-0008 — Integración Gemini desacoplada mediante adapter de IA
 
+> **Evolución al 20/10/2026.** El contexto siguiente corresponde a S8-A. La integración
+> ya está implementada y OpenAI es el proveedor activo ([ADR-0016](ADR-0016-proveedor-de-ia-openai.md)).
+> Producción usa prompt v2; v1 permanece intacta para EX-09. `AI_PROMPT_VERSION`
+> (default v1) selecciona la versión del adapter OpenAI y falla cerrado si es desconocida.
+> `0003` registra tokens por clasificación persistida. La frontera/parser y el esquema v1
+> de seis campos se mantienen; el costo ya incluye clasificación productiva habilitada,
+> además de gates y comandos manuales. Gemini queda como antecedente histórico.
+
 **Estado:** Aceptada
 **Sprint:** 8
 **Fecha:** 2026-08-29

@@ -152,3 +152,34 @@ proveedores. `base.py` lee el `.env` local, y la clave real de OpenAI vive ahí.
 - Un entorno que tuviera `AI_CLASSIFICATION_ENABLED=true` con solo `GEMINI_*` deja de
   clasificar hasta que declare `AI_PROVIDER`. Es el comportamiento buscado: falla
   cerrado.
+
+
+## Ampliación post-S12 — Prompt v2 y uso (19–20/10/2026)
+
+PR #49 añade `AI_PROMPT_VERSION`: default **v1**, ID auditado `s8-classification-v1`;
+**v2** usa `classification_v2.txt`, ID `classification-v2`. La selección solo se aplica
+al adapter OpenAI; una versión desconocida lo desactiva, sin red ni escrituras. Gemini
+histórico conserva v1. La prueba de paridad de proveedores cubre v1; no exige igualar
+el nuevo prompt v2 con Gemini.
+
+La v2 añade criterios de prioridad por categoría, tabla categoría → institución,
+desempates, reglas de evidencia y aviso ante peligro (CT-57). Mantiene esquema de seis
+campos, parser y umbral 0,75. No se reescribe v1 ni se transfiere a v2 el resultado
+oficial EX-09. La exploración de 13 casos conocidos mejora la triple de 4/13 a 12/13,
+con tokens promedio aproximados de 1.800 a 3.800; tiene sesgo optimista y exige validación
+con fotos nuevas. Detalle en [post-S12](../PROGRESO_SPRINTS.md#post-s12--estabilización-y-activación-productiva-1920102026).
+
+PR #47 añade los contadores nullables `input_tokens`, `output_tokens` y `total_tokens`
+(`ai_client_app.0003`). OpenAI conserva la interfaz `classify(request) -> str` y ofrece
+`classify_with_usage` para que la orquestación capture metadata de uso. El resumen
+`ai_usage_summary` calcula estimaciones sobre filas persistidas con precios explícitos;
+no suma todas las llamadas facturadas. `ai_try_classification` y `ai_compare_prompts`
+permiten exploración manual sin persistir clasificaciones/auditoría y consumen cuota
+aunque el flag productivo esté apagado. Ver [API §9](../API.md#9-comandos-de-gestión-de-ia-post-s12).
+
+Heroku **v22** (20/10 00:35 UTC) desplegó `744e295` (árbol de backend de `d9e1c11`),
+aplicó `0003` y activó IA: `AI_CLASSIFICATION_ENABLED=true`, `AI_PROVIDER=openai`,
+`OPENAI_MODEL=gpt-6-luna`, `OPENAI_REASONING_EFFORT=low`, `AI_PROMPT_VERSION=v2`.
+A las 01:25 UTC todavía había 0 clasificaciones; activación no equivale a medición de
+calidad en producción. La consideración de retención del proveedor expuesta en este ADR
+sigue siendo una limitación: estos hechos no acreditan ZDR ni un cambio de política.

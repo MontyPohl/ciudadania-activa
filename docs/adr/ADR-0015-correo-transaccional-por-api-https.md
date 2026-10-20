@@ -1,5 +1,13 @@
 # ADR-0015 — Correo transaccional por API HTTPS de Brevo, no por SMTP
 
+> **Actualización 20/10/2026.** En Heroku v23/v24 se configuraron `BREVO_API_KEY` y
+> `DEFAULT_FROM_EMAIL`; se usa un remitente Gmail verificado, sin publicar su dirección.
+> Brevo advierte DKIM predeterminado/DMARC por dominio gratuito: hay riesgo de spam y
+> queda pendiente un dominio propio autenticado (CT-59). Se envían identidad aprobada,
+> identidad rechazada y canje; los demás tipos y reintentos automáticos quedan para S13.
+> El cambio de transporte original de este ADR no implica que una aceptación del
+> proveedor pruebe entrega en la bandeja de entrada.
+
 **Estado:** Aceptada
 **Sprint:** 4
 **Fecha:** 2026-08-23
@@ -40,7 +48,7 @@ elegido, sencillamente, no existe en el plan contratado.
 Dos condiciones acotan la solución:
 
 - **No se cambia de proveedor de correo.** Brevo ya está elegido y tiene un remitente
-  verificado: `Ciudadanía Activa <ciudadaniaactiva02@gmail.com>`.
+  verificado; la dirección se omite en la documentación pública.
 - **No se contrata Railway Pro para el MVP.** Pagar un plan superior para desbloquear un
   puerto que no hace falta usar sería un coste sin contrapartida técnica.
 
@@ -59,7 +67,7 @@ Brevo. Todo lo demás del Sprint 4 se conserva sin modificación.
 | Separación `create()` síncrono / `send()` asíncrono | Intacta |
 | `select_for_update` e idempotencia del envío | Intactos |
 | Plantillas de texto plano | Intactas |
-| Ausencia de reintentos automáticos | Intacta (Sprints 12-13) |
+| Ausencia de reintentos automáticos | Intacta (reintentos automáticos pendientes de S13) |
 | Encolado en `on_commit` y absorción del fallo del broker | Intactos |
 
 El cambio se concentra en **una línea de `services/dispatch.py`** —la llamada de

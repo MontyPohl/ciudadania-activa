@@ -1,5 +1,10 @@
 # ADR-0010 — Créditos por institución y conversión 1:1
 
+> **Evolución al 20/10/2026.** La reversión prevista aquí ya se implementó y desplegó
+> en S10 según [ADR-0013](ADR-0013-politica-de-reversion.md). S12 implementó saldos,
+> ranking y canje; una reversión puede dejar saldo negativo y el vale emitido permanece
+> vigente. Las referencias a formalización futura describen el corte original S9.
+
 **Estado:** Aceptada
 **Sprint:** 9
 **Fecha:** 2026-09-02

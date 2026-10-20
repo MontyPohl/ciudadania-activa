@@ -3,8 +3,8 @@
 Contrato de la API tal como está **implementada**, no como se planificó. Se amplía en
 cada sprint que añade endpoints; hoy incluye autenticación, identidad, mapa, creación y
 confirmación ciudadana, ciclo institucional S10 y recompensas, canje y ranking S12.
-La sección 8 describe la implementación verificada en local el 19/10/2026, todavía sin
-push, PR ni despliegue.
+La sección 8 describe S12 integrado en PR #43 y desplegado el 19/10/2026.
+Corte vigente: 20/10/2026, backend de `main@d9e1c11`, IA v2 y Brevo activos en Heroku.
 
 - **Plan de referencia:** [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md) §14 (Sprint 4), §19
   (Sprint 9) y §29 (seguridad).
@@ -71,6 +71,14 @@ desactivada, y el 409 de una cédula ya registrada no revela de quién es.
 El servidor no acepta un `page_size` controlado por el cliente.
 
 ---
+
+### 1.1 `GET /api/v1/health/`
+
+Sondeo con `AllowAny`; no necesita sesión. Devuelve HTTP **200** con `status` (`ok` si
+DB y Redis responden, `degraded` en caso contrario), `version` (`API_VERSION`), `db` y
+`redis` booleanos. Un `200` por sí solo no demuestra salud: inspeccioná también el JSON.
+No comprueba Storage, Brevo ni OpenAI y no certifica que worker/Beat estén activos.
+En producción esta ruta está exenta del redirect HTTPS para permitir el sondeo interno.
 
 ## 2. Autenticación (Sprint 3)
 
@@ -632,7 +640,10 @@ El upload ocurre antes de la transacción de base de datos. Después se escriben
 `Report`, `ReportMedia`, el historial inicial, la transacción `REPORT_CREATED` pendiente y el
 AuditLog. Si esa persistencia falla, el objeto recién subido se elimina de forma best-effort sin
 ocultar el error original. Tras el commit se invalida la caché pública y se encola la clasificación,
-que en S6 sigue siendo no-op.
+que clasifica si la configuración del worker lo habilita. Con OpenAI,
+`AI_PROMPT_VERSION` selecciona `v1` o `v2` (default `v1`, producción `v2` desde el
+20/10/2026); una versión desconocida falla cerrado. Ver
+[contrato de IA](AI_CLASSIFICATION_CONTRACT.md) y [ADR-0016](adr/ADR-0016-proveedor-de-ia-openai.md).
 
 **201**
 
@@ -1083,7 +1094,7 @@ Errores estables:
 | `404` | `REPORT_NOT_FOUND` | Reporte inexistente o fuera del scope; ambos casos son indistinguibles |
 | `409` | `ALREADY_VALIDATED` | El reporte ya fue validado |
 | `409` | `ALREADY_REJECTED` | El reporte ya fue rechazado |
-| `409` | `VALIDATION_REVERSAL_REQUIRED` | Un reporte validado no puede rechazarse sin el flujo de reversión futuro |
+| `409` | `VALIDATION_REVERSAL_REQUIRED` | Un reporte validado exige primero la reversión administrativa de §7.6 |
 | `409` | `REPORT_STATE_NOT_ALLOWED` | El estado actual no admite la decisión |
 | `409` | `INSTITUTION_INACTIVE` | La institución dejó de estar activa |
 
@@ -1119,6 +1130,22 @@ Autor y administrador pueden consultar la evidencia mediante
 incluyen `id`, `cycle`, `description`, `created_at`, `signed_url` y `expires_in`; la URL efímera
 dura 300 segundos. Ninguna ruta expone object keys y todas usan `Cache-Control: private, no-store`.
 
+#### `GET /api/v1/reports/evidence-access/{token}/`
+
+Descarga JPEG/PNG mediante una capacidad firmada y temporal emitida en `signed_url`
+por los listados autorizados de evidencia. Usa `AllowAny`: la firma del token concede
+el acceso durante **300 segundos**, sin exigir sesión; no publiques el enlace ni lo
+incluyas en logs/documentación. Si se envía un JWT inválido, la autenticación de DRF
+puede rechazarlo antes del permiso público.
+
+El token contiene el ID de evidencia, no la clave de Storage. La vista valida firma y
+caducidad, busca la evidencia y descarga del bucket privado a través del backend.
+Responde con bytes y MIME de imagen en **200**; firma inválida, caducada, evidencia
+inexistente u objeto de Storage no encontrado produce **404 `EVIDENCE_NOT_FOUND`**; fallo de Storage produce
+**503 `STORAGE_UNAVAILABLE`**. Las respuestas de la vista llevan
+`Cache-Control: private, no-store`. La vigencia del token no se revalida contra el rol
+del usuario que solicitó el listado. No es una URL pública permanente de Supabase.
+
 #### Reversión administrativa
 
 `POST /api/v1/admin/reports/{id}/revert-validation/` recibe un motivo normalizado de 10–1000
@@ -1139,6 +1166,11 @@ descendentes. Admite `action`, `actor_type`, `actor_user_id`, `report_id`, `inst
 El worker evalúa cada 15 minutos reportes `RESUELTO` cuyo `resolved_at` tenga al menos 72 horas.
 El cierre se registra con actor `SYSTEM`, `changed_by = null`, sin puntos, créditos ni
 notificaciones. El cierre manual concurrente y las repeticiones se resuelven idempotentemente.
+
+**Límite vigente:** no existe endpoint ni formulario para editar la prioridad a mano,
+ni endpoint público de prueba/reproceso IA. La sugerencia se muestra al operador;
+validación/rechazo y cambio de estado no constituyen edición de prioridad. Los comandos
+manuales de §9 no modifican reportes ni sustituyen esa función pendiente.
 
 ### 7.7 Cierre de alcance de Sprint 9
 
@@ -1162,9 +1194,10 @@ contrato HTTP ni una capacidad operativa.
 
 ## 8. Recompensas, canje y ranking (Sprint 12)
 
-Implementación local integrada de los tres carriles, incluido el ranking. El contrato común es
+Implementación integrada y desplegada de los tres carriles, incluido el ranking. El contrato común es
 [S12_CONTRATO_API.md](s12/S12_CONTRATO_API.md); las reglas siguientes describen las rutas
-implementadas, todavía sin despliegue productivo al cierre del 19/10/2026.
+implementadas y desplegadas en Heroku/Vercel el 19/10/2026; el smoke autenticado
+con Google sigue pendiente del usuario.
 
 ### 8.1 Convenciones de recompensas
 
@@ -1625,3 +1658,35 @@ reintento.
 *Documento de implementación. Se amplía en cada sprint que añade endpoints; los cambios
 de contrato relevantes para el documento académico se registran en
 [CAMBIOS_TESIS_PENDIENTES.md](CAMBIOS_TESIS_PENDIENTES.md).*
+
+
+## 9. Comandos de gestión de IA (post-S12)
+
+Son comandos Django bajo `backend/`, **no endpoints HTTP**. No cambian las rutas de
+`config/urls.py`. Las pruebas manuales consultan catálogos activos y llaman a OpenAI con
+`OPENAI_API_KEY`, `OPENAI_MODEL` y el esfuerzo/timeout configurados; funcionan aunque
+`AI_CLASSIFICATION_ENABLED` esté apagado. No crean reportes, clasificaciones ni auditoría.
+No publiques descripciones, fotos ni CSV con datos personales en este repositorio público.
+
+| Comando | Opciones y efectos |
+|---|---|
+| `python manage.py ai_usage_summary --input-usd-per-1m <precio> --output-usd-per-1m <precio>` | Solo lectura de `AiClassification`; precios obligatorios, decimales finitos y no negativos. Filtros opcionales `--since AAAA-MM-DD` (inclusivo) y `--model <nombre-exacto>`. Informa filas con/sin uso, sumas y promedios de entrada/salida y costo estimado; si faltan contadores, la estimación es parcial. No es una factura ni suma llamadas descartadas/reintentadas |
+| `python manage.py ai_try_classification --description <texto> --category <slug-o-nombre> --image <foto.jpg> --prompt both` | Descripción y categoría obligatorias; foto opcional JPEG/PNG, normalizada como en producción. `--prompt v1\|v2\|both` (default `both`). Una llamada por versión; muestra sugerencia, aplicación automática hipotética y tokens |
+| `python manage.py ai_compare_prompts --cases <casos.csv> --photos <carpeta> --prompts v1 v2 --out <resultados.csv>` | `--cases` y `--photos` obligatorios; prompts por defecto v1/v2; deduplica versiones repetidas; `--out` opcional. Una llamada por caso válido y versión; compara categoría, institución, prioridad y triple, errores, aplicación hipotética y tokens. Solo escribe el CSV de salida solicitado |
+
+`ai_compare_prompts` exige CSV UTF-8 (admite BOM), separado por coma o punto y coma,
+con **exactamente** estas columnas (el orden puede variar):
+
+```csv
+id,foto,descripcion,categoria_elegida,categoria_esperada,institucion_esperada,prioridad_esperada,por_que,tipo_caso
+```
+
+`foto` puede quedar vacía; si tiene ruta, debe resolver dentro de `--photos`. Las etiquetas
+se resuelven contra catálogos activos por slug o nombre sin distinguir tildes/caja;
+prioridad admite BAJA/MEDIA/ALTA. Las filas inválidas se informan y omiten: conservá ese
+conteo al interpretar el denominador. La salida no puede sobrescribir entradas ni fotos.
+
+Los contadores `input_tokens`, `output_tokens`, `total_tokens` se guardan en clasificaciones
+persistidas desde `ai_client_app.0003` (PR #47); `null` significa uso no informado o fila
+anterior. No se añaden al esquema de seis campos del modelo ni a la respuesta pública.
+La versión auditada sigue en `audit_logs`: `s8-classification-v1` o `classification-v2`.

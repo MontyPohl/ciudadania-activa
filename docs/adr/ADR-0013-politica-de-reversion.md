@@ -616,9 +616,12 @@ nuevos bonus aprobados sin reactivar movimientos revertidos.
 
 ## Estado de implementación
 
-ADR-0013 está aprobado como decisión arquitectónica y documental. La implementación de
-Sprint 10 permanece **NO AUTORIZADA** hasta superar un gate específico que defina
-alcance de archivos, migraciones, pruebas, validaciones y control de cambios.
+ADR-0013 permanece **ACCEPTED**. Sprint 10 se implementó, desplegó, verificó y
+reconcilió el 21/09/2026; PR #39 quedó integrado mediante `7ae82b8`. Se aplicaron
+las migraciones y el backfill bajo el gate registrado en el
+[plan de release S10](../runbooks/S10_RELEASE_PLAN.md). La condición de autorización
+original ya se cumplió; los contratos de ciclos, evidencia y reversión no se modifican
+por esta actualización documental del 20/10/2026.
 
 ## Referencias
 

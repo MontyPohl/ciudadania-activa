@@ -1,5 +1,20 @@
 # ACTUALIZACIÓN MAESTRA — TESIS CIUDADANÍA ACTIVA
 
+> **Actualización de lectura — 20/10/2026.** El cuerpo de esta guía se conserva como
+> **auditoría histórica del corte predespliegue S10**, incluidas tablas de capacidades
+> ausentes y la antigua denegación de despliegue; no es el inventario operativo actual.
+> La frase original «actualizado después de la reconciliación» no acredita por sí sola
+> un despliegue. S10 se integró/desplegó el 21/09 y S11 cerró con observaciones el 19/10
+> (`EX-09 FAIL`, `EX-10 NOT_DEMONSTRATED`, sin cambiar evidencia/hashes). S12 (PR #43)
+> desplegó saldos, ranking y canje el 19/10, con migraciones aplicadas. El smoke autenticado
+> sigue pendiente. Desde v22 del 20/10 están activos OpenAI con v2 y tokens `0003`;
+> v23/v24 configuran Brevo/remitente con riesgo de entregabilidad por Gmail.
+> Backend/worker/Beat están en Heroku, frontend en Vercel y datos/Storage en Supabase.
+> Para actualizar la tesis usá el [contrato API](../API.md),
+> [diccionario](../DICCIONARIO_DATOS.md), [post-S12](../PROGRESO_SPRINTS.md#post-s12--estabilización-y-activación-productiva-1920102026)
+> y [matriz CT](../CAMBIOS_TESIS_PENDIENTES.md) (CT-55–CT-60); no traslades como hechos
+> vigentes las carencias ni el proveedor Gemini de las tablas históricas siguientes.
+
 **Proyecto:** Ciudadanía Activa<br>
 **Carrera:** Ingeniería en Informática<br>
 **Institución:** Universidad Columbia del Paraguay<br>
