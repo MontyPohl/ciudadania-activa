@@ -27,12 +27,12 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 | 10 | 03/10 – 09/10 | Estados, evidencias, auditoría y reversión | Completado — implementado, desplegado, verificado y reconciliado |
 | 11 | 10/10 – 16/10 | Metodología, instrumentación, experimentos, análisis y evidencia de tesis | Completado con observaciones (19/10/2026) — S11-A congelada; S11-B preparada; S11-C2 cerrado con `EX-02`…`EX-08` en `PASS`; `EX-09` OpenAI `FAIL` válido (CA-4 19/28); `EX-10` `NOT_DEMONSTRATED`; HT5 96,76 % (33 archivos críticos); S11-D y S11-E cerrados |
 | 12 | 17/10 – 23/10 | Catálogo de recompensas, canje simulado, saldos y ranking mensual | Completado — implementado, desplegado y verificado (19/10/2026) |
-| 13 | 24/10 – 30/10 | Dashboards, integración e ingesta social | Implementado e integrado (20/10/2026); despliegue pendiente |
+| 13 | 24/10 – 30/10 | Dashboards, integración e ingesta social | Completado — implementado, desplegado y verificado (20/10/2026) |
 | 14 | 31/10 – 06/11 | Pruebas unitarias, integración, seguridad y E2E | Pendiente |
 | 15 | 07/11 – 13/11 | Carga, dataset definitivo y documentación | Pendiente |
 | 16 | 14/11 – 15/11 | Cierre y preparación de la defensa | Pendiente |
 
-**Progreso:** 11 / 16 sprints completados (Sprints 1, 2 y 3 cerrados el 20/08/2026; Sprint 4 el 23/08/2026; Sprint 5 el 27/08/2026; Sprint 6 el 28/08/2026; Sprint 7 el 29/08/2026; Sprint 9 el 09/09/2026; Sprint 10 el 21/09/2026; Sprint 11 el 19/10/2026, con observaciones; Sprint 12 el 19/10/2026). La ejecución real arrastra el desvío de calendario registrado en CT-29. Sprint 8 continúa **en curso**: R2 permanece prerregistrado/no ejecutado y la serie S8 con Gemini no produjo ninguna medición válida de CA-4; la primera medición válida, `EX-09` OpenAI en S11-C3, dio `FAIL` (19/28), y su efecto sobre el cierre del Sprint 8 no está decidido. Sprint 11 completó la congelación S11-A y la preparación técnica S11-B; S11-C cerró `EX-02` en `PASS` con el run `s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af` —tras cinco intentos previos `NOT_DEMONSTRATED`—, `EX-03` en `PASS` con el run `s11-6dc3ea66-08c9-51ef-9fe3-70e7dcc67959`, `EX-04` en `PASS` con el run `s11-03adb9bc-c9e4-5f8f-b64c-c4360d0c2085` `EX-06` en `PASS` con el run `s11-989218f3-4808-5c6f-ac23-6e8870fec153` y `EX-08` en `PASS` con el run `s11-b567289c-9fe2-5349-a384-e9284bdde863`; `EX-05` quedó en `PASS` con el run `s11-0e2feac0-6583-513c-a6aa-33430394d14a`; `EX-07` en `PASS` con el run `s11-545491b8-01fe-55e6-8f08-1a0ebbdca8d3`; S11-C2 quedó cerrado el 23/09/2026; `EX-09` OpenAI se ejecutó el 26/09/2026 con el run `s11-a156a68c-c422-5e57-ae2b-3336d3b55e6c` y resultado `FAIL` (CA-4 19/28 = 67,86 %; run válido); `EX-10` quedó `NOT_DEMONSTRATED` y el análisis S11-D y el dossier S11-E cerraron el Sprint 11 el 19/10/2026; S12 quedó implementado, desplegado y verificado el 19/10/2026; S13 quedó implementado e integrado el 20/10/2026; despliegue pendiente.
+**Progreso:** 12 / 16 sprints completados (Sprints 1, 2 y 3 cerrados el 20/08/2026; Sprint 4 el 23/08/2026; Sprint 5 el 27/08/2026; Sprint 6 el 28/08/2026; Sprint 7 el 29/08/2026; Sprint 9 el 09/09/2026; Sprint 10 el 21/09/2026; Sprint 11 el 19/10/2026, con observaciones; Sprint 12 el 19/10/2026; Sprint 13 el 20/10/2026). La ejecución real arrastra el desvío de calendario registrado en CT-29. Sprint 8 continúa **en curso**: R2 permanece prerregistrado/no ejecutado y la serie S8 con Gemini no produjo ninguna medición válida de CA-4; la primera medición válida, `EX-09` OpenAI en S11-C3, dio `FAIL` (19/28), y su efecto sobre el cierre del Sprint 8 no está decidido. Sprint 11 completó la congelación S11-A y la preparación técnica S11-B; S11-C cerró `EX-02` en `PASS` con el run `s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af` —tras cinco intentos previos `NOT_DEMONSTRATED`—, `EX-03` en `PASS` con el run `s11-6dc3ea66-08c9-51ef-9fe3-70e7dcc67959`, `EX-04` en `PASS` con el run `s11-03adb9bc-c9e4-5f8f-b64c-c4360d0c2085` `EX-06` en `PASS` con el run `s11-989218f3-4808-5c6f-ac23-6e8870fec153` y `EX-08` en `PASS` con el run `s11-b567289c-9fe2-5349-a384-e9284bdde863`; `EX-05` quedó en `PASS` con el run `s11-0e2feac0-6583-513c-a6aa-33430394d14a`; `EX-07` en `PASS` con el run `s11-545491b8-01fe-55e6-8f08-1a0ebbdca8d3`; S11-C2 quedó cerrado el 23/09/2026; `EX-09` OpenAI se ejecutó el 26/09/2026 con el run `s11-a156a68c-c422-5e57-ae2b-3336d3b55e6c` y resultado `FAIL` (CA-4 19/28 = 67,86 %; run válido); `EX-10` quedó `NOT_DEMONSTRATED` y el análisis S11-D y el dossier S11-E cerraron el Sprint 11 el 19/10/2026; S12 quedó implementado, desplegado y verificado el 19/10/2026; S13 quedó implementado, desplegado y verificado el 20/10/2026.
 
 ### Decisiones que condicionan el avance
 
@@ -4761,8 +4761,8 @@ requiere revisar aportes antes de eliminarlas. Detalle en [BACKLOG.md](BACKLOG.m
 ## Sprint 13 — Dashboards, integración e ingesta social
 
 **Fechas planificadas:** 24/10/2026 – 30/10/2026
-**Estado:** Implementado e integrado (20/10/2026); despliegue pendiente
-**Fecha real de cierre:** — (despliegue pendiente al escribir)
+**Estado:** Completado — implementado, desplegado y verificado
+**Fecha real de cierre:** 20/10/2026
 
 ### Funcionalidades terminadas
 
@@ -4787,9 +4787,9 @@ requiere revisar aportes antes de eliminarlas. Detalle en [BACKLOG.md](BACKLOG.m
 - **Retiro técnico de Telegram (CT-43):** eliminado `TelegramIngestedMessage` del modelo,
   admin, pruebas y espejo TypeScript; retirado `telegram` de `ReportSource`. Las
   migraciones `social_ingestion_app.0002` y `reports_app.0008`, con guards que abortan
-  si hay filas de Telegram, se verificaron en local. **Al desplegar, el esquema pasa de
-  18 a 17 entidades**; la eliminación productiva sigue pendiente, con conteo previo,
-  respaldo y mantenimiento según S13-D18.
+  si hay filas de Telegram, se verificaron en local. **El esquema pasó de
+  18 a 17 entidades** en producción el 20/10 (release v25), con conteo previo en 0,
+  respaldos antes y después y mantenimiento según S13-D18.
 
 ### Pruebas realizadas
 
@@ -4861,9 +4861,19 @@ cuentan en las métricas del mes de carga, no del mes de `simulated_at`.
 El smoke usó la API real para las acciones de UI por falta de Chrome conectado y
 Playwright headless para verificar las páginas. No se probó entrega real de correo;
 `REPORTE_CREADO` queda cubierto por pruebas, porque los reportes locales se prepararon
-sin fotos ni Storage. El despliegue está pendiente: **pendiente**. Se mantiene el
-orden aprobado: backend en Heroku con reconciliación, respaldos y migración manual;
-después merge y frontend en Vercel ([S13_DECISIONES.md](s13/S13_DECISIONES.md)).
+sin fotos ni Storage. **Despliegue (20/10, S13-D18):** conteo productivo en solo lectura (0 filas de Telegram,
+0 `PENDIENTE`), `pg_dump` previo validado, mantenimiento con web, worker y beat en 0,
+reconciliación `82eafce` (release v25), `migrate` de las 3 migraciones esperadas con
+`migrate --check` y `check` limpios, esquema verificado, procesos restaurados (beat en
+exactamente 1), smoke del backend, merge del PR #52 (`6e8e883`), árbol de `backend/` en
+`main` igual al desplegado, `/transparencia` publicada verificada como anónimo y respaldo
+posterior. Detalle en el runbook §15. Desvío menor: el mantenimiento se retiró con `web`
+arriba y antes de escalar worker y beat. **Observación de datos:** los 16 reportes
+productivos son de agosto y casi todos semilla con estado fijado sin historial (solo 2
+filas en `report_status_history`), así que las métricas por eventos dan 0 validados y 0
+resueltos en producción. Es coherente con las fórmulas, no un defecto. **Pendiente del
+usuario:** smoke autenticado de `/institucion/metricas` y `/metricas` con Google, y el
+primer envío observado de Brevo (no se creó ningún reporte real).
 
 **Comparabilidad de EX-10 (07 §7.6):** S13 agrega una tarea por reporte, el correo
 `REPORTE_CREADO` en `on_commit`. Las corridas posteriores de EX-10 no son directamente

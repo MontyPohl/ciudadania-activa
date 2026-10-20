@@ -51,8 +51,8 @@ un sprint concreto — ver [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md) y [PROGRESO_
 
 | # | Ítem | Sprint(s) | Estado |
 |---|---|---|---|
-| 12 | Dashboard institucional con métricas | S13 | Implementado e integrado (20/10/2026); despliegue pendiente de OK |
-| 13 | Simulación de publicaciones de X/Twitter | S13 | Implementado (comando `load_x_mock_dataset`, 20/10/2026); cargarlo en producción es una decisión aparte |
+| 12 | Dashboard institucional con métricas | S13 | Completado — implementado, desplegado y verificado (20/10/2026) |
+| 13 | Simulación de publicaciones de X/Twitter | S13 | Completado (comando `load_x_mock_dataset`, desplegado el 20/10/2026); cargar el dataset en producción es una decisión aparte |
 
 > **Alcance revisado el 20/08/2026 (CT-43).** El ítem 13 es una **simulación interna** de
 > publicaciones de X/Twitter, cargada desde un dataset del propio proyecto: no usa la API de X, ni
@@ -76,7 +76,7 @@ un sprint concreto — ver [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md) y [PROGRESO_
 | Dominio propio para correo | Pendiente: autenticar el dominio para resolver advertencias de DKIM/DMARC y reducir riesgo de spam del remitente Gmail |
 | EX-10 | Tres tests corregidos en PR #48; **en PR #50**, abierto/CI corriendo, se corrige descriptor compartido tras fork. Nueva corrida requiere reaprobación de fuentes; no cambia el resultado histórico |
 | Edición manual de prioridad | Función inexistente: definir permisos, contrato, UI y auditoría antes de implementarla |
-| Notificaciones S13 | Implementadas en S13 (correos de reporte, `RECOMPENSA_DISPONIBLE` y reintentos); se cierran con el despliegue |
+| Notificaciones S13 | Cerrado: desplegadas el 20/10 (v25); primer envío real observado pendiente (CT-59) |
 | Motivo del rechazo visible en el panel | Pendiente (09 V1 del plan S13): el detalle de un reporte `RECHAZADO` responde 404 y el correo no puede prometer el motivo |
 | Pasada UX del portal (B4 de S13) | Recortada por S13-D17; queda para S14/S15. Hallazgo menor del smoke: la tipografía del gráfico de tendencia escala mucho en escritorio |
 | Smoke S12 autenticado | Pendiente del usuario con Google; no se generaron canjes/recompensas para el smoke público |

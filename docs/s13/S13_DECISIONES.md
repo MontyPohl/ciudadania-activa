@@ -60,13 +60,13 @@ Estado al inicio del paso 0. Todas fueron aprobadas el 19/10, y la v3 del plan (
 ## Estado final
 
 **Corte: 20/10/2026.** Implementado e integrado en `feat/s13-dashboards-integration`;
-el despliegue sigue pendiente al escribir. Esta tabla actualiza el estado de inicio
+desplegado el 20/10/2026 (release v25, merge `6e8e883`). Esta tabla actualiza el estado de inicio
 sin reescribir las decisiones aprobadas.
 
 | ID | Estado final |
 |---|---|
 | S13-D01 | Aplicada: base `origin/main@3243362`, con S12 y #44–#51 incluidos. |
-| S13-D02 | Aplicada en código y verificada en local: retiro de `TelegramIngestedMessage` y de `telegram` en `ReportSource`, con guards. Al desplegar, de 18 a 17 entidades; migración productiva pendiente con D18. |
+| S13-D02 | Aplicada en código y verificada en local: retiro de `TelegramIngestedMessage` y de `telegram` en `ReportSource`, con guards. Migración productiva aplicada el 20/10 (v25): 17 entidades. |
 | S13-D03 | Aplicada: las tres rutas de UI y los tres endpoints separados de métricas. |
 | S13-D04 | Aplicada: gráficos SVG propios con tablas accesibles, sin dependencia nueva. |
 | S13-D05 | Aplicada: caché por TTL (120/300 s), sin precálculo ni tablas nuevas. El fallback en vivo no se alcanza si cae Redis porque el throttle usa la misma caché; pendiente heredado del ranking. |
@@ -82,7 +82,7 @@ sin reescribir las decisiones aprobadas.
 | S13-D15 | Aplicada: entorno local reutilizado y bases por carril; se mantuvo la exclusión de los tres launchers de EX-10. |
 | S13-D16 | Aplicada: CI de backend y frontend fijado en `ubuntu-24.04` (`eb3874d`). |
 | S13-D17 | Aplicada con el recorte de B4 (pasada UX), pendiente para S14/S15. X y la página del admin se conservaron; no se creó `S13_UX_HALLAZGOS.md`. |
-| S13-D18 | Pendiente. Se conserva backend primero en Heroku con reconciliación, conteo, respaldos, mantenimiento y migración manual; después merge/Vercel y comprobación del árbol desplegado. |
+| S13-D18 | Aplicada el 20/10: backend primero en Heroku con reconciliación, conteo, respaldos, mantenimiento y migración manual; después merge/Vercel y comprobación del árbol desplegado. |
 
 Recortes y desvíos:
 
