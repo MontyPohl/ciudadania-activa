@@ -1,10 +1,10 @@
 """Reintento **manual** de una notificación que quedó en FALLIDO (Sprint 4, ADR-0015).
 
 Es la única forma de reenviar un correo fallido, y es deliberadamente incómoda: hay que
-entrar por consola y nombrar la notificación una por una. No existe endpoint, no hay
-acción en el admin y no hay reintento automático —`send()` sigue tratando FALLIDO como
-terminal y la tarea de Celery sigue sin `autoretry_for`—. Los reintentos automáticos son
-alcance de los Sprints 12-13.
+entrar por consola y nombrar la notificación una por una. No existe endpoint ni acción en
+el admin. Los reintentos automáticos del Sprint 13 solo actúan mientras la notificación
+sigue PENDIENTE; FALLIDO sigue siendo terminal para todo lo automático, y este comando
+—que reinicia el contador de intentos— es su única recuperación (CT-51).
 
 Uso:
     python manage.py resend_notification <notification_uuid>

@@ -1,0 +1,12 @@
+{% autoescape off %}Hola {{ nombre }}:
+
+Con tus créditos de {{ institucion }} ya podés canjear su recompensa simulada este mes.
+
+Entrá a Ciudadanía Activa → Recompensas.
+
+Esta recompensa es una simulación del prototipo académico Ciudadanía Activa y no tiene valor económico real.
+
+--
+Ciudadanía Activa
+Este es un mensaje automático. No respondas a esta dirección.
+{% endautoescape %}

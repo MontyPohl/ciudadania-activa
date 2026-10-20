@@ -156,6 +156,8 @@ def test_reversal_writes_exact_history_audit_and_compensating_ledger(
     )
     reason = "  Reparacio\u0301n administrativa\r\nconfirmada.  "
 
+    # El armado avisó por correo la validación y la resolución (S13); la reversión no avisa.
+    avisos_previos = Notification.objects.count()
     result = _reverse(report, admin_user, reason=reason)
 
     normalized = "Reparación administrativa\nconfirmada."
@@ -209,7 +211,7 @@ def test_reversal_writes_exact_history_audit_and_compensating_ledger(
         status=RewardTxStatus.ACREDITADO,
     ).aggregate(total=Sum("credit_delta"))["total"]
     assert balance == -1000
-    assert Notification.objects.count() == 0
+    assert Notification.objects.count() == avisos_previos
 
 
 def test_repeated_reversal_same_cycle_is_noop_without_duplicates(
