@@ -188,8 +188,19 @@ def _persist_report(
         )
         transaction.on_commit(partial(_invalidate_public_cache, report.id), robust=True)
         transaction.on_commit(partial(_enqueue_ai_classification, report.id), robust=True)
+        _notify(report, "REPORTE_CREADO")
 
     return ReportCreationResult(report=report, reward=reward)
+
+
+def _notify(report, notification_type: str) -> None:
+    """Aviso por correo al autor (S13).
+
+    Importación diferida: `notifications_app` depende de `reports_app`.
+    """
+    from apps.notifications_app.services.events import notify_report_event
+
+    notify_report_event(report, notification_type)
 
 
 def _ensure_verified_citizen(citizen) -> None:

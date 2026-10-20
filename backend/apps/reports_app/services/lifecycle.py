@@ -85,7 +85,24 @@ def transition_report_status(
         else:
             _close(report, operator, closure_mode="manual")
         transaction.on_commit(invalidate_public_reports_cache, robust=True)
+        if target_status == ReportStatus.RESUELTO:
+            _notify_resolved(report)
         return TransitionResult(report=report, changed=True)
+
+
+def _notify_resolved(report):
+    """Aviso de resolución al autor (S13).
+
+    Importación diferida: `notifications_app` depende de `reports_app`.
+    """
+    from apps.notifications_app.services.events import notify_report_event
+
+    notify_report_event(
+        report,
+        "REPORTE_RESUELTO",
+        institution=report.institution,
+        cycle=report.resolution_cycle,
+    )
 
 
 def _start_processing(report, operator):

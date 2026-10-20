@@ -1,0 +1,10 @@
+{% autoescape off %}Hola {{ nombre }}:
+
+{{ institucion }} no pudo dar curso a tu reporte de {{ categoria }} del {{ fecha }}.
+
+Podés ver el estado de tu reporte en Ciudadanía Activa → Panel.
+
+--
+Ciudadanía Activa
+Este es un mensaje automático. No respondas a esta dirección.
+{% endautoescape %}

@@ -121,6 +121,7 @@ def validate_report(*, report_id, operator, institution) -> ValidationResult:
             actor_type=ActorType.HUMAN,
         )
         transaction.on_commit(_invalidate_public_map_cache, robust=True)
+        _notify(report, "VALIDACION_INSTITUCIONAL", institution=institution, cycle=next_cycle)
 
     return ValidationResult(report=report, ledger_result=ledger_result)
 
@@ -168,8 +169,19 @@ def reject_report(*, report_id, operator, institution, reason) -> RejectionResul
             actor_type=ActorType.HUMAN,
         )
         transaction.on_commit(_invalidate_public_map_cache, robust=True)
+        _notify(report, "REPORTE_RECHAZADO", institution=institution)
 
     return RejectionResult(report=report, ledger_result=ledger_result)
+
+
+def _notify(report, notification_type: str, **kwargs) -> None:
+    """Aviso por correo al autor (S13).
+
+    Importación diferida: `notifications_app` depende de `reports_app`.
+    """
+    from apps.notifications_app.services.events import notify_report_event
+
+    notify_report_event(report, notification_type, **kwargs)
 
 
 def _invalidate_public_map_cache() -> None:

@@ -1,0 +1,10 @@
+{% autoescape off %}Hola {{ nombre }}:
+
+{{ institucion }} marcó como resuelto tu reporte de {{ categoria }} del {{ fecha }}.
+
+Podés ver el detalle en Ciudadanía Activa → Panel.
+
+--
+Ciudadanía Activa
+Este es un mensaje automático. No respondas a esta dirección.
+{% endautoescape %}

@@ -13,6 +13,8 @@ from apps.admin_app.models import AuditLog, Category, Institution
 from apps.auth_app.enums import VerificationStatus
 from apps.core.enums import ActorType, ReportSource, ReportStatus
 from apps.core.services import storage
+from apps.notifications_app.enums import NotificationType
+from apps.notifications_app.models import Notification
 from apps.reports_app.models import Report, ReportMedia, ReportStatusHistory
 from apps.reports_app.services import reports as report_service
 from apps.rewards_app.models import RewardTransaction
@@ -297,10 +299,17 @@ def test_callbacks_se_registran_y_no_corren_antes_del_commit(
         result = _create(verified_citizen, category, photo)
         assert effects == []
 
-    assert len(callbacks) == 2
+    # Caché, IA y, desde S13, el encolado del aviso REPORTE_CREADO (que corre en modo
+    # eager contra el Brevo doblado y no altera los efectos observados).
+    assert len(callbacks) == 3
     for callback in callbacks:
         callback()
     assert effects == ["cache", ("ai", str(result.report.id))]
+    aviso = Notification.objects.get(notification_type=NotificationType.REPORTE_CREADO)
+    assert aviso.user == verified_citizen
+    assert aviso.report == result.report
+    assert aviso.institution is None
+    assert aviso.dedup_key == f"REPORTE_CREADO:{result.report.id}"
 
 
 @pytest.mark.parametrize("effect", ["cache", "broker"])

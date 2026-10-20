@@ -17,8 +17,10 @@ salga: la decisión administrativa queda registrada aunque el proveedor de corre
 caído, y el fallo se ve en el estado de la notificación.
 
 El Sprint 4 incorpora la verificación de identidad y el Sprint 12 agrega el canje
-simulado, siempre en texto plano. Las otras plantillas y los reintentos automáticos
-quedan para el Sprint 13 (CT-28).
+simulado, siempre en texto plano. El Sprint 13 completa los ocho tipos (eventos de
+reporte y recompensa disponible), agrega la idempotencia por `dedup_key` y los
+reintentos automáticos acotados: solo ante fallos transitorios y solo mientras la
+notificación sigue PENDIENTE (S13-D11). FALLIDO sigue siendo terminal (CT-51).
 """
 
 from __future__ import annotations
@@ -26,11 +28,13 @@ from __future__ import annotations
 import logging
 from functools import partial
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
+from django.db.models import Q
 from django.template.loader import render_to_string
 from django.utils import timezone
 
 from apps.core.services import audit
+from apps.notifications_app import retry
 from apps.notifications_app.enums import NotificationChannel, NotificationStatus, NotificationType
 from apps.notifications_app.models import Notification
 from apps.notifications_app.services import brevo
@@ -41,6 +45,20 @@ logger = logging.getLogger(__name__)
 #: proyecto —`identity.submitted`, `identity.approved`, `user.role_promoted`—: dominio
 #: en singular, verbo en pasado.
 ACCION_REENVIO = "notification.resent"
+
+#: Nombre de la constraint de idempotencia (`Notification.Meta.constraints`).
+DEDUP_CONSTRAINT = "notification_dedup_key_unica"
+
+#: Tipos de evento de reporte (Sprint 13): sus plantillas nombran fecha y, salvo la de
+#: creación, categoría e institución.
+TIPOS_DE_REPORTE = frozenset(
+    {
+        NotificationType.REPORTE_CREADO,
+        NotificationType.VALIDACION_INSTITUCIONAL,
+        NotificationType.REPORTE_RESUELTO,
+        NotificationType.REPORTE_RECHAZADO,
+    }
+)
 
 
 class ResendError(Exception):
@@ -62,31 +80,102 @@ PLANTILLAS = {
         "Registramos tu canje simulado",
         "notifications/canje_realizado.txt",
     ),
+    NotificationType.REPORTE_CREADO: (
+        "Recibimos tu reporte",
+        "notifications/reporte_creado.txt",
+    ),
+    NotificationType.VALIDACION_INSTITUCIONAL: (
+        "Tu reporte fue validado",
+        "notifications/validacion_institucional.txt",
+    ),
+    NotificationType.REPORTE_RESUELTO: (
+        "Tu reporte figura como resuelto",
+        "notifications/reporte_resuelto.txt",
+    ),
+    NotificationType.REPORTE_RECHAZADO: (
+        "Sobre tu reporte",
+        "notifications/reporte_rechazado.txt",
+    ),
+    NotificationType.RECOMPENSA_DISPONIBLE: (
+        "Tenés una recompensa simulada disponible",
+        "notifications/recompensa_disponible.txt",
+    ),
 }
 
 
-def create(user, notification_type: str, *, redemption=None) -> Notification:
+def create(
+    user,
+    notification_type: str,
+    *,
+    report=None,
+    redemption=None,
+    institution=None,
+    dedup_key: str | None = None,
+) -> Notification | None:
     """Registra la notificación como PENDIENTE. **No envía nada.**
 
     Se llama dentro de la transacción de la acción que la origina, de modo que un
     rollback se lleva también la fila: no queda constancia de un aviso por una decisión
     que nunca se confirmó.
 
-    `report` queda a `NULL`: los correos de verificación de identidad no se refieren a
-    ningún reporte, y el modelo lo previó así desde el Sprint 2.
+    Sin `dedup_key` se comporta como en S4 y S12 y siempre devuelve la fila. Con
+    `dedup_key` (Sprint 13) la inserción va en un *savepoint*: si la clave ya existe,
+    devuelve `None` sin abortar la transacción del llamador, porque ese evento ya tiene
+    su aviso. Cualquier otro `IntegrityError` se relanza.
     """
-    return Notification.objects.create(
-        user=user,
-        report=None,
-        redemption=redemption,
-        notification_type=notification_type,
-        channel=NotificationChannel.EMAIL,
-        status=NotificationStatus.PENDIENTE,
-    )
+    campos = {
+        "user": user,
+        "report": report,
+        "redemption": redemption,
+        "institution": institution,
+        "notification_type": notification_type,
+        "channel": NotificationChannel.EMAIL,
+        "status": NotificationStatus.PENDIENTE,
+    }
+    if dedup_key is None:
+        return Notification.objects.create(**campos)
+
+    try:
+        with transaction.atomic():
+            return Notification.objects.create(dedup_key=dedup_key, **campos)
+    except IntegrityError as exc:
+        if _constraint_name(exc) != DEDUP_CONSTRAINT:
+            raise
+        return None
 
 
-def send(notification_id) -> Notification | None:
-    """Envía la notificación y deja su estado en ENVIADO o FALLIDO.
+def enqueue_on_commit(notification_id) -> None:
+    """Encola el envío cuando la transacción del llamador se confirma.
+
+    Si el broker no responde, la notificación queda FALLIDO, igual que en los
+    encoladores de identidad (S4) y canje (S12): visible y recuperable con
+    `resend_notification`. Nunca deja escapar la excepción hacia la operación de negocio.
+    """
+    transaction.on_commit(partial(_encolar, notification_id), robust=True)
+
+
+def _encolar(notification_id) -> None:
+    from apps.notifications_app.tasks import send_notification
+
+    try:
+        send_notification.delay(notification_id)
+    except Exception as exc:
+        logger.warning(
+            "No se pudo encolar el envío de la notificación %s (%s).",
+            notification_id,
+            type(exc).__name__,
+        )
+        Notification.objects.filter(pk=notification_id).update(
+            status=NotificationStatus.FALLIDO, updated_at=timezone.now()
+        )
+
+
+def _constraint_name(exc: IntegrityError) -> str | None:
+    return getattr(getattr(exc.__cause__, "diag", None), "constraint_name", None)
+
+
+def send(notification_id, *, now=None) -> Notification | None:
+    """Envía la notificación y deja su estado en ENVIADO, FALLIDO o PENDIENTE reprogramada.
 
     **Idempotente y a prueba de concurrencia.** La fila se bloquea con
     `select_for_update()` y su estado se relee ya con el lock tomado: si otra ejecución
@@ -99,9 +188,16 @@ def send(notification_id) -> Notification | None:
     intermedio `ENVIANDO` al enumerado, es decir, cambiar el esquema para optimizar algo
     que todavía no duele.
 
-    Sin reintentos: los reintentos automáticos son alcance de los Sprints 12-13. Una
-    notificación FALLIDA queda registrada como tal y es visible en el admin.
+    **Reintentos acotados (Sprint 13, S13-D11).** Un fallo transitorio del proveedor
+    —red, timeout, 5xx o 429— no marca FALLIDO mientras queden intentos: la fila sigue
+    PENDIENTE con `next_attempt_at` y la retoma el barrido `dispatch_due`. Un fallo
+    permanente, o el último intento, la deja FALLIDO, que sigue siendo terminal. Una
+    PENDIENTE cuyo `next_attempt_at` todavía no llegó no se envía: así, dos tareas sobre
+    la misma fila nunca duplican ni adelantan un reintento.
+
+    `now` solo existe para las pruebas; la tarea de Celery llama sin él.
     """
+    now = now or timezone.now()
     with transaction.atomic():
         notificacion = (
             Notification.objects.select_for_update()
@@ -118,28 +214,94 @@ def send(notification_id) -> Notification | None:
             # Ya la envió —o la falló— otra ejecución. Reenviar sería duplicar.
             return notificacion
 
+        if notificacion.next_attempt_at is not None and notificacion.next_attempt_at > now:
+            # Reintento programado que todavía no toca: lo retoma el barrido.
+            return notificacion
+
+        notificacion.attempts += 1
         try:
             _enviar_email(notificacion)
         except Exception as exc:
             # Se captura de forma amplia y a propósito: cualquier fallo del correo debe
-            # traducirse a FALLIDO. Dejar escapar la excepción dejaría la fila en
-            # PENDIENTE para siempre, que es justo el estado que no debe quedar.
+            # terminar en un estado explícito. Dejar escapar la excepción dejaría la fila
+            # PENDIENTE sin nadie que la reprograme.
             #
             # Del error se registra **solo el tipo**, nunca su mensaje: un rechazo del
             # proveedor suele incluir la dirección del destinatario. El id de la
             # notificación basta para investigar el caso en el admin.
-            notificacion.status = NotificationStatus.FALLIDO
-            notificacion.save(update_fields=["status", "updated_at"])
+            if _es_transitorio(exc) and notificacion.attempts < retry.MAX_ATTEMPTS:
+                notificacion.next_attempt_at = now + retry.BACKOFF[notificacion.attempts - 1]
+                notificacion.save(update_fields=["attempts", "next_attempt_at", "updated_at"])
+                logger.warning(
+                    "Falló el envío de la notificación %s (%s); se reintenta.",
+                    notificacion.pk,
+                    type(exc).__name__,
+                )
+            else:
+                notificacion.status = NotificationStatus.FALLIDO
+                notificacion.next_attempt_at = None
+                notificacion.save(
+                    update_fields=["status", "attempts", "next_attempt_at", "updated_at"]
+                )
+                logger.warning(
+                    "Falló el envío de la notificación %s (%s); queda FALLIDO.",
+                    notificacion.pk,
+                    type(exc).__name__,
+                )
+        else:
+            notificacion.status = NotificationStatus.ENVIADO
+            notificacion.next_attempt_at = None
+            notificacion.save(update_fields=["status", "attempts", "next_attempt_at", "updated_at"])
+
+    return notificacion
+
+
+def dispatch_due(*, now=None) -> int:
+    """Barrido periódico de reintentos (Beat, cada 5 min). Devuelve cuántas encoló.
+
+    Encola las PENDIENTE cuyo reintento ya venció y rescata las que nunca tuvieron un
+    intento porque su encolado se perdió, **solo** si tienen entre 15 min y 24 h: una
+    notificación más vieja no se envía nunca de forma automática. No cambia estados: el
+    envío —y su lock— sigue siendo de `send()`. Un fallo al encolar solo se registra;
+    la siguiente corrida lo vuelve a intentar.
+    """
+    from apps.notifications_app.tasks import send_notification
+
+    now = now or timezone.now()
+    vencidas = Q(attempts__gt=0, next_attempt_at__lte=now)
+    perdidas = Q(
+        attempts=0,
+        created_at__lte=now - retry.RESCUE_AFTER,
+        created_at__gte=now - retry.RESCUE_WINDOW,
+    )
+    ids = list(
+        Notification.objects.filter(status=NotificationStatus.PENDIENTE)
+        .filter(vencidas | perdidas)
+        .order_by("next_attempt_at", "created_at")
+        .values_list("pk", flat=True)[: retry.SWEEP_LIMIT]
+    )
+
+    encoladas = 0
+    for notification_id in ids:
+        try:
+            send_notification.delay(notification_id)
+        except Exception as exc:
             logger.warning(
-                "Falló el envío de la notificación %s (%s).",
-                notificacion.pk,
+                "No se pudo encolar el reintento de la notificación %s (%s).",
+                notification_id,
                 type(exc).__name__,
             )
         else:
-            notificacion.status = NotificationStatus.ENVIADO
-            notificacion.save(update_fields=["status", "updated_at"])
+            encoladas += 1
+    return encoladas
 
-    return notificacion
+
+def _es_transitorio(exc: Exception) -> bool:
+    """Red, timeout, 5xx o 429 del proveedor. Todo lo demás es permanente."""
+    if not isinstance(exc, brevo.BrevoUnavailableError):
+        return False
+    estado = exc.status_code
+    return estado is None or estado >= 500 or estado == 429
 
 
 def resend(notification_id) -> Notification:
@@ -148,8 +310,8 @@ def resend(notification_id) -> Notification:
     Es el **reintento manual** del §14 del plan: lo dispara una persona con
     `resend_notification`, caso por caso, y queda en `audit_logs`. No es —ni se
     convierte en— un reintento automático: `send()` sigue tratando FALLIDO como terminal
-    y la tarea de Celery sigue sin `autoretry_for`. Los reintentos automáticos son
-    alcance de los Sprints 12-13.
+    y la tarea de Celery sigue sin `autoretry_for`. Los reintentos automáticos del
+    Sprint 13 solo actúan sobre PENDIENTE; este reenvío reinicia su contador de intentos.
 
     El estado se relee **con la fila ya bloqueada**, igual que en `send()`: dos
     operadores que ejecuten el comando a la vez no pueden reactivar la misma
@@ -184,7 +346,10 @@ def resend(notification_id) -> Notification:
             )
 
         notificacion.status = NotificationStatus.PENDIENTE
-        notificacion.save(update_fields=["status", "updated_at"])
+        # El reenvío manual arranca un ciclo nuevo de intentos (S13-D11).
+        notificacion.attempts = 0
+        notificacion.next_attempt_at = None
+        notificacion.save(update_fields=["status", "attempts", "next_attempt_at", "updated_at"])
 
         audit.log(None, ACCION_REENVIO, _payload_reenvio(notificacion))
 
@@ -249,9 +414,18 @@ def _enviar_email(notificacion: Notification) -> None:
 
 
 def _contexto(notificacion: Notification) -> dict[str, str]:
-    """Mantiene el contexto de S4 y agrega los nombres del canje, nunca su código."""
+    """Contexto mínimo de cada plantilla. Nunca datos sensibles ni códigos.
+
+    Los tipos de S4 reciben exactamente `{"nombre"}`. El canje suma institución y
+    recompensa. Los eventos de reporte suman la fecha y, salvo el de creación, la
+    categoría vigente y la institución que actuó: el de creación no nombra la categoría
+    porque la IA puede reclasificar el reporte mientras el correo sale (S13-D09). Si falta
+    el objeto que el tipo necesita, `ValueError`: un fallo permanente, mejor que un
+    correo inventado.
+    """
     contexto = {"nombre": notificacion.user.full_name or notificacion.user.email.split("@")[0]}
-    if notificacion.notification_type == NotificationType.CANJE_REALIZADO:
+    tipo = notificacion.notification_type
+    if tipo == NotificationType.CANJE_REALIZADO:
         if notificacion.redemption_id is None:
             raise ValueError("Un aviso de canje requiere su vale.")
         redemption = notificacion.redemption
@@ -259,4 +433,20 @@ def _contexto(notificacion: Notification) -> dict[str, str]:
             institucion=redemption.institution.name,
             recompensa=redemption.reward.name,
         )
+    elif tipo in TIPOS_DE_REPORTE:
+        if notificacion.report_id is None:
+            raise ValueError("Un aviso de reporte requiere su reporte.")
+        report = notificacion.report
+        contexto["fecha"] = timezone.localtime(report.created_at).strftime("%d/%m/%Y")
+        if tipo != NotificationType.REPORTE_CREADO:
+            if notificacion.institution_id is None:
+                raise ValueError("Un aviso de decisión institucional requiere la institución.")
+            contexto.update(
+                categoria=report.category.name,
+                institucion=notificacion.institution.name,
+            )
+    elif tipo == NotificationType.RECOMPENSA_DISPONIBLE:
+        if notificacion.institution_id is None:
+            raise ValueError("Un aviso de recompensa disponible requiere la institución.")
+        contexto["institucion"] = notificacion.institution.name
     return contexto
