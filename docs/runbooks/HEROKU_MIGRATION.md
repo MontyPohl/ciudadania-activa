@@ -624,7 +624,20 @@ Heroku: ese comando revierte aplicación/configuración, no el esquema ni los da
 
 El método quedó registrado en S10 (`9676e94`, release v13), S12 (`9944e11`, v19) y
 activación IA (`744e295`, v22). `744e295` tiene como padres `9944e11` y `abe9376`;
-su árbol coincide con `backend/` de `d9e1c11`. Estos hashes son trazabilidad, no una
+su árbol coincide con `backend/` de `d9e1c11`.
+
+**S13 (20/10/2026, release v25):** candidato `828e01a` (head del PR #52), split
+`d558d81`, reconciliación `82eafce` (padres `744e295` y `d558d81`), árbol de `backend/`
+`04f79c7`. Antes de migrar: conteo en solo lectura (0 filas de Telegram, 0 `PENDIENTE`) y
+`pg_dump` `ciudadania_activa_20261020_133500_pre_s13.dump` (SHA-256 `c34b9483…`, 66
+tablas con datos). `migrate --plan` listó solo `reports_app.0008`,
+`notifications_app.0003` y `social_ingestion_app.0002`, aplicadas con `migrate`, `migrate
+--check` y `check` limpios. Respaldo posterior `ciudadania_activa_20261020_135203_post_s13.dump`
+(SHA-256 `1d2ad048…`, 65 tablas). Tras el merge (`6e8e883`), `origin/main:backend` es el
+mismo árbol desplegado. Beat agenda desde v25 también `notifications.dispatch_due` (cada
+5 min) y `rewards.notify_available_rewards` (09:00 locales); el worker las registra.
+Desvío menor: el mantenimiento se retiró con `web=1` arriba y antes de escalar worker y
+beat, no al final. Estos hashes son trazabilidad, no una
 instrucción para volver a desplegar un candidato antiguo.
 
 ### IA, Brevo y comprobación productiva
