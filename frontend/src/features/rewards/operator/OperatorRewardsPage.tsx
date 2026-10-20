@@ -1,12 +1,15 @@
 "use client";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { Button } from "@/components/ui/Button";
 import { useEffect, useState } from "react";
 import { useSession } from "@/features/auth/useSession";
-import { OperatorInstitutionSelector } from "@/features/reports/operator/OperatorInstitutionSelector";
+import { FormField } from "@/components/ui/FormField";
+import { Select } from "@/components/ui/Select";
 import { getOperatorReward } from "@/lib/api/operatorRewards";
 import type { OperatorRewardContext } from "@/types/api";
 import { OperatorRewardForm } from "./OperatorRewardForm";
 import { OperatorRedemptionsTable } from "./OperatorRedemptionsTable";
-import { errorMessage, secondary } from "../presentation";
+import { errorMessage } from "../presentation";
 export function OperatorRewardsPage() {
   const session = useSession();
   const institutions = session.status === "authenticated" ? session.user.institutions : [];
@@ -16,20 +19,35 @@ export function OperatorRewardsPage() {
     <main
       id="contenido-principal"
       tabIndex={-1}
-      className="mx-auto flex w-full max-w-5xl flex-col gap-6 bg-white px-6 py-10 text-brand-black"
+      className="mx-auto flex w-full max-w-5xl min-w-0 flex-col gap-6 px-4 sm:px-6 py-10 text-ink"
     >
-      <h1 className="text-3xl font-bold text-brand-purple">Recompensas de tu institución</h1>
+      <PageHeader title="Recompensas de tu institución" />
       {session.status === "loading" ? (
         <p role="status">Verificando tu acceso…</p>
       ) : !institutions.length ? (
         <p role="alert">No tenés membresías institucionales activas.</p>
       ) : (
         <>
-          <OperatorInstitutionSelector
-            institutions={institutions}
-            value={institutionId}
-            onChange={setSelected}
-          />
+          {institutions.length > 1 ? (
+            <div className="max-w-md">
+              <FormField
+                label="Contexto institucional"
+                description="El servidor verificará tu membresía antes de cada operación."
+              >
+                <Select value={institutionId} onChange={(event) => setSelected(event.target.value)}>
+                  {institutions.map((institution) => (
+                    <option key={institution.id} value={institution.id}>
+                      {institution.name}
+                    </option>
+                  ))}
+                </Select>
+              </FormField>
+            </div>
+          ) : (
+            <p className="text-sm text-muted">
+              Institución: <strong>{institutions[0].name}</strong>
+            </p>
+          )}
           <InstitutionRewards key={institutionId} institutionId={institutionId} />
         </>
       )}
@@ -58,15 +76,15 @@ function InstitutionRewards({ institutionId }: { institutionId: string }) {
       {error ? (
         <div className="space-y-3">
           <p role="alert">{error}</p>
-          <button
-            className={secondary}
+          <Button
+            variant="secondary"
             onClick={() => {
               setError("");
               setReload((r) => r + 1);
             }}
           >
             Reintentar
-          </button>
+          </Button>
         </div>
       ) : !context ? (
         <p role="status">Cargando recompensa…</p>

@@ -1,8 +1,9 @@
 "use client";
+import { Card } from "@/components/ui/Card";
 import { getLedgerMovements } from "@/lib/api/rewards";
 import { PaginatedList } from "./PaginatedList";
 import { movementLabel } from "./movementLabel";
-import { number, date, panel } from "./presentation";
+import { number, date } from "./presentation";
 const statusLabels = {
   ACREDITADO: "Acreditado",
   PENDIENTE: "Pendiente",
@@ -12,10 +13,11 @@ const statusLabels = {
 const load = (page: number, signal: AbortSignal) => getLedgerMovements({ page }, signal);
 export function MovementsList() {
   return (
-    <section
+    <Card
+      as="section"
       id="movimientos"
       aria-labelledby="movements-title"
-      className={`${panel} space-y-4 scroll-mt-6`}
+      className="space-y-4 scroll-mt-6"
     >
       <h2 id="movements-title" className="text-xl font-bold">
         Mis movimientos
@@ -24,11 +26,11 @@ export function MovementsList() {
         load={load}
         empty="Todavía no tenés movimientos."
         render={(items) => (
-          <ul className="divide-y divide-brand-black/10">
+          <ul className="divide-y divide-border">
             {items.map((item) => (
               <li
                 key={item.id}
-                className={`space-y-1 py-4 ${item.status === "ANULADO" ? "text-brand-black/65" : item.status === "REVERTIDO" ? "rounded-lg bg-amber-50 px-3 text-amber-900" : ""}`}
+                className={`space-y-1 py-4 ${item.status === "ANULADO" ? "text-muted" : item.status === "REVERTIDO" ? "rounded-lg bg-warning/5 px-3 text-warning-ink" : ""}`}
               >
                 <p className="font-semibold">{movementLabel(item)}</p>
                 <p className="text-sm">
@@ -47,6 +49,6 @@ export function MovementsList() {
           </ul>
         )}
       />
-    </section>
+    </Card>
   );
 }

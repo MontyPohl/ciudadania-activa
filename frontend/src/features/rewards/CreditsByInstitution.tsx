@@ -1,5 +1,6 @@
+import { Card } from "@/components/ui/Card";
 import type { RewardsSummary } from "@/types/api";
-import { number, panel } from "./presentation";
+import { number } from "./presentation";
 export function CreditsByInstitution({
   credits,
 }: {
@@ -13,19 +14,19 @@ export function CreditsByInstitution({
       {credits.length ? (
         <dl className="grid gap-4 sm:grid-cols-2">
           {credits.map(({ institution, balance }) => (
-            <div key={institution.id} className={panel}>
-              <dt className="text-sm font-semibold text-brand-purple">{institution.name}</dt>
+            <Card as="div" key={institution.id}>
+              <dt className="text-sm font-semibold text-primary">{institution.name}</dt>
               <dd className="mt-2">
                 <strong className="text-xl tabular-nums">{number(balance)}</strong> créditos
               </dd>
-            </div>
+            </Card>
           ))}
         </dl>
       ) : (
         <p>Todavía no tenés créditos acreditados.</p>
       )}
       {credits.some(({ balance }) => balance < 0) && (
-        <p className="text-sm text-brand-black/75">
+        <p className="text-sm text-muted">
           El saldo puede quedar negativo si se revirtió una validación después de un canje. Los
           vales siguen siendo válidos.
         </p>

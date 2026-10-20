@@ -1,11 +1,13 @@
 "use client";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { Button } from "@/components/ui/Button";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { getRedemption } from "@/lib/api/rewards";
 import type { Redemption } from "@/types/api";
 import { RewardsAccess } from "./RewardsEntry";
 import { Voucher } from "./Voucher";
-import { errorMessage, secondary } from "./presentation";
+import { errorMessage } from "./presentation";
 export function VoucherEntry({ id, existing = false }: { id: string; existing?: boolean }) {
   return (
     <RewardsAccess>
@@ -33,22 +35,22 @@ function VoucherContent({ id, existing }: { id: string; existing: boolean }) {
       <main
         id="contenido-principal"
         tabIndex={-1}
-        className="mx-auto max-w-2xl space-y-4 bg-white p-6 text-brand-black"
+        className="mx-auto max-w-2xl min-w-0 space-y-4 p-4 sm:p-6 text-ink"
       >
-        <Link href="/recompensas" className="text-brand-purple underline">
+        <Link href="/recompensas" className="text-primary underline">
           Volver a recompensas
         </Link>
-        <h1 className="text-2xl font-bold">Tu vale</h1>
+        <PageHeader title="Tu vale" />
         <p role="alert">{error}</p>
-        <button
-          className={secondary}
+        <Button
+          variant="secondary"
           onClick={() => {
             setError("");
             setRetry((r) => r + 1);
           }}
         >
           Reintentar
-        </button>
+        </Button>
       </main>
     );
   return redemption ? (
