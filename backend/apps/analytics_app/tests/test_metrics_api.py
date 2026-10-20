@@ -59,7 +59,7 @@ def test_permisos_y_alcance(request, institution, role, path, query, expected):
     for key in (
         f"metrics:v1:inst:{institution.pk}:{month}",
         f"metrics:v1:all:{month}",
-        f"public-metrics:v1:{timezone.now().astimezone(LOCAL_TZ).date().isoformat()}",
+        f"public-metrics:v2:{timezone.now().astimezone(LOCAL_TZ).date().isoformat()}",
     ):
         cache.delete(key)
     response = client.get(f"{BASE}{path}/metrics/{suffix}")
@@ -139,7 +139,7 @@ def test_cabeceras_y_cache_con_fallback(operator_user, admin_user, institution, 
         if isinstance(value, dict):
             assert not forbidden.intersection(value)
             if "id" in value:
-                assert parent == "institution"
+                assert parent in {"institution", "category"}
             for key, child in value.items():
                 inspect(child, key)
         elif isinstance(value, list):

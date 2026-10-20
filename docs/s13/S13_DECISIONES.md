@@ -99,3 +99,24 @@ Recortes y desvíos:
   (mitigada por conteo previo y mantenimiento).
 - EX-10 suma una tarea por reporte (`REPORTE_CREADO` en `on_commit`); las corridas
   posteriores a S13 no son directamente comparables con las anteriores.
+
+## Enmienda S15-B1 a S13-D08 (20/10/2026)
+
+La Fase B aprobada agrega `trend` (mes actual y cinco anteriores, recibidos y primera
+resolución histórica) y `current_month_by_category` (recibidos del mes actual). Son
+agregados globales, **sin cruce categoría × institución**. Las celdas nuevas requieren
+n ≥ 5 reportes: con 0–4 devuelven `null` y su nombre en `suppressed`. Esto es una
+excepción explícita a «nada más fino que la institución» y a la publicación irrestricta
+de conteos de reportes para estas **nuevas** celdas; los totales e instituciones de S13
+conservan sus reglas.
+
+Se aplica supresión complementaria cuando una sola celda oculta se podría despejar
+restando las publicadas al total: se oculta además la menor celda publicada (orden
+estable para empates). Primero se protege categoría frente al mes actual y luego
+cada serie mensual frente al total de seis meses. Las celdas complementarias también
+figuran en `suppressed`. No se promete impedir inferencias desde el mapa público ni
+comparaciones temporales entre respuestas. Caché de métricas públicas `v2`.
+
+S13-D14 queda exceptuada únicamente para los campos públicos autorizados por S15-B1;
+la integración con parsers estrictos queda pendiente de Fase 5. Contrato y evidencia:
+[registro B1](../s15/S15_UI_B1_BACKEND.md).

@@ -437,7 +437,9 @@ function publicReport(row) {
     "latitude",
     "longitude",
     "created_at",
+    "photo_url",
     "confirmation_count",
+    "resolution_evidences",
   ];
   return (
     object(row) &&

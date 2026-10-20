@@ -2,6 +2,7 @@
 
 from decimal import ROUND_HALF_UP, Decimal
 
+from django.urls import reverse
 from rest_framework import serializers
 
 from apps.admin_app.models import Category
@@ -10,6 +11,7 @@ from apps.map_app.bbox import (
     InvalidBoundingBox,
     parse_and_canonicalize_bbox,
 )
+from apps.map_app.selectors import PHOTO_STATUSES, RESOLVED_STATUSES
 
 
 class PublicBoundingBoxField(serializers.Field):
@@ -63,6 +65,17 @@ class PublicReportSerializer(serializers.Serializer):
     latitude = serializers.SerializerMethodField()
     longitude = serializers.SerializerMethodField()
     created_at = serializers.DateTimeField(read_only=True)
+    photo_url = serializers.SerializerMethodField()
+
+    def get_photo_url(self, report):
+        if report.status not in PHOTO_STATUSES:
+            return None
+        has_photo = getattr(report, "has_public_photo", None)
+        if has_photo is None:
+            has_photo = report.media.filter(media_type="FOTO").exists()
+        if not has_photo:
+            return None
+        return reverse("public-report-photo", kwargs={"report_id": report.pk})
 
     def get_latitude(self, report) -> float:
         return round_public_coordinate(report.location.y)
@@ -75,6 +88,22 @@ class PublicReportDetailSerializer(PublicReportSerializer):
     """Extensión mínima del detalle; el listado cacheado conserva su contrato."""
 
     confirmation_count = serializers.IntegerField(read_only=True)
+    resolution_evidences = serializers.SerializerMethodField()
+
+    def get_resolution_evidences(self, report):
+        if report.status not in RESOLVED_STATUSES:
+            return []
+        return [
+            {
+                "id": str(evidence.pk),
+                "evidence_url": reverse(
+                    "public-report-evidence",
+                    kwargs={"report_id": report.pk, "evidence_id": evidence.pk},
+                ),
+                "created_at": serializers.DateTimeField().to_representation(evidence.created_at),
+            }
+            for evidence in report.resolution_evidences.order_by("created_at", "id")
+        ]
 
 
 def round_public_coordinate(value: float) -> float:

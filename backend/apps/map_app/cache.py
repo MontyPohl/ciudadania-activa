@@ -11,8 +11,8 @@ from redis.exceptions import RedisError
 
 logger = logging.getLogger(__name__)
 
-GENERATION_KEY = "public-reports:v1:generation"
-LIST_KEY_PREFIX = "public-reports:v1:g"
+GENERATION_KEY = "public-reports:v2:generation"
+LIST_KEY_PREFIX = "public-reports:v2:g"
 
 
 def build_public_list_cache_key(request, params) -> str | None:

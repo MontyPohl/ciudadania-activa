@@ -322,6 +322,7 @@ test("mapa exige población exacta, coordenadas redondeadas y lista blanca públ
     latitude: -25.3,
     longitude: -57.6,
     created_at: "2026-10-01T00:00:00Z",
+    photo_url: `/api/v1/public/reports/${uuid(1)}/photo/`,
   };
   const body = { count: 1, results: [row], next: null, previous: null },
     expected = { count: 1, ids: [uuid(1)] };
@@ -357,6 +358,8 @@ test("detalle acepta claves anidadas reordenadas y rechaza campos extra/cambiado
     longitude: -57.6,
     created_at: "2026-10-01T00:00:00Z",
     confirmation_count: 0,
+    photo_url: `/api/v1/public/reports/${uuid(1)}/photo/`,
+    resolution_evidences: [],
   };
   const actual = {
     ...expected,
