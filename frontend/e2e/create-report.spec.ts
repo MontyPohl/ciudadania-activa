@@ -52,7 +52,7 @@ test.describe("guards browser", () => {
         );
       }
       if (scenario.actor !== "citizen-verified") {
-        await expect(page.getByRole("combobox", { name: "Categoría" })).toHaveCount(0);
+        await expect(page.getByRole("group", { name: "Categoría" })).toHaveCount(0);
       }
     });
   }
@@ -351,11 +351,11 @@ test("semántica y foco browser acompañan pasos, errores y estado actual", asyn
   await expect(page.getByRole("heading", { level: 1, name: "Crear un reporte" })).toBeVisible();
   await expect(page.locator("[aria-current='step']")).toContainText("Categoría");
   await page.getByRole("button", { name: "Continuar" }).click();
-  const category = page.getByRole("combobox", { name: "Categoría" });
+  const category = page.getByRole("group", { name: "Categoría" });
   await expect(category).toHaveAttribute("aria-invalid", "true");
   await expect(category).toBeFocused();
   await expect(page.getByText("Seleccioná una categoría.", { exact: true })).toBeVisible();
-  await category.selectOption(CATEGORY.id);
+  await page.getByRole("radio", { name: CATEGORY.name, exact: true }).check();
   await page.getByRole("button", { name: "Continuar" }).click();
   await expect(page.getByRole("heading", { name: "Descripción" })).toBeFocused();
   await expect(page.locator("[aria-current='step']")).toContainText("Descripción");
@@ -372,7 +372,7 @@ test.describe("viewport móvil", () => {
     await page.addStyleTag({ content: "nextjs-portal { display: none !important; }" });
     await expectNoHorizontalOverflow(page);
     await expect(page.locator("[aria-current='step']")).toBeVisible();
-    await page.getByRole("combobox", { name: "Categoría" }).selectOption(CATEGORY.id);
+    await page.getByRole("radio", { name: CATEGORY.name, exact: true }).check();
     await page.getByRole("button", { name: "Continuar" }).click();
     await expectNoHorizontalOverflow(page);
     await page.getByRole("textbox", { name: "Descripción" }).fill(DESCRIPTION);

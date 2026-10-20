@@ -25,7 +25,7 @@ export function BarList({ title, items }: { title: string; items: BarDatum[] }) 
                 </span>
               </div>
               <svg viewBox="0 0 300 12" className="h-3 w-full" preserveAspectRatio="none">
-                <path d="M0 6H300" className="stroke-brand-purple/10" strokeWidth="12" />
+                <path d="M0 6H300" className="stroke-primary/10" strokeWidth="12" />
                 <rect
                   width={value === null ? 0 : (300 * value) / max}
                   height="12"

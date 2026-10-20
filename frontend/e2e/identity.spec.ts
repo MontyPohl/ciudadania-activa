@@ -137,3 +137,43 @@ test("@F1 registro con Google simulado, verificación y aprobación", async ({
     ).toHaveCount(0);
   });
 });
+
+test("cola de identidad contiene filtros y paginación con conteos largos", async ({
+  page,
+  baseURL,
+}) => {
+  const state = createIdentityState();
+  state.signedIn = true;
+  await mockIdentityApi(page, state, baseURL!, "admin");
+  await page.route("**/api/v1/admin/identity/?*", async (route) => {
+    await route.fulfill({
+      json: {
+        count: 123456789,
+        previous: null,
+        next: "/api/v1/admin/identity/?page=2",
+        results: [
+          {
+            id: IDENTITY_ID,
+            user: {
+              id: IDENTITY_CITIZEN.id,
+              full_name: IDENTITY_CITIZEN.full_name,
+              email: IDENTITY_CITIZEN.email,
+            },
+            verification_status: "PENDIENTE",
+            created_at: "2026-10-20T12:00:00Z",
+          },
+        ],
+      },
+    });
+  });
+  await page.goto("/identidades");
+  await expect(page.getByText("Página 1 · 123456789 en total", { exact: true })).toBeVisible();
+  for (const width of [320, 375, 768, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(page.getByRole("button", { name: "Siguiente", exact: true })).toBeVisible();
+    await expect(page.locator("#contenido-principal")).toHaveCount(1);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      width,
+    );
+  }
+});

@@ -15,12 +15,12 @@ export function MetricsLoading() {
 }
 export function MetricsError({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
-    <div className="rounded-2xl border border-brand-purple/20 bg-primary/5 p-6">
+    <div className="rounded-2xl border border-primary/20 bg-primary/5 p-6">
       <p role="alert">{message}</p>
       <button
         type="button"
         onClick={onRetry}
-        className="mt-3 min-h-11 rounded-lg border border-brand-purple px-4 py-2 font-semibold text-primary hover:bg-primary/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple"
+        className="mt-3 min-h-11 rounded-lg border border-primary px-4 py-2 font-semibold text-primary hover:bg-primary/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
       >
         Reintentar
       </button>

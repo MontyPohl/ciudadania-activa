@@ -36,14 +36,14 @@ function ReportListItem({
 
   return (
     <li
-      className={`min-w-0 rounded-xl border p-3 wrap-anywhere ${selected ? "border-brand-purple bg-primary/5" : "border-black/10"}`}
+      className={`min-w-0 rounded-xl border p-3 wrap-anywhere ${selected ? "border-primary bg-primary/5" : "border-black/10"}`}
     >
       <button
         ref={triggerRef}
         type="button"
         data-report-list-trigger={report.id}
         onClick={(event) => onSelect(report, event.currentTarget)}
-        className="w-full text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple"
+        className="w-full text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
       >
         <PublicPhoto report={report} thumbnail />
         <span className="block font-semibold">{report.category.name}</span>

@@ -64,42 +64,42 @@ export default function PerfilPage() {
       className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-6 py-10"
     >
       <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold text-brand-purple">Mi perfil</h1>
-        <p className="text-sm text-brand-black/70">
+        <h1 className="text-2xl font-bold text-primary">Mi perfil</h1>
+        <p className="text-sm text-muted">
           Elegí cómo querés aparecer en el ranking público de impacto ciudadano.
         </p>
       </header>
 
       {vista.fase === "cargando" && (
-        <p role="status" className="text-sm text-brand-black/70">
+        <p role="status" className="text-sm text-muted">
           Cargando tu perfil…
         </p>
       )}
 
       {vista.fase === "error" && (
-        <p role="alert" className="text-sm font-medium text-brand-orange-ink">
+        <p role="alert" className="text-sm font-medium text-danger-ink">
           {vista.mensaje}
         </p>
       )}
 
       {vista.fase === "sin-verificacion" && (
-        <section className="flex flex-col items-start gap-3 rounded-2xl border border-brand-black/10 px-6 py-5">
+        <section className="flex flex-col items-start gap-3 rounded-2xl border border-border px-6 py-5">
           <h2 className="font-semibold">Todavía no tenés perfil ciudadano</h2>
-          <p className="text-sm text-brand-black/70">
+          <p className="text-sm text-muted">
             La preferencia de privacidad se guarda junto con tu verificación de identidad. Enviala y
             después vas a poder configurarla acá.
           </p>
-          <Link href="/verificacion" className="text-sm font-medium text-brand-purple underline">
+          <Link href="/verificacion" className="text-sm font-medium text-primary underline">
             Ir a la verificación
           </Link>
         </section>
       )}
 
       {vista.fase === "listo" && (
-        <section className="flex flex-col gap-4 rounded-2xl border border-brand-black/10 px-6 py-5">
+        <section className="flex flex-col gap-4 rounded-2xl border border-border px-6 py-5">
           <div className="flex flex-col gap-1">
             <h2 className="font-semibold">Visibilidad en el ranking</h2>
-            <p className="text-xs text-brand-black/60">
+            <p className="text-xs text-muted">
               Tu elección se aplica al ranking público. Podés cambiarla cuando quieras.
             </p>
           </div>

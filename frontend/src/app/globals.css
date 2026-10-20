@@ -33,15 +33,6 @@
   --color-map-in-progress: var(--color-warning-ink);
   --color-map-resolved: var(--color-success-ink);
 
-  /* Temporary compatibility aliases until each screen migrates to semantic tokens.
-     Orange ink currently covers errors too; warnings migrate separately. */
-  --color-brand-pink: var(--color-secondary);
-  --color-brand-green: var(--color-success);
-  --color-brand-black: var(--color-ink);
-  --color-brand-purple: var(--color-primary);
-  --color-brand-orange: var(--color-warning);
-  --color-brand-green-ink: var(--color-success-ink);
-  --color-brand-orange-ink: var(--color-danger-ink);
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 
@@ -61,12 +52,6 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
-}
-
-@layer components {
-  .audit-input {
-    @apply min-h-11 w-full rounded-lg border border-brand-black/25 bg-white px-3 py-2 text-brand-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple;
-  }
 }
 
 .ca-map-legend {

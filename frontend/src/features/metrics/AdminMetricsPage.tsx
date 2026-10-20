@@ -1,4 +1,5 @@
 "use client";
+import { Select } from "@/components/ui/Select";
 import { useCallback, useState } from "react";
 import type { SessionInstitution } from "@/types/api";
 import { MetricsQuery } from "./MetricsQuery";
@@ -24,18 +25,14 @@ export function AdminMetricsPage() {
       <div className="grid items-start gap-4 rounded-2xl bg-primary/5 p-4 sm:grid-cols-2 sm:p-6">
         <label className="flex max-w-md flex-col gap-1 text-sm font-medium">
           Institución
-          <select
-            className="audit-input"
-            value={institutionId}
-            onChange={(e) => setInstitutionId(e.target.value)}
-          >
+          <Select value={institutionId} onChange={(e) => setInstitutionId(e.target.value)}>
             <option value="">Todas las instituciones</option>
             {institutions?.map((institution) => (
               <option key={institution.id} value={institution.id}>
                 {institution.name}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <PeriodSelect value={period} onChange={setPeriod} />
       </div>

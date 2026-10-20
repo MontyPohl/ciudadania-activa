@@ -1,5 +1,10 @@
 "use client";
 
+import { Textarea } from "@/components/ui/Textarea";
+import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
+import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useSession } from "@/features/auth/useSession";
@@ -328,33 +333,32 @@ export function OperatorReportDetail({
       {message && (
         <p
           role="alert"
-          className="rounded-xl border border-brand-orange/40 bg-white p-4 text-sm font-medium text-brand-black"
+          className="rounded-xl border border-warning/40 bg-surface p-4 text-sm font-medium text-ink"
         >
           {message}
         </p>
       )}
       {!loading && detail === null && (
-        <button
+        <Button
+          variant="primary"
           type="button"
           onClick={() => void refresh()}
-          className="min-h-11 self-start rounded-lg bg-brand-purple px-4 py-2 font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple"
+          className="self-start"
         >
           Reintentar detalle
-        </button>
+        </Button>
       )}
       {!loading && detail && (
         <>
-          <div className="rounded-2xl bg-white p-5 text-brand-black shadow-sm ring-1 ring-brand-black/10">
+          <Card className="p-5 ring-1 ring-border">
             <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
               <span
-                className="rounded-full bg-brand-purple/10 px-3 py-1 text-sm font-semibold text-brand-purple"
+                className="rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold text-primary"
                 aria-label={`Estado actual: ${REPORT_STATUS_LABELS[detail.status]}`}
               >
                 {REPORT_STATUS_LABELS[detail.status]}
               </span>
-              <span className="text-sm font-semibold text-brand-black/65">
-                Ciclo {detail.cycle}
-              </span>
+              <span className="text-sm font-semibold text-muted">Ciclo {detail.cycle}</span>
             </div>
             <dl className="grid gap-4 sm:grid-cols-2">
               <Fact label="Prioridad" value={REPORT_PRIORITY_LABELS[detail.priority]} />
@@ -372,7 +376,7 @@ export function OperatorReportDetail({
                 <Fact label="Cerrado" value={formatReportDate(detail.closed_at)} />
               )}
               <div className="sm:col-span-2">
-                <dt className="text-xs font-semibold uppercase tracking-wide text-brand-black/55">
+                <dt className="text-xs font-semibold uppercase tracking-wide text-muted">
                   Ubicación exacta
                 </dt>
                 <dd className="mt-1">
@@ -380,16 +384,16 @@ export function OperatorReportDetail({
                 </dd>
               </div>
               <div className="sm:col-span-2">
-                <dt className="text-xs font-semibold uppercase tracking-wide text-brand-black/55">
+                <dt className="text-xs font-semibold uppercase tracking-wide text-muted">
                   Descripción
                 </dt>
                 <dd className="mt-1 whitespace-pre-wrap">{detail.description}</dd>
               </div>
             </dl>
-          </div>
+          </Card>
 
           {detail.photo_signed_url && (
-            <figure className="rounded-2xl bg-white p-4 text-brand-black shadow-sm ring-1 ring-brand-black/10">
+            <Card as="figure" className="p-4 ring-1 ring-border">
               {/* La URL privada es efímera y no debe pasar por el optimizador de imágenes. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -398,35 +402,34 @@ export function OperatorReportDetail({
                 referrerPolicy="no-referrer"
                 className="max-h-[32rem] w-full rounded-xl object-contain"
               />
-              <figcaption className="mt-2 text-xs text-brand-black/60">
+              <figcaption className="mt-2 text-xs text-muted">
                 Fotografía original del reporte; el acceso firmado caduca en pocos minutos.
               </figcaption>
-            </figure>
+            </Card>
           )}
 
           {detail.ai_classification && (
-            <aside className="rounded-2xl bg-white p-5 text-sm text-brand-black shadow-sm ring-1 ring-brand-purple/20">
-              <h2 className="font-semibold text-brand-purple">Sugerencia IA informativa</h2>
+            <aside className="rounded-2xl bg-surface p-5 text-sm text-ink shadow-sm ring-1 ring-primary/20">
+              <h2 className="font-semibold text-primary">Sugerencia IA informativa</h2>
               <p className="mt-1">No determina la institución ni autoriza esta decisión.</p>
-              <p className="mt-2 text-brand-black/75">{detail.ai_classification.justification}</p>
+              <p className="mt-2 text-muted">{detail.ai_classification.justification}</p>
             </aside>
           )}
 
-          <section className="rounded-2xl bg-white p-5 text-brand-black shadow-sm ring-1 ring-brand-black/10">
-            <h2 className="mb-4 text-xl font-bold text-brand-purple">
-              Línea de tiempo institucional
-            </h2>
+          <Card as="section" className="p-5 ring-1 ring-border">
+            <h2 className="mb-4 text-xl font-bold text-primary">Línea de tiempo institucional</h2>
             {historyState.phase === "loading" && <p role="status">Cargando historial…</p>}
             {historyState.phase === "error" && (
               <div role="alert">
                 <p className="text-sm">{historyState.message}</p>
-                <button
+                <Button
+                  variant="secondary"
                   type="button"
                   onClick={() => void loadHistory(historyState.page)}
-                  className="mt-3 min-h-11 rounded-lg border border-brand-purple px-4 py-2 font-semibold text-brand-purple"
+                  className="mt-3"
                 >
                   Reintentar historial
-                </button>
+                </Button>
               </div>
             )}
             {historyState.phase === "ready" && (
@@ -437,63 +440,60 @@ export function OperatorReportDetail({
                     aria-label="Páginas del historial institucional"
                     className="mt-5 flex flex-wrap items-center justify-between gap-3"
                   >
-                    <button
+                    <Button
+                      variant="secondary"
                       type="button"
                       disabled={historyState.data.previous === null}
                       onClick={() => void loadHistory(Math.max(1, historyState.page - 1))}
-                      className="min-h-11 rounded-lg border border-brand-purple px-4 py-2 font-semibold text-brand-purple disabled:opacity-45"
                     >
                       Más recientes
-                    </button>
+                    </Button>
                     <span className="text-sm">Página {historyState.page}</span>
-                    <button
+                    <Button
+                      variant="secondary"
                       type="button"
                       disabled={historyState.data.next === null}
                       onClick={() => void loadHistory(historyState.page + 1)}
-                      className="min-h-11 rounded-lg border border-brand-purple px-4 py-2 font-semibold text-brand-purple disabled:opacity-45"
                     >
                       Anteriores
-                    </button>
+                    </Button>
                   </nav>
                 )}
               </>
             )}
-          </section>
+          </Card>
 
           {operable && decision === "none" && (
             <div className="flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={() => setDecision("validate")}
-                className="min-h-11 rounded-lg bg-brand-green px-4 py-2 font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-green"
-              >
+              <Button variant="primary" type="button" onClick={() => setDecision("validate")}>
                 Validar
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="secondary"
                 type="button"
                 onClick={() => setDecision("reject-reason")}
-                className="min-h-11 rounded-lg border border-brand-orange px-4 py-2 font-semibold text-brand-orange-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-orange-ink"
               >
                 Rechazar
-              </button>
+              </Button>
             </div>
           )}
 
           {lifecycle && decision === "none" && (
-            <div className="rounded-2xl bg-white p-5 text-brand-black shadow-sm ring-1 ring-brand-black/10">
-              <p className="text-sm text-brand-black/70">
+            <Card className="p-5 ring-1 ring-border">
+              <p className="text-sm text-muted">
                 {detail.status === "EN_PROCESO"
                   ? `${currentEvidence} evidencia${currentEvidence === 1 ? "" : "s"} en el ciclo actual.`
                   : lifecycle.explanation}
               </p>
-              <button
+              <Button
+                variant="primary"
                 type="button"
                 onClick={() => setDecision("lifecycle")}
-                className="mt-3 min-h-11 rounded-lg bg-brand-purple px-4 py-2 font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple"
+                className="mt-3"
               >
                 {lifecycle.label}
-              </button>
-            </div>
+              </Button>
+            </Card>
           )}
 
           {decision === "validate" && (
@@ -510,7 +510,7 @@ export function OperatorReportDetail({
 
           {decision === "reject-reason" && (
             <form
-              className="rounded-2xl bg-white p-5 text-brand-black shadow-sm ring-1 ring-brand-orange/40"
+              className="rounded-2xl bg-surface p-5 text-ink shadow-sm ring-1 ring-warning/40"
               onSubmit={(event) => {
                 event.preventDefault();
                 if (reason === "") {
@@ -526,11 +526,10 @@ export function OperatorReportDetail({
               </h2>
               <label className="mt-3 flex flex-col gap-1 text-sm font-medium">
                 Motivo de rechazo
-                <select
+                <Select
                   required
                   value={reason}
                   onChange={(event) => setReason(event.target.value as RejectionReason | "")}
-                  className="min-h-11 rounded-lg border border-brand-black/25 bg-white px-3 py-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple"
                 >
                   <option value="">Seleccionar motivo</option>
                   {REASONS.map((item) => (
@@ -538,7 +537,7 @@ export function OperatorReportDetail({
                       {item.label}
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
               <ActionRow
                 primaryLabel="Continuar"
@@ -579,10 +578,7 @@ export function OperatorReportDetail({
           <section aria-labelledby="resolution-evidence-heading" className="space-y-4">
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
-                <h2
-                  id="resolution-evidence-heading"
-                  className="text-xl font-bold text-brand-purple"
-                >
+                <h2 id="resolution-evidence-heading" className="text-xl font-bold text-primary">
                   Evidencia de resolución
                 </h2>
                 <p className="mt-1 text-sm">
@@ -590,33 +586,34 @@ export function OperatorReportDetail({
                 </p>
               </div>
               {evidenceState.phase !== "loading" && (
-                <button
+                <Button
+                  variant="secondary"
                   type="button"
                   onClick={() => void loadEvidence()}
-                  className="min-h-11 rounded-lg border border-brand-purple px-4 py-2 text-sm font-semibold text-brand-purple focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple"
+                  className="text-sm"
                 >
                   Actualizar evidencia
-                </button>
+                </Button>
               )}
             </div>
 
             {detail.status === "EN_PROCESO" && (
               <form
                 onSubmit={(event) => void uploadEvidence(event)}
-                className="space-y-4 rounded-2xl bg-white p-5 text-brand-black shadow-sm ring-1 ring-brand-green/30"
+                className="space-y-4 rounded-2xl bg-surface p-5 text-ink shadow-sm ring-1 ring-success/30"
                 aria-busy={busy}
               >
                 <div>
-                  <h3 className="font-semibold text-brand-purple">
+                  <h3 className="font-semibold text-primary">
                     Agregar evidencia al ciclo {detail.cycle}
                   </h3>
-                  <p className="mt-1 text-sm text-brand-black/70">
+                  <p className="mt-1 text-sm text-muted">
                     Una imagen JPEG o PNG de hasta 5 MiB. Máximo cinco por ciclo.
                   </p>
                 </div>
                 <label className="block text-sm font-medium">
                   Imagen
-                  <input
+                  <Input
                     ref={fileInput}
                     type="file"
                     required
@@ -626,12 +623,12 @@ export function OperatorReportDetail({
                       evidenceKey.current = null;
                       setFile(event.target.files?.[0] ?? null);
                     }}
-                    className="mt-1 block min-h-11 w-full rounded-lg border border-brand-black/25 px-3 py-2 file:mr-3 file:rounded file:border-0 file:bg-brand-purple/10 file:px-3 file:py-1 file:font-semibold file:text-brand-purple"
+                    className="mt-1 block w-full file:mr-3 file:rounded file:border-0 file:bg-primary/10 file:px-3 file:py-1 file:font-semibold file:text-primary"
                   />
                 </label>
                 <label className="block text-sm font-medium">
                   Descripción de lo que demuestra
-                  <textarea
+                  <Textarea
                     required
                     minLength={1}
                     maxLength={1000}
@@ -642,16 +639,12 @@ export function OperatorReportDetail({
                       evidenceKey.current = null;
                       setDescription(event.target.value);
                     }}
-                    className="mt-1 block w-full rounded-lg border border-brand-black/25 px-3 py-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple"
+                    className="mt-1 block w-full"
                   />
                 </label>
-                <button
-                  type="submit"
-                  disabled={busy}
-                  className="min-h-11 rounded-lg bg-brand-green px-4 py-2 font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-green disabled:cursor-not-allowed disabled:opacity-55"
-                >
+                <Button variant="primary" type="submit" disabled={busy}>
                   {busy ? "Guardando evidencia…" : "Guardar evidencia"}
-                </button>
+                </Button>
               </form>
             )}
 
@@ -659,16 +652,17 @@ export function OperatorReportDetail({
             {evidenceState.phase === "error" && (
               <div
                 role="alert"
-                className="rounded-xl border border-brand-orange/40 bg-white p-4 text-brand-black"
+                className="rounded-xl border border-warning/40 bg-surface p-4 text-ink"
               >
                 <p className="text-sm">{evidenceState.message}</p>
-                <button
+                <Button
+                  variant="secondary"
                   type="button"
                   onClick={() => void loadEvidence()}
-                  className="mt-3 min-h-11 rounded-lg border border-brand-purple px-4 py-2 font-semibold text-brand-purple"
+                  className="mt-3"
                 >
                   Reintentar evidencia
-                </button>
+                </Button>
               </div>
             )}
             {evidenceState.phase === "ready" && (
@@ -684,7 +678,7 @@ export function OperatorReportDetail({
 function Fact({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-xs font-semibold uppercase tracking-wide text-brand-black/55">{label}</dt>
+      <dt className="text-xs font-semibold uppercase tracking-wide text-muted">{label}</dt>
       <dd className="mt-1">{value}</dd>
     </div>
   );
@@ -712,10 +706,10 @@ function Confirmation({
   cancelLabel?: string;
 }) {
   return (
-    <div
+    <Card
       role="dialog"
       aria-labelledby="operator-confirmation-title"
-      className="rounded-2xl bg-white p-5 text-brand-black shadow-sm ring-1 ring-brand-purple/30"
+      className="p-5 ring-1 ring-primary/30"
     >
       <h2
         id="operator-confirmation-title"
@@ -725,7 +719,7 @@ function Confirmation({
       >
         {title}
       </h2>
-      <p className="mt-2 text-sm text-brand-black/75">{explanation}</p>
+      <p className="mt-2 text-sm text-muted">{explanation}</p>
       <ActionRow
         primaryLabel={confirmLabel}
         busy={busy}
@@ -734,7 +728,7 @@ function Confirmation({
         onSecondary={onCancel}
         secondaryLabel={cancelLabel}
       />
-    </div>
+    </Card>
   );
 }
 
@@ -757,26 +751,17 @@ function ActionRow({
 }) {
   return (
     <div className="mt-4 flex flex-wrap gap-3">
-      <button
+      <Button
+        variant={tone === "orange" ? "danger" : "primary"}
         type={primaryType}
         disabled={busy}
         onClick={primaryType === "button" ? onPrimary : undefined}
-        className={`min-h-11 rounded-lg px-4 py-2 font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-55 ${
-          tone === "orange"
-            ? "bg-brand-orange focus-visible:outline-brand-orange-ink"
-            : "bg-brand-purple focus-visible:outline-brand-purple"
-        }`}
       >
         {busy ? "Procesando…" : primaryLabel}
-      </button>
-      <button
-        type="button"
-        disabled={busy}
-        onClick={onSecondary}
-        className="min-h-11 rounded-lg border border-brand-black/20 px-4 py-2 font-semibold text-brand-black/75 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple disabled:cursor-not-allowed disabled:opacity-55"
-      >
+      </Button>
+      <Button variant="secondary" type="button" disabled={busy} onClick={onSecondary}>
         {secondaryLabel}
-      </button>
+      </Button>
     </div>
   );
 }

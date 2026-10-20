@@ -29,14 +29,14 @@ export function DailyColumns({ points }: { points: MetricsSeriesPoint[] }) {
             const top = series * 185;
             return (
               <g key={key}>
-                <text x="0" y={top + 16} fontSize="14" className="fill-brand-black">
+                <text x="0" y={top + 16} fontSize="14" className="fill-ink">
                   {series === 0 ? "Recibidos" : "Resueltos"}
                 </text>
                 {[0, max / 2, max].map((value) => {
                   const y = top + 145 - (95 * value) / max;
                   return (
                     <g key={value}>
-                      <line x1="34" x2={width} y1={y} y2={y} className="stroke-brand-black/10" />
+                      <line x1="34" x2={width} y1={y} y2={y} className="stroke-ink/10" />
                       <text x="0" y={y + 4} fontSize="12" className="fill-muted">
                         {Number.isInteger(value) ? value : ""}
                       </text>
@@ -60,7 +60,7 @@ export function DailyColumns({ points }: { points: MetricsSeriesPoint[] }) {
                         y={top + 139 - height}
                         textAnchor="middle"
                         fontSize="11"
-                        className="fill-brand-black"
+                        className="fill-ink"
                       >
                         {p[key]}
                       </text>

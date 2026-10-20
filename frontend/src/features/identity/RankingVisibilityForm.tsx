@@ -17,6 +17,8 @@
  * backend antes de montarlo.
  */
 
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import { useState } from "react";
 
 import { mensajeDeError } from "@/features/identity/mensajes";
@@ -118,7 +120,7 @@ export function RankingVisibilityForm({ nombreCompleto, inicial }: Props) {
         {MODALIDADES.map((opcion) => (
           <label
             key={opcion.valor}
-            className="flex cursor-pointer items-start gap-3 rounded-md border border-brand-black/10 px-4 py-3"
+            className="flex cursor-pointer items-start gap-3 rounded-md border border-control-border bg-surface px-4 py-3 has-checked:border-primary has-checked:bg-primary/5 has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-focus"
           >
             <input
               type="radio"
@@ -126,11 +128,11 @@ export function RankingVisibilityForm({ nombreCompleto, inicial }: Props) {
               value={opcion.valor}
               checked={modalidad === opcion.valor}
               onChange={() => setModalidad(opcion.valor)}
-              className="mt-1"
+              className="mt-1 size-4 shrink-0 accent-primary"
             />
             <span className="flex flex-col">
               <span className="text-sm font-semibold">{opcion.etiqueta}</span>
-              <span className="text-xs text-brand-black/60">{opcion.ayuda}</span>
+              <span className="text-xs text-muted">{opcion.ayuda}</span>
             </span>
           </label>
         ))}
@@ -138,9 +140,9 @@ export function RankingVisibilityForm({ nombreCompleto, inicial }: Props) {
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="ranking_alias" className="text-sm font-semibold">
-          Alias {modalidad === "ALIAS" && <span className="text-brand-orange-ink">*</span>}
+          Alias {modalidad === "ALIAS" && <span className="text-danger-ink">*</span>}
         </label>
-        <input
+        <Input
           id="ranking_alias"
           name="ranking_alias"
           type="text"
@@ -148,17 +150,17 @@ export function RankingVisibilityForm({ nombreCompleto, inicial }: Props) {
           maxLength={ALIAS_MAX}
           onChange={(evento) => setAlias(evento.target.value)}
           disabled={guardando}
-          className="rounded-md border border-brand-black/20 px-3 py-2 text-sm"
+
           placeholder="Vecina del barrio"
         />
-        <p className="text-xs text-brand-black/60">
+        <p className="text-xs text-muted">
           Hasta {ALIAS_MAX} caracteres. Se guarda aunque elijas otra modalidad, así no tenés que
           volver a escribirlo. Puede coincidir con el de otra persona.
         </p>
       </div>
 
-      <div className="rounded-md bg-brand-green/5 px-4 py-3">
-        <p className="text-xs font-semibold text-brand-green-ink">
+      <div className="rounded-md bg-success/5 px-4 py-3">
+        <p className="text-xs font-semibold text-success-ink">
           Vista previa aproximada en el ranking
         </p>
         <p className="mt-1 text-sm font-semibold">
@@ -167,23 +169,19 @@ export function RankingVisibilityForm({ nombreCompleto, inicial }: Props) {
       </div>
 
       {error !== null && (
-        <p role="alert" className="text-sm font-medium text-brand-orange-ink">
+        <p role="alert" className="text-sm font-medium text-danger-ink">
           {error}
         </p>
       )}
       {guardado && (
-        <p role="status" className="text-sm font-medium text-brand-green-ink">
+        <p role="status" className="text-sm font-medium text-success-ink">
           Preferencia guardada.
         </p>
       )}
 
-      <button
-        type="submit"
-        disabled={guardando}
-        className="self-start rounded-md bg-brand-purple px-5 py-2 text-sm font-semibold text-white disabled:opacity-50"
-      >
+      <Button variant="primary" type="submit" disabled={guardando} className="self-start text-sm">
         {guardando ? "Guardando…" : "Guardar preferencia"}
-      </button>
+      </Button>
     </form>
   );
 }

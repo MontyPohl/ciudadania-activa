@@ -98,7 +98,7 @@ test("S15 UI: fondo institucional e Inter sin desbordes en los cuatro anchos", a
   }
 });
 
-for (const width of [320, 375, 1280]) {
+for (const width of [320, 375, 768, 1280]) {
   test(`S15: navegación y error de identidad legibles a ${width}px`, async ({
     page,
     baseURL,
@@ -141,19 +141,19 @@ test("S15: el asistente identifica el error y conserva datos al volver", async (
 }, testInfo) => {
   await page.setViewportSize({ width: 320, height: 900 });
   await openReportWizard(page);
-  const category = page.getByRole("combobox", { name: "Categoría" });
+  const category = page.getByRole("group", { name: "Categoría" });
   await page.getByRole("button", { name: "Continuar", exact: true }).focus();
   await page.keyboard.press("Enter");
   await expect(category).toBeFocused();
   await expect(category).toHaveAttribute("aria-invalid", "true");
   await assertTextContrast(page.getByText("Seleccioná una categoría.", { exact: true }), testInfo);
-  await category.selectOption(CATEGORY.id);
+  await page.getByRole("radio", { name: CATEGORY.name, exact: true }).check();
   await page.getByRole("button", { name: "Continuar", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Descripción", exact: true })).toBeFocused();
   const description = page.getByRole("textbox", { name: "Descripción" });
   await description.fill("Bache en una calle sintética; descripción sin datos personales.");
   await page.getByRole("button", { name: "Volver", exact: true }).click();
-  await expect(category).toHaveValue(CATEGORY.id);
+  await expect(page.getByRole("radio", { name: CATEGORY.name, exact: true })).toBeChecked();
   await page.getByRole("button", { name: "Continuar", exact: true }).click();
   await expect(description).toHaveValue(
     "Bache en una calle sintética; descripción sin datos personales.",
@@ -412,7 +412,7 @@ for (const width of [320, 375, 768, 1280]) {
   });
 }
 
-for (const width of [320, 375, 1280]) {
+for (const width of [320, 375, 768, 1280]) {
   test(`S15 F3: secciones de ciudadano, operador y admin a ${width}px`, async ({
     page,
     baseURL,

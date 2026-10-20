@@ -1,9 +1,9 @@
 import type { ComponentProps, ReactNode } from "react";
 
 const TONE_CLASSES = {
-  ok: "bg-brand-green/10 text-brand-green-ink ring-brand-green/30",
-  error: "bg-brand-orange/10 text-brand-orange-ink ring-brand-orange/30",
-  pending: "bg-brand-purple/10 text-brand-purple ring-brand-purple/30",
+  ok: "bg-success/10 text-success-ink ring-success/30",
+  error: "bg-warning/10 text-danger-ink ring-warning/30",
+  pending: "bg-primary/10 text-primary ring-primary/30",
   info: "bg-primary/5 text-primary ring-primary/20",
   success: "bg-success/5 text-success-ink ring-success/20",
   warning: "bg-warning/5 text-warning-ink ring-warning/20",

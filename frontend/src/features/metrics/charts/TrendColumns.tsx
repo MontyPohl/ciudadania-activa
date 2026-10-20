@@ -33,7 +33,7 @@ export function TrendColumns({
                 x2="420"
                 y1={175 - (130 * value) / max}
                 y2={175 - (130 * value) / max}
-                className="stroke-brand-black/10"
+                className="stroke-ink/10"
               />
               <text x="0" y={179 - (130 * value) / max} fontSize="12" className="fill-muted">
                 {Number.isInteger(value) ? value : ""}
@@ -60,7 +60,7 @@ export function TrendColumns({
                       y={169 - height}
                       fontSize="11"
                       textAnchor="middle"
-                      className="fill-brand-black"
+                      className="fill-ink"
                     >
                       {value ?? "—"}
                     </text>

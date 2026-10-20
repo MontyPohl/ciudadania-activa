@@ -25,7 +25,7 @@ export function ChartFigure({
         onClick={() => setTable(!table)}
         aria-expanded={table}
         aria-controls={`${id}-table`}
-        className="mt-3 min-h-11 rounded-lg px-3 text-sm font-semibold text-primary underline underline-offset-4 hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple"
+        className="mt-3 min-h-11 rounded-lg px-3 text-sm font-semibold text-primary underline underline-offset-4 hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
       >
         {table ? "Ocultar tabla" : "Ver como tabla"}
         <span className="sr-only">: {title}</span>
@@ -44,7 +44,7 @@ export function ChartFigure({
           </thead>
           <tbody>
             {rows.map((row, i) => (
-              <tr key={i} className="border-t border-brand-black/10">
+              <tr key={i} className="border-t border-border">
                 {row.map((cell, j) =>
                   j === 0 ? (
                     <th key={j} scope="row" className="p-2 font-medium">

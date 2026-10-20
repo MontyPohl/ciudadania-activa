@@ -30,7 +30,7 @@ export function ReportSidePanel({ report, detailHref, onClose }: ReportSidePanel
       ref={panelRef}
       tabIndex={-1}
       aria-labelledby="report-panel-title"
-      className="fixed inset-x-3 bottom-3 z-[1000] max-h-[45dvh] overflow-y-auto rounded-2xl border border-black/10 bg-white p-5 shadow-2xl outline-none focus-visible:ring-2 focus-visible:ring-brand-purple lg:absolute lg:inset-x-auto lg:top-4 lg:right-4 lg:bottom-auto lg:max-h-[calc(100%-6rem)] lg:w-80"
+      className="fixed inset-x-3 bottom-3 z-[1000] max-h-[45dvh] overflow-y-auto rounded-2xl border border-black/10 bg-white p-5 shadow-2xl outline-none focus-visible:ring-2 focus-visible:ring-primary lg:absolute lg:inset-x-auto lg:top-4 lg:right-4 lg:bottom-auto lg:max-h-[calc(100%-6rem)] lg:w-80"
     >
       <div className="mb-5 flex items-start justify-between gap-4">
         <div>

@@ -1,5 +1,7 @@
 "use client";
 
+import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -72,16 +74,17 @@ export function OperatorReportQueue() {
       {view.phase === "error" && (
         <div className="flex items-center gap-3">
           <p role="alert">{view.message}</p>
-          <button
+          <Button
+            variant="secondary"
             type="button"
-            className="font-medium text-brand-purple underline"
+            className="underline"
             onClick={() => {
               setView({ phase: "loading" });
               setReloadToken((value) => value + 1);
             }}
           >
             Reintentar
-          </button>
+          </Button>
         </div>
       )}
       {view.phase === "ready" && view.page.count === 0 && (
@@ -89,10 +92,13 @@ export function OperatorReportQueue() {
       )}
       {view.phase === "ready" && view.page.count > 0 && (
         <div className="flex flex-col gap-4">
-          <div className="overflow-x-auto rounded-2xl bg-white px-4 text-brand-black shadow-sm ring-1 ring-brand-black/10">
+          <Card
+            tabIndex={0}
+            className="max-w-full overflow-x-auto px-4 ring-1 ring-border focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+          >
             <table className="w-full min-w-[42rem] border-collapse text-left text-sm">
               <thead>
-                <tr className="border-b border-brand-black/10">
+                <tr className="border-b border-border">
                   <th className="py-2 pr-4">Reporte</th>
                   <th className="py-2 pr-4">Estado</th>
                   <th className="py-2 pr-4">Prioridad</th>
@@ -102,17 +108,17 @@ export function OperatorReportQueue() {
               </thead>
               <tbody>
                 {view.page.results.map((report) => (
-                  <tr key={report.id} className="border-b border-brand-black/5">
+                  <tr key={report.id} className="border-b border-border">
                     <td className="py-3 pr-4">
                       <span className="block font-medium">{report.category.name}</span>
-                      <span className="text-xs text-brand-black/60">
+                      <span className="text-xs text-muted">
                         {formatReportDate(report.created_at)}
                       </span>
                     </td>
                     <td className="py-3 pr-4">
                       <span className="block">{REPORT_STATUS_LABELS[report.status]}</span>
                       {report.cycle > 0 && (
-                        <span className="text-xs text-brand-black/60">Ciclo {report.cycle}</span>
+                        <span className="text-xs text-muted">Ciclo {report.cycle}</span>
                       )}
                     </td>
                     <td className="py-3 pr-4">{REPORT_PRIORITY_LABELS[report.priority]}</td>
@@ -120,7 +126,7 @@ export function OperatorReportQueue() {
                     <td className="py-3">
                       <Link
                         href={`/bandeja/${report.id}?institution_id=${encodeURIComponent(institutionId)}`}
-                        className="inline-flex min-h-11 items-center font-medium text-brand-purple underline"
+                        className="inline-flex min-h-11 items-center font-medium text-primary underline"
                       >
                         Abrir detalle
                       </Link>
@@ -129,31 +135,36 @@ export function OperatorReportQueue() {
                 ))}
               </tbody>
             </table>
-          </div>
-          <nav className="flex items-center justify-between" aria-label="Paginación de reportes">
-            <button
+          </Card>
+          <nav
+            className="flex flex-wrap items-center justify-between gap-3"
+            aria-label="Paginación de reportes"
+          >
+            <Button
+              variant="secondary"
               type="button"
               disabled={view.page.previous === null}
               onClick={() => {
                 setView({ phase: "loading" });
                 setPageNumber((value) => Math.max(1, value - 1));
               }}
-              className="min-h-11 rounded-lg px-2 font-medium text-brand-purple underline disabled:text-brand-black/40"
+              className="underline"
             >
               Página anterior
-            </button>
+            </Button>
             <span className="text-sm">Página {pageNumber}</span>
-            <button
+            <Button
+              variant="secondary"
               type="button"
               disabled={view.page.next === null}
               onClick={() => {
                 setView({ phase: "loading" });
                 setPageNumber((value) => value + 1);
               }}
-              className="min-h-11 rounded-lg px-2 font-medium text-brand-purple underline disabled:text-brand-black/40"
+              className="underline"
             >
               Página siguiente
-            </button>
+            </Button>
           </nav>
         </div>
       )}

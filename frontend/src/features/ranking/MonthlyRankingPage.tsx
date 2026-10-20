@@ -112,7 +112,7 @@ function RankingContent({ onRetry, embedded }: { onRetry: () => void; embedded: 
             variant="secondary"
             type="button"
             onClick={onRetry}
-            className="min-h-11 rounded-lg border border-brand-purple px-4 py-2 font-semibold text-primary hover:bg-brand-purple/5 focus-visible:outline-2 focus-visible:outline-offset-4"
+            className="min-h-11 rounded-lg border border-primary px-4 py-2 font-semibold text-primary hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-offset-4"
           >
             Reintentar
           </Button>
@@ -120,7 +120,7 @@ function RankingContent({ onRetry, embedded }: { onRetry: () => void; embedded: 
       )}
       {state.phase === "ready" &&
         (state.ranking.entries.length === 0 ? (
-          <p role="status" className="rounded-xl bg-brand-black/5 p-6 text-muted">
+          <p role="status" className="rounded-xl bg-ink/5 p-6 text-muted">
             Todavía no hay puntos acreditados este mes
           </p>
         ) : (
@@ -130,14 +130,14 @@ function RankingContent({ onRetry, embedded }: { onRetry: () => void; embedded: 
                 as="li"
                 key={entry.position}
                 value={entry.position}
-                className={`flex items-center gap-3 rounded-xl border p-4 ${entry.is_me ? "border-brand-purple bg-brand-purple/10" : "border-brand-black/10 bg-white"}`}
+                className={`flex items-center gap-3 rounded-xl border p-4 ${entry.is_me ? "border-primary bg-primary/10" : "border-border bg-white"}`}
               >
                 <span className="w-6 shrink-0 text-center font-semibold tabular-nums text-muted">
                   {entry.position}
                 </span>
                 <div className="min-w-0 flex-1">
                   <span
-                    className={`break-words ${entry.is_private ? "italic text-muted" : "font-semibold text-brand-black"}`}
+                    className={`break-words ${entry.is_private ? "italic text-muted" : "font-semibold text-ink"}`}
                   >
                     {entry.is_private && (
                       <svg
@@ -155,7 +155,7 @@ function RankingContent({ onRetry, embedded }: { onRetry: () => void; embedded: 
                     {entry.display_name}
                   </span>
                   {entry.is_me && (
-                    <span className="ml-2 inline-block rounded-full bg-brand-purple px-2 py-0.5 text-xs font-semibold text-white">
+                    <span className="ml-2 inline-block rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-white">
                       Vos
                     </span>
                   )}

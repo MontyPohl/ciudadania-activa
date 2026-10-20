@@ -35,7 +35,7 @@ export function RoleGuard({ role, children }: { role: UserRole; children: React.
         className="flex flex-col items-center gap-3 px-6 py-16 text-center"
       >
         <p className="text-sm">Necesitás iniciar sesión para ver esta sección.</p>
-        <Link href="/login" className="text-sm font-medium text-[#6950A1] underline">
+        <Link href="/login" className="text-sm font-medium text-primary underline">
           Ingresar
         </Link>
       </main>
@@ -50,7 +50,7 @@ export function RoleGuard({ role, children }: { role: UserRole; children: React.
         className="flex flex-col items-center gap-3 px-6 py-16 text-center"
       >
         <p className="text-sm">Esta sección no está disponible para tu rol.</p>
-        <Link href="/" className="text-sm font-medium text-[#6950A1] underline">
+        <Link href="/" className="text-sm font-medium text-primary underline">
           Volver al inicio
         </Link>
       </main>

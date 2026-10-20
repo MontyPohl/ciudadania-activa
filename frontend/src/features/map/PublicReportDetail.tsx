@@ -109,15 +109,15 @@ export function PublicReportDetail({ id }: { id: string }) {
       )}
 
       {renderedState.phase === "rate-limited" && (
-        <section role="alert" className="rounded-2xl border border-brand-orange/30 p-6">
-          <h1 className="text-2xl font-bold text-brand-orange-ink">Demasiadas consultas</h1>
+        <section role="alert" className="rounded-2xl border border-warning/30 p-6">
+          <h1 className="text-2xl font-bold text-danger-ink">Demasiadas consultas</h1>
           <p className="mt-2 text-sm">Esperá un momento y volvé a intentarlo.</p>
         </section>
       )}
 
       {renderedState.phase === "error" && (
-        <section role="alert" className="rounded-2xl border border-brand-orange/30 p-6">
-          <h1 className="text-2xl font-bold text-brand-orange-ink">No se pudo cargar el reporte</h1>
+        <section role="alert" className="rounded-2xl border border-warning/30 p-6">
+          <h1 className="text-2xl font-bold text-danger-ink">No se pudo cargar el reporte</h1>
           <p className="mt-2 text-sm">Intentá nuevamente dentro de unos minutos.</p>
         </section>
       )}
@@ -125,7 +125,7 @@ export function PublicReportDetail({ id }: { id: string }) {
       {renderedState.phase === "ready" && (
         <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
           <Card as="article">
-            <p className="text-sm font-semibold text-brand-green-ink">Reporte público</p>
+            <p className="text-sm font-semibold text-success-ink">Reporte público</p>
             <h1 className="mb-6 text-3xl font-bold text-primary">
               {renderedState.report.category.name}
             </h1>

@@ -1,5 +1,7 @@
 "use client";
 
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import Image from "next/image";
 import { useEffect, useId, useRef, useState } from "react";
 
@@ -53,7 +55,7 @@ export function ReportPhotoField({
         <label htmlFor={inputId} className="text-sm font-semibold">
           Fotografía de la incidencia
         </label>
-        <input
+        <Input
           ref={inputRef}
           id={inputId}
           name="photo"
@@ -63,42 +65,43 @@ export function ReportPhotoField({
           aria-invalid={visibleError !== undefined && visibleError !== null}
           aria-describedby={`${helpId} ${publicNoticeId}${visibleError ? ` ${errorId}` : ""}`}
           onChange={selectPhoto}
-          className="max-w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-brand-purple file:px-4 file:py-2 file:font-semibold file:text-white disabled:opacity-55"
+          className="max-w-full file:mr-3 file:rounded-md file:border-0 file:bg-primary file:px-4 file:min-h-11 file:py-2 file:font-semibold file:text-white"
         />
-        <p id={helpId} className="text-xs text-brand-black/65">
+        <p id={helpId} className="text-xs text-muted">
           JPEG o PNG, hasta 5 MiB. La imagen no se comprime ni se transforma.
         </p>
         <p id={publicNoticeId} className="rounded-lg bg-primary/5 p-3 text-sm text-primary">
           La foto será pública: evitá caras, patentes y datos personales.
         </p>
         {visibleError && (
-          <p id={errorId} role="alert" className="text-sm font-medium text-brand-orange-ink">
+          <p id={errorId} role="alert" className="text-sm font-medium text-danger-ink">
             {visibleError}
           </p>
         )}
       </div>
 
       {value !== null && (
-        <figure className="min-w-0 rounded-xl border border-brand-black/10 bg-brand-purple/5 p-3">
+        <figure className="min-w-0 rounded-xl border border-border bg-primary/5 p-3">
           <ReportPhotoPreview file={value} />
-          <figcaption className="mt-2 break-words text-xs text-brand-black/70">
+          <figcaption className="mt-2 break-words text-xs text-muted">
             <span className="font-semibold">{value.name}</span> · {formatFileSize(value.size)}
           </figcaption>
           <div className="mt-3 flex flex-wrap gap-2">
             <label
               htmlFor={inputId}
-              className={`rounded-md border border-brand-purple px-3 py-2 text-sm font-semibold text-brand-purple ${disabled ? "pointer-events-none opacity-55" : "cursor-pointer"}`}
+              className={`rounded-md border border-primary px-3 py-2 text-sm font-semibold text-primary ${disabled ? "pointer-events-none opacity-55" : "cursor-pointer"}`}
             >
               Reemplazar fotografía
             </label>
-            <button
+            <Button
+              variant="secondary"
               type="button"
               onClick={removePhoto}
               disabled={disabled}
-              className="rounded-md border border-brand-orange px-3 py-2 text-sm font-semibold text-brand-orange-ink disabled:opacity-55"
+              className="text-sm"
             >
               Quitar fotografía
-            </button>
+            </Button>
           </div>
         </figure>
       )}

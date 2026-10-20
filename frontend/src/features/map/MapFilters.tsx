@@ -38,7 +38,7 @@ export function MapFilters({
             ).map(([value, label]) => (
               <label
                 key={value}
-                className="flex cursor-pointer items-center gap-2 rounded-full border border-brand-purple/25 px-3 py-2 text-sm has-checked:bg-primary has-checked:text-white"
+                className="flex cursor-pointer items-center gap-2 rounded-full border border-primary/25 px-3 py-2 text-sm has-checked:bg-primary has-checked:text-white"
               >
                 <input
                   type="radio"
@@ -46,7 +46,7 @@ export function MapFilters({
                   value={value}
                   checked={stateFilter === value}
                   onChange={() => onStateChange(value)}
-                  className="accent-brand-purple"
+                  className="accent-primary"
                 />
                 {label}
               </label>
@@ -98,7 +98,7 @@ export function MapFilters({
         </p>
       )}
       {categoriesError && (
-        <p className="mt-3 text-xs text-brand-orange-ink" role="alert">
+        <p className="mt-3 text-xs text-danger-ink" role="alert">
           No se pudo cargar el catálogo de categorías. El mapa continúa sin ese filtro.
         </p>
       )}

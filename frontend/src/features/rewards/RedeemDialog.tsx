@@ -35,7 +35,7 @@ export function RedeemDialog({
         event.preventDefault();
         if (!busy) onCancel();
       }}
-      className="m-auto w-[calc(100%-2rem)] max-w-lg rounded-2xl bg-white p-6 text-ink shadow-xl backdrop:bg-ink/50"
+      className="m-auto w-[calc(100%-2rem)] max-w-lg rounded-2xl bg-surface p-6 text-ink shadow-xl backdrop:bg-ink/50"
     >
       <h2 id="redeem-title" className="text-xl font-bold text-primary">
         Confirmá tu canje

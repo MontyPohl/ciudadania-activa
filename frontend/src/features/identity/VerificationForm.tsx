@@ -12,6 +12,8 @@
  * navegador: viven en el estado del componente y se limpian al enviar.
  */
 
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import { useRef, useState } from "react";
 
 import { mensajeDeError } from "@/features/identity/mensajes";
@@ -89,7 +91,7 @@ export function VerificationForm({ onEnviado }: { onEnviado: () => void | Promis
         <label htmlFor="document_number" className="text-sm font-semibold">
           Número de cédula
         </label>
-        <input
+        <Input
           id="document_number"
           name="document_number"
           type="text"
@@ -98,19 +100,17 @@ export function VerificationForm({ onEnviado }: { onEnviado: () => void | Promis
           value={documento}
           onChange={(evento) => setDocumento(evento.target.value)}
           disabled={enviando}
-          className="rounded-md border border-brand-black/20 px-3 py-2 text-sm"
+
           placeholder="1.234.567"
         />
-        <p className="text-xs text-brand-black/60">
-          Podés escribirlo con puntos, guiones o espacios.
-        </p>
+        <p className="text-xs text-muted">Podés escribirlo con puntos, guiones o espacios.</p>
       </div>
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="selfie" className="text-sm font-semibold">
           Selfie sosteniendo tu cédula
         </label>
-        <input
+        <Input
           id="selfie"
           name="selfie"
           type="file"
@@ -118,13 +118,12 @@ export function VerificationForm({ onEnviado }: { onEnviado: () => void | Promis
           accept={ACCEPT}
           onChange={(evento) => setArchivo(evento.target.files?.[0] ?? null)}
           disabled={enviando}
-          className="text-sm"
         />
-        <p className="text-xs text-brand-black/60">Formato JPG o PNG, hasta 5 MB.</p>
+        <p className="text-xs text-muted">Formato JPG o PNG, hasta 5 MB.</p>
       </div>
 
-      <div className="rounded-md bg-brand-purple/5 px-4 py-3 text-xs leading-relaxed text-brand-black/75">
-        <p className="font-semibold text-brand-purple">Cómo tratamos estos datos</p>
+      <div className="rounded-md bg-primary/5 px-4 py-3 text-xs leading-relaxed text-muted">
+        <p className="font-semibold text-primary">Cómo tratamos estos datos</p>
         <ul className="mt-1.5 list-disc space-y-1 pl-4">
           <li>
             El número que escribas se transforma con una protección criptográfica antes de
@@ -139,18 +138,14 @@ export function VerificationForm({ onEnviado }: { onEnviado: () => void | Promis
       </div>
 
       {error !== null && (
-        <p role="alert" className="text-sm font-medium text-brand-orange-ink">
+        <p role="alert" className="text-sm font-medium text-danger-ink">
           {error}
         </p>
       )}
 
-      <button
-        type="submit"
-        disabled={enviando}
-        className="self-start rounded-md bg-brand-purple px-5 py-2 text-sm font-semibold text-white disabled:opacity-50"
-      >
+      <Button variant="primary" type="submit" disabled={enviando} className="self-start text-sm">
         {enviando ? "Enviando…" : "Enviar verificación"}
-      </button>
+      </Button>
     </form>
   );
 }

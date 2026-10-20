@@ -11,14 +11,14 @@ export function MapResultsStatus({ phase }: { phase: MapResultsPhase }) {
   }
   if (phase === "rate-limited") {
     return (
-      <p role="alert" className="text-brand-orange-ink">
+      <p role="alert" className="text-danger-ink">
         Se alcanzó el límite de consultas. Esperá un momento antes de mover el mapa otra vez.
       </p>
     );
   }
   if (phase === "error") {
     return (
-      <p role="alert" className="text-brand-orange-ink">
+      <p role="alert" className="text-danger-ink">
         No se pudieron cargar los reportes. Podés seguir navegando el mapa e intentar de nuevo.
       </p>
     );

@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "@/components/ui/Button";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
@@ -185,10 +186,10 @@ export function ReportConfirmation({
 
   return (
     <section aria-labelledby="confirmation-heading" className="mt-8 border-t border-black/10 pt-6">
-      <h2 id="confirmation-heading" className="text-xl font-bold text-brand-purple">
+      <h2 id="confirmation-heading" className="text-xl font-bold text-primary">
         Confirmación ciudadana
       </h2>
-      <p className="mt-2 text-sm text-brand-black/70">
+      <p className="mt-2 text-sm text-muted">
         Confirmar indica que el problema sigue presente. No cambia el estado ni equivale a una
         validación institucional.
       </p>
@@ -202,10 +203,7 @@ export function ReportConfirmation({
       {access === "anonymous" && (
         <div className="mt-4 text-sm">
           <p>Iniciá sesión con una identidad ciudadana verificada para confirmar.</p>
-          <Link
-            href="/login"
-            className="mt-2 inline-block font-semibold text-brand-purple underline"
-          >
+          <Link href="/login" className="mt-2 inline-block font-semibold text-primary underline">
             Iniciar sesión para confirmar
           </Link>
         </div>
@@ -220,7 +218,7 @@ export function ReportConfirmation({
           <p>Necesitás una identidad ciudadana verificada para confirmar.</p>
           <Link
             href="/verificacion"
-            className="mt-2 inline-block font-semibold text-brand-purple underline"
+            className="mt-2 inline-block font-semibold text-primary underline"
           >
             Ir a verificación
           </Link>
@@ -234,15 +232,16 @@ export function ReportConfirmation({
       )}
 
       {access === "citizen-verified" && context.phase === "error" && (
-        <div className="mt-4 rounded-xl border border-brand-orange/40 p-4" role="alert">
+        <div className="mt-4 rounded-xl border border-warning/40 p-4" role="alert">
           <p className="text-sm">{context.message}</p>
-          <button
+          <Button
+            variant="secondary"
             type="button"
             onClick={() => setContextReload((value) => value + 1)}
-            className="mt-3 min-h-11 rounded-lg border border-brand-purple px-4 py-2 font-semibold text-brand-purple focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple"
+            className="mt-3"
           >
             Reintentar comprobación
-          </button>
+          </Button>
         </div>
       )}
 
@@ -250,11 +249,11 @@ export function ReportConfirmation({
         <div className="mt-4">
           {action.phase === "success" && (
             <div
-              className="rounded-xl border border-brand-green/40 bg-brand-green/10 p-4"
+              className="rounded-xl border border-success/40 bg-success/10 p-4"
               role="status"
               aria-live="polite"
             >
-              <p className="font-semibold text-brand-green-ink">Confirmación registrada.</p>
+              <p className="font-semibold text-success-ink">Confirmación registrada.</p>
               {action.rewardKnown && <p className="mt-1 text-sm">Sumaste 10 puntos pendientes.</p>}
             </div>
           )}
@@ -270,19 +269,17 @@ export function ReportConfirmation({
           )}
 
           {action.phase === "error" && (
-            <div
-              className="rounded-xl border border-brand-orange/40 bg-brand-orange/10 p-4"
-              role="alert"
-            >
+            <div className="rounded-xl border border-warning/40 bg-warning/10 p-4" role="alert">
               <p className="text-sm">{action.message}</p>
               {action.code === "ALREADY_CONFIRMED" && (
-                <button
+                <Button
+                  variant="secondary"
                   type="button"
                   onClick={() => void reconcile()}
-                  className="mt-3 min-h-11 rounded-lg border border-brand-purple px-4 py-2 font-semibold text-brand-purple focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple"
+                  className="mt-3"
                 >
                   Comprobar estado
-                </button>
+                </Button>
               )}
             </div>
           )}
@@ -295,16 +292,17 @@ export function ReportConfirmation({
 
           {(action.phase === "idle" || action.phase === "submitting") &&
             (context.detail.confirmation_eligibility.can_confirm ? (
-              <button
+              <Button
+                variant="primary"
                 type="button"
                 onClick={() => void singleConfirm.current?.()}
                 disabled={action.phase === "submitting"}
-                className="min-h-11 max-w-full rounded-lg bg-brand-purple px-4 py-3 text-left font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple disabled:cursor-not-allowed disabled:opacity-60"
+                className="max-w-full text-left"
               >
                 {action.phase === "submitting"
                   ? "Registrando confirmación…"
                   : "Confirmo que el problema sigue ahí"}
-              </button>
+              </Button>
             ) : (
               <p className="text-sm font-medium" role="status">
                 {context.detail.confirmed_by_me
@@ -323,19 +321,15 @@ export function ReportConfirmation({
 function ActionCheck({ message, onCheck }: { message: string; onCheck: () => void }) {
   return (
     <div
-      className="rounded-xl border border-brand-orange/40 bg-brand-orange/10 p-4"
+      className="rounded-xl border border-warning/40 bg-warning/10 p-4"
       role="alert"
       aria-live="assertive"
     >
-      <p className="font-semibold text-brand-orange-ink">Resultado por comprobar</p>
+      <p className="font-semibold text-warning-ink">Resultado por comprobar</p>
       <p className="mt-1 text-sm">{message}</p>
-      <button
-        type="button"
-        onClick={onCheck}
-        className="mt-3 min-h-11 rounded-lg border border-brand-purple px-4 py-2 font-semibold text-brand-purple focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple"
-      >
+      <Button variant="secondary" type="button" onClick={onCheck} className="mt-3">
         Comprobar estado
-      </button>
+      </Button>
     </div>
   );
 }

@@ -293,7 +293,7 @@ export function LocationPicker({
           type="button"
           onClick={handleGpsRequest}
           disabled={disabled || gpsStatus === "requesting"}
-          className="shrink-0 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple disabled:cursor-not-allowed disabled:opacity-55"
+          className="shrink-0 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-55"
         >
           Usar mi ubicación
         </Button>
@@ -336,10 +336,10 @@ export function LocationPicker({
             onChange={(event) => handleDraftChange("latitude", event.target.value)}
             aria-invalid={errors.latitude !== undefined}
             aria-describedby={latitudeDescription}
-            className="mt-1 w-full min-w-0 rounded-lg border border-black/20 px-3 py-2 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-purple disabled:bg-black/5"
+            className="mt-1 w-full min-w-0 rounded-lg border border-black/20 px-3 py-2 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary disabled:bg-black/5"
           />
           {errors.latitude !== undefined && (
-            <p id={latitudeErrorId} role="alert" className="mt-1 text-sm text-brand-orange-ink">
+            <p id={latitudeErrorId} role="alert" className="mt-1 text-sm text-danger-ink">
               {errors.latitude}
             </p>
           )}
@@ -359,10 +359,10 @@ export function LocationPicker({
             onChange={(event) => handleDraftChange("longitude", event.target.value)}
             aria-invalid={errors.longitude !== undefined}
             aria-describedby={longitudeDescription}
-            className="mt-1 w-full min-w-0 rounded-lg border border-black/20 px-3 py-2 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-purple disabled:bg-black/5"
+            className="mt-1 w-full min-w-0 rounded-lg border border-black/20 px-3 py-2 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary disabled:bg-black/5"
           />
           {errors.longitude !== undefined && (
-            <p id={longitudeErrorId} role="alert" className="mt-1 text-sm text-brand-orange-ink">
+            <p id={longitudeErrorId} role="alert" className="mt-1 text-sm text-danger-ink">
               {errors.longitude}
             </p>
           )}
@@ -374,7 +374,7 @@ export function LocationPicker({
         type="button"
         onClick={handleApply}
         disabled={disabled}
-        className="mt-4 rounded-lg border border-brand-purple px-4 py-2 text-sm font-semibold text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple disabled:cursor-not-allowed disabled:opacity-55"
+        className="mt-4 rounded-lg border border-primary px-4 py-2 text-sm font-semibold text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-55"
       >
         Aplicar coordenadas
       </Button>

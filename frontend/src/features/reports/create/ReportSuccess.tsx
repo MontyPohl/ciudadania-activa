@@ -1,3 +1,5 @@
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
 import Link from "next/link";
 
 import type { CreateReportResponse } from "@/features/reports/create/types";
@@ -16,54 +18,50 @@ export function ReportSuccess({
       className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-6 py-12"
       aria-live="polite"
     >
-      <header className="rounded-2xl bg-brand-green/10 p-6">
-        <p className="text-sm font-semibold uppercase tracking-wide text-brand-green-ink">
+      <header className="rounded-2xl bg-success/10 p-6">
+        <p className="text-sm font-semibold uppercase tracking-wide text-success-ink">
           {humanReportStatus(result.status)}
         </p>
-        <h1 className="mt-1 text-2xl font-bold text-brand-purple">Reporte creado correctamente</h1>
-        <p className="mt-2 text-sm text-brand-black/75">
+        <h1 className="mt-1 text-2xl font-bold text-primary">Reporte creado correctamente</h1>
+        <p className="mt-2 text-sm text-muted">
           Tu reporte quedó pendiente de revisión institucional.
         </p>
       </header>
 
-      <section className="rounded-2xl border border-brand-black/10 p-5" aria-label="Recompensa">
+      <Card as="section" className="border border-border p-5" aria-label="Recompensa">
         <h2 className="font-bold">Recompensa pendiente</h2>
         <dl className="mt-3 grid gap-3 sm:grid-cols-2">
           <div>
-            <dt className="text-xs text-brand-black/60">Puntos de impacto</dt>
-            <dd className="text-xl font-bold text-brand-purple">+{result.reward.impact_points}</dd>
+            <dt className="text-xs text-muted">Puntos de impacto</dt>
+            <dd className="text-xl font-bold text-primary">+{result.reward.impact_points}</dd>
           </div>
           <div>
-            <dt className="text-xs text-brand-black/60">Créditos</dt>
-            <dd className="text-xl font-bold text-brand-purple">+{result.reward.credits}</dd>
+            <dt className="text-xs text-muted">Créditos</dt>
+            <dd className="text-xl font-bold text-primary">+{result.reward.credits}</dd>
           </div>
         </dl>
-        <p className="mt-3 text-sm text-brand-black/70">
+        <p className="mt-3 text-sm text-muted">
           Estado: <strong>{result.reward.status}</strong>. Se acreditan después de la validación
           institucional.
         </p>
-      </section>
+      </Card>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
         <Link
           href={`/reporte/${result.id}`}
-          className="rounded-md bg-brand-purple px-4 py-2 text-center text-sm font-semibold text-white"
+          className="rounded-md bg-primary px-4 py-2 text-center text-sm font-semibold text-white"
         >
           Abrir reporte
         </Link>
         <Link
           href="/mapa"
-          className="rounded-md border border-brand-purple px-4 py-2 text-center text-sm font-semibold text-brand-purple"
+          className="rounded-md border border-primary px-4 py-2 text-center text-sm font-semibold text-primary"
         >
           Ir al mapa
         </Link>
-        <button
-          type="button"
-          onClick={onCreateAnother}
-          className="rounded-md border border-brand-green px-4 py-2 text-sm font-semibold text-brand-green-ink"
-        >
+        <Button variant="secondary" type="button" onClick={onCreateAnother} className="text-sm">
           Crear otro reporte
-        </button>
+        </Button>
       </div>
     </main>
   );

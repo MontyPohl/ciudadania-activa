@@ -74,8 +74,8 @@ function deferred<T>() {
 }
 
 async function completeDraft(user: ReturnType<typeof userEvent.setup>) {
-  await screen.findByRole("combobox", { name: "Categoría" });
-  await user.selectOptions(screen.getByRole("combobox", { name: "Categoría" }), CATEGORY.id);
+  await screen.findByRole("group", { name: "Categoría" });
+  await user.click(screen.getByRole("radio", { name: CATEGORY.name }));
   await user.click(screen.getByRole("button", { name: "Continuar" }));
   await user.type(screen.getByRole("textbox", { name: "Descripción" }), "  Bache profundo\n");
   await user.click(screen.getByRole("button", { name: "Continuar" }));
@@ -125,26 +125,26 @@ describe("wizard de creación de reportes", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("No pudimos cargar");
     expect(screen.getByRole("button", { name: "Continuar" })).toBeDisabled();
     await user.click(screen.getByRole("button", { name: "Reintentar carga" }));
-    expect(await screen.findByRole("combobox", { name: "Categoría" })).toBeVisible();
+    expect(await screen.findByRole("group", { name: "Categoría" })).toBeVisible();
     expect(getPublicCategories).toHaveBeenCalledTimes(2);
   });
 
   it("impide transiciones inválidas, enfoca errores y conserva el texto original al volver", async () => {
     const user = userEvent.setup();
     render(<CreateReportWizard />);
-    const category = await screen.findByRole("combobox", { name: "Categoría" });
+    const category = await screen.findByRole("group", { name: "Categoría" });
     await user.click(screen.getByRole("button", { name: "Continuar" }));
     expect(screen.getByText("Seleccioná una categoría.")).toBeVisible();
     expect(screen.getByText("Revisá los campos señalados:")).toBeVisible();
     expect(category).toHaveFocus();
 
-    await user.selectOptions(category, CATEGORY.id);
+    await user.click(screen.getByRole("radio", { name: CATEGORY.name }));
     await user.click(screen.getByRole("button", { name: "Continuar" }));
     await user.click(screen.getByRole("button", { name: "Continuar" }));
     expect(screen.getByText("Escribí una descripción.")).toBeVisible();
     await user.type(screen.getByRole("textbox", { name: "Descripción" }), "  texto original  ");
     await user.click(screen.getByRole("button", { name: "Volver" }));
-    expect(screen.getByRole("combobox", { name: "Categoría" })).toHaveValue(CATEGORY.id);
+    expect(screen.getByRole("radio", { name: CATEGORY.name })).toBeChecked();
     await user.click(screen.getByRole("button", { name: "Continuar" }));
     expect(screen.getByRole("textbox", { name: "Descripción" })).toHaveValue("  texto original  ");
   });
@@ -319,8 +319,8 @@ describe("wizard de creación de reportes", () => {
     render(<CreateReportWizard />);
     await completeDraft(user);
     await user.click(screen.getByRole("button", { name: "Crear reporte" }));
-    const category = await screen.findByRole("combobox", { name: "Categoría" });
-    expect(category).toHaveValue("");
+    const category = await screen.findByRole("group", { name: "Categoría" });
+    expect(category.querySelector("input:checked")).toBeNull();
     expect(screen.getByText("Elegí nuevamente la categoría.")).toBeVisible();
     expect(createReport).toHaveBeenCalledOnce();
   });
@@ -345,7 +345,9 @@ describe("wizard de creación de reportes", () => {
     await completeDraft(user);
     await user.click(screen.getByRole("button", { name: "Crear reporte" }));
     await user.click(await screen.findByRole("button", { name: "Crear otro reporte" }));
-    expect(await screen.findByRole("combobox", { name: "Categoría" })).toHaveValue("");
+    expect(
+      (await screen.findByRole("group", { name: "Categoría" })).querySelector("input:checked"),
+    ).toBeNull();
     expect(revokeObjectURL).toHaveBeenCalled();
   });
 });
