@@ -554,3 +554,16 @@ def test_error_inesperado_en_ambos_caminos_devuelve_false_y_warning(report, tipo
 
     assert AiClassification.objects.count() == 0
     assert "El proveedor de IA falló al clasificar el reporte" in caplog.text
+
+
+def test_auditoria_recibe_version_explicita(report):
+    assert (
+        process_report_classification(
+            report.pk,
+            adapter=ScriptedAdapter(payload()),
+            model_name=MODEL_NAME,
+            prompt_version="classification-v2",
+        )
+        is True
+    )
+    assert audit_entries().get().payload["prompt_version"] == "classification-v2"

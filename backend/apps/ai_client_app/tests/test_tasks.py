@@ -186,3 +186,29 @@ def test_la_tarea_no_configura_reintentos_automaticos():
 
     assert getattr(tarea, "max_retries", None) in (None, 3)
     assert not getattr(tarea, "autoretry_for", ())
+
+
+def test_tarea_propaga_version_del_runtime(monkeypatch):
+    runtime = RuntimeAdapter(
+        adapter=FakeAiClassificationAdapter(),
+        model_name=MODEL_NAME,
+        prompt_version="classification-v2",
+    )
+    calls = []
+    monkeypatch.setattr(ai_tasks, "get_runtime_adapter", lambda: runtime)
+    monkeypatch.setattr(
+        ai_tasks,
+        "process_report_classification",
+        lambda *args, **kwargs: calls.append((args, kwargs)),
+    )
+    classify_report.run("reporte-de-prueba")
+    assert calls == [
+        (
+            ("reporte-de-prueba",),
+            {
+                "adapter": runtime.adapter,
+                "model_name": MODEL_NAME,
+                "prompt_version": "classification-v2",
+            },
+        )
+    ]

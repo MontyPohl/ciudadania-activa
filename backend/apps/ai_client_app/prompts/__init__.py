@@ -12,14 +12,26 @@ en cada clasificación y cada reproceso (contrato S8-A, D15).
 from __future__ import annotations
 
 import json
-from functools import lru_cache
+from functools import cache
 from pathlib import Path
 
 from ..contracts import ClassificationRequest
 
 PROMPT_VERSION = "s8-classification-v1"
 
-_PROMPT_PATH = Path(__file__).resolve().parent / "classification_v1.txt"
+PROMPT_VERSION_V2 = "classification-v2"
+PROMPT_VERSIONS = {
+    "v1": (PROMPT_VERSION, "classification_v1.txt"),
+    "v2": (PROMPT_VERSION_V2, "classification_v2.txt"),
+}
+
+
+def prompt_version_id(version: str) -> str:
+    """Identificador auditado de una versión conocida."""
+    if version not in PROMPT_VERSIONS:
+        raise ValueError("Versión de prompt desconocida.")
+    return PROMPT_VERSIONS[version][0]
+
 
 # Separa las instrucciones del sistema de la sección de entrada. Lo que se envía
 # como `system_instruction` es solo la primera mitad: los datos del caso viajan en
@@ -27,20 +39,22 @@ _PROMPT_PATH = Path(__file__).resolve().parent / "classification_v1.txt"
 _MARCA_ENTRADA = "ENTRADA"
 
 
-@lru_cache(maxsize=1)
-def load_prompt_template() -> str:
+@cache
+def load_prompt_template(version: str = "v1") -> str:
     """Contenido íntegro del prompt versionado."""
-    return _PROMPT_PATH.read_text(encoding="utf-8")
+    prompt_version_id(version)
+    path = Path(__file__).resolve().parent / PROMPT_VERSIONS[version][1]
+    return path.read_text(encoding="utf-8")
 
 
-def render_classification_prompt(request: ClassificationRequest) -> str:
+def render_classification_prompt(request: ClassificationRequest, version: str = "v1") -> str:
     """Instrucciones del sistema con los catálogos permitidos ya resueltos.
 
     La `description` **no** se interpola aquí: viaja en el turno del usuario,
     delimitada como contenido no confiable. Mezclarla con las instrucciones sería
     exactamente lo que las reglas del prompt piden evitar.
     """
-    plantilla = load_prompt_template()
+    plantilla = load_prompt_template(version)
     return (
         plantilla.replace(
             "{allowed_category_slugs}",
@@ -64,4 +78,11 @@ def render_classification_prompt(request: ClassificationRequest) -> str:
     )
 
 
-__all__ = ["PROMPT_VERSION", "load_prompt_template", "render_classification_prompt"]
+__all__ = [
+    "PROMPT_VERSION",
+    "PROMPT_VERSION_V2",
+    "PROMPT_VERSIONS",
+    "prompt_version_id",
+    "load_prompt_template",
+    "render_classification_prompt",
+]

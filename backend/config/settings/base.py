@@ -82,6 +82,8 @@ IDENTITY_SIGNED_URL_TTL = 300
 # flag apagado no se clasifica nada: sin él, una clave de proveedor olvidada en un
 # entorno bastaría para que un despliegue empezara a clasificar reportes reales.
 AI_CLASSIFICATION_ENABLED = env.bool("AI_CLASSIFICATION_ENABLED", default=False)
+# v1 = prompt de EX-09; v2 = criterios de prioridad post-S12.
+AI_PROMPT_VERSION = env("AI_PROMPT_VERSION", default="v1")
 # Proveedor que clasifica: `openai` o `gemini` (ADR-0016). Sin valor por defecto:
 # vacío o desconocido equivale a no clasificar, aunque haya claves presentes.
 AI_PROVIDER = env("AI_PROVIDER", default="")

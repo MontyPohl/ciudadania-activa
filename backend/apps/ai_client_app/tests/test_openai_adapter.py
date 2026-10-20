@@ -621,3 +621,23 @@ def test_metadata_sin_contadores_validos_devuelve_none():
     adapter, _ = build_adapter(respuesta)
 
     assert adapter.classify_with_metadata(build_request()).usage is None
+
+
+def test_v2_envia_sus_instrucciones():
+    from apps.ai_client_app.prompts import load_prompt_template, render_classification_prompt
+
+    # La plantilla real la mantiene el trabajo paralelo; no se sustituye por un doble.
+    load_prompt_template("v2")
+    responses = FakeResponses(resultado=responder())
+    adapter = OpenAiClassificationAdapter(
+        client=FakeClient(responses), model=MODELO, prompt_version="v2"
+    )
+    request = build_request()
+    adapter.classify(request)
+    assert responses.calls[0]["instructions"] == render_classification_prompt(request, "v2")
+    assert responses.calls[0]["instructions"] != render_classification_prompt(request)
+
+
+def test_constructor_rechaza_version_desconocida():
+    with pytest.raises(ValueError):
+        OpenAiClassificationAdapter(client=object(), model=MODELO, prompt_version="v3")

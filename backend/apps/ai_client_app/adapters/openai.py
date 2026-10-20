@@ -32,7 +32,7 @@ from apps.core.enums import ReportPriority
 
 from ..contracts import ClassificationRequest, ProviderUsage
 from ..exceptions import PermanentAiProviderError, TransientAiProviderError
-from ..prompts import PROMPT_VERSION, render_classification_prompt
+from ..prompts import PROMPT_VERSION, prompt_version_id, render_classification_prompt
 
 # Sin reintentos internos: el SDK reintentaría dos veces por defecto y se sumaría a
 # los reintentos de Celery, multiplicando las llamadas de forma invisible.
@@ -123,9 +123,18 @@ class ProviderCall:
 class OpenAiClassificationAdapter:
     """Implementa `AiClassificationAdapter` contra la Responses API."""
 
-    def __init__(self, *, client: OpenAI, model: str, reasoning_effort: str = ""):
+    def __init__(
+        self,
+        *,
+        client: OpenAI,
+        model: str,
+        reasoning_effort: str = "",
+        prompt_version: str = "v1",
+    ):
         # El cliente entra ya construido: así las pruebas inyectan un doble sin
         # que exista ninguna ruta que cree un cliente real por descuido.
+        prompt_version_id(prompt_version)
+        self._prompt_version = prompt_version
         self._client = client
         self._model = model
         self._reasoning_effort = reasoning_effort
@@ -152,7 +161,7 @@ class OpenAiClassificationAdapter:
     def _create_response(self, request: ClassificationRequest):
         parametros = {
             "model": self._model,
-            "instructions": render_classification_prompt(request),
+            "instructions": render_classification_prompt(request, self._prompt_version),
             "input": [{"role": "user", "content": _build_input(request)}],
             # No se pide al proveedor que conserve la respuesta: la descripción del
             # ciudadano no tiene por qué quedarse allí.

@@ -67,6 +67,7 @@ def classify_report(self, report_id):
             report_id,
             adapter=runtime.adapter,
             model_name=runtime.model_name,
+            prompt_version=runtime.prompt_version,
         )
     except TransientAiError as exc:
         max_retries = getattr(settings, "AI_MAX_RETRIES", 3)
