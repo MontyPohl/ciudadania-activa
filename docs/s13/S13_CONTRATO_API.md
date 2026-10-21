@@ -386,3 +386,13 @@ Los correos, los reintentos y el barrido **no** se auditan: igual que hoy, solo 
 | `rewards.notify_available_rewards` | todos los días a las 09:00 locales | El lote de §7.1 |
 
 Ninguna tiene `autoretry_for`: el estado vive en PostgreSQL. Beat corre en **exactamente 1** proceso (runbook de Heroku §6).
+
+## Enmienda S15-B1: tendencia y categorías públicas
+
+El contrato de §5 agrega `trend` y `current_month_by_category` según
+[API pública S15-B1](../API.md#s15-b1-medios-y-agregados-publicos).
+Se exceptúan la restricción histórica de desgloses por categoría y la conservación
+exacta del shape: las categorías se agregan globalmente, nunca por institución.
+La nueva supresión k=5 incluye cero, y la supresión complementaria protege las
+particiones nuevas sin cambiar los totales previos. La integración de los parsers
+estrictos se realiza en Fase 5 antes de desplegar este contrato.

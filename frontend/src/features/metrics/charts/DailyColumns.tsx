@@ -10,7 +10,7 @@ export function DailyColumns({ points }: { points: MetricsSeriesPoint[] }) {
       headings={["Fecha", "Recibidos", "Resueltos"]}
       rows={points.map((p) => [p.date, p.received, p.resolved])}
     >
-      <p className="mb-3 text-sm text-brand-black/70">
+      <p className="mb-3 text-sm text-muted">
         Reportes recibidos y primeras resoluciones por día. Ambos gráficos usan la misma escala.
       </p>
       <div
@@ -29,15 +29,15 @@ export function DailyColumns({ points }: { points: MetricsSeriesPoint[] }) {
             const top = series * 185;
             return (
               <g key={key}>
-                <text x="0" y={top + 16} fontSize="14" className="fill-brand-black">
+                <text x="0" y={top + 16} fontSize="14" className="fill-ink">
                   {series === 0 ? "Recibidos" : "Resueltos"}
                 </text>
                 {[0, max / 2, max].map((value) => {
                   const y = top + 145 - (95 * value) / max;
                   return (
                     <g key={value}>
-                      <line x1="34" x2={width} y1={y} y2={y} className="stroke-brand-black/10" />
-                      <text x="0" y={y + 4} fontSize="12" className="fill-brand-black/70">
+                      <line x1="34" x2={width} y1={y} y2={y} className="stroke-ink/10" />
+                      <text x="0" y={y + 4} fontSize="12" className="fill-muted">
                         {Number.isInteger(value) ? value : ""}
                       </text>
                     </g>
@@ -53,14 +53,14 @@ export function DailyColumns({ points }: { points: MetricsSeriesPoint[] }) {
                         y={top + 145 - height}
                         width={step - 8}
                         height={height}
-                        className={series === 0 ? "fill-brand-purple" : "fill-brand-green"}
+                        className={series === 0 ? "fill-primary" : "fill-success"}
                       />
                       <text
                         x={x + (step - 8) / 2}
                         y={top + 139 - height}
                         textAnchor="middle"
                         fontSize="11"
-                        className="fill-brand-black"
+                        className="fill-ink"
                       >
                         {p[key]}
                       </text>
@@ -69,7 +69,7 @@ export function DailyColumns({ points }: { points: MetricsSeriesPoint[] }) {
                         y={top + 165}
                         textAnchor="middle"
                         fontSize="11"
-                        className="fill-brand-black/70"
+                        className="fill-muted"
                       >
                         {p.date.slice(8)}
                       </text>

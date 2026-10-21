@@ -70,7 +70,7 @@ export function MetricsDashboard({ metrics: m }: { metrics: InstitutionMetrics }
         </dl>
       </div>
       {empty ? (
-        <p role="status" className="rounded-2xl bg-brand-purple/5 p-6">
+        <p role="status" className="rounded-2xl bg-primary/5 p-6">
           Todavía no hay reportes en {monthLabel(m.period)}.
         </p>
       ) : (
@@ -116,7 +116,7 @@ export function MetricsDashboard({ metrics: m }: { metrics: InstitutionMetrics }
       </section>
       {hasTrend && <TrendColumns points={m.trend} />}
       {m.by_institution !== null && (
-        <section className="min-w-0 rounded-2xl border border-brand-black/10 p-4 sm:p-6">
+        <section className="min-w-0 rounded-2xl border border-border p-4 sm:p-6">
           <h2 className="mb-4 text-xl font-semibold">Detalle por institución</h2>
           <div
             className="overflow-x-auto"
@@ -145,7 +145,7 @@ export function MetricsDashboard({ metrics: m }: { metrics: InstitutionMetrics }
               </thead>
               <tbody>
                 {m.by_institution.map((row) => (
-                  <tr key={row.institution.id} className="border-t border-brand-black/10">
+                  <tr key={row.institution.id} className="border-t border-border">
                     <th scope="row" className="p-3 font-medium">
                       {row.institution.name}
                     </th>
@@ -171,7 +171,7 @@ export function MetricsDashboard({ metrics: m }: { metrics: InstitutionMetrics }
           </div>
         </section>
       )}
-      <p className="text-sm text-brand-black/70">
+      <p className="text-sm text-muted">
         Datos calculados a las{" "}
         {new Intl.DateTimeFormat("es-PY", {
           hour: "2-digit",

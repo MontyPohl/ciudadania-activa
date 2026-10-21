@@ -1,3 +1,4 @@
+import { Select } from "@/components/ui/Select";
 import { currentPeriod, monthLabel } from "./metricsLabels";
 export function PeriodSelect({
   value,
@@ -16,13 +17,13 @@ export function PeriodSelect({
   return (
     <label className="flex max-w-md flex-col gap-1 text-sm font-medium">
       Elegí el mes
-      <select value={value} onChange={(e) => onChange(e.target.value)} className="audit-input">
+      <Select value={value} onChange={(e) => onChange(e.target.value)}>
         {periods.reverse().map((period) => (
           <option key={period} value={period}>
             {monthLabel(period)}
           </option>
         ))}
-      </select>
+      </Select>
     </label>
   );
 }

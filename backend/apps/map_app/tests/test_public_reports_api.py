@@ -213,7 +213,9 @@ def test_detalle_publico_agrega_solo_confirmation_count(
         "latitude",
         "longitude",
         "created_at",
+        "photo_url",
         "confirmation_count",
+        "resolution_evidences",
     }
     serialized = str(detail.json())
     for private in ("confirmed_by_me", "eligibility", "citizen", "history", "reward"):

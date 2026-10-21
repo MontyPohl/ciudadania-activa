@@ -31,6 +31,14 @@ ENDPOINTS = [
     # §4.1 y PublicReportQuerySerializer: bbox es obligatorio.
     ("/api/v1/public/reports/", {"GET"}, "get", 400, "4.1"),
     (f"/api/v1/public/reports/{EXAMPLE_ID}/", {"GET"}, "get", 404, "4.2"),
+    (f"/api/v1/public/reports/{EXAMPLE_ID}/photo/", {"GET"}, "get", 404, "S15-B1"),
+    (
+        f"/api/v1/public/reports/{EXAMPLE_ID}/evidence/{EXAMPLE_ID}/",
+        {"GET"},
+        "get",
+        404,
+        "S15-B1",
+    ),
     ("/api/v1/public/categories/", {"GET"}, "get", 200, "4.3"),
     ("/api/v1/reports/", {"POST"}, "post", 401, "5.1"),
     ("/api/v1/reports/possible-duplicates/", {"GET"}, "get", 401, "5.2"),

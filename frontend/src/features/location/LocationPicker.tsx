@@ -1,5 +1,7 @@
 "use client";
 
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 
@@ -24,7 +26,7 @@ const LocationPickerMap = dynamic<LocationPickerMapProps>(
     ssr: false,
     loading: () => (
       <div
-        className="flex h-full items-center justify-center bg-brand-purple/5 text-sm text-brand-purple"
+        className="flex h-full items-center justify-center bg-primary/5 text-sm text-primary"
         role="status"
       >
         Cargando el mapa interactivo…
@@ -278,35 +280,30 @@ export function LocationPicker({
     <fieldset
       disabled={disabled}
       aria-describedby={fieldsetDescription}
-      className="min-w-0 rounded-2xl border border-black/10 bg-white p-4 sm:p-5"
+      className="min-w-0 rounded-2xl bg-surface p-4 text-ink shadow-sm sm:p-5"
     >
-      <legend className="px-1 text-lg font-bold text-brand-purple">Ubicación del reporte</legend>
+      <legend className="px-1 text-lg font-bold text-primary">Ubicación del reporte</legend>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <p id={instructionsId} className="max-w-3xl text-sm text-black/70">
+        <p id={instructionsId} className="max-w-3xl text-sm text-muted">
           Seleccioná un punto haciendo click en el mapa, arrastrá el marcador o ingresá las
           coordenadas manualmente.
         </p>
-        <button
+        <Button
           type="button"
           onClick={handleGpsRequest}
           disabled={disabled || gpsStatus === "requesting"}
-          className="shrink-0 rounded-lg bg-brand-purple px-4 py-2 text-sm font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple disabled:cursor-not-allowed disabled:opacity-55"
+          className="shrink-0 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-55"
         >
           Usar mi ubicación
-        </button>
+        </Button>
       </div>
 
-      <p
-        id={statusId}
-        role="status"
-        aria-live="polite"
-        className="mt-2 min-h-5 text-sm text-black/70"
-      >
+      <p id={statusId} role="status" aria-live="polite" className="mt-2 min-h-5 text-sm text-muted">
         {gpsMessage}
       </p>
 
-      <div className="mt-3 h-[22rem] min-h-[18rem] overflow-hidden rounded-xl border border-black/10 bg-brand-purple/5 sm:h-[26rem]">
+      <div className="mt-3 h-[22rem] min-h-[18rem] overflow-hidden rounded-xl border border-black/10 bg-primary/5 sm:h-[26rem]">
         <LocationPickerMap
           value={value}
           initialCenter={mapInitialCenter}
@@ -316,7 +313,7 @@ export function LocationPicker({
         />
       </div>
 
-      <p className="mt-3 text-sm text-black/70">
+      <p className="mt-3 text-sm text-muted">
         {value === null
           ? "Todavía no seleccionaste una ubicación."
           : disabled
@@ -329,7 +326,7 @@ export function LocationPicker({
           <label htmlFor={latitudeInputId} className="block text-sm font-semibold">
             Latitud
           </label>
-          <input
+          <Input
             id={latitudeInputId}
             type="number"
             min={-90}
@@ -339,10 +336,10 @@ export function LocationPicker({
             onChange={(event) => handleDraftChange("latitude", event.target.value)}
             aria-invalid={errors.latitude !== undefined}
             aria-describedby={latitudeDescription}
-            className="mt-1 w-full min-w-0 rounded-lg border border-black/20 px-3 py-2 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-purple disabled:bg-black/5"
+            className="mt-1 w-full min-w-0 rounded-lg border border-black/20 px-3 py-2 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary disabled:bg-black/5"
           />
           {errors.latitude !== undefined && (
-            <p id={latitudeErrorId} role="alert" className="mt-1 text-sm text-brand-orange-ink">
+            <p id={latitudeErrorId} role="alert" className="mt-1 text-sm text-danger-ink">
               {errors.latitude}
             </p>
           )}
@@ -352,7 +349,7 @@ export function LocationPicker({
           <label htmlFor={longitudeInputId} className="block text-sm font-semibold">
             Longitud
           </label>
-          <input
+          <Input
             id={longitudeInputId}
             type="number"
             min={-180}
@@ -362,24 +359,25 @@ export function LocationPicker({
             onChange={(event) => handleDraftChange("longitude", event.target.value)}
             aria-invalid={errors.longitude !== undefined}
             aria-describedby={longitudeDescription}
-            className="mt-1 w-full min-w-0 rounded-lg border border-black/20 px-3 py-2 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-purple disabled:bg-black/5"
+            className="mt-1 w-full min-w-0 rounded-lg border border-black/20 px-3 py-2 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary disabled:bg-black/5"
           />
           {errors.longitude !== undefined && (
-            <p id={longitudeErrorId} role="alert" className="mt-1 text-sm text-brand-orange-ink">
+            <p id={longitudeErrorId} role="alert" className="mt-1 text-sm text-danger-ink">
               {errors.longitude}
             </p>
           )}
         </div>
       </div>
 
-      <button
+      <Button
+        variant="secondary"
         type="button"
         onClick={handleApply}
         disabled={disabled}
-        className="mt-4 rounded-lg border border-brand-purple px-4 py-2 text-sm font-semibold text-brand-purple focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple disabled:cursor-not-allowed disabled:opacity-55"
+        className="mt-4 rounded-lg border border-primary px-4 py-2 text-sm font-semibold text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-55"
       >
         Aplicar coordenadas
-      </button>
+      </Button>
     </fieldset>
   );
 }

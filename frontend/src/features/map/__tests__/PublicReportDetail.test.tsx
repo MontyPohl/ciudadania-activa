@@ -110,3 +110,54 @@ describe("detalle público", () => {
     expect(getPublicReport).not.toHaveBeenCalled();
   });
 });
+
+it.each([
+  ["CREADO", "Creado"],
+  ["ASIGNADO", "Creado"],
+  ["EN_PROCESO", "En proceso"],
+  ["RESUELTO", "Resuelto"],
+  ["CERRADO", "Resuelto"],
+] as const)("deriva progreso de %s sin inventar fechas", async (status, step) => {
+  vi.mocked(useSession).mockReturnValue({
+    status: "unauthenticated",
+    signInWithGoogle: vi.fn(),
+    signOut: vi.fn(),
+  });
+  vi.mocked(getPublicReport).mockResolvedValue(publicReportDetail({ status }));
+  render(<PublicReportDetail id={REPORT_ID} />);
+  await screen.findByRole("heading", { name: "Baches" });
+  expect(document.querySelector('[aria-current="step"]')).toHaveTextContent(step);
+  expect(screen.getByRole("region", { name: "Progreso del reporte" })).toHaveTextContent(
+    "sin fechas de transición",
+  );
+  expect(document.querySelectorAll("#contenido-principal")).toHaveLength(1);
+});
+
+it("muestra evidencia pública ampliable con texto alternativo de categoría y estado", async () => {
+  vi.mocked(useSession).mockReturnValue({
+    status: "unauthenticated",
+    signInWithGoogle: vi.fn(),
+    signOut: vi.fn(),
+  });
+  vi.mocked(getPublicReport).mockResolvedValue(
+    publicReportDetail({
+      status: "RESUELTO",
+      resolution_evidences: [
+        {
+          id: "55555555-5555-4555-8555-555555555555",
+          evidence_url: `/api/v1/public/reports/${REPORT_ID}/evidence/55555555-5555-4555-8555-555555555555/`,
+          created_at: "2026-10-20T12:00:00Z",
+        },
+      ],
+    }),
+  );
+  render(<PublicReportDetail id={REPORT_ID} />);
+  const photo = await screen.findByRole("img", {
+    name: "Evidencia de resolución de Baches · Resuelto",
+  });
+  expect(photo).toHaveAttribute("loading", "lazy");
+  expect(screen.getByRole("link", { name: /Ampliar evidencia/ })).toHaveAttribute(
+    "href",
+    photo.getAttribute("src"),
+  );
+});

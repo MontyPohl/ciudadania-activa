@@ -1,5 +1,7 @@
 "use client";
 
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
 import Link from "next/link";
 import { forwardRef, useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 
@@ -307,8 +309,8 @@ export function CreateReportWizard() {
       className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-8 sm:px-6 sm:py-10"
     >
       <header className="flex flex-col gap-2">
-        <h1 className="text-2xl font-bold text-brand-purple sm:text-3xl">Crear un reporte</h1>
-        <p className="max-w-2xl text-sm text-brand-black/70">
+        <h1 className="text-2xl font-bold text-primary sm:text-3xl">Crear un reporte</h1>
+        <p className="max-w-2xl text-sm text-muted">
           Contanos qué ocurre y dónde. La institución correspondiente revisará la información.
         </p>
       </header>
@@ -320,22 +322,17 @@ export function CreateReportWizard() {
 
       <form onSubmit={handleFormSubmit} noValidate className="flex min-w-0 flex-col gap-6">
         {visibleValidationFields.length > 0 && (
-          <div
-            role="alert"
-            className="rounded-xl border border-brand-orange/40 bg-brand-orange/10 p-4"
-          >
-            <p className="text-sm font-semibold text-brand-orange-ink">
-              Revisá los campos señalados:
-            </p>
-            <ul className="mt-2 list-disc pl-5 text-sm text-brand-black/75">
+          <div role="alert" className="rounded-xl border border-warning/40 bg-warning/10 p-4">
+            <p className="text-sm font-semibold text-danger-ink">Revisá los campos señalados:</p>
+            <ul className="mt-2 list-disc pl-5 text-sm text-muted">
               {visibleValidationFields.map((field) => (
                 <li key={field}>{STEP_LABELS[FIELD_STEP[field]]}</li>
               ))}
             </ul>
           </div>
         )}
-        <section className="min-w-0 rounded-2xl border border-brand-black/10 bg-white p-4 shadow-sm sm:p-6">
-          <h2 ref={stepHeadingRef} tabIndex={-1} className="text-xl font-bold text-brand-purple">
+        <Card as="section" className="min-w-0 border border-border p-4 sm:p-6">
+          <h2 ref={stepHeadingRef} tabIndex={-1} className="text-xl font-bold text-primary">
             {STEP_LABELS[state.step]}
           </h2>
           <div className="mt-5">
@@ -391,7 +388,7 @@ export function CreateReportWizard() {
                   <p
                     id="report-location-error"
                     role="alert"
-                    className="mt-2 text-sm font-medium text-brand-orange-ink"
+                    className="mt-2 text-sm font-medium text-danger-ink"
                   >
                     {errors.location}
                   </p>
@@ -406,7 +403,7 @@ export function CreateReportWizard() {
               />
             )}
           </div>
-        </section>
+        </Card>
 
         {(state.submission.status === "error" || state.submission.status === "uncertain") && (
           <SubmissionMessage
@@ -424,19 +421,21 @@ export function CreateReportWizard() {
         </p>
 
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
-          <button
+          <Button
+            variant="secondary"
             type="button"
             onClick={() => dispatch({ type: "BACK" })}
             disabled={stepIndex === 0 || locked}
-            className="rounded-md border border-brand-purple px-5 py-2.5 text-sm font-semibold text-brand-purple disabled:cursor-not-allowed disabled:opacity-45"
+            className="text-sm"
           >
             Volver
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="primary"
             ref={submitButtonRef}
             type="submit"
             disabled={locked || (state.step === "category" && catalog.status !== "ready")}
-            className="rounded-md bg-brand-purple px-5 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+            className="text-sm"
           >
             {state.step !== "confirmation"
               ? "Continuar"
@@ -445,7 +444,7 @@ export function CreateReportWizard() {
                 : state.submission.status === "error"
                   ? "Intentar de nuevo"
                   : "Crear reporte"}
-          </button>
+          </Button>
         </div>
       </form>
     </main>
@@ -482,14 +481,14 @@ const SubmissionMessage = forwardRef<
       tabIndex={-1}
       role="alert"
       aria-live="assertive"
-      className={`rounded-xl border p-4 ${uncertain ? "border-brand-orange bg-brand-orange/10" : "border-brand-black/15 bg-white"}`}
+      className={`rounded-xl border p-4 ${uncertain ? "border-warning bg-warning/10" : "border-border bg-surface"}`}
     >
-      <h2 className="font-bold text-brand-orange-ink">
+      <h2 className="font-bold text-danger-ink">
         {uncertain
           ? "No pudimos confirmar si el reporte fue creado"
           : "No se pudo crear el reporte"}
       </h2>
-      <p className="mt-1 text-sm text-brand-black/75">
+      <p className="mt-1 text-sm text-muted">
         {uncertain
           ? "La solicitud pudo haber llegado al servidor. No la reenvíes inmediatamente; conservamos todos los datos y bloqueamos nuevos cambios."
           : SUBMISSION_MESSAGES[code as Exclude<CreateReportErrorCode, "UNCERTAIN_RESULT">]}
@@ -497,7 +496,7 @@ const SubmissionMessage = forwardRef<
       {code === "SESSION_EXPIRED" && (
         <Link
           href="/login"
-          className="mt-3 inline-block text-sm font-semibold text-brand-purple underline"
+          className="mt-3 inline-block text-sm font-semibold text-primary underline"
         >
           Ir a iniciar sesión
         </Link>
@@ -505,19 +504,15 @@ const SubmissionMessage = forwardRef<
       {code === "NOT_VERIFIED_OR_FORBIDDEN" && (
         <Link
           href="/verificacion"
-          className="mt-3 inline-block text-sm font-semibold text-brand-purple underline"
+          className="mt-3 inline-block text-sm font-semibold text-primary underline"
         >
           Revisar verificación
         </Link>
       )}
       {code === "DUPLICATE_PHOTO" && (
-        <button
-          type="button"
-          onClick={onChangePhoto}
-          className="mt-3 rounded-md border border-brand-purple px-4 py-2 text-sm font-semibold text-brand-purple"
-        >
+        <Button variant="secondary" type="button" onClick={onChangePhoto} className="mt-3 text-sm">
           Reemplazar fotografía
-        </button>
+        </Button>
       )}
     </div>
   );

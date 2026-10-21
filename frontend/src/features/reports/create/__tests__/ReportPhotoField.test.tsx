@@ -77,3 +77,10 @@ describe("campo de fotografía", () => {
     expect(createObjectURL).not.toHaveBeenCalled();
   });
 });
+
+it("advierte que la foto será pública antes de elegir el archivo", () => {
+  render(<ReportPhotoField value={null} onChange={vi.fn()} />);
+  expect(screen.getByLabelText("Fotografía de la incidencia")).toHaveAccessibleDescription(
+    /La foto será pública: evitá caras, patentes y datos personales\./,
+  );
+});

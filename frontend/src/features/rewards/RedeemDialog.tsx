@@ -1,7 +1,8 @@
 "use client";
+import { Button } from "@/components/ui/Button";
 import { useEffect, useRef } from "react";
 import type { CatalogEntry } from "@/types/api";
-import { number, button, secondary } from "./presentation";
+import { number } from "./presentation";
 export function RedeemDialog({
   entry,
   busy,
@@ -34,9 +35,9 @@ export function RedeemDialog({
         event.preventDefault();
         if (!busy) onCancel();
       }}
-      className="m-auto w-[calc(100%-2rem)] max-w-lg rounded-2xl bg-white p-6 text-brand-black shadow-xl backdrop:bg-brand-black/50"
+      className="m-auto w-[calc(100%-2rem)] max-w-lg rounded-2xl bg-surface p-6 text-ink shadow-xl backdrop:bg-ink/50"
     >
-      <h2 id="redeem-title" className="text-xl font-bold text-brand-purple">
+      <h2 id="redeem-title" className="text-xl font-bold text-primary">
         Confirmá tu canje
       </h2>
       <p className="mt-2 font-semibold">{entry.reward.name}</p>
@@ -50,12 +51,12 @@ export function RedeemDialog({
         </p>
       )}
       <div className="mt-6 flex flex-wrap justify-end gap-3">
-        <button autoFocus className={secondary} disabled={busy} onClick={onCancel}>
+        <Button autoFocus variant="secondary" disabled={busy} onClick={onCancel}>
           Cancelar
-        </button>
-        <button className={button} disabled={busy} onClick={onConfirm}>
+        </Button>
+        <Button disabled={busy} onClick={onConfirm}>
           {busy ? "Confirmando…" : "Confirmar"}
-        </button>
+        </Button>
       </div>
       {busy && (
         <p className="mt-3 text-sm" role="status">

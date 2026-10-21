@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { MapFilters } from "@/features/map/MapFilters";
@@ -6,6 +6,7 @@ import { MapLegend } from "@/features/map/MapLegend";
 import { MapResultsStatus, type MapResultsPhase } from "@/features/map/MapResultsStatus";
 import { ReportList } from "@/features/map/ReportList";
 import { ReportSidePanel } from "@/features/map/ReportSidePanel";
+import { STATUS_MARKERS } from "@/features/map/presentation";
 import { publicReport } from "@/test/fixtures";
 
 describe("filtros públicos", () => {
@@ -63,13 +64,22 @@ describe("filtros públicos", () => {
 });
 
 describe("leyenda del mapa público", () => {
-  it("renderiza exclusivamente los seis estados visibles sin depender del catálogo privado", () => {
+  it("agrupa los pines en pendiente, en proceso y resuelto con símbolos distintos", () => {
+    expect(STATUS_MARKERS.CLASIFICADO).toEqual(STATUS_MARKERS.CREADO);
+    expect(STATUS_MARKERS.ASIGNADO).toEqual(STATUS_MARKERS.CREADO);
+    expect(STATUS_MARKERS.CERRADO).toEqual(STATUS_MARKERS.RESUELTO);
+    const groups = [STATUS_MARKERS.CREADO, STATUS_MARKERS.EN_PROCESO, STATUS_MARKERS.RESUELTO];
+    expect(new Set(groups.map((marker) => marker.symbol)).size).toBe(3);
+    expect(new Set(groups.map((marker) => marker.color)).size).toBe(3);
+  });
+
+  it("renderiza los tres grupos públicos sin depender del catálogo privado", () => {
     render(<MapLegend />);
 
     const legend = screen.getByRole("region", { name: "Leyenda de estados" });
     expect(legend).toBeVisible();
-    expect(legend.querySelectorAll("li")).toHaveLength(6);
-    expect(screen.getByText("Cerrado")).toBeVisible();
+    expect(legend.querySelectorAll("li")).toHaveLength(3);
+    expect(screen.getByText("Pendiente")).toBeVisible();
     expect(screen.queryByText("Rechazado")).not.toBeInTheDocument();
   });
 });
@@ -110,6 +120,34 @@ describe("ficha y lista textual", () => {
 
     await user.keyboard("{Escape}");
     expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it.each([true, false])("la lista conserva la miniatura pública (foto: %s)", (hasPhoto) => {
+    const id = "11111111-1111-4111-8111-111111111111";
+    const report = publicReport({
+      id,
+      status: "RESUELTO",
+      photo_url: hasPhoto ? `/api/v1/public/reports/${id}/photo/` : null,
+    });
+    render(
+      <ReportList
+        reports={[report]}
+        selectedId={null}
+        detailHref={(item) => `/reporte/${item.id}`}
+        onSelect={vi.fn()}
+      />,
+    );
+    const trigger = screen.getByRole("button", { name: /Baches/ });
+    const image = within(trigger).queryByRole("img", {
+      name: "Reporte de Baches · Resuelto",
+    });
+    if (hasPhoto) {
+      expect(image).toBeVisible();
+      expect(image).toHaveAttribute("loading", "lazy");
+      expect(image?.getAttribute("src")).toContain(report.photo_url);
+    } else {
+      expect(image).not.toBeInTheDocument();
+    }
   });
 
   it("la lista es visible, seleccionable y enlaza al detalle", async () => {

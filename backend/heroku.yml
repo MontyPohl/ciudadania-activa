@@ -23,9 +23,8 @@ build:
 
 run:
   # Heroku enruta el tráfico al puerto de $PORT, no al 8000 fijo del Dockerfile.
-  # S15 contrasta gthread/4 frente a sync/1 sin aumentar los procesos por defecto.
-  # Cada thread puede mantener una conexión DB: revisar el presupuesto al escalar workers.
-  web: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --worker-class gthread --threads 4
+  # gthread/4 queda para otra entrega, después de la prueba de estabilidad prolongada.
+  web: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT
   # --concurrency=2 es obligatorio: sin él Celery detecta todas las CPU del dyno y
   # levanta decenas de procesos innecesarios (README §Migraciones estructurales).
   worker: celery -A config.celery:app worker --loglevel=info --concurrency=2

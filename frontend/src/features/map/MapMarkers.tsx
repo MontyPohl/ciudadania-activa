@@ -1,8 +1,10 @@
 "use client";
 
+import Link from "next/link";
+import { PublicPhoto } from "./PublicPhoto";
 import { divIcon } from "leaflet";
 import { useMemo } from "react";
-import { Marker, useMap } from "react-leaflet";
+import { Marker, Popup, useMap } from "react-leaflet";
 
 import {
   clustersForViewport,
@@ -14,6 +16,7 @@ import { STATUS_LABELS, STATUS_MARKERS } from "@/features/map/presentation";
 import type { PublicReport } from "@/types/api";
 
 interface MapMarkersProps {
+  detailHref: (report: PublicReport) => string;
   reports: PublicReport[];
   bbox: MapBbox;
   zoom: number;
@@ -21,7 +24,14 @@ interface MapMarkersProps {
   onSelect: (report: PublicReport, trigger?: HTMLElement) => void;
 }
 
-export function MapMarkers({ reports, bbox, zoom, selectedId, onSelect }: MapMarkersProps) {
+export function MapMarkers({
+  reports,
+  bbox,
+  zoom,
+  selectedId,
+  onSelect,
+  detailHref,
+}: MapMarkersProps) {
   const map = useMap();
   const index = useMemo(() => createReportClusterIndex(reports), [reports]);
   const features = useMemo(() => clustersForViewport(index, bbox, zoom), [bbox, index, zoom]);
@@ -49,7 +59,9 @@ export function MapMarkers({ reports, bbox, zoom, selectedId, onSelect }: MapMar
           eventHandlers={{
             click: () => {
               const expansionZoom = index.getClusterExpansionZoom(clusterId);
-              map.setView([latitude, longitude], Math.min(expansionZoom, map.getMaxZoom()));
+              map.setView([latitude, longitude], Math.min(expansionZoom, map.getMaxZoom()), {
+                animate: false,
+              });
             },
           }}
         />
@@ -78,7 +90,14 @@ export function MapMarkers({ reports, bbox, zoom, selectedId, onSelect }: MapMar
             onSelect(report, event.target.getElement() ?? undefined);
           },
         }}
-      />
+      >
+        <Popup>
+          <strong>{report.category.name}</strong>
+          <p>{STATUS_LABELS[report.status]}</p>
+          <PublicPhoto report={report} thumbnail />
+          <Link href={detailHref(report)}>Ver detalle</Link>
+        </Popup>
+      </Marker>
     );
   });
 }

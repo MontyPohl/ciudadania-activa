@@ -32,7 +32,7 @@ class PublicMetricsView(APIView):
         query.is_valid(raise_exception=True)
         now = timezone.now()
         value = cached(
-            f"public-metrics:v1:{now.astimezone(LOCAL_TZ).date().isoformat()}",
+            f"public-metrics:v2:{now.astimezone(LOCAL_TZ).date().isoformat()}",
             settings.PUBLIC_METRICS_CACHE_TTL_SECONDS,
             lambda: selectors.public_metrics(now=now),
         )

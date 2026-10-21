@@ -241,9 +241,7 @@ test("@F1 verificación de identidad real", async () => {
 test("@F2 creación con aviso de duplicado", async () => {
   const page = pageFor("citizen_a");
   await page.goto("/reportes/nuevo");
-  await page.getByRole("combobox", { name: "Categoría", exact: true }).selectOption({
-    label: "Alumbrado público",
-  });
+  await page.getByRole("radio", { name: "Alumbrado público", exact: true }).check();
   await page.getByRole("button", { name: "Continuar", exact: true }).click();
   await page.getByRole("textbox", { name: "Descripción", exact: true }).fill(DESCRIPTION);
   await page.getByRole("button", { name: "Continuar", exact: true }).click();

@@ -12,7 +12,7 @@ export function CreateReportEntry() {
   if (session.status === "loading") {
     return (
       <main id="contenido-principal" tabIndex={-1}>
-        <p className="px-6 py-16 text-center text-sm text-brand-black/70" role="status">
+        <p className="px-6 py-16 text-center text-sm text-muted" role="status">
           Verificando si podés crear reportes…
         </p>
       </main>
@@ -25,7 +25,7 @@ export function CreateReportEntry() {
     return (
       <AccessMessage title="Iniciá sesión para crear un reporte">
         <p>Tu formulario solo estará disponible después de ingresar.</p>
-        <Link href="/login" className="font-semibold text-brand-purple underline">
+        <Link href="/login" className="font-semibold text-primary underline">
           Ir a iniciar sesión
         </Link>
       </AccessMessage>
@@ -36,7 +36,7 @@ export function CreateReportEntry() {
     return (
       <AccessMessage title="Esta sección es para ciudadanos">
         <p>El rol de tu cuenta no permite crear reportes ciudadanos.</p>
-        <Link href="/" className="font-semibold text-brand-purple underline">
+        <Link href="/" className="font-semibold text-primary underline">
           Volver al inicio
         </Link>
       </AccessMessage>
@@ -47,7 +47,7 @@ export function CreateReportEntry() {
     return (
       <AccessMessage title="Verificá tu identidad antes de crear">
         <p>Necesitás completar la verificación ciudadana para habilitar esta función.</p>
-        <Link href="/verificacion" className="font-semibold text-brand-purple underline">
+        <Link href="/verificacion" className="font-semibold text-primary underline">
           Ir a verificación
         </Link>
       </AccessMessage>
@@ -64,8 +64,8 @@ function AccessMessage({ title, children }: { title: string; children: React.Rea
       tabIndex={-1}
       className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-6 py-12 text-center"
     >
-      <h1 className="text-2xl font-bold text-brand-purple">{title}</h1>
-      <div className="flex flex-col items-center gap-3 text-sm text-brand-black/75">{children}</div>
+      <h1 className="text-2xl font-bold text-primary">{title}</h1>
+      <div className="flex flex-col items-center gap-3 text-sm text-muted">{children}</div>
     </main>
   );
 }

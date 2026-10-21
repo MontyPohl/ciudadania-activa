@@ -1,11 +1,12 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { OperatorRewardForm } from "../OperatorRewardForm";
-import { updateOperatorReward } from "@/lib/api/operatorRewards";
+import { createOperatorReward, updateOperatorReward } from "@/lib/api/operatorRewards";
 import type { OperatorReward } from "@/types/api";
 vi.mock("@/lib/api/operatorRewards", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api/operatorRewards")>()),
   updateOperatorReward: vi.fn(),
+  createOperatorReward: vi.fn(),
 }));
 it("muestra el costo sin input y envía solo los campos cambiados en PATCH", async () => {
   const reward: OperatorReward = {
@@ -38,4 +39,22 @@ it("muestra el costo sin input y envía solo los campos cambiados en PATCH", asy
     }),
   );
   expect(onSaved).toHaveBeenCalledOnce();
+});
+
+it("asocia el error de validación al nombre sin enviar la recompensa", async () => {
+  const user = userEvent.setup();
+  const onSaved = vi.fn();
+  render(<OperatorRewardForm institutionId="institucion" reward={null} onSaved={onSaved} />);
+  const name = screen.getByRole("textbox", { name: "Nombre" });
+  await user.type(name, "Vale\u200b");
+  await user.click(screen.getByRole("button", { name: "Crear recompensa" }));
+  expect(name).toHaveAttribute("aria-invalid", "true");
+  expect(name).toHaveAccessibleDescription(
+    "Usá entre 3 y 160 caracteres, sin caracteres de control.",
+  );
+  expect(screen.getByRole("textbox", { name: "Descripción (opcional)" })).not.toHaveAttribute(
+    "aria-invalid",
+  );
+  expect(createOperatorReward).not.toHaveBeenCalled();
+  expect(onSaved).not.toHaveBeenCalled();
 });

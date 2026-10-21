@@ -16,6 +16,7 @@
  * archivo que nadie va a mirar.
  */
 
+import { Button } from "@/components/ui/Button";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -77,47 +78,48 @@ export function ReviewQueue() {
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex w-full min-w-0 flex-col gap-5">
       <nav className="flex flex-wrap gap-2" aria-label="Filtrar por estado">
         {FILTROS.map((opcion) => (
-          <button
+          <Button
+            variant={filtro === opcion.valor ? "primary" : "secondary"}
             key={opcion.valor}
             type="button"
             onClick={() => cambiarFiltro(opcion.valor)}
             aria-pressed={filtro === opcion.valor}
-            className={`rounded-full px-4 py-1.5 text-sm font-medium ring-1 ring-inset ${
-              filtro === opcion.valor
-                ? "bg-brand-purple text-white ring-brand-purple"
-                : "text-brand-black/70 ring-brand-black/15"
-            }`}
+            className="rounded-full text-sm"
           >
             {opcion.etiqueta}
-          </button>
+          </Button>
         ))}
       </nav>
 
       {vista.fase === "cargando" && (
-        <p role="status" className="text-sm text-brand-black/70">
+        <p role="status" className="text-sm text-muted">
           Cargando verificaciones…
         </p>
       )}
 
       {vista.fase === "error" && (
-        <p role="alert" className="text-sm font-medium text-brand-orange-ink">
+        <p role="alert" className="text-sm font-medium text-danger-ink">
           {vista.mensaje}
         </p>
       )}
 
       {vista.fase === "listo" && vista.pagina.count === 0 && (
-        <p className="text-sm text-brand-black/70">No hay verificaciones en este estado.</p>
+        <p className="text-sm text-muted">No hay verificaciones en este estado.</p>
       )}
 
       {vista.fase === "listo" && vista.pagina.count > 0 && (
         <>
-          <div className="overflow-x-auto">
+          <div
+            // Keep the absolutely positioned sr-only header inside this scroll container.
+            className="relative w-full min-w-0 max-w-full overflow-x-auto focus-visible:outline-2 focus-visible:outline-focus"
+            tabIndex={0}
+          >
             <table className="w-full min-w-[36rem] border-collapse text-left text-sm">
               <thead>
-                <tr className="border-b border-brand-black/10 text-xs uppercase text-brand-black/50">
+                <tr className="border-b border-border text-xs uppercase text-muted">
                   <th className="py-2 pr-4 font-semibold">Ciudadano</th>
                   <th className="py-2 pr-4 font-semibold">Primera presentación</th>
                   <th className="py-2 pr-4 font-semibold">Estado</th>
@@ -128,14 +130,12 @@ export function ReviewQueue() {
               </thead>
               <tbody>
                 {vista.pagina.results.map((fila) => (
-                  <tr key={fila.id} className="border-b border-brand-black/5">
+                  <tr key={fila.id} className="border-b border-border">
                     <td className="py-3 pr-4">
                       <span className="block font-medium">{fila.user.full_name || "—"}</span>
-                      <span className="block text-xs text-brand-black/60">{fila.user.email}</span>
+                      <span className="block text-xs text-muted">{fila.user.email}</span>
                     </td>
-                    <td className="py-3 pr-4 text-brand-black/70">
-                      {formatearFecha(fila.created_at)}
-                    </td>
+                    <td className="py-3 pr-4 text-muted">{formatearFecha(fila.created_at)}</td>
                     <td className="py-3 pr-4">
                       <StatusPill
                         tone={TONO_ESTADO[fila.verification_status]}
@@ -145,7 +145,7 @@ export function ReviewQueue() {
                     <td className="py-3">
                       <Link
                         href={`/identidades/${fila.id}`}
-                        className="font-medium text-brand-purple underline"
+                        className="font-medium text-primary underline"
                       >
                         Revisar
                       </Link>
@@ -156,26 +156,26 @@ export function ReviewQueue() {
             </table>
           </div>
 
-          <div className="flex items-center gap-4 text-sm">
-            <button
+          <div className="flex min-w-0 flex-col items-stretch gap-3 text-sm sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
+            <Button
+              variant="secondary"
               type="button"
               onClick={() => irAPagina((actual) => Math.max(1, actual - 1))}
               disabled={vista.pagina.previous === null}
-              className="rounded-md border border-brand-black/15 px-3 py-1.5 disabled:opacity-40"
             >
               Anterior
-            </button>
-            <span className="text-brand-black/60">
+            </Button>
+            <span className="min-w-0 text-center text-muted wrap-anywhere sm:text-left">
               Página {pagina} · {vista.pagina.count} en total
             </span>
-            <button
+            <Button
+              variant="secondary"
               type="button"
               onClick={() => irAPagina((actual) => actual + 1)}
               disabled={vista.pagina.next === null}
-              className="rounded-md border border-brand-black/15 px-3 py-1.5 disabled:opacity-40"
             >
               Siguiente
-            </button>
+            </Button>
           </div>
         </>
       )}

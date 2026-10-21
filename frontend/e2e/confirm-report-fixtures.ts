@@ -62,6 +62,8 @@ function publicDetail(options: ConfirmationBrowserOptions) {
     longitude: -57.6,
     created_at: "2026-08-29T00:00:00Z",
     confirmation_count: options.publicCount ?? 0,
+    photo_url: null,
+    resolution_evidences: [],
   };
 }
 
@@ -71,8 +73,11 @@ function contextualDetail(
 ) {
   const code = overrides.code === undefined ? (options.eligibilityCode ?? null) : overrides.code;
   const confirmedByMe = overrides.confirmedByMe ?? options.confirmedByMe ?? false;
+  const { photo_url, resolution_evidences, ...detail } = publicDetail(options);
+  void photo_url;
+  void resolution_evidences;
   return {
-    ...publicDetail(options),
+    ...detail,
     cycle: 0,
     validated_at: null,
     resolved_at: null,

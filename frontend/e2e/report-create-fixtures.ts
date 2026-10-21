@@ -188,12 +188,17 @@ export async function openReportWizard(
 }
 
 export async function reachPhotoStep(page: Page): Promise<void> {
-  await expect(page.getByRole("combobox", { name: "Categoría" })).toBeVisible();
-  await page.getByRole("combobox", { name: "Categoría" }).selectOption(CATEGORY.id);
+  await expect(page.getByRole("group", { name: "Categoría" })).toBeVisible();
+  await page.getByRole("radio", { name: CATEGORY.name, exact: true }).check();
   await page.getByRole("button", { name: "Continuar" }).click();
   await page.getByRole("textbox", { name: "Descripción" }).fill(DESCRIPTION);
   await page.getByRole("button", { name: "Continuar" }).click();
   await expect(page.getByRole("heading", { name: "Foto" })).toBeFocused();
+  await expect(
+    page.getByText("La foto será pública: evitá caras, patentes y datos personales.", {
+      exact: true,
+    }),
+  ).toBeVisible();
 }
 
 export async function reachLocationStep(page: Page): Promise<void> {

@@ -532,7 +532,7 @@ estados es una lista positiva: un estado futuro no se publicará por omisión.
 `institution` es `null` cuando el reporte no tiene una asignada; nunca se reemplaza en la salida
 por `category.default_institution`.
 
-La lista blanca termina en esos nueve campos superiores. No devuelve `citizen`, datos del autor,
+Desde S15-B1, la lista blanca agrega `photo_url` a esos nueve campos superiores. No devuelve `citizen`, datos del autor,
 `source`, `location`, validadores, motivo de rechazo, marcas internas, media, historial ni
 confirmaciones.
 
@@ -585,11 +585,13 @@ responde, la lectura continúa desde PostgreSQL y el log genérico no contiene b
 
 ### 4.2 `GET /api/v1/public/reports/{id}/`
 
-Devuelve directamente el mismo objeto público del listado más `confirmation_count`, sin envoltorio
+Devuelve directamente el mismo objeto público del listado más `confirmation_count` y, desde
+S15-B1, `resolution_evidences` (ver la enmienda al final), sin envoltorio
 y sin caché. Su queryset usa la misma lista positiva de estados. Un UUID inexistente y uno
 correspondiente a un reporte `RECHAZADO` responden exactamente el mismo `404`, sin revelar cuál de
 los dos casos ocurrió. No incluye contexto personal, elegibilidad, identidades, historial ni ledger;
-el listado cacheado del mapa conserva sus nueve campos y no incorpora el contador.
+el listado cacheado del mapa tiene diez campos desde S15-B1 (incluye `photo_url`) y no
+incorpora el contador ni las evidencias.
 
 ### 4.3 `GET /api/v1/public/categories/`
 
@@ -644,7 +646,8 @@ La foto se valida por tamaño real del stream, extensión, MIME declarado y cont
 Pillow. El backend corrige orientación, vuelve a codificar sin metadata y deriva extensión/MIME del
 formato real. `file_hash` conserva el SHA-256 de los **bytes originales**; los bytes almacenados
 son los normalizados. El objeto vive en el bucket privado `reportes` con clave
-`reports/{report_id}/{media_id}.{ext}` y no se entrega una URL pública.
+`reports/{report_id}/{media_id}.{ext}`. Desde S15-B1, el proxy público se habilita tras
+la asignación institucional; el bucket sigue privado (ADR-0017).
 
 El upload ocurre antes de la transacción de base de datos. Después se escriben atómicamente
 `Report`, `ReportMedia`, el historial inicial, la transacción `REPORT_CREATED` pendiente y el
@@ -1908,6 +1911,8 @@ Redis; el estado operativo sigue requiriendo inspeccionar el JSON (§1.1).
 | GET | `/api/v1/ranking/monthly/` | `AllowAny` | GET → 200 | §8.5 |
 | GET | `/api/v1/operator/metrics/` | `IsInstitutionOperator` | GET → 401 | §10 |
 | GET | `/api/v1/admin/metrics/` | `IsAdmin` | GET → 401 | §10 |
+| GET | `/api/v1/public/reports/{id}/photo/` | `AllowAny`, sin autenticación | GET → 200 o 404 según publicación | S15-B1 |
+| GET | `/api/v1/public/reports/{id}/evidence/{evidence_id}/` | `AllowAny`, sin autenticación | GET → 200 o 404 según publicación | S15-B1 |
 | GET | `/api/v1/public/metrics/` | `AllowAny`, sin autenticación | GET → 200 | §10 |
 
 Las siguientes rutas **no existen** en el backend; la prueba verifica su 404 explícito:
@@ -1927,3 +1932,123 @@ se conservan en `test_auth_endpoints`, `test_identity_endpoints`, `test_identity
 `test_reversal_api`, `test_audit_api`, `test_rewards_api`, `test_ranking` y `test_metrics_api`.
 Las rutas del BFF de Next.js (`/api/auth/google`, `/api/auth/refresh` y `/api/auth/logout`)
 se describen en §2.2 y se prueban aparte en `bff-routes.test.ts`.
+
+## S15-B1: medios y agregados públicos
+
+Esta sección sustituye las restricciones históricas de foto pública y de la lista
+blanca anterior de mapa/detalle. [ADR-0017](adr/ADR-0017-medios-publicos-de-reportes.md).
+No modifica endpoints privados, identidad, coordenadas, permisos ni validaciones.
+
+### Listado y detalle de reportes
+
+`GET /api/v1/public/reports/?bbox=…` mantiene paginación y filtros. Cada elemento
+contiene exactamente `id`, `category`, `institution`, `description`, `status`,
+`priority`, `latitude`, `longitude`, `created_at`, **`photo_url`**.
+
+`GET /api/v1/public/reports/{id}/` contiene esos diez campos y **`confirmation_count`**
+y **`resolution_evidences`**. Solo esas dos claves son exclusivas del detalle.
+
+Ejemplo ilustrativo de los campos nuevos (UUIDs y fechas sintéticos, no métricas reales):
+
+```json
+{
+  "photo_url": "/api/v1/public/reports/11111111-1111-4111-8111-111111111111/photo/",
+  "resolution_evidences": [
+    {
+      "id": "22222222-2222-4222-8222-222222222222",
+      "evidence_url": "/api/v1/public/reports/11111111-1111-4111-8111-111111111111/evidence/22222222-2222-4222-8222-222222222222/",
+      "created_at": "2026-10-20T12:00:00Z"
+    }
+  ]
+}
+```
+
+- `photo_url: string | null`: primera `FOTO` por `created_at, id`, solo desde
+  `ASIGNADO` (`ASIGNADO`, `EN_PROCESO`, `RESUELTO`, `CERRADO`); `null` sin foto o en
+  otro estado. No se comprueba Storage al serializar: un objeto perdido devuelve 404
+  al abrir su enlace.
+- `resolution_evidences: Array<{id: UUID, evidence_url: string, created_at: ISODateTime}>`:
+  toda evidencia, orden `created_at, id`, únicamente en `RESUELTO`/`CERRADO`; `[]` en
+  otro estado o sin evidencia. Incluye ciclos anteriores. Sin texto libre ni autor.
+- Rutas relativas a la raíz del **backend/API**, sin URL firmada ni token. El cliente
+  debe resolverlas contra el origen de la API, no el de Next.js si es diferente.
+- El detalle y el listado siguen excluyendo reportes `RECHAZADO`.
+
+### Proxies de imágenes
+
+| Método y ruta | Contenido |
+|---|---|
+| `GET /api/v1/public/reports/{id}/photo/` | Primera foto pública |
+| `GET /api/v1/public/reports/{id}/evidence/{evidence_id}/` | Evidencia perteneciente al reporte, solo resuelto/cerrado |
+
+Ambos son anónimos, ignoran Authorization y nunca aceptan claves ni tokens para
+seleccionar objetos. Scope por IP **`public_report_media: 120/min`** para ambos.
+Solo leen el bucket privado de reportes; nunca el de identidades.
+
+200: bytes `image/jpeg` o `image/png`. 404 uniforme para ausencia, estado no permitido,
+objeto perdido o evidencia ajena: `{"detail":"No se encontró la imagen."}`.
+503: `{"detail":"No se pudo obtener la imagen en este momento."}`.
+429: contrato DRF de throttle existente. Todos llevan `Cache-Control: no-store` y
+`X-Content-Type-Options: nosniff`. El estado se verifica en cada lectura; un rechazo
+retira el acceso incluso si un listado cacheado todavía contiene la ruta.
+Para un reporte ya validado, rechazar directamente falla con
+`VALIDATION_REVERSAL_REQUIRED`: un **admin** debe ejecutar primero
+`POST /api/v1/admin/reports/{id}/revert-validation/` con `cycle` vigente y `reason`.
+La reversión devuelve el reporte a `CLASIFICADO`, revierte los créditos del ciclo y
+registra auditoría. Desde ese momento los proxies dejan de servir foto y evidencia,
+porque consultan el estado en cada lectura. Después, la institución o el admin pueden
+rechazarlo si corresponde. La institución sola no puede retirar medios de un reporte
+ya validado.
+
+### `GET /api/v1/public/metrics/`
+
+Mantiene las claves existentes `window`, `generated_at`, `min_cell_size`, `totals`,
+`institutions`, sus fórmulas y reglas. Agrega exactamente:
+
+```json
+{
+  "trend": [
+    {"period":"2026-05","received":null,"resolved":null,"suppressed":["received","resolved"]},
+    {"period":"2026-06","received":null,"resolved":null,"suppressed":["received","resolved"]},
+    {"period":"2026-07","received":null,"resolved":null,"suppressed":["received","resolved"]},
+    {"period":"2026-08","received":null,"resolved":null,"suppressed":["received","resolved"]},
+    {"period":"2026-09","received":null,"resolved":null,"suppressed":["received","resolved"]},
+    {"period":"2026-10","received":null,"resolved":null,"suppressed":["received","resolved"]}
+  ],
+  "current_month_by_category": [
+    {
+      "category":{"id":"33333333-3333-4333-8333-333333333333","name":"Baches","slug":"baches"},
+      "received":null,
+      "suppressed":["received"]
+    }
+  ]
+}
+```
+
+El ejemplo ilustra ausencia de casos; la respuesta real incluye **todas** las categorías
+por `name, pk`, también inactivas para no omitir reportes históricos. No es un top N.
+`trend` siempre trae seis puntos en orden cronológico, mes local actual + cinco
+anteriores, incluso al cruzar de año. `period` es `YYYY-MM`.
+
+- `received: integer | null`: cantidad de reportes creados en el mes.
+- `resolved: integer | null`: cantidad de reportes cuya **primera** transición histórica
+  a `RESUELTO` ocurrió en ese mes; nuevas resoluciones tras reapertura no se repiten.
+- El mes actual y la ventana terminan en `generated_at` (límite exclusivo); meses
+  anteriores completos. Zona `America/Asuncion`. Mismo universo global que `totals`,
+  sin filtrar por estado actual ni institución activa.
+- `suppressed: Array<"received" | "resolved">` por punto; en categorías solo
+  `"received"`. Cada celda con 0–4 casos devuelve `null`, **no cero**. Un conteo ≥5
+  puede también ser `null` por supresión complementaria: no se debe reconstruirlo.
+- Supresión complementaria: si hay una sola categoría oculta y el mes se publica,
+  se oculta también la menor categoría publicada (o el mes si no existe otra).
+  Luego, si hay un solo mes oculto en una serie, se oculta además el menor publicado
+  para no despejarlo desde el total de seis meses. Los empates siguen el orden de
+  las listas. Los totales existentes conservan sus reglas.
+- No hay datos personales ni cruces categoría × institución. Los clientes deben
+  distinguir `null` suprimido de conteo cero, con nota «se muestra con 5 o más casos».
+- `public-metrics:v2` reemplaza la caché `v1`; se conserva TTL 60 s y la política de
+  errores `no-store`. Listado de reportes: `public-reports:v2`.
+
+**Integración:** B1 no toca frontend. Los parsers exactos deben admitir estos campos
+antes de desplegar el nuevo contrato. El aviso de publicación y las imágenes/gráficos
+se incorporan en Fase 5; no habilitar la publicación productiva antes de esa integración.

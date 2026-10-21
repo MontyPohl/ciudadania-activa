@@ -1,5 +1,10 @@
 "use client";
 
+import { Card } from "@/components/ui/Card";
+import { Textarea } from "@/components/ui/Textarea";
+import { Button } from "@/components/ui/Button";
+import { Select } from "@/components/ui/Select";
+import { Input } from "@/components/ui/Input";
 import { useEffect, useRef, useState } from "react";
 
 import { formatReportDate } from "@/features/reports/presentation";
@@ -177,15 +182,15 @@ export function AdminAuditConsole() {
     <div className="space-y-7">
       <form
         onSubmit={applyFilters}
-        className="rounded-2xl bg-white p-5 text-brand-black shadow-sm ring-1 ring-brand-black/10"
+        className="rounded-2xl bg-surface p-5 text-ink shadow-sm ring-1 ring-border"
       >
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <FilterField label="Acción">
-            <input
+            <Input
               list="audit-actions"
               value={draft.action}
               onChange={(event) => setDraft({ ...draft, action: event.target.value })}
-              className="audit-input"
+              className="min-w-0"
             />
             <datalist id="audit-actions">
               {ACTIONS.map((action) => (
@@ -194,84 +199,77 @@ export function AdminAuditConsole() {
             </datalist>
           </FilterField>
           <FilterField label="Tipo de actor">
-            <select
+            <Select
               value={draft.actorType}
               onChange={(event) =>
                 setDraft({ ...draft, actorType: event.target.value as ActorType | "" })
               }
-              className="audit-input"
+              className="min-w-0"
             >
               <option value="">Todos</option>
               <option value="human">Persona</option>
               <option value="ai">IA</option>
               <option value="system">Sistema</option>
-            </select>
+            </Select>
           </FilterField>
           <FilterField label="ID del actor">
-            <input
+            <Input
               value={draft.actorUserId}
               onChange={(event) => setDraft({ ...draft, actorUserId: event.target.value })}
-              className="audit-input"
+              className="min-w-0"
               inputMode="text"
             />
           </FilterField>
           <FilterField label="ID del reporte">
-            <input
+            <Input
               value={draft.reportId}
               onChange={(event) => setDraft({ ...draft, reportId: event.target.value })}
-              className="audit-input"
+              className="min-w-0"
               inputMode="text"
             />
           </FilterField>
           <FilterField label="ID de la institución">
-            <input
+            <Input
               value={draft.institutionId}
               onChange={(event) => setDraft({ ...draft, institutionId: event.target.value })}
-              className="audit-input"
+              className="min-w-0"
               inputMode="text"
             />
           </FilterField>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
             <FilterField label="Desde">
-              <input
+              <Input
                 type="date"
                 value={draft.createdFrom}
                 onChange={(event) => setDraft({ ...draft, createdFrom: event.target.value })}
-                className="audit-input"
+                className="min-w-0"
               />
             </FilterField>
             <FilterField label="Hasta">
-              <input
+              <Input
                 type="date"
                 max="9999-12-30"
                 value={draft.createdTo}
                 onChange={(event) => setDraft({ ...draft, createdTo: event.target.value })}
-                className="audit-input"
+                className="min-w-0"
               />
             </FilterField>
           </div>
         </div>
         <div className="mt-5 flex flex-wrap gap-3">
-          <button
-            type="submit"
-            className="min-h-11 rounded-lg bg-brand-purple px-4 py-2 font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple"
-          >
+          <Button variant="primary" type="submit">
             Aplicar filtros
-          </button>
-          <button
-            type="button"
-            onClick={clearFilters}
-            className="min-h-11 rounded-lg border border-brand-black/20 px-4 py-2 font-semibold text-brand-black/75 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple"
-          >
+          </Button>
+          <Button variant="secondary" type="button" onClick={clearFilters}>
             Limpiar
-          </button>
+          </Button>
         </div>
       </form>
 
       {message && (
         <p
           role="alert"
-          className="rounded-xl border border-brand-orange/40 bg-white p-4 text-sm font-medium text-brand-black"
+          className="rounded-xl border border-warning/40 bg-surface p-4 text-sm font-medium text-ink"
         >
           {message}
         </p>
@@ -280,22 +278,22 @@ export function AdminAuditConsole() {
       {selected && (
         <form
           onSubmit={(event) => void reverse(event)}
-          className="rounded-2xl bg-white p-5 text-brand-black shadow-sm ring-2 ring-brand-orange/40"
+          className="rounded-2xl bg-surface p-5 text-ink shadow-sm ring-2 ring-warning/40"
           aria-busy={busy}
         >
           <h2
             ref={reversalHeading}
             tabIndex={-1}
-            className="text-lg font-bold text-brand-orange-ink focus:outline-none"
+            className="text-lg font-bold text-danger-ink focus:outline-none"
           >
             Revertir validación
           </h2>
-          <p className="mt-2 text-sm text-brand-black/75">
+          <p className="mt-2 text-sm text-muted">
             Reporte <span className="break-all font-mono">{selected.reportId}</span>, ciclo{" "}
             {selected.cycle}. El backend volverá a comprobar estado y ciclo antes de cambiar nada.
           </p>
-          <div className="mt-3 rounded-xl border border-brand-orange/30 bg-brand-orange/5 p-4 text-sm text-brand-black/80">
-            <p className="font-semibold text-brand-orange-ink">Consecuencias de esta reversión</p>
+          <div className="mt-3 rounded-xl border border-warning/30 bg-warning/5 p-4 text-sm text-muted">
+            <p className="font-semibold text-danger-ink">Consecuencias de esta reversión</p>
             <p className="mt-1">
               El reporte volverá a Clasificado y se retirarán los puntos y créditos derivados de
               esta validación, incluido el bono de resolución si existe. Los canjes ya emitidos no
@@ -305,7 +303,7 @@ export function AdminAuditConsole() {
           </div>
           <label className="mt-4 block text-sm font-medium">
             Motivo administrativo
-            <textarea
+            <Textarea
               required
               minLength={10}
               maxLength={1000}
@@ -313,59 +311,53 @@ export function AdminAuditConsole() {
               value={reason}
               disabled={busy}
               onChange={(event) => setReason(event.target.value)}
-              className="audit-input mt-1"
+              className="min-w-0 mt-1"
               aria-describedby="reversal-help"
             />
           </label>
-          <p id="reversal-help" className="mt-2 text-sm text-brand-black/70">
+          <p id="reversal-help" className="mt-2 text-sm text-muted">
             No incluyas secretos, números de documento, datos médicos ni información personal
             innecesaria. El motivo quedará en el historial y la auditoría.
           </p>
-          <p className="mt-1 text-xs text-brand-black/60">{reason.length} / 1000 caracteres</p>
+          <p className="mt-1 text-xs text-muted">{reason.length} / 1000 caracteres</p>
           <div className="mt-4 flex flex-wrap gap-3">
-            <button
-              type="submit"
-              disabled={busy}
-              className="min-h-11 rounded-lg bg-brand-orange px-4 py-2 font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-orange-ink disabled:cursor-not-allowed disabled:opacity-55"
-            >
+            <Button variant="danger" type="submit" disabled={busy}>
               {busy ? "Revirtiendo…" : "Confirmar reversión"}
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="secondary"
               type="button"
               disabled={busy}
               onClick={() => {
                 setSelected(null);
                 setReason("");
               }}
-              className="min-h-11 rounded-lg border border-brand-black/20 px-4 py-2 font-semibold text-brand-black/75 disabled:cursor-not-allowed disabled:opacity-55"
             >
               Cancelar
-            </button>
+            </Button>
           </div>
         </form>
       )}
 
       {view.phase === "loading" && <p role="status">Cargando auditoría…</p>}
       {view.phase === "error" && (
-        <div
-          role="alert"
-          className="rounded-xl border border-brand-orange/40 bg-white p-5 text-brand-black"
-        >
+        <div role="alert" className="rounded-xl border border-warning/40 bg-surface p-5 text-ink">
           <p>{view.message}</p>
-          <button
+          <Button
+            variant="primary"
             type="button"
             onClick={() => {
               setView({ phase: "loading" });
               setReload((value) => value + 1);
             }}
-            className="mt-3 min-h-11 rounded-lg bg-brand-purple px-4 py-2 font-semibold text-white"
+            className="mt-3"
           >
             Reintentar
-          </button>
+          </Button>
         </div>
       )}
       {view.phase === "ready" && view.page.count === 0 && (
-        <p className="rounded-2xl border border-dashed border-brand-purple/30 p-6 text-center">
+        <p className="rounded-2xl border border-dashed border-primary/30 p-6 text-center">
           No hay eventos que coincidan con estos filtros.
         </p>
       )}
@@ -375,53 +367,52 @@ export function AdminAuditConsole() {
             {view.page.results.map((entry) => {
               const context = reversalContext(entry);
               return (
-                <li
-                  key={entry.id}
-                  className="rounded-2xl bg-white p-5 text-brand-black shadow-sm ring-1 ring-brand-black/10"
-                >
+                <Card as="li" key={entry.id} className="p-5 ring-1 ring-border">
                   <article>
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
-                        <h2 className="font-bold text-brand-purple">{entry.action}</h2>
-                        <p className="mt-1 text-xs font-medium uppercase tracking-wide text-brand-black/55">
+                        <h2 className="font-bold text-primary">{entry.action}</h2>
+                        <p className="mt-1 text-xs font-medium uppercase tracking-wide text-muted">
                           {actorLabel(entry.actor_type)}
                         </p>
                       </div>
-                      <time className="text-sm text-brand-black/65" dateTime={entry.created_at}>
+                      <time className="text-sm text-muted" dateTime={entry.created_at}>
                         {formatReportDate(entry.created_at)}
                       </time>
                     </div>
                     <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
                       {Object.entries(entry.payload).map(([key, value]) => (
                         <div key={key} className="min-w-0">
-                          <dt className="font-semibold text-brand-black/60">{key}</dt>
+                          <dt className="font-semibold text-muted">{key}</dt>
                           <dd className="break-words font-mono text-xs">{payloadValue(value)}</dd>
                         </div>
                       ))}
                     </dl>
                     {context && (
-                      <button
+                      <Button
+                        variant="secondary"
                         type="button"
                         onClick={() => {
                           setReason("");
                           setMessage(null);
                           setSelected(context);
                         }}
-                        className="mt-5 min-h-11 rounded-lg border border-brand-orange px-4 py-2 text-sm font-semibold text-brand-orange-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-orange-ink"
+                        className="mt-5 text-sm"
                       >
                         Preparar reversión del ciclo {context.cycle}
-                      </button>
+                      </Button>
                     )}
                   </article>
-                </li>
+                </Card>
               );
             })}
           </ol>
           <nav
             aria-label="Páginas de auditoría"
-            className="mt-5 flex items-center justify-between gap-4"
+            className="mt-5 flex flex-wrap items-center justify-between gap-4"
           >
-            <button
+            <Button
+              variant="secondary"
               type="button"
               disabled={view.page.previous === null}
               onClick={() => {
@@ -429,12 +420,12 @@ export function AdminAuditConsole() {
                 setSelected(null);
                 setPage((value) => Math.max(1, value - 1));
               }}
-              className="min-h-11 rounded-lg border border-brand-purple px-4 py-2 font-semibold text-brand-purple disabled:cursor-not-allowed disabled:opacity-45"
             >
               Anterior
-            </button>
+            </Button>
             <span className="text-sm">Página {page}</span>
-            <button
+            <Button
+              variant="secondary"
               type="button"
               disabled={view.page.next === null}
               onClick={() => {
@@ -442,10 +433,9 @@ export function AdminAuditConsole() {
                 setSelected(null);
                 setPage((value) => value + 1);
               }}
-              className="min-h-11 rounded-lg border border-brand-purple px-4 py-2 font-semibold text-brand-purple disabled:cursor-not-allowed disabled:opacity-45"
             >
               Siguiente
-            </button>
+            </Button>
           </nav>
         </>
       )}
@@ -455,7 +445,7 @@ export function AdminAuditConsole() {
 
 function FilterField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label className="flex flex-col gap-1 text-sm font-medium">
+    <label className="flex min-w-0 flex-col gap-1 text-sm font-medium">
       {label}
       {children}
     </label>

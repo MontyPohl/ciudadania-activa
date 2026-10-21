@@ -1,4 +1,6 @@
 "use client";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { Button } from "@/components/ui/Button";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -14,7 +16,7 @@ import { RewardCard } from "./RewardCard";
 import { RedeemDialog } from "./RedeemDialog";
 import { MovementsList } from "./MovementsList";
 import { MyRedemptionsList } from "./MyRedemptionsList";
-import { errorMessage, secondary } from "./presentation";
+import { errorMessage } from "./presentation";
 export function RewardsPage() {
   const router = useRouter();
   const [view, setView] = useState<{ summary: RewardsSummary; catalog: RewardsCatalog } | null>(
@@ -78,27 +80,25 @@ export function RewardsPage() {
     <main
       id="contenido-principal"
       tabIndex={-1}
-      className="mx-auto flex w-full max-w-5xl flex-col gap-8 bg-white px-6 py-10 text-brand-black"
+      className="mx-auto flex w-full max-w-5xl min-w-0 flex-col gap-8 px-4 sm:px-6 py-10 text-ink"
     >
-      <header className="space-y-2">
-        <h1 className="text-3xl font-bold text-brand-purple">Recompensas</h1>
-        <p className="text-brand-black/75">
-          Revisá tu impacto y canjeá los créditos de cada institución.
-        </p>
-      </header>
+      <PageHeader
+        title="Recompensas"
+        description="Revisá tu impacto y canjeá los créditos de cada institución."
+      />
       {notice && <p role="status">{notice}</p>}
       {error ? (
         <div className="space-y-3">
           <p role="alert">{error}</p>
-          <button
-            className={secondary}
+          <Button
+            variant="secondary"
             onClick={() => {
               setError("");
               setReload((r) => r + 1);
             }}
           >
             Reintentar
-          </button>
+          </Button>
         </div>
       ) : !view ? (
         <p role="status">Cargando tus recompensas…</p>

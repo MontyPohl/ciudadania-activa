@@ -5051,6 +5051,23 @@ con fotos inéditas y oro humano sigue pendiente de entrega; no se exige otro en
 El [informe de validación vigente](s15/S15_INFORME_VALIDACION.md) distingue la segunda
 etapa de los resultados anteriores.
 
+### Carril S15-UI — rediseño institucional (20/10/2026)
+
+Fases 0–5 y B1 previamente registradas. Fase 6 preparada en `feat/s15-ui`:
+identidad, creación, seguimiento, confirmación y operación de reportes, evidencia y
+auditoría migrados a primitivas y tokens azules; retirados los alias `brand-*`.
+Categorías seleccionables desde el catálogo real, resumen de campos y privacidad
+factual; paginadores adaptables y fechas apiladas en móvil. Sin cambios de backend,
+API, permisos, validaciones ni orden del asistente.
+
+Verificaciones de esta sesión: lint, formato y tipos con código 0; Vitest con
+53 archivos y 477 pruebas aprobadas (21,82 s). Grep final sin alias ni hex
+antiguos en código y pruebas del frontend. Por restricción del
+entorno, build, E2E completo, comprobación de rutas privadas, full-stack y capturas
+quedan a cargo de Claude: **build OK, 86/86 E2E, 6/6 rutas privadas y 28/28 capturas** (20/10/2026; full-stack S15 pendiente de la verificación integrada). No se declara cierre
+visual, integración ni despliegue. Resultados, specs y marcadores de evidencia en
+[S15_REDISENO_UI.md](s15/S15_REDISENO_UI.md). Sin commit en esta sesión.
+
 ### Funcionalidades terminadas
 
 - Generador y verificador del dataset funcional sintético: 36 reportes, historia por

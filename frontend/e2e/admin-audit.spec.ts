@@ -97,13 +97,18 @@ test("administración revisa consecuencias y revierte desde auditoría", async (
   expect(metrics.listGets).toBeGreaterThanOrEqual(2);
 });
 
-test("auditoría no desborda un viewport móvil", async ({ page }) => {
-  await page.setViewportSize({ width: 375, height: 812 });
+test("auditoría contiene filtros y reversión en los cuatro anchos", async ({ page }) => {
   await openAudit(page);
-  await expect(page.getByRole("heading", { name: "report.closed" })).toBeVisible();
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
-
+  await page.getByLabel("Desde", { exact: true }).fill("2026-10-01");
+  await page.getByLabel("Hasta", { exact: true }).fill("2026-10-20");
   await page.getByRole("button", { name: "Preparar reversión del ciclo 2" }).click();
-  await expect(page.getByRole("heading", { name: "Revertir validación" })).toBeVisible();
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
+  for (const width of [320, 375, 768, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(page.getByRole("heading", { name: "Revertir validación" })).toBeVisible();
+    await expect(page.getByLabel("Desde", { exact: true })).toHaveValue("2026-10-01");
+    await expect(page.locator("#contenido-principal")).toHaveCount(1);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      width,
+    );
+  }
 });

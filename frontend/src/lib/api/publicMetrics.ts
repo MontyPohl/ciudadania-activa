@@ -104,6 +104,38 @@ function suppressedCells(v: unknown, institutional: boolean): boolean {
       : v[key] === null,
   );
 }
+function newCells(v: unknown, trend: boolean): boolean {
+  const keys = trend ? ["received", "resolved"] : ["received"];
+  return (
+    object(v, {
+      ...(trend
+        ? { period: (v: unknown) => typeof v === "string" && /^\d{4}-(0[1-9]|1[0-2])$/.test(v) }
+        : { category: isRef }),
+      ...Object.fromEntries(keys.map((key) => [key, nullable(count)])),
+      suppressed: (v: unknown) =>
+        Array.isArray(v) && new Set(v).size === v.length && v.every((key) => keys.includes(key)),
+    }) &&
+    isRecord(v) &&
+    Array.isArray(v.suppressed) &&
+    keys.every(
+      (key) =>
+        (v[key] === null) === (v.suppressed as string[]).includes(key) &&
+        (v[key] === null || (count(v[key]) && v[key] >= 5)),
+    )
+  );
+}
+
+function chronologicalTrend(v: PublicMetrics): boolean {
+  const [year, month] = v.window.from.split("-").map(Number);
+  return (
+    v.trend.length === 6 &&
+    v.trend.every(
+      (point, index) =>
+        point.period === new Date(Date.UTC(year, month - 1 + index, 1)).toISOString().slice(0, 7),
+    )
+  );
+}
+
 export async function getPublicMetrics(signal?: AbortSignal): Promise<PublicMetrics> {
   try {
     const v: unknown = await publicApiFetch("/api/v1/public/metrics/", { signal });
@@ -114,7 +146,10 @@ export async function getPublicMetrics(signal?: AbortSignal): Promise<PublicMetr
         min_cell_size: (v) => v === 5,
         totals: (v) => suppressedCells(v, false),
         institutions: list((v) => suppressedCells(v, true)),
-      })
+        trend: list((v) => newCells(v, true)),
+        current_month_by_category: list((v) => newCells(v, false)),
+      }) ||
+      !chronologicalTrend(v as PublicMetrics)
     )
       throw new PublicApiError("La respuesta de métricas no es válida. Intentá de nuevo.", 502);
     return v as PublicMetrics;

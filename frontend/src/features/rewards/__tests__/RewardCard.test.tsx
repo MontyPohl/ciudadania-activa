@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { RewardCard } from "../RewardCard";
 import type { CatalogEntry } from "@/types/api";
 const base: CatalogEntry = {
@@ -57,8 +58,10 @@ describe("RewardCard", () => {
     },
   ] satisfies { label: string; patch: Partial<CatalogEntry>; text: string; enabled: boolean }[])(
     "muestra $label",
-    ({ patch, text, enabled }) => {
-      render(<RewardCard entry={{ ...base, ...patch }} period="2026-10" onRedeem={vi.fn()} />);
+    async ({ patch, text, enabled }) => {
+      const onRedeem = vi.fn();
+      const entry = { ...base, ...patch };
+      render(<RewardCard entry={entry} period="2026-10" onRedeem={onRedeem} />);
       expect(screen.getByText(text, { exact: false })).toBeVisible();
       if (enabled) expect(screen.getByRole("button", { name: "Canjear" })).toBeEnabled();
       else expect(screen.getByRole("button", { name: "Canjear" })).toBeDisabled();
@@ -66,6 +69,12 @@ describe("RewardCard", () => {
         "value",
         String(Math.max(0, Math.min(patch.balance ?? base.balance, 1000))),
       );
+      expect(
+        screen.getByText(enabled ? "Disponible para canjear" : "Canje no disponible"),
+      ).toBeVisible();
+      await userEvent.setup().click(screen.getByRole("button", { name: "Canjear" }));
+      if (enabled) expect(onRedeem).toHaveBeenCalledExactlyOnceWith(entry);
+      else expect(onRedeem).not.toHaveBeenCalled();
       if (patch.redemption_this_month)
         expect(screen.getByRole("link", { name: "Ver mi vale" })).toHaveAttribute(
           "href",

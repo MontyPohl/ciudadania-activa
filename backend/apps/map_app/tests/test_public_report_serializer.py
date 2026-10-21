@@ -27,6 +27,7 @@ def test_serializer_publico_tiene_lista_blanca_exacta_y_redondea(public_report_f
         "latitude",
         "longitude",
         "created_at",
+        "photo_url",
     }
     assert set(data["category"]) == {"id", "name", "slug"}
     assert set(data["institution"]) == {"id", "name", "slug"}

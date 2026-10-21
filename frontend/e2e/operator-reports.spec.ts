@@ -4,7 +4,9 @@ import { ANDE_ID, openOperatorQueue } from "./operator-report-fixtures";
 
 test("operador selecciona institución, abre reporte, confirma y valida", async ({ page }) => {
   const metrics = await openOperatorQueue(page);
+  await page.getByText("Mi cuenta", { exact: true }).filter({ visible: true }).click();
   await expect(page.getByText("operator@example.invalid")).toBeVisible();
+  await page.keyboard.press("Escape");
   await page.getByLabel("Contexto institucional").selectOption(ANDE_ID);
   await expect(page.getByText("Alumbrado público")).toBeVisible();
   await page.getByRole("link", { name: "Abrir detalle" }).click();

@@ -1,3 +1,4 @@
+import { Select } from "@/components/ui/Select";
 import type { SessionInstitution } from "@/types/api";
 
 export function OperatorInstitutionSelector({
@@ -13,7 +14,7 @@ export function OperatorInstitutionSelector({
 }) {
   if (institutions.length <= 1) {
     return institutions[0] ? (
-      <p className="text-sm text-brand-black/70">
+      <p className="text-sm text-muted">
         Institución: <strong>{institutions[0].name}</strong>
       </p>
     ) : null;
@@ -22,20 +23,19 @@ export function OperatorInstitutionSelector({
   return (
     <label className="flex max-w-md flex-col gap-1 text-sm font-medium">
       Contexto institucional
-      <select
+      <Select
         aria-label="Contexto institucional"
         value={value}
         onChange={(event) => onChange(event.target.value)}
         disabled={disabled}
-        className="rounded-md border border-brand-black/20 bg-white px-3 py-2"
       >
         {institutions.map((institution) => (
           <option key={institution.id} value={institution.id}>
             {institution.name}
           </option>
         ))}
-      </select>
-      <span className="font-normal text-brand-black/60">
+      </Select>
+      <span className="font-normal text-muted">
         El servidor verificará tu membresía antes de cada operación.
       </span>
     </label>

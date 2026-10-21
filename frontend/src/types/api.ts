@@ -166,6 +166,7 @@ export interface PublicInstitution {
 
 /** Lista blanca exacta expuesta por la API pública; no contiene autor ni ubicación exacta. */
 export interface PublicReport {
+  photo_url: string | null;
   id: string;
   category: PublicCategory;
   institution: PublicInstitution | null;
@@ -180,6 +181,7 @@ export interface PublicReport {
 /** El contador existe solo en el detalle; el listado público cacheado no lo incluye. */
 export interface PublicReportDetailData extends PublicReport {
   confirmation_count: number;
+  resolution_evidences: { id: UUID; evidence_url: string; created_at: ISODateTime }[];
 }
 
 export type PublicReportsPage = PaginatedResponse<PublicReport>;
@@ -545,11 +547,26 @@ export interface PublicInstitutionMetrics extends PublicMetricsCells {
   sla: { configured: boolean; hours: number | null; compliance_rate: number | null };
 }
 
-/** Respuesta de `GET /api/v1/public/metrics/`. */
+export interface PublicTrendPoint {
+  period: MetricsPeriod;
+  received: number | null;
+  resolved: number | null;
+  suppressed: ("received" | "resolved")[];
+}
+
+export interface PublicCategoryCount {
+  category: OperatorCategory;
+  received: number | null;
+  suppressed: "received"[];
+}
+
+/** Respuesta de `GET /api/v1/public/metrics/` (S15-B1). */
 export interface PublicMetrics {
   window: { from: string; to: string; months: number };
   generated_at: ISODateTime;
   min_cell_size: number;
   totals: PublicMetricsCells;
   institutions: PublicInstitutionMetrics[];
+  trend: PublicTrendPoint[];
+  current_month_by_category: PublicCategoryCount[];
 }

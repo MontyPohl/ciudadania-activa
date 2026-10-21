@@ -379,6 +379,14 @@ describe("interfaz institucional S9-B2", () => {
     const user = userEvent.setup();
     render(<OperatorReportDetail id={report.id} initialInstitutionId={municipal.id} />);
     await screen.findByRole("heading", { name: "Agregar evidencia al ciclo 1" });
+    const notice = screen.getByText(
+      "La evidencia será pública cuando el reporte quede resuelto o cerrado: evitá caras, patentes y datos personales.",
+    );
+    expect(notice).toBeVisible();
+    expect(screen.getByLabelText("Imagen")).toHaveAccessibleDescription(notice.textContent!);
+    expect(notice.compareDocumentPosition(screen.getByLabelText("Imagen"))).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
 
     await user.upload(
       screen.getByLabelText("Imagen"),

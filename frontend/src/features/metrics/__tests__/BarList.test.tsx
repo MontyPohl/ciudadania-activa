@@ -35,3 +35,8 @@ it.each([
   expect(toggle).toHaveAttribute("aria-expanded", "true");
   expect(table.parentElement).not.toHaveClass("sr-only");
 });
+it("muestra la supresión como raya tanto en el gráfico como en la tabla", () => {
+  render(<BarList title="Categorías públicas" items={[{ label: "Baches", value: null }]} />);
+  expect(within(screen.getByRole("table")).getByRole("cell")).toHaveTextContent("—");
+  expect(screen.queryByText("Todavía no hay datos.")).not.toBeInTheDocument();
+});

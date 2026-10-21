@@ -228,6 +228,7 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "identity_submit": "5/hour",
         "public_map": "120/min",
+        "public_report_media": "120/min",
         "report_create": "5/hour",
         "possible_duplicates": "60/min",
         "reports_mine": "120/hour",

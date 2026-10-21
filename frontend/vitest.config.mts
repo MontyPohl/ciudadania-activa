@@ -19,6 +19,7 @@ export default defineConfig({
     exclude: [
       ...configDefaults.exclude,
       "e2e/**",
+      "e2e-ui-captures/**",
       "e2e-s11/**",
       "e2e-fullstack/**",
       "e2e-s15-fullstack/**",

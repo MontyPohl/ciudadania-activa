@@ -26,5 +26,5 @@ USER appuser
 
 EXPOSE 8000
 
-# S15: perfil local contrastado en tres ventanas; ver docs/s15/S15_INFORME_RENDIMIENTO.md.
-CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--worker-class", "gthread", "--threads", "4"]
+# gthread/4 queda para otra entrega, después de la prueba de estabilidad prolongada.
+CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000"]

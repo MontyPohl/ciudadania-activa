@@ -22,7 +22,9 @@ export function MapResizeWatcher() {
       if (frame !== null) cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
         frame = null;
-        map.invalidateSize({ animate: false, pan: false });
+        // Leaflet necesita ajustar el pane para conservar el centro geográfico.
+        // Con pan: false, un resize desplaza el bbox y puede excluir los pines.
+        map.invalidateSize({ animate: false, pan: true });
       });
     });
 

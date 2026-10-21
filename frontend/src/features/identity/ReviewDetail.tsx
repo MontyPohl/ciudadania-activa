@@ -24,6 +24,10 @@
  * manda al rechazar.
  */
 
+import { Button } from "@/components/ui/Button";
+import { Textarea } from "@/components/ui/Textarea";
+import { Input } from "@/components/ui/Input";
+import { Card } from "@/components/ui/Card";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
@@ -124,7 +128,7 @@ export function ReviewDetail({ id }: { id: string }) {
 
   if (vista.fase === "cargando") {
     return (
-      <p role="status" className="text-sm text-brand-black/70">
+      <p role="status" className="text-sm text-muted">
         Cargando la verificación…
       </p>
     );
@@ -133,10 +137,10 @@ export function ReviewDetail({ id }: { id: string }) {
   if (vista.fase === "error") {
     return (
       <div className="flex flex-col items-start gap-3">
-        <p role="alert" className="text-sm font-medium text-brand-orange-ink">
+        <p role="alert" className="text-sm font-medium text-danger-ink">
           {vista.mensaje}
         </p>
-        <Link href="/identidades" className="text-sm font-medium text-brand-purple underline">
+        <Link href="/identidades" className="text-sm font-medium text-primary underline">
           Volver a la cola
         </Link>
       </div>
@@ -148,11 +152,11 @@ export function ReviewDetail({ id }: { id: string }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <section className="flex flex-col gap-3 rounded-2xl border border-brand-black/10 px-6 py-5">
+      <Card as="section" className="flex flex-col gap-3 border border-border px-6 py-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="font-semibold">{detalle.user.full_name || "Sin nombre declarado"}</h2>
-            <p className="text-sm text-brand-black/60">{detalle.user.email}</p>
+            <p className="text-sm text-muted">{detalle.user.email}</p>
           </div>
           <StatusPill
             tone={TONO_ESTADO[detalle.verification_status]}
@@ -162,36 +166,34 @@ export function ReviewDetail({ id }: { id: string }) {
 
         <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
           <div>
-            <dt className="text-xs uppercase text-brand-black/50">Primera presentación</dt>
+            <dt className="text-xs uppercase text-muted">Primera presentación</dt>
             <dd>{formatearFecha(detalle.created_at)}</dd>
           </div>
           {detalle.reviewed_at !== null && (
             <div>
-              <dt className="text-xs uppercase text-brand-black/50">Revisada</dt>
+              <dt className="text-xs uppercase text-muted">Revisada</dt>
               <dd>{formatearFecha(detalle.reviewed_at)}</dd>
             </div>
           )}
           {detalle.verified_by !== null && (
             <div>
-              <dt className="text-xs uppercase text-brand-black/50">Revisada por</dt>
+              <dt className="text-xs uppercase text-muted">Revisada por</dt>
               <dd className="font-mono text-xs">{detalle.verified_by}</dd>
             </div>
           )}
           {detalle.rejection_reason !== "" && (
             <div className="sm:col-span-2">
-              <dt className="text-xs uppercase text-brand-black/50">Motivo del rechazo</dt>
+              <dt className="text-xs uppercase text-muted">Motivo del rechazo</dt>
               <dd>{detalle.rejection_reason}</dd>
             </div>
           )}
         </dl>
-      </section>
+      </Card>
 
-      <section className="flex flex-col gap-3 rounded-2xl border border-brand-black/10 px-6 py-5">
+      <Card as="section" className="flex flex-col gap-3 border border-border px-6 py-5">
         <h2 className="font-semibold">Selfie con la cédula</h2>
         {detalle.selfie_signed_url === null ? (
-          <p className="text-sm text-brand-black/70">
-            Esta verificación no tiene una imagen asociada.
-          </p>
+          <p className="text-sm text-muted">Esta verificación no tiene una imagen asociada.</p>
         ) : (
           <>
             {/*
@@ -208,16 +210,16 @@ export function ReviewDetail({ id }: { id: string }) {
               referrerPolicy="no-referrer"
               className="max-h-[28rem] w-full rounded-md object-contain"
             />
-            <p className="text-xs text-brand-black/50">
+            <p className="text-xs text-muted">
               El acceso a esta imagen caduca a los pocos minutos. Volvé a abrir el detalle si deja
               de verse.
             </p>
           </>
         )}
-      </section>
+      </Card>
 
       {pendiente && (
-        <section className="flex flex-col gap-4 rounded-2xl border border-brand-black/10 px-6 py-5">
+        <Card as="section" className="flex flex-col gap-4 border border-border px-6 py-5">
           <h2 className="font-semibold">Decisión</h2>
 
           {!rechazando && (
@@ -225,7 +227,7 @@ export function ReviewDetail({ id }: { id: string }) {
               <label htmlFor="document_number" className="text-sm font-semibold">
                 Número de cédula visible en la selfie
               </label>
-              <input
+              <Input
                 id="document_number"
                 name="document_number"
                 type="text"
@@ -234,10 +236,10 @@ export function ReviewDetail({ id }: { id: string }) {
                 value={cedula}
                 onChange={(evento) => setCedula(evento.target.value)}
                 disabled={enviando}
-                className="rounded-md border border-brand-black/20 px-3 py-2 text-sm"
+
                 placeholder="1.234.567"
               />
-              <p className="text-xs text-brand-black/60">
+              <p className="text-xs text-muted">
                 Escribí el número que figura en la cédula mostrada en la selfie. Se usa únicamente
                 para comprobar que coincide con la solicitud: no se guarda en ningún lado. Podés
                 escribirlo con puntos, guiones o espacios.
@@ -250,49 +252,52 @@ export function ReviewDetail({ id }: { id: string }) {
               <label htmlFor="reason" className="text-sm font-semibold">
                 Motivo del rechazo
               </label>
-              <textarea
+              <Textarea
                 id="reason"
                 name="reason"
                 rows={3}
                 value={motivo}
                 onChange={(evento) => setMotivo(evento.target.value)}
                 disabled={enviando}
-                className="rounded-md border border-brand-black/20 px-3 py-2 text-sm"
+
                 placeholder="La cédula no se lee con claridad en la imagen."
               />
-              <p className="text-xs text-brand-black/60">
+              <p className="text-xs text-muted">
                 El ciudadano lo va a ver en la plataforma. No se envía por correo.
               </p>
             </div>
           )}
 
           {error !== null && (
-            <p role="alert" className="text-sm font-medium text-brand-orange-ink">
+            <p role="alert" className="text-sm font-medium text-danger-ink">
               {error}
             </p>
           )}
 
           <div className="flex flex-wrap gap-3">
-            <button
+            <Button
+              variant="primary"
               type="button"
               onClick={() => void decidir("APROBADO")}
               disabled={enviando}
-              className="rounded-md bg-brand-green px-5 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              className="text-sm"
             >
               {enviando ? "Procesando…" : "Aprobar"}
-            </button>
+            </Button>
 
             {rechazando ? (
               <>
-                <button
+                <Button
+                  variant="danger"
                   type="button"
                   onClick={() => void decidir("RECHAZADO")}
                   disabled={enviando}
-                  className="rounded-md bg-brand-orange px-5 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                  className="text-sm"
                 >
                   {enviando ? "Procesando…" : "Confirmar rechazo"}
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="secondary"
                   type="button"
                   onClick={() => {
                     setRechazando(false);
@@ -300,13 +305,14 @@ export function ReviewDetail({ id }: { id: string }) {
                     setError(null);
                   }}
                   disabled={enviando}
-                  className="rounded-md border border-brand-black/15 px-5 py-2 text-sm font-medium disabled:opacity-50"
+                  className="text-sm"
                 >
                   Cancelar
-                </button>
+                </Button>
               </>
             ) : (
-              <button
+              <Button
+                variant="secondary"
                 type="button"
                 onClick={() => {
                   // Al pasar a rechazar, el número transcrito deja de hacer falta y se
@@ -316,22 +322,22 @@ export function ReviewDetail({ id }: { id: string }) {
                   setError(null);
                 }}
                 disabled={enviando}
-                className="rounded-md border border-brand-orange px-5 py-2 text-sm font-semibold text-brand-orange-ink disabled:opacity-50"
+                className="text-sm"
               >
                 Rechazar
-              </button>
+              </Button>
             )}
           </div>
-        </section>
+        </Card>
       )}
 
       {!pendiente && error !== null && (
-        <p role="alert" className="text-sm font-medium text-brand-orange-ink">
+        <p role="alert" className="text-sm font-medium text-danger-ink">
           {error}
         </p>
       )}
 
-      <Link href="/identidades" className="text-sm font-medium text-brand-purple underline">
+      <Link href="/identidades" className="text-sm font-medium text-primary underline">
         Volver a la cola
       </Link>
     </div>

@@ -91,16 +91,13 @@ it.each(cases)("muestra $name según el contrato mensual", async ({ entries, aut
       expect(within(row).getByText(String(entry.points))).toBeVisible();
       if (entry.is_me) {
         expect(within(row).getByText("Vos")).toBeVisible();
-        expect(row).toHaveClass("border-brand-purple", "bg-brand-purple/10");
+        expect(row).toHaveClass("border-primary", "bg-primary/10");
       } else {
         expect(within(row).queryByText("Vos")).not.toBeInTheDocument();
-        expect(row).not.toHaveClass("bg-brand-purple/10");
+        expect(row).not.toHaveClass("bg-primary/10");
       }
       if (entry.is_private) {
-        expect(within(row).getByText("Usuario privado")).toHaveClass(
-          "italic",
-          "text-brand-black/60",
-        );
+        expect(within(row).getByText("Usuario privado")).toHaveClass("italic", "text-muted");
         expect(row.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
       }
     });

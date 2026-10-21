@@ -1,7 +1,9 @@
 "use client";
+import { Pagination } from "@/components/ui/Pagination";
+import { Button } from "@/components/ui/Button";
 import { useEffect, useState, type ReactNode } from "react";
 import type { PaginatedResponse } from "@/types/api";
-import { errorMessage, secondary } from "./presentation";
+import { errorMessage } from "./presentation";
 export function PaginatedList<T>({
   load,
   render,
@@ -29,15 +31,15 @@ export function PaginatedList<T>({
     return (
       <div className="space-y-3">
         <p role="alert">{view.error}</p>
-        <button
-          className={secondary}
+        <Button
+          variant="secondary"
           onClick={() => {
             setView({});
             setRetry((r) => r + 1);
           }}
         >
           Reintentar
-        </button>
+        </Button>
       </div>
     );
   if (!view.data) return <p role="status">Cargando…</p>;
@@ -45,29 +47,15 @@ export function PaginatedList<T>({
     <div className="space-y-4">
       {view.data.count === 0 ? <p>{empty}</p> : render(view.data.results)}
       {(view.data.previous || view.data.next) && (
-        <nav aria-label="Paginación" className="flex flex-wrap items-center gap-3">
-          <button
-            className={secondary}
-            disabled={!view.data.previous}
-            onClick={() => {
-              setView({});
-              setPage((p) => p - 1);
-            }}
-          >
-            Anterior
-          </button>
-          <span>Página {page}</span>
-          <button
-            className={secondary}
-            disabled={!view.data.next}
-            onClick={() => {
-              setView({});
-              setPage((p) => p + 1);
-            }}
-          >
-            Siguiente
-          </button>
-        </nav>
+        <Pagination
+          page={page}
+          hasPrevious={Boolean(view.data.previous)}
+          hasNext={Boolean(view.data.next)}
+          onPageChange={(nextPage) => {
+            setView({});
+            setPage(nextPage);
+          }}
+        />
       )}
     </div>
   );

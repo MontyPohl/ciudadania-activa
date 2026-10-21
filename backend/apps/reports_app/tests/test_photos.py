@@ -283,3 +283,31 @@ def test_fallo_de_encoder_se_traduce_y_cierra_imagen_limpia(monkeypatch):
     with pytest.raises(photos.InvalidReportPhotoError, match="normalizar"):
         photos.prepare_report_photo(_upload(_image_bytes("JPEG")))
     assert clean.closed is True
+
+
+@pytest.mark.parametrize(
+    ("format_name", "name", "mime"),
+    [
+        ("JPEG", "photo.jpg", "image/jpeg"),
+        ("PNG", "photo.png", "image/png"),
+    ],
+)
+def test_normalization_removes_real_gps_ifd(format_name, name, mime):
+    from PIL.TiffImagePlugin import IFDRational
+
+    exif = Image.Exif()
+    exif[34853] = {
+        1: "S",
+        2: (IFDRational(25), IFDRational(15), IFDRational(49)),
+        3: "W",
+        4: (IFDRational(57), IFDRational(38), IFDRational(9)),
+    }
+    original = _image_bytes(format_name, exif=exif)
+    with Image.open(io.BytesIO(original)) as source:
+        assert source.getexif().get_ifd(34853)[1] == "S"
+        assert source.getexif().get_ifd(34853)[3] == "W"
+    prepared = photos.prepare_report_photo(_upload(original, name, mime))
+    with Image.open(io.BytesIO(prepared.content)) as normalized:
+        assert 34853 not in normalized.getexif()
+        assert not normalized.getexif().get_ifd(34853)
+        assert "exif" not in normalized.info

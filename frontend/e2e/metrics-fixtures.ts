@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-import type { InstitutionMetrics, PublicMetrics } from "../src/types/api";
+import type { InstitutionMetrics } from "../src/types/api";
 import { MUNICIPAL_ID, ANDE_ID } from "./operator-report-fixtures";
 const municipal = { id: MUNICIPAL_ID, name: "Municipalidad", slug: "municipalidad" };
 const ande = { id: ANDE_ID, name: "ANDE", slug: "ande" };
@@ -73,39 +73,8 @@ export function institutionMetrics(period = "2026-10", received = 42): Instituti
     by_institution: null,
   };
 }
-export const publicMetrics: PublicMetrics = {
-  window: { from: "2026-05-01", to: "2026-10-20", months: 6 },
-  generated_at: "2026-10-20T10:15:02-03:00",
-  min_cell_size: 5,
-  totals: {
-    received: 120,
-    validated: 80,
-    rejected: 10,
-    resolved: 60,
-    resolution_rate: 0.545,
-    median_resolution_hours: 40,
-    confirmations: 210,
-    redemptions: null,
-    credits_issued: 5000,
-    suppressed: ["redemptions"],
-  },
-  institutions: [
-    {
-      institution: municipal,
-      received: 40,
-      validated: 30,
-      rejected: 2,
-      resolved: 20,
-      resolution_rate: 0.526,
-      median_resolution_hours: 38.5,
-      sla: { configured: false, hours: null, compliance_rate: null },
-      confirmations: 60,
-      redemptions: null,
-      credits_issued: 900,
-      suppressed: ["redemptions"],
-    },
-  ],
-};
+export { publicMetrics } from "../src/test/publicMetrics";
+import { publicMetrics } from "../src/test/publicMetrics";
 export async function mockMetricsApi(page: Page, actor: "operator" | "anonymous") {
   const requests: { period: string | null; institutionId: string | null }[] = [];
   await page.route("**/api/auth/refresh", (route) =>

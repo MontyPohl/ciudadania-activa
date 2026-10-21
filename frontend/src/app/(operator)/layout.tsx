@@ -10,8 +10,10 @@ const LINKS = [
 export default function OperatorLayout({ children }: LayoutProps<"/">) {
   return (
     <RoleGuard role="operator">
-      <SectionNav links={LINKS} />
-      {children}
+      <div className="flex min-w-0 flex-1 flex-col lg:flex-row">
+        <SectionNav links={LINKS} role="operator" />
+        <div className="min-w-0 flex-1">{children}</div>
+      </div>
     </RoleGuard>
   );
 }

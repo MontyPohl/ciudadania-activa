@@ -10,10 +10,10 @@ from django.db.models import Count, Min, OuterRef, Q, Subquery, Sum, UUIDField
 from django.db.models.functions import Coalesce, TruncDate, TruncMonth
 from django.utils import timezone
 
-from apps.admin_app.models import Institution
+from apps.admin_app.models import Category, Institution
 from apps.analytics_app import periods
 from apps.analytics_app.constants import MIN_CELL_SIZE, PUBLIC_WINDOW_MONTHS, TREND_MONTHS
-from apps.analytics_app.privacy import complement, suppress
+from apps.analytics_app.privacy import complement, suppress, suppress_current_categories
 from apps.core.enums import ReportPriority, ReportStatus
 from apps.reports_app.models import Report, ReportConfirmation, ReportStatusHistory
 from apps.rewards_app.enums import RewardEventType, RewardTxStatus
@@ -470,6 +470,57 @@ def consolidated_metrics(*, period, now=None):
     return _dashboard(institution=None, period=period, now=now)
 
 
+def public_breakdowns(*, now):
+    """Seis meses locales hasta ahora; primera resolución histórica, nunca ciclos."""
+    months = periods.trailing_months(periods.current_period(now), PUBLIC_WINDOW_MONTHS)
+    start = periods.month_range(months[0])[0]
+    current_start = periods.month_range(months[-1])[0]
+    base = scoped_reports()
+    points = {
+        periods.format_period(month): {
+            "period": periods.format_period(month),
+            "received": 0,
+            "resolved": 0,
+        }
+        for month in months
+    }
+    for field, qs, name in [
+        ("created_at", base, "received"),
+        ("first_resolved_at", _first(base, ReportStatus.RESUELTO, "first_resolved_at"), "resolved"),
+    ]:
+        rows = (
+            _between(qs, field, start, now)
+            .order_by()
+            .annotate(month=TruncMonth(field, tzinfo=LOCAL_TZ))
+            .values("month")
+            .annotate(count=Count("pk"))
+        )
+        for row in rows:
+            points[row["month"].strftime("%Y-%m")][name] = row["count"]
+    trend = [
+        suppress(point, counts={key: point[key] for key in ("received", "resolved")})
+        for point in points.values()
+    ]
+    counts = dict(
+        _between(base, "created_at", current_start, now)
+        .order_by()
+        .values("category_id")
+        .annotate(count=Count("pk"))
+        .values_list("category_id", "count")
+    )
+    # Incluye categorías inactivas con reportes: omitirlas falsearía el agregado.
+    categories = [
+        suppress(
+            {"category": _ref(category), "received": counts.get(category.pk, 0)},
+            counts={"received": counts.get(category.pk, 0)},
+        )
+        for category in Category.objects.order_by("name", "pk")
+    ]
+    # No dejar una única categoría despejable desde el punto del mes actual.
+    complement(trend[-1], categories, cells=("received",))
+    return trend, categories
+
+
 def public_metrics(*, now=None):
     """Publica únicamente agregados con supresión antes de entregarlos a la caché."""
     now = now if now is not None else timezone.now()
@@ -541,6 +592,10 @@ def public_metrics(*, now=None):
     totals = cells(None)
     rows = [cells(i) for i in data.institutions if i.is_active]
     complement(totals, rows)
+    trend, categories = public_breakdowns(now=now)
+    # Los totales existentes siguen públicos: proteger las nuevas particiones.
+    complement(totals, trend, cells=("received", "resolved"))
+    suppress_current_categories(trend[-1], categories)
     return {
         "window": {
             "from": start.date().isoformat(),
@@ -551,4 +606,6 @@ def public_metrics(*, now=None):
         "min_cell_size": MIN_CELL_SIZE,
         "totals": totals,
         "institutions": rows,
+        "trend": trend,
+        "current_month_by_category": categories,
     }

@@ -1,4 +1,5 @@
 "use client";
+import { PageHeader } from "@/components/ui/PageHeader";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { citizenAccess } from "@/features/auth/citizenAccess";
@@ -26,10 +27,10 @@ export function RewardsAccess({ children }: { children: ReactNode }) {
     <main
       id="contenido-principal"
       tabIndex={-1}
-      className="mx-auto max-w-2xl space-y-4 bg-white px-6 py-12 text-brand-black"
+      className="mx-auto max-w-2xl min-w-0 space-y-4 px-4 sm:px-6 py-12 text-ink"
     >
-      <h1 className="text-2xl font-bold text-brand-purple">{title}</h1>
-      <Link className="text-brand-purple underline" href={href}>
+      <PageHeader title={title} />
+      <Link className="text-primary underline" href={href}>
         {label}
       </Link>
     </main>

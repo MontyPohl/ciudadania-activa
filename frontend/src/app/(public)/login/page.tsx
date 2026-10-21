@@ -15,7 +15,7 @@ export default function LoginPage() {
       className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-8 px-6 py-16"
     >
       <header className="flex flex-col gap-2 text-center">
-        <h1 className="text-2xl font-bold text-[#6950A1]">Ingresar</h1>
+        <h1 className="text-2xl font-bold text-primary">Ingresar</h1>
         <p className="text-sm text-[#000000]/70">
           Usá tu cuenta de Google para acceder a Ciudadanía Activa.
         </p>
@@ -35,7 +35,7 @@ export default function LoginPage() {
           <button
             type="button"
             onClick={() => void session.signOut()}
-            className="rounded-md border border-[#6950A1] px-4 py-2 text-sm font-medium text-[#6950A1]"
+            className="rounded-md border border-primary px-4 py-2 text-sm font-medium text-primary"
           >
             Cerrar sesión
           </button>
@@ -49,7 +49,7 @@ export default function LoginPage() {
           Verificar tu identidad con cédula es un paso posterior: iniciar sesión no habilita por sí
           solo la creación de reportes.
         </p>
-        <Link href="/" className="mt-2 inline-block text-brand-green-ink underline">
+        <Link href="/" className="mt-2 inline-block text-success-ink underline">
           Volver al inicio
         </Link>
       </footer>
