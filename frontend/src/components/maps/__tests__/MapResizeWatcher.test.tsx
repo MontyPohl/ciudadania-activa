@@ -1,7 +1,11 @@
 import { act, render } from "@testing-library/react";
 import { StrictMode } from "react";
+import { map as createMap } from "leaflet";
 
 import { MapResizeWatcher } from "@/components/maps/MapResizeWatcher";
+import { boundsToBbox } from "@/features/map/bbox";
+import { clustersForViewport, createReportClusterIndex } from "@/features/map/cluster";
+import { publicReport } from "@/test/fixtures";
 
 const mapMocks = vi.hoisted(() => ({
   getContainer: vi.fn(),
@@ -15,6 +19,84 @@ vi.mock("react-leaflet", () => ({
 describe("MapResizeWatcher", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("conserva el centro y el pin al redimensionar el mapa móvil con Leaflet real", () => {
+    const parent = document.createElement("div");
+    const container = document.createElement("div");
+    parent.append(container);
+    document.body.append(parent);
+    let width = 640;
+    let height = 756;
+    Object.defineProperties(container, {
+      clientWidth: { get: () => width },
+      clientHeight: { get: () => height },
+    });
+    const map = createMap(container, { zoomControl: false, trackResize: false }).setView(
+      [-25.3, -57.6],
+      12,
+    );
+    const center = map.getCenter();
+    const index = createReportClusterIndex([publicReport()]);
+    // MapViewportEvents publica este bbox en moveend y MapMarkers lo usa para filtrar.
+    let publishedBbox = boundsToBbox(map.getBounds());
+    const publishViewport = vi.fn(() => {
+      publishedBbox = boundsToBbox(map.getBounds());
+    });
+    map.on("moveend", publishViewport);
+    mapMocks.getContainer.mockReturnValue(container);
+    mapMocks.invalidateSize.mockImplementation((options) => map.invalidateSize(options));
+    let resizeCallback: ResizeObserverCallback | undefined;
+    let frameCallback: FrameRequestCallback | undefined;
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        constructor(callback: ResizeObserverCallback) {
+          resizeCallback = callback;
+        }
+        observe() {}
+        disconnect() {}
+      },
+    );
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      frameCallback = callback;
+      return 1;
+    });
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+    const view = render(<MapResizeWatcher />);
+
+    try {
+      for (const size of [
+        [320, 512],
+        [320, 820],
+        [320, 756],
+        [640, 756],
+      ]) {
+        [width, height] = size;
+        publishViewport.mockClear();
+        act(() => {
+          resizeCallback?.(
+            [{ contentRect: { width, height } } as ResizeObserverEntry],
+            {} as ResizeObserver,
+          );
+          frameCallback?.(0);
+        });
+        // Leaflet redondea el origen a píxeles enteros al ajustar el pane.
+        expect(map.project(map.getCenter()).distanceTo(map.project(center))).toBeLessThan(1);
+        expect(map.getBounds().contains(center)).toBe(true);
+        expect(publishViewport).toHaveBeenCalledOnce();
+        expect(clustersForViewport(index, publishedBbox, map.getZoom())).toHaveLength(1);
+      }
+    } finally {
+      view.unmount();
+      map.remove();
+      parent.remove();
+      mapMocks.invalidateSize.mockReset();
+    }
   });
 
   it("invalida solo ante cambios reales y limpia observer/rAF", () => {
@@ -66,7 +148,7 @@ describe("MapResizeWatcher", () => {
     act(() => frames.get(1)?.(0));
     expect(mapMocks.invalidateSize).toHaveBeenCalledWith({
       animate: false,
-      pan: false,
+      pan: true,
     });
 
     emitSize(400, 300);

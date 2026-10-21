@@ -231,7 +231,9 @@ test("S15: bandeja móvil conserva contexto institucional y contiene su tabla", 
 test("S15: mapa ofrece selección y regreso con teclado en móvil", async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 320, height: 900 });
   await mockMetricsApi(page, "anonymous");
-  const report = publicReport();
+  // En el centro del área inicial: el fixture genérico queda junto al borde
+  // oeste tras el ajuste de zoom necesario para consultar el bbox a 320px.
+  const report = publicReport({ latitude: -25.275, longitude: -57.55 });
   await page.route("https://tile.openstreetmap.org/**", (route) =>
     route.fulfill({
       status: 200,
@@ -272,8 +274,10 @@ test("S15: mapa ofrece selección y regreso con teclado en móvil", async ({ pag
   await page.keyboard.press("Escape");
   await expect(panel).not.toBeVisible();
   await expect(trigger).toBeFocused();
+  await expect(page).toHaveURL(/\/mapa$/);
   await expectNoHorizontalOverflow(page);
   await page.getByRole("button", { name: "Mapa", exact: true }).click();
+  await expect(pin).toBeVisible();
   await pin.click();
   await expect(panel).toBeFocused();
   await page.keyboard.press("Escape");
