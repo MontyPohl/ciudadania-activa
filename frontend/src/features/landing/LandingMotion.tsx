@@ -7,8 +7,11 @@ export function Reveal({ children, className = "" }: { children: ReactNode; clas
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const node = ref.current;
+    // Sin matchMedia (navegadores antiguos o jsdom) no se anima: el contenido queda estático.
+    if (!node || typeof window.matchMedia !== "function" || !("IntersectionObserver" in window))
+      return;
     const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
-    if (!node || motion.matches || !("IntersectionObserver" in window)) return;
+    if (motion.matches) return;
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
@@ -49,8 +52,11 @@ export function AnimatedNumber({ value, percent = false }: { value: number; perc
   const label = format(value);
   useEffect(() => {
     const node = ref.current;
+    // Sin matchMedia (navegadores antiguos o jsdom) no se anima: el contenido queda estático.
+    if (!node || typeof window.matchMedia !== "function" || !("IntersectionObserver" in window))
+      return;
     const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
-    if (!node || motion.matches || !("IntersectionObserver" in window)) return;
+    if (motion.matches) return;
     let frame = 0;
     const finish = () => {
       cancelAnimationFrame(frame);
