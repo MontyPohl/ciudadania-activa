@@ -68,7 +68,7 @@ permite fijar un contexto de build distinto de la raíz del árbol recibido. Se 
 empujando `backend/` como subtree:
 
 ```bash
-git subtree push --prefix backend heroku-baseline main
+git subtree push --prefix backend heroku main
 ```
 
 Así el contexto de build es `backend/`, `backend/heroku.yml` queda en la raíz del árbol que
@@ -189,10 +189,10 @@ heroku login
 heroku create ciudadania-activa-api --stack container --region us
 heroku addons:create heroku-redis:mini --app ciudadania-activa-api
 heroku config:set --app ciudadania-activa-api DJANGO_SETTINGS_MODULE=config.settings.prod ...
-heroku git:remote --app ciudadania-activa-api --remote heroku-baseline
+heroku git:remote --app ciudadania-activa-api --remote heroku
 
 # SHA del baseline: 730d69ede7033c3487b68f79b1828fe6f2f43180
-git subtree push --prefix backend heroku-baseline main
+git subtree push --prefix backend heroku main
 
 heroku ps:scale --app ciudadania-activa-api web=1 worker=1 beat=0
 ```
@@ -527,7 +527,8 @@ seguridad real y consciente**, no un descuido.
 ## 15. Operación vigente — corte 20/10/2026, 01:25 UTC
 
 El inventario corresponde a ese corte; los registros de entregas posteriores de
-S13 (v25) y S14 (v26) se incluyen abajo, con sus horarios y verificaciones.
+S13 (v25), S14 (v26) y S15 + S15-UI (v27) se incluyen abajo, con sus
+horarios y verificaciones.
 
 ### Inventario de Heroku (nombres, sin valores)
 
@@ -583,7 +584,7 @@ ya tiene reconciliaciones; para las entregas siguientes se usó un commit cuyo *
 exactamente el backend aprobado** y cuyos padres son el tip remoto y el nuevo split.
 Se preserva el historial del remote, sin `--force` ni resolver archivos del backend a mano.
 
-Ejecutá desde un checkout limpio del candidato aprobado y con el remote `heroku-baseline`
+Ejecutá desde un checkout limpio del candidato aprobado y con el remote `heroku`
 configurado para esta app. En una actualización estructural, primero generá/validá el
 respaldo, activá mantenimiento y detené todos los writers (`web=0 worker=0 beat=0`),
 como indica [README](../../README.md#migraciones-estructurales-orden-obligatorio).
@@ -592,15 +593,15 @@ No ejecutes esta receta sobre un merge documental en curso.
 ```bash
 # Fijar y revisar el candidato; no dejar que cambie durante el procedimiento.
 CA_RELEASE_SHA=$(git rev-parse HEAD)
-git fetch heroku-baseline main
-CA_REMOTE_SHA=$(git rev-parse refs/remotes/heroku-baseline/main)
+git fetch heroku main
+CA_REMOTE_SHA=$(git rev-parse refs/remotes/heroku/main)
 CA_SPLIT_SHA=$(git subtree split --prefix=backend "$CA_RELEASE_SHA")
 CA_BACKEND_TREE=$(git rev-parse "$CA_RELEASE_SHA:backend")
 test "$(git rev-parse "$CA_SPLIT_SHA^{tree}")" = "$CA_BACKEND_TREE" || exit 1
 CA_RECONCILIATION_SHA=$(git commit-tree "$CA_BACKEND_TREE"   -p "$CA_REMOTE_SHA" -p "$CA_SPLIT_SHA"   -m "chore(release): reconciliar subtree de Heroku con $CA_RELEASE_SHA")
 test "$(git rev-parse "$CA_RECONCILIATION_SHA^{tree}")" = "$CA_BACKEND_TREE" || exit 1
 git merge-base --is-ancestor "$CA_REMOTE_SHA" "$CA_RECONCILIATION_SHA" || exit 1
-git push heroku-baseline "$CA_RECONCILIATION_SHA:refs/heads/main"
+git push heroku "$CA_RECONCILIATION_SHA:refs/heads/main"
 ```
 
 Si el remote avanzó, el push debe rechazarse: volvé a inspeccionar el tip y generá otra
@@ -656,6 +657,51 @@ Redis disponibles; `/api/v1/public/categories/`, `/api/v1/ranking/monthly/` y
 frontend respondieron **200**. El PR #54 quedó mergeado con **6/6 checks verdes en `f9a9da0`**:
 `test` en unos 3 min, `experiments` en unos 47 min, `build` y `frontend-e2e` verdes.
 La entrega no cambia los veredictos históricos de S11 ni cierra Sprint 8.
+
+**S15 + S15-UI (21/10/2026, release v27):** datos verificados por Claude.
+[PR #56](https://github.com/MontyPohl/ciudadania-activa/pull/56) (S15) integrado
+mediante `0df03dd` el 21/10 a las 00:04 UTC;
+[PR #57](https://github.com/MontyPohl/ciudadania-activa/pull/57) (S15-UI)
+mediante `433eb61`. CI del PR #57 sobre `aad1aee`: `test`, `build`,
+`frontend-e2e`, `experiments` (**34 min 33 s**), `offline-tools` y Vercel,
+todos en verde.
+
+Reconciliación según esta sección, con remote `heroku` y push sin force:
+
+| Referencia | Valor |
+|---|---|
+| Candidato (`CA_RELEASE_SHA`) | `aad1aee903f82c5058699a5ba2e5fc429639110f` |
+| Remote previo (`CA_REMOTE_SHA`, v26) | `a7f775d927fe81d8f2b2615ddc6cd0fa791fd12b` |
+| Split (`CA_SPLIT_SHA`) | `782c7db1bc6f1a9128c8948a0d1fcd4ff55decee` |
+| Árbol de backend (`CA_BACKEND_TREE`) | `96efe17875cad2e6aadb471aa1871140f4a91534` |
+| Reconciliación (`CA_RECONCILIATION_SHA`) | `aade0894762fedf0d7b7753b5eeb94775d59a7e1` |
+
+Heroku `ciudadania-activa-api` registra **v27**, `Deploy aade0894`, el
+21/10/2026 a las **00:05:34 −03**, después de v26 (`a7f775d`). Sin migraciones:
+`migrate --check` OK y `check` sin issues. `web=1`, `worker=1` y `beat=1`.
+Gunicorn sigue con **sync**, como en v26; **gthread/4 queda para una entrega aparte**.
+Vercel producción: deployment `433eb61` en estado **success**.
+
+Smoke productivo:
+
+- Health `ok`, con DB y Redis `true`; `/public/metrics/` incluye `trend`
+  (6 elementos) y `current_month_by_category` (10).
+- El listado público incluye `photo_url`. Los detalles de reportes `ASIGNADO` y
+  `RESUELTO` devuelven `photo_url: null` y `resolution_evidences: []`: esos reportes
+  semilla no tienen media. La foto de un reporte `CREADO` con media responde **404**,
+  como corresponde. No hay todavía un reporte con foto en un estado publicable en
+  producción: el caso **200** está cubierto por las pruebas, no por este smoke.
+- Frontend `/`, `/mapa`, `/reporte/<id>`, `/transparencia`, `/como-funciona` y
+  `/ranking`: **200**; `/no-existe`: **404**.
+- Navegador headless a **375 y 1280 px**: sin errores de JS ni mensajes de error y
+  sin scroll horizontal. El único **401** corresponde a `/api/auth/refresh`
+  anónimo, esperado.
+- Últimas **400 líneas** de logs Heroku: **0 WORKER TIMEOUT**, **0 errores 5xx** y
+  **0 H1x**. Es una observación acotada, no evidencia de estabilidad prolongada.
+
+Rollback disponible: `heroku releases:rollback v26 --app ciudadania-activa-api`
+y revert del merge `433eb61`. S15 permanece abierto: siguen pendientes la
+estabilidad prolongada, el dataset de IA, el piloto y los recorridos reales.
 
 ### IA, Brevo y comprobación productiva
 

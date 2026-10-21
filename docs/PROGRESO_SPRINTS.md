@@ -1,10 +1,10 @@
 # Progreso de Sprints — Ciudadanía Activa
 
-**Última actualización:** 20/10/2026 (cierre S14: PR #54 mergeado, CI del candidato `f9a9da0` 6/6 verde, despliegue Heroku v26 y smoke productivo verificados).
+**Última actualización:** 21/10/2026 (S15 + S15-UI integrados mediante PR #56 y #57, Heroku v27 y Vercel producción verificados por Claude; S15 sigue en curso).
 
 Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes de iniciar el siguiente.
 
-- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 **completado** (inicio el 22/08/2026, cierre el 23/08/2026: verificación de identidad con HMAC y almacenamiento privado, revisión administrativa manual con cotejo de la cédula, notificaciones asíncronas entregadas por la API HTTPS de Brevo y privacidad configurable del ranking, todo verificado en producción con una identidad real). Sprint 5 **completado** el 27/08/2026: S5-A, S5-B y S5-C están cerradas, integradas y validadas. Sprint 6 **completado** el 28/08/2026: S6-A y S6-B están cerrados. Sprint 7 **completado** el 29/08/2026: S7-A, S7-B y S7-C están integrados en `main`, y S7-D quedó probado en producción y cerrado con evidencia funcional y de base de datos en modo solo lectura. Sprint 8 continúa **en curso**. Sprint 9 quedó **completado** el 09/09/2026: S9-A, S9-B1, S9-B2 y el cierre documental S9-B3 están integrados en `main`; PR #38 fue mergeado mediante `7e95856c1b494d562ce1c267c06d5bebaec28cc8`. Sprint 10 quedó **implementado, desplegado, verificado y reconciliado** el 21/09/2026: el candidato `171f8c8b8f448a4092e73aeb5f67406e6b81ef09` se desplegó en Heroku, PR #39 se integró en `main` mediante `7ae82b865d90c4cade02dd3378b44107f088b7dd`, y backend, frontend, migraciones, backfill, workers e invariantes productivas quedaron verificados. Sprint 11 quedó **completado con observaciones** el 19/10/2026: S11-A quedó oficialmente congelada en `main@35f850eb24df552805fe8694f50fcbb3588a4141`; S11-B dejó preparada la instrumentación aislada y reproducible, sin generar resultados; S11-C registra seis runs de `EX-02` (21 y 22/09/2026): cinco `NOT_DEMONSTRATED` por causas de infraestructura y de harness, y el sexto, `s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af`, **demostrado en `PASS`**; `EX-03` quedó **demostrado en `PASS`** con el run `s11-6dc3ea66-08c9-51ef-9fe3-70e7dcc67959` `EX-04` con el run `s11-03adb9bc-c9e4-5f8f-b64c-c4360d0c2085` `EX-06` con el run `s11-989218f3-4808-5c6f-ac23-6e8870fec153` y `EX-08` con el run `s11-b567289c-9fe2-5349-a384-e9284bdde863`; `EX-05` quedó demostrado en `PASS` con el run `s11-0e2feac0-6583-513c-a6aa-33430394d14a`; `EX-07` quedó demostrado en `PASS` con el run `s11-545491b8-01fe-55e6-8f08-1a0ebbdca8d3`; S11-C2 quedó **cerrado** el 23/09/2026 con sus siete escenarios en `PASS`; `EX-09`, en su instancia OpenAI, se ejecutó el 26/09/2026 con el run `s11-a156a68c-c422-5e57-ae2b-3336d3b55e6c` y resultado **`FAIL`** (CA-4 19/28 = 67,86 %, bajo el umbral ≥ 85,00 %, es decir, al menos 24/28; run válido con manifest `COMPLETED` y `custody_verification = PASS` según la salida de `finalize`); `EX-10` quedó `NOT_DEMONSTRATED` (el run 1 no es vinculante y los intentos oficiales W22 en las sesiones c47, c51 y c52 terminaron en CP2 `UNCERTAIN` sin run nuevo ni efectos de autoridad); HT5 obtuvo 96,76 % en sus 33 archivos críticos, y S11-D y S11-E quedaron cerrados. Sprint 12 quedó **completado — implementado, desplegado y verificado** el 19/10/2026: PR #43 se integró mediante `aebf900`, las migraciones se aplicaron en Heroku y el frontend se desplegó en Vercel. El smoke productivo sin canjear quedó verificado; el autenticado con Google sigue pendiente del usuario. Los tres tests preexistentes de EX-10/S11 se corrigieron en PR #48; el defecto real de enumeración tras fork se trata en PR #50, aún abierto. IA v2 y Brevo quedaron activos el 20/10 (ver anexo post-S12). Sprint 13 quedó **completado — implementado, desplegado y verificado** el 20/10/2026. Sprint 14 quedó **completado — implementado, desplegado y verificado** el 20/10/2026: carriles integrados, 2.325 pruebas de dominio en verde, compuerta de producto 95,62 %, HT5 de seguimiento 96,91 % y 9/9 E2E full-stack locales; la corrida local de `experiments_app` terminó con 3.385 pasadas, 17 omitidas, 4 fallos y 71 errores en 1 h 40 min (diagnóstico y repetición focalizada en la sección S14). El frontend completo pasó format, lint, typecheck, 417 pruebas Vitest (44 archivos), build y 58 E2E con build de producción y fixture de `pageerror`. El [PR #54](https://github.com/MontyPohl/ciudadania-activa/pull/54) quedó mergeado el 20/10 mediante `4bd05fb`, con CI del candidato `f9a9da0` **6/6 verde** (`test` en unos 3 min, `experiments` en unos 47 min, `build` y `frontend-e2e` verdes). Heroku v26 desplegó la reconciliación `a7f775d`; el árbol `51a9352` coincide con `origin/main:backend`. Sin migraciones ni cambios de esquema, `check` limpio, web/worker/beat en 1 y smoke productivo OK (detalle en el runbook §15).
+- **Estado general:** Sprint 1 **completado** (cierre técnico y documental el 20/08/2026: implementación local, CI/CD y despliegue en Vercel/Railway/Supabase verificados en producción, y procedimiento de respaldo manual comprobado). Sprint 2 **completado** (cierre el 20/08/2026: modelo de datos de las 18 entidades implementado, desplegado y verificado en producción, con respaldos previo y posterior a la migración). Sprint 3 **completado** (cierre el 20/08/2026: autenticación con Google, JWT propio, roles y permisos desplegados en Railway y Vercel, con el login real verificado de extremo a extremo). Sprint 4 **completado** (inicio el 22/08/2026, cierre el 23/08/2026: verificación de identidad con HMAC y almacenamiento privado, revisión administrativa manual con cotejo de la cédula, notificaciones asíncronas entregadas por la API HTTPS de Brevo y privacidad configurable del ranking, todo verificado en producción con una identidad real). Sprint 5 **completado** el 27/08/2026: S5-A, S5-B y S5-C están cerradas, integradas y validadas. Sprint 6 **completado** el 28/08/2026: S6-A y S6-B están cerrados. Sprint 7 **completado** el 29/08/2026: S7-A, S7-B y S7-C están integrados en `main`, y S7-D quedó probado en producción y cerrado con evidencia funcional y de base de datos en modo solo lectura. Sprint 8 continúa **en curso**. Sprint 9 quedó **completado** el 09/09/2026: S9-A, S9-B1, S9-B2 y el cierre documental S9-B3 están integrados en `main`; PR #38 fue mergeado mediante `7e95856c1b494d562ce1c267c06d5bebaec28cc8`. Sprint 10 quedó **implementado, desplegado, verificado y reconciliado** el 21/09/2026: el candidato `171f8c8b8f448a4092e73aeb5f67406e6b81ef09` se desplegó en Heroku, PR #39 se integró en `main` mediante `7ae82b865d90c4cade02dd3378b44107f088b7dd`, y backend, frontend, migraciones, backfill, workers e invariantes productivas quedaron verificados. Sprint 11 quedó **completado con observaciones** el 19/10/2026: S11-A quedó oficialmente congelada en `main@35f850eb24df552805fe8694f50fcbb3588a4141`; S11-B dejó preparada la instrumentación aislada y reproducible, sin generar resultados; S11-C registra seis runs de `EX-02` (21 y 22/09/2026): cinco `NOT_DEMONSTRATED` por causas de infraestructura y de harness, y el sexto, `s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af`, **demostrado en `PASS`**; `EX-03` quedó **demostrado en `PASS`** con el run `s11-6dc3ea66-08c9-51ef-9fe3-70e7dcc67959` `EX-04` con el run `s11-03adb9bc-c9e4-5f8f-b64c-c4360d0c2085` `EX-06` con el run `s11-989218f3-4808-5c6f-ac23-6e8870fec153` y `EX-08` con el run `s11-b567289c-9fe2-5349-a384-e9284bdde863`; `EX-05` quedó demostrado en `PASS` con el run `s11-0e2feac0-6583-513c-a6aa-33430394d14a`; `EX-07` quedó demostrado en `PASS` con el run `s11-545491b8-01fe-55e6-8f08-1a0ebbdca8d3`; S11-C2 quedó **cerrado** el 23/09/2026 con sus siete escenarios en `PASS`; `EX-09`, en su instancia OpenAI, se ejecutó el 26/09/2026 con el run `s11-a156a68c-c422-5e57-ae2b-3336d3b55e6c` y resultado **`FAIL`** (CA-4 19/28 = 67,86 %, bajo el umbral ≥ 85,00 %, es decir, al menos 24/28; run válido con manifest `COMPLETED` y `custody_verification = PASS` según la salida de `finalize`); `EX-10` quedó `NOT_DEMONSTRATED` (el run 1 no es vinculante y los intentos oficiales W22 en las sesiones c47, c51 y c52 terminaron en CP2 `UNCERTAIN` sin run nuevo ni efectos de autoridad); HT5 obtuvo 96,76 % en sus 33 archivos críticos, y S11-D y S11-E quedaron cerrados. Sprint 12 quedó **completado — implementado, desplegado y verificado** el 19/10/2026: PR #43 se integró mediante `aebf900`, las migraciones se aplicaron en Heroku y el frontend se desplegó en Vercel. El smoke productivo sin canjear quedó verificado; el autenticado con Google sigue pendiente del usuario. Los tres tests preexistentes de EX-10/S11 se corrigieron en PR #48; el defecto real de enumeración tras fork se trata en PR #50, aún abierto. IA v2 y Brevo quedaron activos el 20/10 (ver anexo post-S12). Sprint 13 quedó **completado — implementado, desplegado y verificado** el 20/10/2026. Sprint 14 quedó **completado — implementado, desplegado y verificado** el 20/10/2026: carriles integrados, 2.325 pruebas de dominio en verde, compuerta de producto 95,62 %, HT5 de seguimiento 96,91 % y 9/9 E2E full-stack locales; la corrida local de `experiments_app` terminó con 3.385 pasadas, 17 omitidas, 4 fallos y 71 errores en 1 h 40 min (diagnóstico y repetición focalizada en la sección S14). El frontend completo pasó format, lint, typecheck, 417 pruebas Vitest (44 archivos), build y 58 E2E con build de producción y fixture de `pageerror`. El [PR #54](https://github.com/MontyPohl/ciudadania-activa/pull/54) quedó mergeado el 20/10 mediante `4bd05fb`, con CI del candidato `f9a9da0` **6/6 verde** (`test` en unos 3 min, `experiments` en unos 47 min, `build` y `frontend-e2e` verdes). Heroku v26 desplegó la reconciliación `a7f775d`; el árbol `51a9352` coincide con `origin/main:backend`. Sin migraciones ni cambios de esquema, `check` limpio, web/worker/beat en 1 y smoke productivo OK (detalle en el runbook §15). Sprint 15 continúa **en curso**, con S15 + S15-UI integrados (PR #56 y #57) y desplegados el 21/10/2026 en Heroku v27 y Vercel producción; smoke verificado por Claude. Siguen pendientes la estabilidad prolongada, el dataset de IA, el piloto y los recorridos reales; no se declara cerrado S15.
 - **Plan de referencia:** [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md)
 - **Ventana de desarrollo:** 01/08/2026 → 15/11/2026 (16 sprints semanales, Anexo F revisado)
 - **Estados posibles:** `Pendiente` · `En curso` · `Completado` · `Completado con observaciones` · `Bloqueado`
@@ -29,7 +29,7 @@ Registro de avance del prototipo. Se actualiza **al cerrar cada sprint**, antes 
 | 12 | 17/10 – 23/10 | Catálogo de recompensas, canje simulado, saldos y ranking mensual | Completado — implementado, desplegado y verificado (19/10/2026) |
 | 13 | 24/10 – 30/10 | Dashboards, integración e ingesta social | Completado — implementado, desplegado y verificado (20/10/2026) |
 | 14 | 31/10 – 06/11 | Pruebas unitarias, integración, seguridad y E2E | Completado — implementado, desplegado y verificado (20/10/2026) |
-| 15 | 07/11 – 13/11 | Carga, dataset definitivo y documentación | Pendiente |
+| 15 | 07/11 – 13/11 | Carga, dataset definitivo y documentación | En curso — S15 + S15-UI desplegados y smoke verificado (21/10/2026); estabilidad prolongada, dataset de IA, piloto y recorridos reales pendientes |
 | 16 | 14/11 – 15/11 | Cierre y preparación de la defensa | Pendiente |
 
 **Progreso:** 13 / 16 sprints completados (Sprints 1, 2 y 3 cerrados el 20/08/2026; Sprint 4 el 23/08/2026; Sprint 5 el 27/08/2026; Sprint 6 el 28/08/2026; Sprint 7 el 29/08/2026; Sprint 9 el 09/09/2026; Sprint 10 el 21/09/2026; Sprint 11 el 19/10/2026, con observaciones; Sprint 12 el 19/10/2026; Sprints 13 y 14 el 20/10/2026). La ejecución real arrastra el desvío de calendario registrado en CT-29. Sprint 8 continúa **en curso**: R2 permanece prerregistrado/no ejecutado y la serie S8 con Gemini no produjo ninguna medición válida de CA-4; la primera medición válida, `EX-09` OpenAI en S11-C3, dio `FAIL` (19/28), y su efecto sobre el cierre del Sprint 8 no está decidido. Sprint 11 completó la congelación S11-A y la preparación técnica S11-B; S11-C cerró `EX-02` en `PASS` con el run `s11-4df882ed-9dfe-59a2-888b-ca1efc98d6af` —tras cinco intentos previos `NOT_DEMONSTRATED`—, `EX-03` en `PASS` con el run `s11-6dc3ea66-08c9-51ef-9fe3-70e7dcc67959`, `EX-04` en `PASS` con el run `s11-03adb9bc-c9e4-5f8f-b64c-c4360d0c2085` `EX-06` en `PASS` con el run `s11-989218f3-4808-5c6f-ac23-6e8870fec153` y `EX-08` en `PASS` con el run `s11-b567289c-9fe2-5349-a384-e9284bdde863`; `EX-05` quedó en `PASS` con el run `s11-0e2feac0-6583-513c-a6aa-33430394d14a`; `EX-07` en `PASS` con el run `s11-545491b8-01fe-55e6-8f08-1a0ebbdca8d3`; S11-C2 quedó cerrado el 23/09/2026; `EX-09` OpenAI se ejecutó el 26/09/2026 con el run `s11-a156a68c-c422-5e57-ae2b-3336d3b55e6c` y resultado `FAIL` (CA-4 19/28 = 67,86 %; run válido); `EX-10` quedó `NOT_DEMONSTRATED` y el análisis S11-D y el dossier S11-E cerraron el Sprint 11 el 19/10/2026; S12 quedó implementado, desplegado y verificado el 19/10/2026; S13 quedó implementado, desplegado y verificado el 20/10/2026. S14 quedó implementado, desplegado y verificado el 20/10/2026: PR #54 mergeado (`4bd05fb`) con CI del candidato `f9a9da0` 6/6 verde (`test` en unos 3 min y `experiments` en unos 47 min; `build` y `frontend-e2e` verdes), Heroku v26 por reconciliación `a7f775d` y smoke productivo OK. La corrida local de `experiments_app` conserva sus resultados originales (3.385 pasadas, 17 omitidas, 4 fallos y 71 errores en 1 h 40 min; diagnóstico en la sección S14); el frontend completo pasó format, lint, typecheck, 417 pruebas Vitest en 44 archivos, build y 58 E2E de producción con fixture de `pageerror`. Este cierre no cambia los veredictos de S11-D ni cierra Sprint 8.
@@ -5037,7 +5037,7 @@ coincide con `origin/main:backend`; trazabilidad en el runbook §15 e informe S1
 ## Sprint 15 — Carga, dataset definitivo y documentación
 
 **Fechas planificadas:** 07/11/2026 – 13/11/2026
-**Estado:** En ejecución — validación local y diagnóstico remoto
+**Estado:** En curso — S15 + S15-UI integrados y desplegados; smoke productivo verificado (21/10/2026)
 **Inicio real:** 20/10/2026
 **Fecha real de cierre:** —
 
@@ -5064,9 +5064,9 @@ Verificaciones de esta sesión: lint, formato y tipos con código 0; Vitest con
 53 archivos y 477 pruebas aprobadas (21,82 s). Grep final sin alias ni hex
 antiguos en código y pruebas del frontend. Por restricción del
 entorno, build, E2E completo, comprobación de rutas privadas, full-stack y capturas
-quedan a cargo de Claude: **build OK, 86/86 E2E, 6/6 rutas privadas y 28/28 capturas** (20/10/2026; full-stack S15 pendiente de la verificación integrada). No se declara cierre
-visual, integración ni despliegue. Resultados, specs y marcadores de evidencia en
-[S15_REDISENO_UI.md](s15/S15_REDISENO_UI.md). Sin commit en esta sesión.
+quedan a cargo de Claude: **build OK, 86/86 E2E, 6/6 rutas privadas y 28/28 capturas** (20/10/2026; full-stack S15 pendiente de la verificación integrada). Este registro corresponde a la sesión local del 20/10; la integración y el
+despliegue posteriores se registran abajo. Resultados, specs y marcadores de
+evidencia en [S15_REDISENO_UI.md](s15/S15_REDISENO_UI.md).
 
 ### Funcionalidades terminadas
 
@@ -5132,24 +5132,57 @@ La segunda revisión reforzó el vínculo manifiesto/serie/SQL y la comprobació
 ubicación/SRID/institución. La primera repetición representativa alcanzó 50 altas,
 pero superó los objetivos de latencia; se conserva y se compara con las demás
 repeticiones y el candidato gthread/4, sin seleccionar solo el mejor resultado. El ajuste
-del comando Gunicorn está preparado en Dockerfile/Heroku, sin despliegue ejecutado.
+del comando Gunicorn gthread/4 queda para una entrega aparte: el despliegue v27
+conserva sync, como en v26.
 
 ### Commits relevantes
 
 Base de S14: `3d89182`. Implementación S15 `bd0b0d5`, publicada en
-[PR #56](https://github.com/MontyPohl/ciudadania-activa/pull/56), borrador.
-CI del código `bd0b0d5`: **6/6 SUCCESS**, incluidos dominio, frontend y auxiliares.
-El PR sigue como borrador, sin merge ni despliegue productivo; sus limitaciones
-operativas se registran en el informe vigente.
+[PR #56](https://github.com/MontyPohl/ciudadania-activa/pull/56), integrado mediante
+`0df03dd` el 21/10 a las 00:04 UTC. CI del código `bd0b0d5`: **6/6 SUCCESS**,
+incluidos dominio, frontend y auxiliares. S15-UI se integró mediante
+[PR #57](https://github.com/MontyPohl/ciudadania-activa/pull/57), merge `433eb61`.
+
+### Despliegue (21/10/2026)
+
+Datos verificados por Claude: S15 integrado con el
+[PR #56](https://github.com/MontyPohl/ciudadania-activa/pull/56), merge `0df03dd`
+el 21/10 a las 00:04 UTC; S15-UI con el
+[PR #57](https://github.com/MontyPohl/ciudadania-activa/pull/57), merge `433eb61`.
+CI del PR #57 sobre `aad1aee`: `test`, `build`, `frontend-e2e`, `experiments`
+(**34 min 33 s**), `offline-tools` y Vercel, todos en verde.
+
+Heroku `ciudadania-activa-api` **v27**, `Deploy aade0894` a las **00:05:34 −03**,
+reconciliación `aade089` desde v26 (`a7f775d`), remote `heroku`, push sin force.
+Sin migraciones: `migrate --check` OK, `check` sin issues y web/worker/beat en 1.
+Gunicorn conserva **sync**, como en v26; gthread/4 queda para otra entrega.
+Vercel producción: deployment **`433eb61`** en **success**.
+
+Smoke: health `ok` (DB/Redis `true`), `/public/metrics/` con `trend` (6) y
+`current_month_by_category` (10), listado público con `photo_url`. Los detalles
+`ASIGNADO`/`RESUELTO` consultados no tienen media: `photo_url: null` y
+`resolution_evidences: []`. Foto de `CREADO` con media: **404** esperado.
+No hay foto en estado publicable en producción: el **200** lo cubren las pruebas,
+no este smoke. Frontend `/`, `/mapa`, `/reporte/<id>`, `/transparencia`,
+`/como-funciona` y `/ranking`: **200**; `/no-existe`: **404**. Headless a
+375/1280 px sin errores de JS, mensajes de error ni scroll horizontal; único
+401 en `/api/auth/refresh` anónimo, esperado. Últimas 400 líneas Heroku:
+0 `WORKER TIMEOUT`, 0 errores 5xx y 0 H1x.
+
+Rollback: `heroku releases:rollback v26 --app ciudadania-activa-api` y revert del
+merge `433eb61`. Trazabilidad completa en el [runbook §15](runbooks/HEROKU_MIGRATION.md#15-operación-vigente--corte-20102026-0125-utc).
+Este smoke no demuestra estabilidad prolongada ni cierra S15: siguen pendientes
+el dataset de IA, el piloto y los recorridos reales.
 
 ### Observaciones y desvíos respecto del plan
 
 P0-L permite preparar y verificar instrumentos locales; P0-M conserva los requisitos
-de medición final. El smoke usa Django de desarrollo y sustitutos, sin proveedores
+de medición final. El smoke local usa Django de desarrollo y sustitutos, sin proveedores
 externos ni workers: no adjudica RNF productivos ni modifica los resultados de S11.
 S15 permanece abierto por la evaluación IA, comprobaciones con cuentas/proveedores
-reales, operación pendiente y cierre/integración técnica
-que detalla el [informe vigente](s15/S15_INFORME_VALIDACION.md). La pasada UX y el
+reales, estabilidad prolongada, dataset de IA, piloto y recorridos reales.
+La integración y el despliegue técnico ya se registran arriba; los límites de
+validación se detallan en el [informe vigente](s15/S15_INFORME_VALIDACION.md). La pasada UX y el
 diagnóstico acotado Heroku ↔ Supabase ya tienen sus propios resultados observados.
 
 **Decisiones posteriores del usuario (20/10):** presupuesto API USD 5–10 con reserva

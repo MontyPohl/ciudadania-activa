@@ -3,7 +3,8 @@
 Fecha: 20/10/2026. Carril del Sprint 15, rama `feat/s15-ui`, worktree
 `ciudadania-activa-s15-ui`, creado desde `feat/s15-validation@856afc4`.
 Fases 0–5 y B1 ya registradas; esta entrega corresponde únicamente a la Fase 6.
-No implica cierre del Sprint 15 ni despliegue.
+El despliegue posterior del 21/10/2026 se registra al final; no implica cierre
+del Sprint 15.
 
 ## Decisiones aplicadas
 
@@ -102,3 +103,34 @@ Destino excluido de Git: `.s15-ui-captures/despues/`, 14 rutas × 375/1280 px.
 
 Mensaje de commit propuesto (sin ejecutar):
 `feat(ui): migrate private flows and finish S15-UI`.
+
+## Despliegue
+
+**21/10/2026.** Datos verificados por Claude: S15 integrado con el
+[PR #56](https://github.com/MontyPohl/ciudadania-activa/pull/56), merge `0df03dd`
+el 21/10 a las 00:04 UTC; S15-UI con el
+[PR #57](https://github.com/MontyPohl/ciudadania-activa/pull/57), merge `433eb61`.
+CI del PR #57 sobre `aad1aee`: `test`, `build`, `frontend-e2e`, `experiments`
+(**34 min 33 s**), `offline-tools` y Vercel, todos en verde.
+
+Heroku `ciudadania-activa-api` **v27**, `Deploy aade0894` a las **00:05:34 −03**,
+reconciliación `aade089` desde v26 (`a7f775d`), remote `heroku`, push sin force.
+Sin migraciones: `migrate --check` OK, `check` sin issues y web/worker/beat en 1.
+Gunicorn conserva **sync**, como en v26; gthread/4 queda para otra entrega.
+Vercel producción: deployment **`433eb61`** en **success**.
+
+Smoke: health `ok` (DB/Redis `true`), `/public/metrics/` con `trend` (6) y
+`current_month_by_category` (10), listado público con `photo_url`. Los detalles
+`ASIGNADO`/`RESUELTO` consultados no tienen media: `photo_url: null` y
+`resolution_evidences: []`. Foto de `CREADO` con media: **404** esperado.
+No hay foto en estado publicable en producción: el **200** lo cubren las pruebas,
+no este smoke. Frontend `/`, `/mapa`, `/reporte/<id>`, `/transparencia`,
+`/como-funciona` y `/ranking`: **200**; `/no-existe`: **404**. Headless a
+375/1280 px sin errores de JS, mensajes de error ni scroll horizontal; único
+401 en `/api/auth/refresh` anónimo, esperado. Últimas 400 líneas Heroku:
+0 `WORKER TIMEOUT`, 0 errores 5xx y 0 H1x.
+
+Rollback: `heroku releases:rollback v26 --app ciudadania-activa-api` y revert del
+merge `433eb61`. Trazabilidad completa en el [runbook §15](../runbooks/HEROKU_MIGRATION.md#15-operación-vigente--corte-20102026-0125-utc).
+Este smoke no demuestra estabilidad prolongada ni cierra S15: siguen pendientes
+el dataset de IA, el piloto y los recorridos reales.
