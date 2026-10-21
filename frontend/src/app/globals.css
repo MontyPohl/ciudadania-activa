@@ -62,7 +62,7 @@ body {
 }
 
 .ca-cluster-icon,
-.ca-report-marker {
+.ca-report-pin {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -78,33 +78,52 @@ body {
   background: var(--color-primary);
 }
 
-.ca-report-marker {
+.ca-report-pin {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 30px;
+  height: 30px;
   border-radius: 9999px 9999px 9999px 0;
   transform: rotate(-45deg);
 }
 
-.ca-report-marker > span {
+.ca-report-pin > span {
   transform: rotate(45deg);
 }
 
-.ca-report-marker--creado,
-.ca-report-marker--clasificado,
-.ca-report-marker--asignado {
+.ca-report-marker--creado .ca-report-pin,
+.ca-report-marker--clasificado .ca-report-pin,
+.ca-report-marker--asignado .ca-report-pin {
   background: var(--color-map-pending);
 }
 
-.ca-report-marker--en_proceso {
+.ca-report-marker--en_proceso .ca-report-pin {
   background: var(--color-map-in-progress);
 }
 
-.ca-report-marker--resuelto,
-.ca-report-marker--cerrado {
+.ca-report-marker--resuelto .ca-report-pin,
+.ca-report-marker--cerrado .ca-report-pin {
   background: var(--color-map-resolved);
 }
 
-.ca-report-marker--selected {
+.ca-report-marker--selected .ca-report-pin {
   outline: 4px solid color-mix(in srgb, var(--color-focus) 45%, transparent);
   outline-offset: 2px;
+}
+
+/* Los avisos de carga aparecen sólo si la consulta tarda, para no parpadear en cada movimiento. */
+.ca-map-notice--delayed {
+  animation: ca-map-notice-in 150ms ease-out 600ms both;
+}
+
+@keyframes ca-map-notice-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .ca-location-marker {

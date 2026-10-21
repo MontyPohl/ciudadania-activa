@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 
 import { MapFilters } from "@/features/map/MapFilters";
 import { MapLegend } from "@/features/map/MapLegend";
-import { MapResultsStatus, type MapResultsPhase } from "@/features/map/MapResultsStatus";
+import { MapNotice, MapResultsStatus, type MapResultsPhase } from "@/features/map/MapResultsStatus";
 import { ReportList } from "@/features/map/ReportList";
 import { ReportSidePanel } from "@/features/map/ReportSidePanel";
 import { STATUS_MARKERS } from "@/features/map/presentation";
@@ -94,6 +94,19 @@ describe("estados de resultados", () => {
   ] satisfies Array<[MapResultsPhase, string]>)("renderiza %s", (phase, text) => {
     render(<MapResultsStatus phase={phase} />);
     expect(screen.getByText(new RegExp(text, "i"))).toBeInTheDocument();
+  });
+
+  it("avisa sobre el mapa y sólo anuncia cuando la lista está oculta", () => {
+    const view = render(<MapNotice phase="too-wide" announce />);
+    expect(screen.getByText("Acercá el mapa para ver reportes.").parentElement).toHaveAttribute(
+      "aria-live",
+      "polite",
+    );
+    view.rerender(<MapNotice phase="refreshing" announce={false} />);
+    expect(screen.getByText("Actualizando reportes…")).toHaveAttribute("aria-hidden", "true");
+    expect(screen.getByText("Actualizando reportes…").parentElement).not.toHaveAttribute(
+      "aria-live",
+    );
   });
 });
 

@@ -313,7 +313,7 @@ describe("orquestación del viewport", () => {
       fireEvent.click(screen.getByRole("button", { name: "Emitir segundo viewport" }));
       await Promise.resolve();
     });
-    expect(screen.getByRole("status")).toHaveTextContent("Consultando reportes");
+    expect(screen.getByText("1 reporte del área visible")).toBeInTheDocument();
 
     fireEvent.keyDown(window, { key: "Escape" });
     navigation.search = "";
@@ -331,7 +331,7 @@ describe("orquestación del viewport", () => {
     expect(screen.getByRole("button", { name: /Baches/ })).toHaveFocus();
   });
 
-  it("espera al nuevo botón antes de consumir la restauración de foco", async () => {
+  it("conserva el botón durante la recarga y restaura el foco al terminar", async () => {
     vi.useFakeTimers();
     const report = publicReport();
     let resolveReload!: (page: ReturnType<typeof emptyPage>) => void;
@@ -362,17 +362,14 @@ describe("orquestación del viewport", () => {
       fireEvent.click(screen.getByRole("button", { name: "Emitir segundo viewport" }));
       await Promise.resolve();
     });
-    expect(oldButton).not.toBeInTheDocument();
-    expect(document.activeElement).toBe(document.body);
+    expect(oldButton).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Emitir viewport válido" }));
     await act(() => vi.advanceTimersByTime(350));
-    expect(screen.queryByRole("button", { name: /Baches/ })).not.toBeInTheDocument();
+    oldButton.blur();
 
     await act(async () => resolveReload(emptyPage([report])));
-    const newButton = screen.getByRole("button", { name: /Baches/ });
-    expect(newButton).not.toBe(oldButton);
-    expect(newButton).toHaveFocus();
+    expect(screen.getByRole("button", { name: /Baches/ })).toHaveFocus();
   });
 
   it("enfoca la lista como fallback si el reporte ya no pertenece a los resultados", async () => {
@@ -452,15 +449,13 @@ describe("orquestación del viewport", () => {
       fireEvent.click(screen.getByRole("button", { name: "Emitir segundo viewport" }));
       await Promise.resolve();
     });
-    expect(oldSecondButton).not.toBeInTheDocument();
+    expect(oldSecondButton).toBeInTheDocument();
     await act(async () => {
       vi.advanceTimersByTime(350);
       await Promise.resolve();
     });
 
-    const newSecondButton = screen.getByRole("button", { name: /Segundo reporte/ });
-    expect(newSecondButton).not.toBe(oldSecondButton);
-    expect(newSecondButton).toHaveFocus();
+    expect(screen.getByRole("button", { name: /Segundo reporte/ })).toHaveFocus();
     expect(screen.getByRole("button", { name: /Primer reporte/ })).not.toHaveFocus();
   });
 
@@ -708,7 +703,7 @@ describe("orquestación del viewport", () => {
     expect(screen.queryByText("Resultado viejo")).not.toBeInTheDocument();
   });
 
-  it("limpia resultados anteriores mientras carga un viewport nuevo", async () => {
+  it("mantiene los resultados anteriores mientras carga un viewport nuevo", async () => {
     vi.useFakeTimers();
     const report = publicReport();
     vi.mocked(getPublicReports)
@@ -727,8 +722,9 @@ describe("orquestación del viewport", () => {
       fireEvent.click(screen.getByRole("button", { name: "Emitir segundo viewport" }));
       await Promise.resolve();
     });
-    expect(screen.getByRole("status")).toHaveTextContent("Consultando reportes");
-    expect(screen.queryByRole("heading", { name: /Reportes visibles/ })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Consultando reportes/)).not.toBeInTheDocument();
+    expect(screen.getByText("1 reporte del área visible")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Reportes visibles (1)" })).toBeInTheDocument();
   });
 
   it("deduplica eventos sucesivos con el mismo bbox y zoom", async () => {

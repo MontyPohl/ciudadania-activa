@@ -8,6 +8,7 @@ import { MapResizeWatcher } from "@/components/maps/MapResizeWatcher";
 import { INITIAL_MAP_BOUNDS, isQueryableBbox, type MapBbox } from "@/features/map/bbox";
 import { MapLegend } from "@/features/map/MapLegend";
 import { MapMarkers } from "@/features/map/MapMarkers";
+import { MapNotice, type MapResultsPhase } from "@/features/map/MapResultsStatus";
 import {
   MapDeepLinkFocus,
   MapViewportEvents,
@@ -22,6 +23,8 @@ interface MapViewProps {
   viewport: { bbox: MapBbox; zoom: number } | null;
   selectedId: string | null;
   focusTarget: MapFocusTarget | null;
+  notice: MapResultsPhase;
+  announceNotice: boolean;
   onViewport: (bbox: MapBbox, zoom: number) => void;
   onSelect: (report: PublicReport, trigger?: HTMLElement) => void;
 }
@@ -32,6 +35,8 @@ export default function MapView({
   viewport,
   selectedId,
   focusTarget,
+  notice,
+  announceNotice,
   onViewport,
   onSelect,
 }: MapViewProps) {
@@ -62,6 +67,7 @@ export default function MapView({
           />
         )}
       </MapContainer>
+      <MapNotice phase={notice} announce={announceNotice} />
       <MapLegend />
       <Button href="/reportes/nuevo" className="absolute right-3 bottom-8 z-[500] shadow-lg">
         <Plus size={18} aria-hidden="true" />

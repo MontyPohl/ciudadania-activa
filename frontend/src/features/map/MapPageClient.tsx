@@ -57,6 +57,7 @@ export function MapPageClient() {
   const [deepLinkMessage, setDeepLinkMessage] = useState<string | null>(null);
   const requestSequence = useRef(0);
   const displayedResultsKey = useRef<string | null>(null);
+  const displayedFiltersKey = useRef<string | null>(null);
   const attemptedDeepLink = useRef<string | null>(null);
   const localSelection = useRef<string | null>(null);
   const focusOrigin = useRef<FocusOrigin | null>(null);
@@ -164,6 +165,7 @@ export function MapPageClient() {
 
     if (!viewportIsQueryable) {
       displayedResultsKey.current = null;
+      displayedFiltersKey.current = null;
       updateResultsSoon([], "too-wide");
       return () => {
         disposed = true;
@@ -174,6 +176,7 @@ export function MapPageClient() {
 
     if (query.category !== null && categories.phase === "loading") {
       displayedResultsKey.current = null;
+      displayedFiltersKey.current = null;
       updateResultsSoon([], "idle");
       return () => {
         disposed = true;
@@ -182,18 +185,28 @@ export function MapPageClient() {
 
     if (query.category !== null && !categoryIsKnown) {
       displayedResultsKey.current = null;
+      displayedFiltersKey.current = null;
       updateResultsSoon([], "idle");
       return () => {
         disposed = true;
       };
     }
 
-    const key = `${serializedViewport}|${query.stateFilter}|${effectiveCategory ?? ""}`;
+    const filtersKey = `${query.stateFilter}|${effectiveCategory ?? ""}`;
+    const key = `${serializedViewport}|${filtersKey}`;
     if (displayedResultsKey.current === key) return;
 
     const controller = new AbortController();
     displayedResultsKey.current = null;
-    updateResultsSoon([], "loading");
+    // Al mover el mapa con los mismos filtros, los pines anteriores siguen visibles hasta la nueva respuesta.
+    if (displayedFiltersKey.current === filtersKey) {
+      queueMicrotask(() => {
+        if (!disposed) setResultsPhase("loading");
+      });
+    } else {
+      displayedFiltersKey.current = null;
+      updateResultsSoon([], "loading");
+    }
 
     const timer = window.setTimeout(() => {
       getPublicReports(
@@ -207,11 +220,13 @@ export function MapPageClient() {
         .then((page) => {
           if (disposed || sequence !== requestSequence.current) return;
           displayedResultsKey.current = key;
+          displayedFiltersKey.current = filtersKey;
           setReports(page.results);
           setResultsPhase(page.results.length === 0 ? "empty" : "ready");
         })
         .catch((error: unknown) => {
           if (disposed || controller.signal.aborted || sequence !== requestSequence.current) return;
+          displayedFiltersKey.current = null;
           setReports([]);
           setResultsPhase(
             error instanceof PublicApiError && error.status === 429 ? "rate-limited" : "error",
@@ -391,6 +406,11 @@ export function MapPageClient() {
     replaceQuery({ reporte: null });
   }, [replaceQuery]);
 
+  const statusPhase: MapResultsPhase =
+    resultsPhase === "loading" && reports.length > 0 ? "refreshing" : resultsPhase;
+  const showsCount =
+    statusPhase === "ready" || statusPhase === "empty" || statusPhase === "refreshing";
+
   const detailHref = useCallback(
     (report: PublicReport) => {
       const params = new URLSearchParams();
@@ -437,8 +457,8 @@ export function MapPageClient() {
             consultar la zona visible.
           </p>
           <p className="mt-3 font-semibold text-primary">
-            {resultsPhase === "ready" || resultsPhase === "empty"
-              ? `${reports.length} reportes del área visible`
+            {showsCount
+              ? `${reports.length} ${reports.length === 1 ? "reporte" : "reportes"} del área visible`
               : "Consultá el área visible"}
           </p>
           <Link
@@ -466,7 +486,7 @@ export function MapPageClient() {
           className="min-h-6 text-sm text-muted"
           aria-live="polite"
         >
-          <MapResultsStatus phase={resultsPhase} />
+          <MapResultsStatus phase={statusPhase} />
           {deepLinkMessage !== null && (
             <p role="alert" className="text-warning-ink">
               {deepLinkMessage}
@@ -491,6 +511,8 @@ export function MapPageClient() {
           viewport={viewport}
           selectedId={selectedReport?.id ?? null}
           focusTarget={deepLinkFocus?.id === query.report ? deepLinkFocus : null}
+          notice={statusPhase}
+          announceNotice={mobileView === "map"}
           onViewport={handleViewport}
           onSelect={handleSelect}
         />

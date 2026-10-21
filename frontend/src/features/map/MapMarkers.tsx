@@ -12,7 +12,8 @@ import {
   isReportCluster,
 } from "@/features/map/cluster";
 import type { MapBbox } from "@/features/map/bbox";
-import { STATUS_LABELS, STATUS_MARKERS } from "@/features/map/presentation";
+import { STATUS_LABELS } from "@/features/map/presentation";
+import { reportMarkerIcon } from "@/features/map/reportMarkerIcon";
 import type { PublicReport } from "@/types/api";
 
 interface MapMarkersProps {
@@ -69,14 +70,7 @@ export function MapMarkers({
     }
 
     const report = feature.properties.report;
-    const marker = STATUS_MARKERS[report.status];
-    const selectedClass = report.id === selectedId ? " ca-report-marker--selected" : "";
-    const icon = divIcon({
-      className: `ca-report-marker ca-report-marker--${report.status.toLowerCase()}${selectedClass}`,
-      html: `<span aria-hidden="true">${marker.symbol}</span>`,
-      iconSize: [34, 42],
-      iconAnchor: [17, 39],
-    });
+    const icon = reportMarkerIcon(report.status, report.id === selectedId);
 
     return (
       <Marker
