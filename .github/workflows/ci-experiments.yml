@@ -3,28 +3,7 @@ name: CI Experiments (S11 / EX-10)
 on:
   push:
     branches: [main]
-    paths:
-      - "backend/**"
-      - ".env.example"
-      - ".gitignore"
-      - "infra/**"
-      - "docs/tesis/S11A_POLITICA_CUSTODIA_Y_ACCESO.md"
-      - ".github/workflows/ci-experiments.yml"
   pull_request:
-    paths:
-      # El aparato y todo lo que congela GOV-T054, también fuera de backend/.
-      - "backend/apps/experiments_app/**"
-      - "backend/config/**"
-      - "backend/requirements/**"
-      - "backend/Dockerfile.dev"
-      - "backend/manage.py"
-      - "backend/conftest.py"
-      - "backend/scripts/s11_*"
-      - ".env.example"
-      - ".gitignore"
-      - "infra/**"
-      - "docs/tesis/S11A_POLITICA_CUSTODIA_Y_ACCESO.md"
-      - ".github/workflows/ci-experiments.yml"
   workflow_dispatch:
 
 defaults:
@@ -39,7 +18,85 @@ env:
   REDIS_URL: redis://localhost:6379/0
 
 jobs:
+  changes:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    outputs:
+      experiments: ${{ steps.filter.outputs.experiments }}
+    steps:
+      - uses: actions/checkout@v4
+        if: github.event_name == 'pull_request'
+        with:
+          # El merge checkout contiene el head del PR; historial completo para merge-base.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Detectar cambios que afectan experiments_app
+        id: filter
+        working-directory: .
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        # Lista conservadora (ver README, CI/CD): exporter/provenance/ex10_state
+        # importan admin, auth, reports, rewards, notifications y ai_client;
+        # local_storage usa core y ex10_executor usa map. Django carga además
+        # analytics/social_ingestion vía settings/URLs y migra todas las apps.
+        # backend/** incluye esas apps y migraciones, config, requirements (sin
+        # lockfile Python actual), conftest, pyproject/pytest, cobertura, Dockerfiles
+        # y scripts s11_*. infra, .env.example, .gitignore y la política S11A
+        # conservan la protección de custodia/GOV-T054. Se incluye este workflow
+        # y configuración Python raíz, incluso si se incorpora en el futuro.
+        # Sin paths en los eventos: changes siempre reporta y experiments queda
+        # skipped en PR ajenos. Push a main, manual y un eventual schedule: siempre.
+        run: |
+          python3 - <<'PYTHON'
+          import fnmatch
+          import os
+          import subprocess
+
+          paths = (
+              "backend/**",
+              "infra/**",
+              ".env.example",
+              ".gitignore",
+              "docs/tesis/S11A_POLITICA_CUSTODIA_Y_ACCESO.md",
+              ".github/workflows/ci-experiments.yml",
+              "conftest.py",
+              "pytest.ini",
+              "pyproject.toml",
+              "setup.cfg",
+              "tox.ini",
+              ".coveragerc",
+              "coverage*.toml",
+              "requirements*.txt",
+              "requirements/**",
+              "uv.lock",
+              "poetry.lock",
+              "Pipfile*",
+          )
+          relevant = True
+          if os.environ["EVENT_NAME"] == "pull_request":
+              # Tres puntos: cambios introducidos por el PR desde la base común.
+              # NUL y --no-renames cubren nombres especiales, borrados y ambos
+              # extremos de un renombre; sin límite de archivos de la API/paths.
+              changed = subprocess.check_output([
+                  "git", "diff", "--name-only", "-z", "--no-renames",
+                  f"{os.environ['BASE_SHA']}...{os.environ['HEAD_SHA']}", "--",
+              ]).decode("utf-8", errors="surrogateescape").split("\0")
+              relevant = any(
+                  fnmatch.fnmatchcase(path, pattern)
+                  for path in changed if path
+                  for pattern in paths
+              )
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write(f"experiments={str(relevant).lower()}\n")
+          PYTHON
+
   experiments:
+    needs: changes
+    if: needs.changes.outputs.experiments == 'true'
     runs-on: ubuntu-24.04
 
     services:
