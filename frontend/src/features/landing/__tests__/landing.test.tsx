@@ -36,9 +36,9 @@ it("muestra los números reales, cero y supresión sin sustituir errores por cer
     },
   });
   render(<LandingMetrics />);
-  expect(await screen.findByText("0")).toBeVisible();
-  expect(screen.getByText("60")).toBeVisible();
-  expect(screen.getByText("1")).toBeVisible();
+  expect(await screen.findByText("0", { selector: '[aria-hidden="true"]' })).toBeVisible();
+  expect(screen.getByText("60", { selector: '[aria-hidden="true"]' })).toBeVisible();
+  expect(screen.getByText("1", { selector: '[aria-hidden="true"]' })).toBeVisible();
   expect(screen.getByText("—")).toBeVisible();
   expect(screen.getByText("Se muestra con 5 o más casos.")).toBeVisible();
 });
@@ -104,7 +104,8 @@ it("con movimiento reducido no programa observadores ni animaciones", () => {
       <AnimatedNumber value={120} />
     </Reveal>,
   );
-  expect(screen.getByLabelText("120")).toBeVisible();
+  expect(screen.getByText("120", { selector: ".sr-only" })).not.toHaveAttribute("aria-hidden");
+  expect(screen.getByText("120", { selector: '[aria-hidden="true"]' })).toBeVisible();
   expect(observer).not.toHaveBeenCalled();
   expect(frame).not.toHaveBeenCalled();
 });
@@ -165,7 +166,8 @@ it("revela al entrar al viewport y cancela el contador si se activa movimiento r
   media.matches = true;
   onMotion();
   expect(cancel).toHaveBeenCalledWith(42);
-  expect(screen.getByLabelText("60")).toHaveTextContent("60");
+  expect(screen.getByText("60", { selector: ".sr-only" })).toHaveTextContent("60");
+  expect(screen.getByText("60", { selector: '[aria-hidden="true"]' })).toHaveTextContent("60");
   unmount();
   expect(disconnect).toHaveBeenCalled();
 });

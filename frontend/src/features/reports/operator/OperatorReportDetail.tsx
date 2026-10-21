@@ -611,10 +611,18 @@ export function OperatorReportDetail({
                     Una imagen JPEG o PNG de hasta 5 MiB. Máximo cinco por ciclo.
                   </p>
                 </div>
+                <p
+                  id="evidence-public-notice"
+                  className="rounded-lg bg-primary/5 p-3 text-sm text-primary"
+                >
+                  La evidencia será pública cuando el reporte quede resuelto o cerrado: evitá caras,
+                  patentes y datos personales.
+                </p>
                 <label className="block text-sm font-medium">
                   Imagen
                   <Input
                     ref={fileInput}
+                    aria-describedby="evidence-public-notice"
                     type="file"
                     required
                     accept="image/jpeg,image/png"

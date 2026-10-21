@@ -82,7 +82,8 @@ export function AnimatedNumber({ value, percent = false }: { value: number; perc
     };
   }, [value, format, label]);
   return (
-    <span aria-label={label}>
+    <span>
+      <span className="sr-only">{label}</span>
       <span ref={ref} aria-hidden="true">
         {label}
       </span>

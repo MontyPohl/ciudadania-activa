@@ -1991,6 +1991,14 @@ objeto perdido o evidencia ajena: `{"detail":"No se encontró la imagen."}`.
 429: contrato DRF de throttle existente. Todos llevan `Cache-Control: no-store` y
 `X-Content-Type-Options: nosniff`. El estado se verifica en cada lectura; un rechazo
 retira el acceso incluso si un listado cacheado todavía contiene la ruta.
+Para un reporte ya validado, rechazar directamente falla con
+`VALIDATION_REVERSAL_REQUIRED`: un **admin** debe ejecutar primero
+`POST /api/v1/admin/reports/{id}/revert-validation/` con `cycle` vigente y `reason`.
+La reversión devuelve el reporte a `CLASIFICADO`, revierte los créditos del ciclo y
+registra auditoría. Desde ese momento los proxies dejan de servir foto y evidencia,
+porque consultan el estado en cada lectura. Después, la institución o el admin pueden
+rechazarlo si corresponde. La institución sola no puede retirar medios de un reporte
+ya validado.
 
 ### `GET /api/v1/public/metrics/`
 

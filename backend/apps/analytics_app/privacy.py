@@ -39,3 +39,13 @@ def complement(totals: dict, rows: list[dict], *, cells=ADDITIVE_CELLS) -> None:
         target = min(shown, key=lambda row: row[cell]) if shown else totals
         target[cell] = None
         target["suppressed"].append(cell)
+
+
+def suppress_current_categories(current_month: dict, categories: list[dict]) -> None:
+    # El desglose por categoría no debe reconstruir un mes actual suprimido.
+    if current_month["received"] is not None:
+        return
+    for category in categories:
+        if "received" not in category["suppressed"]:
+            category["received"] = None
+            category["suppressed"].append("received")

@@ -22,6 +22,17 @@ Fecha: 20/10/2026. Worktree `ciudadania-activa-s15-ui`, rama `feat/s15-ui`, base
 - No hay tratamiento retroactivo: fotos existentes sintéticas/de prueba, confirmado
   por el usuario. El aviso de publicación se incorporará en Fase 5.
 
+## Retiro de medios públicos
+
+La foto se publica desde `ASIGNADO`; la evidencia, en `RESUELTO`/`CERRADO`.
+Un reporte ya validado no admite rechazo directo (`VALIDATION_REVERSAL_REQUIRED`).
+Un **admin** debe revertir primero mediante
+`POST /api/v1/admin/reports/{id}/revert-validation/`, con `cycle` vigente y `reason`.
+El reporte vuelve a `CLASIFICADO`, se revierten los créditos del ciclo y queda
+registro de auditoría. Foto y evidencia dejan de servirse desde ese momento: los
+proxies verifican el estado en cada lectura. Después la institución o el admin pueden
+rechazarlo si corresponde; la institución sola no puede retirar medios tras validar.
+
 ## Contrato para Fase 5
 
 Fuente completa, ejemplos y errores: [docs/API.md, enmienda S15-B1](../API.md#s15-b1-medios-y-agregados-publicos).

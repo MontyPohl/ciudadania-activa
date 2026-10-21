@@ -44,6 +44,22 @@ del usuario, sin exigir contratar otro.
    al respaldo. Si hubiera una incidencia, evaluar primero su alcance y el punto de
    recuperación con el usuario.
 
+## Retiro de foto y evidencia públicas
+
+Si un reporte ya validado requiere retirar sus medios públicos:
+
+1. Un **admin** ejecuta `POST /api/v1/admin/reports/{id}/revert-validation/`, con
+   `cycle` vigente y `reason` que explique el retiro. Esto devuelve el reporte a
+   `CLASIFICADO`, revierte los créditos del ciclo y registra auditoría. Desde ese
+   momento los proxies dejan de servir foto y evidencia: verifican el estado en cada
+   lectura, aunque un listado cacheado conserve las rutas.
+2. Comprobar que las rutas públicas de foto y evidencia responden `404`. Después,
+   la institución o el admin pueden rechazar el reporte si corresponde.
+
+La institución sola no puede retirar medios de un reporte ya validado: el rechazo
+sin reversión previa falla con `VALIDATION_REVERSAL_REQUIRED`. La foto solo se
+publica desde `ASIGNADO` y la evidencia en `RESUELTO`/`CERRADO`.
+
 ## Secretos pendientes: orden y consumidores
 
 La decisión [S14-D19](../s14/S14_DECISIONES.md) y el
@@ -102,5 +118,7 @@ posterior a las ventanas medidas. Su causa no se estableció. Antes de desplegar
 ajuste gthread/4, comprobar estabilidad bajo períodos prolongados y tratar la causa
 pendiente. La recuperación controlada local sí se observó: reemplazo en 33,055 s,
 30 health antes/después y diez tablas sin cambios; conserva ese alcance acotado.
-No usar las ventanas cortas como garantía de operación continua. Heroku conserva
-su versión existente y no se publicó este ajuste durante S15.
+No usar las ventanas cortas como garantía de operación continua. La entrega S15
+se publica con el comando sync de v26 en `heroku.yml` y `Dockerfile`; gthread/4
+queda pendiente para una entrega aparte, después de la prueba de estabilidad
+prolongada. Este documento no registra un nuevo despliegue ejecutado.

@@ -141,3 +141,28 @@ def test_category_complement_hides_smallest_published_cell(report):
     assert [row["received"] for row in rows] == [None, None] + [5] * (len(rows) - 2)
     assert rows[1]["suppressed"] == ["received"]
     assert result["trend"][-1]["received"] == result["totals"]["received"] == 49
+
+
+@pytest.mark.parametrize("current_count", [5, 7])
+def test_current_categories_follow_month_after_complement(report, current_count):
+    set_created(report, datetime(2026, 5, 1, tzinfo=TZ))
+    for month, count in [(6, 6), (7, 6), (8, 6), (9, 6), (10, current_count)]:
+        for _ in range(count):
+            report.pk = None
+            report.save()
+            set_created(report, datetime(2026, month, 1, tzinfo=TZ))
+    before_trend, before_categories = selectors.public_breakdowns(now=NOW)
+    assert before_trend[-1]["received"] == current_count
+    assert any(row["received"] == current_count for row in before_categories)
+
+    result = selectors.public_metrics(now=NOW)
+    assert result["totals"]["received"] == 25 + current_count
+    if current_count == 5:
+        assert [point["received"] for point in result["trend"]] == [None, 6, 6, 6, 6, None]
+        assert all(
+            row["received"] is None and row["suppressed"] == ["received"]
+            for row in result["current_month_by_category"]
+        )
+    else:
+        assert result["trend"][-1]["received"] == current_count
+        assert result["current_month_by_category"] == before_categories

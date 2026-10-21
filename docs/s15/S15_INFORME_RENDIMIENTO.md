@@ -8,8 +8,10 @@ worker `gthread` con cuatro hilos pasó las tres réplicas locales, con persiste
 y tareas reconciliadas en cada una. No se mezclan ambas configuraciones ni se
 selecciona la mejor corrida para ocultar las demás.
 
-Esta evidencia justifica proponer la configuración del candidato para integración.
-El cambio de `Dockerfile`/`heroku.yml` está preparado, pendiente de integración/publicación, después de medir;
+La configuración candidata gthread/4 queda pendiente para una entrega aparte,
+después de la prueba de estabilidad prolongada y de tratar la causa del timeout
+pendiente. La entrega S15 se publica con el comando sync de v26, restaurado en
+`Dockerfile` y `heroku.yml`;
 **no se desplegó ni se midió HTTP productivo**. El resultado de referencia sigue
 siendo variable, con una ventana válida incumplida. Las adjudicaciones de S11
 permanecen sin cambios.

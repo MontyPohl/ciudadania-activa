@@ -13,7 +13,7 @@ from django.utils import timezone
 from apps.admin_app.models import Category, Institution
 from apps.analytics_app import periods
 from apps.analytics_app.constants import MIN_CELL_SIZE, PUBLIC_WINDOW_MONTHS, TREND_MONTHS
-from apps.analytics_app.privacy import complement, suppress
+from apps.analytics_app.privacy import complement, suppress, suppress_current_categories
 from apps.core.enums import ReportPriority, ReportStatus
 from apps.reports_app.models import Report, ReportConfirmation, ReportStatusHistory
 from apps.rewards_app.enums import RewardEventType, RewardTxStatus
@@ -595,6 +595,7 @@ def public_metrics(*, now=None):
     trend, categories = public_breakdowns(now=now)
     # Los totales existentes siguen públicos: proteger las nuevas particiones.
     complement(totals, trend, cells=("received", "resolved"))
+    suppress_current_categories(trend[-1], categories)
     return {
         "window": {
             "from": start.date().isoformat(),
