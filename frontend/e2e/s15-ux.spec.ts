@@ -262,7 +262,7 @@ test("S15: mapa ofrece selección y regreso con teclado en móvil", async ({ pag
     await expect(symbols.nth(index)).toHaveCSS("background-color", color);
     await assertTextContrast(symbols.nth(index), testInfo);
   }
-  const pin = page.locator(".ca-report-marker--creado");
+  const pin = page.locator(".ca-report-marker--creado .ca-report-pin");
   await expect(pin).toHaveCSS("background-color", colors[0]);
   await expect(pin).toHaveText("●");
   await page.getByRole("button", { name: "Lista", exact: true }).click();
