@@ -380,8 +380,8 @@ no endpoints; sus opciones y efectos están en [API §9](docs/API.md#9-comandos-
 
 ## CI/CD
 
-Los Pull Requests y los pushes a `main` ejecutan GitHub Actions según los filtros `paths`
-de cada workflow. Desde el S14 hay **dos workflows de backend**, ambos con PostGIS y Redis:
+Los Pull Requests y los pushes a `main` ejecutan GitHub Actions según los filtros
+de cada workflow (por evento o por job). Desde el S14 hay **dos workflows de backend**, ambos con PostGIS y Redis:
 
 - `ci-backend.yml`: Ruff (lint y formato), control de migraciones y pruebas del dominio,
   excluyendo `experiments_app`. La compuerta de `backend/coverage-gate.toml` exige **≥ 80 %**
@@ -390,9 +390,27 @@ de cada workflow. Desde el S14 hay **dos workflows de backend**, ambos con PostG
   **HT5-01** sobre el manifiesto congelado de **33 archivos** de S11A mediante
   `backend/coverage-ht5.toml`, con los mismos datos; los dos alcances no son equivalentes.
 - `ci-experiments.yml`: corre `experiments_app` por separado, sin la compuerta de producto;
-  excluye los tres launchers EX-10 que exceden las 6 h de Actions. En PR se activa si cambia
-  el aparato o su configuración y archivos de custodia; en pushes a `main` tiene un filtro
-  más amplio. También admite ejecución manual.
+  excluye los tres launchers EX-10 que exceden las 6 h de Actions. El job `changes`
+  siempre reporta; en PR compara base común → head con `git diff` (incluye borrados y
+  ambas rutas de renombres, sin límite de archivos). Si ninguna ruta aplica,
+  `experiments` queda **skipped**, sin omitir el workflow y dejar el check pendiente.
+  En **todo push a `main`** y en ejecución **manual** corre siempre como red de seguridad.
+  No hay schedule; si se agrega, también correrá siempre. `ci-backend.yml` excluye esta
+  suite con `--ignore=apps/experiments_app` y no depende de este job.
+
+El filtro de PR de experiments es deliberadamente conservador; ante nuevas dependencias,
+ampliarlo antes de reducir su alcance. Las rutas son:
+
+| Rutas | Dependencia o criterio |
+|---|---|
+| `backend/**` | `exporter`, `provenance` y `ex10_state` → `admin_app`, `auth_app`, `reports_app`, `rewards_app`, `notifications_app`, `ai_client_app`; `local_storage` → `core.services.storage`; `ex10_executor` → `map_app.cache`. Los servicios importados enlazan entre sí; settings/URLs cargan también `analytics_app` y `social_ingestion_app`. Se incluyen todas las apps y sus migraciones porque pytest-django prepara la base completa, además de fixtures y datos. |
+| Incluidos en `backend/**`: `config/**`, `requirements/**`, `conftest.py`, `pyproject.toml`, `coverage*.toml`, Dockerfiles, `manage.py`, `scripts/**` | Settings de test → base, URLs y Celery; `requirements/test.txt` → `base.txt` (no hay lockfile Python actual); pytest y cobertura; scripts S11 ejercitados por la suite. El job instala directamente Python/GDAL y requirements, sin construir Docker, pero se conserva la cobertura del entorno congelado S11. |
+| `infra/**`, `.env.example`, `.gitignore`, `docs/tesis/S11A_POLITICA_CUSTODIA_Y_ACCESO.md` | Overlays, aislamiento, procedencia y política de custodia de evidencia S11/GOV-T054, conservados del filtro previo. |
+| `.github/workflows/ci-experiments.yml` | Cambios del propio comando, servicios o filtro de CI. |
+| En raíz: `conftest.py`, `pytest.ini`, `pyproject.toml`, `setup.cfg`, `tox.ini`, `.coveragerc`, `coverage*.toml`, `requirements*.txt`, `requirements/**`, `uv.lock`, `poetry.lock`, `Pipfile*` | Configuración compartida de Python, pytest, cobertura y dependencias, también si se incorpora en el futuro. |
+
+Los PR que solo cambian frontend o documentación ajena a esa política omiten la suite larga;
+no se alteran las pruebas, sus exclusiones ni la validación de evidencia S11.
 
 `ci-frontend.yml` conserva Prettier, Vitest, ESLint, tipos y build; su job `frontend-e2e`
 ejecuta todas las specs de `e2e/` contra el build de producción con una API interceptada.
