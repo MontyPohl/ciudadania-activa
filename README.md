@@ -492,6 +492,19 @@ Dos detalles de configuración que no son opcionales y conviene no "simplificar"
 - `--concurrency=2` en el worker. Sin el parámetro, Celery detecta todas las CPU del host y levanta
   decenas de procesos innecesarios.
 
+## Validación S15
+
+La implementación en revisión de S15 incorpora un dataset sintético restaurable,
+herramientas de evaluación IA offline, carga k6 conciliada con SQL y recorrido de
+navegador con backend real local. `ci-s15-tools.yml` ejecuta los contratos offline
+cuando cambian herramientas o backend; no consume API de pago ni requiere datos reales.
+
+El [informe vigente](docs/s15/S15_INFORME_VALIDACION.md) y el
+[índice de evidencia](docs/s15/S15_INDICE_VALIDACION.md) distinguen pruebas locales,
+sustitutos y diagnósticos remotos. Las fotos inéditas/oro humano y las cuentas reales
+siguen pendientes; S15 permanece abierto. El [README de herramientas](tools/s15/README.md)
+detalla comandos locales. Los dumps, sesiones, imágenes y trazas se conservan fuera de Git.
+
 ## Respaldos de la base de datos
 
 El plan Free de Supabase **no ofrece respaldos programados** para este proyecto, así que el respaldo

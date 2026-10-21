@@ -1,0 +1,10 @@
+{
+  "schema_version": "s15-gold-v1",
+  "dataset_id": null,
+  "review": {
+    "reviewer_ids": [],
+    "rubric": "classification-v2",
+    "adjudicated_before_prediction": false
+  },
+  "labels": []
+}

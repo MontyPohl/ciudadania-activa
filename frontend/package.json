@@ -10,6 +10,8 @@
     "test:e2e": "playwright test --project=chromium",
     "test:e2e:s11": "playwright test --config=playwright.s11.config.ts --project=chromium",
     "test:e2e:fullstack": "playwright test --config=playwright.fullstack.config.ts --project=chromium",
+    "test:e2e:s15:fullstack": "playwright test --config=playwright.s15-fullstack.config.ts --project=chromium",
+    "test:s15:paths": "node --experimental-strip-types --test e2e-s15-fullstack/privatePaths.test.mjs",
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
     "format": "prettier --write .",

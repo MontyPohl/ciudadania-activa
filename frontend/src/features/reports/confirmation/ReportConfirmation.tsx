@@ -254,7 +254,7 @@ export function ReportConfirmation({
               role="status"
               aria-live="polite"
             >
-              <p className="font-semibold text-brand-green">Confirmación registrada.</p>
+              <p className="font-semibold text-brand-green-ink">Confirmación registrada.</p>
               {action.rewardKnown && <p className="mt-1 text-sm">Sumaste 10 puntos pendientes.</p>}
             </div>
           )}
@@ -327,7 +327,7 @@ function ActionCheck({ message, onCheck }: { message: string; onCheck: () => voi
       role="alert"
       aria-live="assertive"
     >
-      <p className="font-semibold text-brand-orange">Resultado por comprobar</p>
+      <p className="font-semibold text-brand-orange-ink">Resultado por comprobar</p>
       <p className="mt-1 text-sm">{message}</p>
       <button
         type="button"

@@ -103,7 +103,7 @@ export function ReviewQueue() {
       )}
 
       {vista.fase === "error" && (
-        <p role="alert" className="text-sm font-medium text-brand-orange">
+        <p role="alert" className="text-sm font-medium text-brand-orange-ink">
           {vista.mensaje}
         </p>
       )}

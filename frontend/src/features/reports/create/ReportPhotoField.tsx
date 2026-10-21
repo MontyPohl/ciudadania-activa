@@ -68,7 +68,7 @@ export function ReportPhotoField({
           JPEG o PNG, hasta 5 MiB. La imagen no se comprime ni se transforma.
         </p>
         {visibleError && (
-          <p id={errorId} role="alert" className="text-sm font-medium text-brand-orange">
+          <p id={errorId} role="alert" className="text-sm font-medium text-brand-orange-ink">
             {visibleError}
           </p>
         )}
@@ -91,7 +91,7 @@ export function ReportPhotoField({
               type="button"
               onClick={removePhoto}
               disabled={disabled}
-              className="rounded-md border border-brand-orange px-3 py-2 text-sm font-semibold text-brand-orange disabled:opacity-55"
+              className="rounded-md border border-brand-orange px-3 py-2 text-sm font-semibold text-brand-orange-ink disabled:opacity-55"
             >
               Quitar fotografía
             </button>

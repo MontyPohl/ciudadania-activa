@@ -91,7 +91,7 @@ export function PublicTransparencyPage() {
     return () => controller.abort();
   }, [retry]);
   return (
-    <main className={metricsPageClass}>
+    <main id="contenido-principal" tabIndex={-1} className={metricsPageClass}>
       <header>
         <p className="text-sm font-semibold text-brand-purple">
           Ciudadanía Activa · datos abiertos

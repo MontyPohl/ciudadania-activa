@@ -139,7 +139,7 @@ export function VerificationForm({ onEnviado }: { onEnviado: () => void | Promis
       </div>
 
       {error !== null && (
-        <p role="alert" className="text-sm font-medium text-brand-orange">
+        <p role="alert" className="text-sm font-medium text-brand-orange-ink">
           {error}
         </p>
       )}

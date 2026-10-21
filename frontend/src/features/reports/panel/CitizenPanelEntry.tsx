@@ -11,9 +11,11 @@ export function CitizenPanelEntry() {
 
   if (session.status === "loading") {
     return (
-      <p className="px-6 py-16 text-center text-sm text-brand-black/70" role="status">
-        Verificando si podés acceder al panel…
-      </p>
+      <main id="contenido-principal" tabIndex={-1}>
+        <p className="px-6 py-16 text-center text-sm text-brand-black/70" role="status">
+          Verificando si podés acceder al panel…
+        </p>
+      </main>
     );
   }
 
@@ -57,7 +59,11 @@ export function CitizenPanelEntry() {
 
 function AccessMessage({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-6 py-12 text-center">
+    <main
+      id="contenido-principal"
+      tabIndex={-1}
+      className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-6 py-12 text-center"
+    >
       <h1 className="text-2xl font-bold text-brand-purple">{title}</h1>
       <div className="flex flex-col items-center gap-3 text-sm text-brand-black/75">{children}</div>
     </main>

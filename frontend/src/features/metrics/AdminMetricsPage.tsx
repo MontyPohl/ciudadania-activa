@@ -14,7 +14,7 @@ export function AdminMetricsPage() {
     [],
   );
   return (
-    <main className={metricsPageClass}>
+    <main id="contenido-principal" tabIndex={-1} className={metricsPageClass}>
       <header>
         <h1 className="text-3xl font-bold text-brand-purple">Métricas de atención</h1>
         <p className="mt-2 max-w-2xl text-brand-black/70">

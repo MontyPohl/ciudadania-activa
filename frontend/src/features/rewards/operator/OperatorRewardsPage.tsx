@@ -13,7 +13,11 @@ export function OperatorRewardsPage() {
   const [selected, setSelected] = useState("");
   const institutionId = selected || institutions[0]?.id || "";
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 bg-white px-6 py-10 text-brand-black">
+    <main
+      id="contenido-principal"
+      tabIndex={-1}
+      className="mx-auto flex w-full max-w-5xl flex-col gap-6 bg-white px-6 py-10 text-brand-black"
+    >
       <h1 className="text-3xl font-bold text-brand-purple">Recompensas de tu institución</h1>
       {session.status === "loading" ? (
         <p role="status">Verificando tu acceso…</p>

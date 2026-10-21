@@ -34,7 +34,11 @@ export default function Home() {
   }, []);
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-2xl flex-col items-center justify-center gap-8 px-6 py-16 text-center">
+    <main
+      id="contenido-principal"
+      tabIndex={-1}
+      className="mx-auto flex min-h-screen max-w-2xl flex-col items-center justify-center gap-8 px-6 py-16 text-center"
+    >
       <div>
         <h1 className="text-4xl font-bold text-brand-purple">Ciudadanía Activa</h1>
         <p className="mt-2 text-base text-black/70">

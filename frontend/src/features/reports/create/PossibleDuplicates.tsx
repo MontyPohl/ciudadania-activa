@@ -35,7 +35,7 @@ export function PossibleDuplicates({ state, onContinue }: PossibleDuplicatesProp
       aria-labelledby="possible-duplicates-title"
       className="rounded-xl border border-brand-orange/35 bg-brand-orange/10 p-4"
     >
-      <h3 id="possible-duplicates-title" className="font-bold text-brand-orange">
+      <h3 id="possible-duplicates-title" className="font-bold text-brand-orange-ink">
         Ya existe un reporte similar
       </h3>
       <p className="mt-1 text-sm text-brand-black/75">

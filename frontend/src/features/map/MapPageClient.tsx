@@ -401,9 +401,13 @@ export function MapPageClient() {
   );
 
   return (
-    <main className="mx-auto flex w-full max-w-[96rem] flex-1 flex-col gap-5 px-4 py-6 sm:px-6">
+    <main
+      id="contenido-principal"
+      tabIndex={-1}
+      className="mx-auto flex w-full max-w-[96rem] flex-1 flex-col gap-5 px-4 py-6 sm:px-6"
+    >
       <header>
-        <p className="text-sm font-semibold text-brand-green">Participación abierta</p>
+        <p className="text-sm font-semibold text-brand-green-ink">Participación abierta</p>
         <h1 className="text-3xl font-bold text-brand-purple">Mapa público de reportes</h1>
         <p className="mt-2 max-w-3xl text-sm text-black/65">
           Explorá reportes urbanos con ubicación aproximada. Acercá el mapa y usá los filtros para
@@ -438,7 +442,7 @@ export function MapPageClient() {
       >
         <MapResultsStatus phase={resultsPhase} />
         {deepLinkMessage !== null && (
-          <p role="alert" className="text-brand-orange">
+          <p role="alert" className="text-brand-orange-ink">
             {deepLinkMessage}
           </p>
         )}

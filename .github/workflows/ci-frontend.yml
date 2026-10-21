@@ -40,6 +40,9 @@ jobs:
       - name: Pruebas (Vitest)
         run: npm test
 
+      - name: Guardas de rutas privadas del navegador S15
+        run: npm run test:s15:paths
+
       - name: Lint (ESLint)
         run: npm run lint
 

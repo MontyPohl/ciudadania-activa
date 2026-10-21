@@ -14,7 +14,13 @@ function Content() {
 }
 export default function Page() {
   return (
-    <Suspense fallback={<p role="status">Cargando contexto…</p>}>
+    <Suspense
+      fallback={
+        <main id="contenido-principal" tabIndex={-1}>
+          <p role="status">Cargando contexto…</p>
+        </main>
+      }
+    >
       <Content />
     </Suspense>
   );

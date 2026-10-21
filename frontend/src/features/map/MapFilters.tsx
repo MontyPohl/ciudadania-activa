@@ -77,7 +77,7 @@ export function MapFilters({
         </p>
       )}
       {categoriesError && (
-        <p className="mt-3 text-xs text-brand-orange" role="alert">
+        <p className="mt-3 text-xs text-brand-orange-ink" role="alert">
           No se pudo cargar el catálogo de categorías. El mapa continúa sin ese filtro.
         </p>
       )}

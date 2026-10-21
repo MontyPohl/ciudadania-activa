@@ -1,0 +1,290 @@
+import type { Locator, Page, TestInfo } from "@playwright/test";
+
+import { expect, test } from "./support/test";
+import { createIdentityState, mockIdentityApi } from "./identity-fixtures";
+import { mockMetricsApi } from "./metrics-fixtures";
+import { ANDE_ID, openOperatorQueue } from "./operator-report-fixtures";
+import {
+  CATEGORY,
+  expectNoHorizontalOverflow,
+  mockBrowserApi,
+  openReportWizard,
+} from "./report-create-fixtures";
+import { mockRewardsApi } from "./rewards-fixtures";
+import { publicReport } from "../src/test/fixtures";
+
+// These browser checks exercise the production UI with synthetic HTTP fixtures.
+// They do not attest to backend permissions, provider delivery or screen-reader speech.
+test.beforeEach(async ({ page, baseURL }) => {
+  const origin = new URL(baseURL!).origin;
+  await page.route("**/*", (route) =>
+    new URL(route.request().url()).origin === origin ? route.continue() : route.abort(),
+  );
+});
+
+async function assertTextContrast(locator: Locator, testInfo: TestInfo) {
+  const sample = await locator.evaluate((element) => {
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 1;
+    const context = canvas.getContext("2d", { willReadFrequently: true })!;
+    function rgba(value: string) {
+      context.clearRect(0, 0, 1, 1);
+      context.fillStyle = value;
+      context.fillRect(0, 0, 1, 1);
+      return Array.from(context.getImageData(0, 0, 1, 1).data);
+    }
+    function over(foreground: number[], background: number[]) {
+      const alpha = foreground[3] / 255;
+      return foreground.slice(0, 3).map((value, i) => alpha * value + (1 - alpha) * background[i]);
+    }
+    const ancestors: Element[] = [];
+    for (let node: Element | null = element; node; node = node.parentElement) ancestors.push(node);
+    let background = [255, 255, 255];
+    for (const ancestor of ancestors.reverse()) {
+      background = over(rgba(getComputedStyle(ancestor).backgroundColor), background);
+    }
+    const style = getComputedStyle(element);
+    const foreground = over(rgba(style.color), background);
+    function luminance(channels: number[]) {
+      const linear = channels.map((value) => {
+        const srgb = value / 255;
+        return srgb <= 0.04045 ? srgb / 12.92 : ((srgb + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+    }
+    const light = luminance(foreground);
+    const dark = luminance(background);
+    return {
+      text: element.textContent,
+      color: style.color,
+      background,
+      fontSize: style.fontSize,
+      ratio: (Math.max(light, dark) + 0.05) / (Math.min(light, dark) + 0.05),
+    };
+  });
+  await testInfo.attach("computed-contrast", {
+    body: Buffer.from(JSON.stringify(sample, null, 2)),
+    contentType: "application/json",
+  });
+  expect(sample.ratio, JSON.stringify(sample)).toBeGreaterThanOrEqual(4.5);
+}
+
+async function capture(page: Page, testInfo: TestInfo, name: string) {
+  await testInfo.attach(name, {
+    body: await page.screenshot({ fullPage: true }),
+    contentType: "image/png",
+  });
+}
+
+for (const width of [320, 1280]) {
+  test(`S15: navegación y error de identidad legibles a ${width}px`, async ({
+    page,
+    baseURL,
+  }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    const state = createIdentityState();
+    state.signedIn = true;
+    await mockIdentityApi(page, state, baseURL!);
+    await page.goto("/verificacion");
+    await expect(page).toHaveTitle("Verificación de identidad | Ciudadanía Activa");
+    await page.getByRole("button", { name: "Enviar verificación" }).click();
+    const error = page.getByText("Escribí tu número de cédula.", { exact: true });
+    await expect(error).toBeVisible();
+    await assertTextContrast(error, testInfo);
+    await assertTextContrast(page.getByRole("link", { name: "Mapa público" }), testInfo);
+    await assertTextContrast(page.getByText("Identidad sin verificar", { exact: true }), testInfo);
+    await assertTextContrast(page.getByRole("button", { name: "Salir", exact: true }), testInfo);
+    await expect(page.getByRole("link", { name: "Verificación", exact: true })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    await expectNoHorizontalOverflow(page);
+    await capture(page, testInfo, `identity-${width}`);
+  });
+}
+
+test("S15: el asistente identifica el error y conserva datos al volver", async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await openReportWizard(page);
+  const category = page.getByRole("combobox", { name: "Categoría" });
+  await page.getByRole("button", { name: "Continuar", exact: true }).focus();
+  await page.keyboard.press("Enter");
+  await expect(category).toBeFocused();
+  await expect(category).toHaveAttribute("aria-invalid", "true");
+  await assertTextContrast(page.getByText("Seleccioná una categoría.", { exact: true }), testInfo);
+  await category.selectOption(CATEGORY.id);
+  await page.getByRole("button", { name: "Continuar", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Descripción", exact: true })).toBeFocused();
+  const description = page.getByRole("textbox", { name: "Descripción" });
+  await description.fill("Bache en una calle sintética; descripción sin datos personales.");
+  await page.getByRole("button", { name: "Volver", exact: true }).click();
+  await expect(category).toHaveValue(CATEGORY.id);
+  await page.getByRole("button", { name: "Continuar", exact: true }).click();
+  await expect(description).toHaveValue(
+    "Bache en una calle sintética; descripción sin datos personales.",
+  );
+  await expectNoHorizontalOverflow(page);
+  await capture(page, testInfo, "wizard-mobile");
+});
+
+test("S15: canje permite cancelar por teclado y devuelve el foco", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  const metrics = await mockRewardsApi(page);
+  await page.goto("/recompensas");
+  const trigger = page.getByRole("button", { name: "Canjear", exact: true });
+  await trigger.focus();
+  await page.keyboard.press("Enter");
+  const dialog = page.getByRole("dialog", { name: "Confirmá tu canje" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Cancelar", exact: true })).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(dialog.getByRole("button", { name: "Confirmar", exact: true })).toBeFocused();
+  await expectNoHorizontalOverflow(page);
+  await capture(page, testInfo, "redeem-mobile");
+  await page.keyboard.press("Escape");
+  await expect(dialog).not.toBeVisible();
+  await expect(trigger).toBeFocused();
+  expect(metrics.posts).toBe(0);
+});
+
+test("S15: métricas móviles ofrecen tabla y mantienen supresión pública", async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await mockMetricsApi(page, "operator");
+  await page.goto("/institucion/metricas");
+  const tableButton = page
+    .getByRole("figure", { name: "Por estado actual", exact: true })
+    .getByRole("button");
+  await tableButton.focus();
+  await page.keyboard.press("Enter");
+  await expect(tableButton).toHaveAttribute("aria-expanded", "true");
+  const table = page.getByRole("table", { name: "Por estado actual", exact: true });
+  await expect(table).toBeVisible();
+  await expect(table.getByRole("columnheader", { name: "Cantidad" })).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+  await capture(page, testInfo, "metrics-mobile");
+  await mockMetricsApi(page, "anonymous");
+  await page.goto("/transparencia");
+  await expect(
+    page.getByText("Menos de 5 casos: no se publica para proteger la privacidad.").first(),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Salir", exact: true })).toHaveCount(0);
+  await expectNoHorizontalOverflow(page);
+  await capture(page, testInfo, "public-metrics-mobile");
+});
+
+test("S15: bandeja móvil conserva contexto institucional y contiene su tabla", async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await openOperatorQueue(page);
+  await expect(page).toHaveTitle("Bandeja institucional | Ciudadanía Activa");
+  await page.getByRole("combobox", { name: "Contexto institucional" }).selectOption(ANDE_ID);
+  const detail = page.getByRole("link", { name: "Abrir detalle", exact: true });
+  await expect(detail).toHaveAttribute("href", new RegExp(`institution_id=${ANDE_ID}`));
+  await expect(
+    page.getByRole("link", { name: "Bandeja institucional", exact: true }).last(),
+  ).toHaveAttribute("aria-current", "page");
+  await expectNoHorizontalOverflow(page);
+  await capture(page, testInfo, "operator-mobile");
+});
+
+test("S15: mapa ofrece selección y regreso con teclado en móvil", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await mockMetricsApi(page, "anonymous");
+  const report = publicReport();
+  await page.route("https://tile.openstreetmap.org/**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "image/png",
+      body: Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+        "base64",
+      ),
+    }),
+  );
+  await page.route("**/api/v1/public/categories/", (route) =>
+    route.fulfill({ json: [report.category] }),
+  );
+  await page.route("**/api/v1/public/reports/**", (route) =>
+    route.fulfill({ json: { count: 1, next: null, previous: null, results: [report] } }),
+  );
+  await page.goto("/mapa");
+  const trigger = page.locator(`[data-report-list-trigger="${report.id}"]`);
+  await expect(trigger).toBeVisible();
+  await trigger.focus();
+  await page.keyboard.press("Enter");
+  const panel = page.getByRole("complementary", { name: "Baches", exact: true });
+  await expect(panel).toBeFocused();
+  await capture(page, testInfo, "map-selection-mobile");
+  await page.keyboard.press("Escape");
+  await expect(panel).not.toBeVisible();
+  await expect(trigger).toBeFocused();
+  await expectNoHorizontalOverflow(page);
+});
+
+test("S15: primer Tab salta la navegación durante la carga y en perfil", async ({
+  page,
+  baseURL,
+}, testInfo) => {
+  const state = createIdentityState();
+  state.signedIn = true;
+  await mockIdentityApi(page, state, baseURL!);
+  let releaseRefresh!: () => void;
+  const refreshBarrier = new Promise<void>((resolve) => {
+    releaseRefresh = resolve;
+  });
+  await page.route("**/api/auth/refresh", async (route) => {
+    await refreshBarrier;
+    await route.fulfill({ json: { access: "synthetic-s15-ux-access" } });
+  });
+  await page.goto("/verificacion", { waitUntil: "domcontentloaded" });
+  const skip = page.getByRole("link", { name: "Saltar al contenido principal" });
+  await page.keyboard.press("Tab");
+  await expect(skip).toBeFocused();
+  await expect(skip).toBeInViewport();
+  await assertTextContrast(skip, testInfo);
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("main")).toBeFocused();
+  await expect(page.locator("#contenido-principal")).toHaveCount(1);
+  releaseRefresh();
+  await expect(page.getByRole("button", { name: "Enviar verificación" })).toBeVisible();
+  await page.route("**/api/v1/profile/ranking-visibility/", (route) =>
+    route.fulfill({ json: { ranking_visibility: "PRIVATE", ranking_alias: "Vecindad sintética" } }),
+  );
+  await page.goto("/perfil");
+  await expect(page).toHaveTitle("Mi perfil | Ciudadanía Activa");
+  await expect(page.getByRole("radio", { name: /Usuario privado/ })).toBeChecked();
+  await expect(
+    page.getByText("El ranking público todavía no está disponible.", { exact: false }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByText("Tu elección se aplica al ranking público. Podés cambiarla cuando quieras."),
+  ).toBeVisible();
+  await skip.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("main")).toBeFocused();
+  await expect(page.locator("#contenido-principal")).toHaveCount(1);
+});
+
+test("S15: las rutas heredadas tienen títulos específicos incluso sin sesión", async ({ page }) => {
+  await mockBrowserApi(page, { actor: "anonymous" });
+  const cases = [
+    ["/login", "Ingresar"],
+    ["/perfil", "Mi perfil"],
+    ["/verificacion", "Verificación de identidad"],
+    ["/bandeja", "Bandeja institucional"],
+    ["/bandeja/11111111-1111-4111-8111-111111111111", "Detalle institucional del reporte"],
+    ["/identidades", "Verificación de identidades"],
+    ["/identidades/11111111-1111-4111-8111-111111111111", "Revisar verificación"],
+    ["/recompensas/canjes/11111111-1111-4111-8111-111111111111", "Mi vale simulado"],
+  ];
+  for (const [path, title] of cases) {
+    await page.goto(path);
+    await expect(page).toHaveTitle(`${title} | Ciudadanía Activa`);
+    await expect(page.locator("#contenido-principal")).toHaveCount(1);
+  }
+});

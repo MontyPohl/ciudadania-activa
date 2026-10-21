@@ -97,7 +97,7 @@ export function GoogleSignInButton() {
       />
       <div ref={contenedor} />
       {error !== null && (
-        <p className="text-sm text-[#F37043]" role="alert">
+        <p className="text-sm text-brand-orange-ink" role="alert">
           {error}
         </p>
       )}

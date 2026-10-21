@@ -342,7 +342,7 @@ export function LocationPicker({
             className="mt-1 w-full min-w-0 rounded-lg border border-black/20 px-3 py-2 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-purple disabled:bg-black/5"
           />
           {errors.latitude !== undefined && (
-            <p id={latitudeErrorId} role="alert" className="mt-1 text-sm text-brand-orange">
+            <p id={latitudeErrorId} role="alert" className="mt-1 text-sm text-brand-orange-ink">
               {errors.latitude}
             </p>
           )}
@@ -365,7 +365,7 @@ export function LocationPicker({
             className="mt-1 w-full min-w-0 rounded-lg border border-black/20 px-3 py-2 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-purple disabled:bg-black/5"
           />
           {errors.longitude !== undefined && (
-            <p id={longitudeErrorId} role="alert" className="mt-1 text-sm text-brand-orange">
+            <p id={longitudeErrorId} role="alert" className="mt-1 text-sm text-brand-orange-ink">
               {errors.longitude}
             </p>
           )}

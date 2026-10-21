@@ -6,6 +6,9 @@
   --color-brand-black: #000000;
   --color-brand-purple: #6950a1;
   --color-brand-orange: #f37043;
+  /* Text on white and brand tints needs darker tones than decorative brand fills. */
+  --color-brand-green-ink: #007749;
+  --color-brand-orange-ink: #a63d15;
   --font-sans: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
 }
 

@@ -1,0 +1,45 @@
+{
+  "schema_version": "s15-multimodal-v1",
+  "dataset_id": null,
+  "state": "preparation",
+  "purpose": "reserved-evaluation",
+  "frozen_n": null,
+  "protocol": {
+    "protocol_id": null,
+    "frozen_at": null,
+    "error_policy": "invalidate",
+    "attempt_limit": 1,
+    "primary_metric": "exact-category-institution-priority-before-policy",
+    "secondary_metric": "exact-category-priority-before-policy",
+    "threshold_percent": 85,
+    "sdk_max_retries": 0,
+    "script_max_retries": 0,
+    "celery_used": false
+  },
+  "provider": {
+    "name": "openai",
+    "model": null,
+    "prompt_version": "v2",
+    "reasoning_effort": "",
+    "timeout_seconds": null
+  },
+  "implementation_sha256": {
+    "prompt_v2": null,
+    "parser": null,
+    "normalization": null,
+    "adapter_openai": null,
+    "contracts": null,
+    "prompt_renderer": null
+  },
+  "catalog": {
+    "captured_at": null,
+    "environment": null,
+    "source": "active-orm+GET /api/v1/public/categories/",
+    "categories": [],
+    "institutions": [],
+    "public_category_slugs": []
+  },
+  "gold_sha256": null,
+  "exclusions_sha256": null,
+  "cases": []
+}
