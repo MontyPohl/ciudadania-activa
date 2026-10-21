@@ -30,7 +30,9 @@ test("métricas institucionales y transparencia pública", async ({ page }) => {
       .locator("dt")
       .filter({ hasText: /^Reportes recibidos$/ })
       .locator("..");
-    await expect(received.getByLabel("120", { exact: true })).toBeVisible();
+    // El valor accesible va en texto sr-only; la cifra animada es aria-hidden.
+    await expect(received.locator(".sr-only", { hasText: /^120$/ })).toBeAttached();
+    await expect(received.locator('[aria-hidden="true"]', { hasText: /^120$/ })).toBeVisible();
     await page
       .getByRole("navigation", { name: "Navegación pública" })
       .getByRole("link", { name: "Estadísticas", exact: true })
