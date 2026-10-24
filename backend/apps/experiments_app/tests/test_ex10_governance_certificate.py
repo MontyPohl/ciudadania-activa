@@ -760,6 +760,26 @@ def test_governance_plan(fixture, case):
                 assert hashlib.sha256(raw).hexdigest() == (
                     "94a32406df188f77ed073a19799ef8ffef670010aca60a561f81b3045a221b2f"
                 )
+            elif row["path"] in (
+                "backend/requirements/base.txt",
+                "backend/requirements/test.txt",
+            ):
+                # Security caps raised after B3 (Pillow 13, DRF 3.18.2, pytest 9.0.3),
+                # admitted by the owner. The baseline stays historical; the admitted
+                # delta stays byte-exact.
+                admitted = {
+                    "backend/requirements/base.txt": (
+                        "82b87da8518a8c0e248e613dab51d423fc1e35c156b225de06cb041166e34c19",
+                        "86192ab46c16da60c36f3e0c2a32798ce7a9d1758384a5803edff6d4ca7eda22",
+                    ),
+                    "backend/requirements/test.txt": (
+                        "2cbcb5e4ec25d7c294b97a173378595b778e782c50927a585f0a873dee873fad",
+                        "81c73f500b8a8952759a19e8d624b298b44ed8e65f54907652a86c6bffb9b4c4",
+                    ),
+                }
+                baseline_sha, current_sha = admitted[row["path"]]
+                assert row["baseline_sha256"] == baseline_sha
+                assert hashlib.sha256(raw).hexdigest() == current_sha
             elif row["path"] == "backend/config/settings/base.py":
                 # Product settings keep evolving after B3 (9fd05d6): S12 throttles and
                 # ranking TTL, Redis TLS normalization. The baseline stays historical;
