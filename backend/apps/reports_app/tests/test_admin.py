@@ -1,22 +1,30 @@
+import pytest
 from django.contrib.admin.sites import AdminSite
+from django.contrib.auth import get_user_model
+from django.test import Client
+from django.urls import reverse
 
+from apps.core.enums import ReportStatus
 from apps.core.tests.fake_request import FakeRequest
 from apps.reports_app.admin import (
+    ReportAdmin,
     ReportConfirmationAdmin,
     ReportStatusHistoryAdmin,
     ResolutionEvidenceAdmin,
 )
 from apps.reports_app.models import (
+    Report,
     ReportConfirmation,
     ReportStatusHistory,
     ResolutionEvidence,
 )
 
 
-def test_confirmaciones_e_historial_son_read_only_estrictos():
+def test_reportes_confirmaciones_e_historial_son_read_only_estrictos():
     request = FakeRequest()
 
     for admin_class, model in (
+        (ReportAdmin, Report),
         (ReportConfirmationAdmin, ReportConfirmation),
         (ReportStatusHistoryAdmin, ReportStatusHistory),
         (ResolutionEvidenceAdmin, ResolutionEvidence),
@@ -29,3 +37,23 @@ def test_confirmaciones_e_historial_son_read_only_estrictos():
         assert set(model_admin.get_readonly_fields(request)) == {
             field.name for field in model._meta.fields
         }
+
+
+@pytest.mark.django_db
+def test_el_reporte_se_inspecciona_y_no_se_modifica_desde_el_admin(report):
+    """`ReportAdmin` es geográfico: el punto también debe mostrarse sin el widget del mapa."""
+    superuser = get_user_model().objects.create_superuser(
+        email="tecnico@example.test", password="clave-de-prueba"
+    )
+    client = Client()
+    client.force_login(superuser)
+    url = reverse("admin:reports_app_report_change", args=[report.pk])
+
+    pagina = client.get(url)
+    intento = client.post(url, {"status": ReportStatus.CERRADO})
+
+    assert pagina.status_code == 200
+    assert 'name="status"' not in pagina.content.decode()
+    assert intento.status_code == 403
+    report.refresh_from_db()
+    assert report.status == ReportStatus.CREADO
