@@ -13,6 +13,13 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 # el resto del tráfico sigue forzado a HTTPS por SECURE_SSL_REDIRECT.
 SECURE_REDIRECT_EXEMPT = [r"^api/v1/health/$"]
 
+# HSTS (posterior a S11): el navegador recuerda que este host solo se usa por HTTPS.
+# Valor inicial bajo a propósito: si algo fallara, el navegador lo olvida en una hora.
+# Sin subdominios ni preload, que son compromisos difíciles de revertir.
+SECURE_HSTS_SECONDS = 3600
+SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+SECURE_HSTS_PRELOAD = False
+
 if not ALLOWED_HOSTS:  # noqa: F405
     raise RuntimeError("DJANGO_ALLOWED_HOSTS es obligatorio en producción.")
 

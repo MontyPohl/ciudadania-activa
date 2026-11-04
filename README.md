@@ -464,7 +464,9 @@ Los SHAs y la verificación están en el [registro del despliegue, §15](docs/ru
   el riesgo de spam (advertencias de DKIM/DMARC).
 - Corte productivo previo (20/10/2026, 01:25 UTC): 16 reportes, 0 clasificaciones IA, 0 recompensas, 0 canjes y dos
   `VERIFICACION_APROBADA` en `ENVIADO` (del 23/08 y 29/08, previas a Heroku). Habilitar IA no demuestra su calidad con reportes reales.
-- HSTS sigue como deuda. Redis con `CERT_NONE` es un **riesgo aceptado** en S14-D18:
+- HSTS: `config/settings/prod.py` lo configura con `max-age=3600`, sin subdominios ni preload
+  (posterior a S11); rige desde el despliegue que lo incluya.
+- Redis con `CERT_NONE` es un **riesgo aceptado** en S14-D18:
   Heroku Key-Value Store usa un certificado autofirmado sin CA verificable en esta
   configuración, por lo que el tráfico va cifrado pero no se verifica la identidad del
   servidor. #46 conserva el parámetro tras rotación, sin resolver ese riesgo.
