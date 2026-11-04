@@ -1,7 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { CategoryStep, ConfirmationStep } from "../CreateReportSteps";
+import { CategoryStep, ConfirmationStep, DescriptionStep } from "../CreateReportSteps";
 import { initialCreateReportWizardState } from "../state";
 
 vi.mock("../ReportPhotoField", () => ({
@@ -73,5 +73,22 @@ describe("Presentación de los datos reales del reporte", () => {
     expect(
       screen.getByText(/La foto será pública después de la validación institucional/),
     ).toHaveTextContent("La selfie de verificación y el documento de identidad no se publican.");
+  });
+
+  it("avisa al escribir y al confirmar que la descripción se publica enseguida", () => {
+    render(<DescriptionStep value="" disabled={false} onChange={vi.fn()} />);
+    expect(screen.getByRole("textbox", { name: "Descripción" })).toHaveAccessibleDescription(
+      /será pública apenas envíes el reporte, antes de cualquier revisión/,
+    );
+    render(
+      <ConfirmationStep
+        state={initialCreateReportWizardState()}
+        categoryName=""
+        onContinue={vi.fn()}
+      />,
+    );
+    expect(screen.getByText(/La foto será pública/)).toHaveTextContent(
+      "Tu descripción será pública apenas envíes el reporte.",
+    );
   });
 });

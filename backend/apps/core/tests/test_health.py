@@ -25,6 +25,11 @@ def prod_security_settings(monkeypatch):
         # reproduciendo el 301 real de Railway en vez de con un AttributeError.
         "SECURE_REDIRECT_EXEMPT": getattr(prod, "SECURE_REDIRECT_EXEMPT", []),
         "SECURE_PROXY_SSL_HEADER": prod.SECURE_PROXY_SSL_HEADER,
+        # `getattr` por el mismo motivo: sin el ajuste, la prueba de HSTS debe fallar por
+        # la cabecera ausente, no por un AttributeError.
+        "SECURE_HSTS_SECONDS": getattr(prod, "SECURE_HSTS_SECONDS", 0),
+        "SECURE_HSTS_INCLUDE_SUBDOMAINS": getattr(prod, "SECURE_HSTS_INCLUDE_SUBDOMAINS", False),
+        "SECURE_HSTS_PRELOAD": getattr(prod, "SECURE_HSTS_PRELOAD", False),
         "ALLOWED_HOSTS": [
             "healthcheck.railway.app",
             "ciudadania-activa-production.up.railway.app",
@@ -64,6 +69,19 @@ def test_railway_healthcheck_over_plain_http_returns_200(
     assert response.status_code != 301, "el healthcheck vuelve a redirigir a HTTPS"
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
+
+
+def test_https_behind_the_proxy_sends_hsts_without_subdomains_or_preload(
+    prod_security_settings, healthcheck_dependencies_up
+):
+    """Reproduce Heroku: TLS termina en el router y llega con X-Forwarded-Proto."""
+    with override_settings(**prod_security_settings):
+        response = Client().get(
+            "/api/v1/health/",
+            headers={"host": "healthcheck.railway.app", "x-forwarded-proto": "https"},
+        )
+
+    assert response["Strict-Transport-Security"] == "max-age=3600"
 
 
 def test_non_healthcheck_routes_still_redirect_to_https(prod_security_settings):

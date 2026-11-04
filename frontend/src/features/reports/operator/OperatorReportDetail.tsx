@@ -4,8 +4,9 @@ import { Textarea } from "@/components/ui/Textarea";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Card } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
 import { useSession } from "@/features/auth/useSession";
 import { ResolutionEvidenceList } from "@/features/reports/evidence/ResolutionEvidenceList";
@@ -29,11 +30,12 @@ import {
   validateOperatorReport,
 } from "@/lib/api/operatorReports";
 import type {
+  OperatorAiClassification,
   OperatorReportDetail as Detail,
   ReportHistoryPage,
   ResolutionEvidence,
 } from "@/types/api";
-import type { RejectionReason, ReportStatus } from "@/types/domain";
+import type { RejectionReason, ReportPriority, ReportStatus } from "@/types/domain";
 
 const REASONS: { value: RejectionReason; label: string }[] = [
   { value: "fuera_de_competencia", label: "Fuera de competencia" },
@@ -408,13 +410,7 @@ export function OperatorReportDetail({
             </Card>
           )}
 
-          {detail.ai_classification && (
-            <aside className="rounded-2xl bg-surface p-5 text-sm text-ink shadow-sm ring-1 ring-primary/20">
-              <h2 className="font-semibold text-primary">Sugerencia IA informativa</h2>
-              <p className="mt-1">No determina la institución ni autoriza esta decisión.</p>
-              <p className="mt-2 text-muted">{detail.ai_classification.justification}</p>
-            </aside>
-          )}
+          {detail.ai_classification && <AiSuggestion classification={detail.ai_classification} />}
 
           <Card as="section" className="p-5 ring-1 ring-border">
             <h2 className="mb-4 text-xl font-bold text-primary">Línea de tiempo institucional</h2>
@@ -683,12 +679,70 @@ export function OperatorReportDetail({
   );
 }
 
-function Fact({ label, value }: { label: string; value: string }) {
+function Fact({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div>
       <dt className="text-xs font-semibold uppercase tracking-wide text-muted">{label}</dt>
       <dd className="mt-1">{value}</dd>
     </div>
+  );
+}
+
+const NO_SUGGESTION = "Sin sugerencia";
+const CONFIDENCE_FORMAT = new Intl.NumberFormat("es-PY", { maximumFractionDigits: 1 });
+
+function humanReviewFact(requiresReview: boolean | null): ReactNode {
+  // `null` significa que la auditoría no permite afirmarlo: no equivale a «no requerida».
+  if (requiresReview === null) return "Sin registro";
+  return requiresReview ? (
+    <Badge tone="warning" label="Requerida: no se aplicó al reporte" />
+  ) : (
+    "Aplicada sin revisión previa"
+  );
+}
+
+function AiSuggestion({ classification }: { classification: OperatorAiClassification }) {
+  const { confidence, suggested_priority: priority } = classification;
+  return (
+    <aside className="rounded-2xl bg-surface p-5 text-sm text-ink shadow-sm ring-1 ring-primary/20">
+      <h2 className="font-semibold text-primary">Clasificación asistida por IA</h2>
+      <p className="mt-1">Validar o rechazar este reporte es decisión tuya, no de la IA.</p>
+      <dl className="mt-4 grid gap-4 sm:grid-cols-2">
+        <Fact
+          label="Categoría sugerida"
+          value={classification.suggested_category?.name ?? NO_SUGGESTION}
+        />
+        <Fact
+          label="Institución sugerida"
+          value={classification.suggested_institution?.name ?? NO_SUGGESTION}
+        />
+        <Fact
+          label="Prioridad sugerida"
+          value={REPORT_PRIORITY_LABELS[priority as ReportPriority] ?? NO_SUGGESTION}
+        />
+        <Fact
+          label="Confianza declarada"
+          value={
+            confidence === null ? "Sin dato" : `${CONFIDENCE_FORMAT.format(confidence * 100)} %`
+          }
+        />
+        <Fact
+          label="Inconsistencia"
+          value={
+            classification.inconsistency_flag ? (
+              <Badge tone="warning" label="Detectada" />
+            ) : (
+              "No detectada"
+            )
+          }
+        />
+        <Fact
+          label="Revisión humana"
+          value={humanReviewFact(classification.requires_human_review)}
+        />
+      </dl>
+      <p className="mt-4 text-muted">{classification.justification}</p>
+    </aside>
   );
 }
 

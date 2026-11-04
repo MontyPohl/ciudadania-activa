@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { useSession } from "@/features/auth/useSession";
@@ -471,10 +471,67 @@ describe("interfaz institucional S9-B2", () => {
     await waitFor(() => expect(getOperatorReport).toHaveBeenCalledTimes(2));
   });
 
-  it("presenta la sugerencia IA como informativa, no como institución efectiva", async () => {
+  it("separa la clasificación IA de la decisión humana y de la institución efectiva", async () => {
     render(<OperatorReportDetail id={report.id} initialInstitutionId={municipal.id} />);
-    await screen.findByText("Sugerencia IA informativa");
-    expect(screen.getByText(/no determina la institución ni autoriza/i)).toBeInTheDocument();
+    await screen.findByText("Clasificación asistida por IA");
+    expect(
+      screen.getByText(/validar o rechazar este reporte es decisión tuya/i),
+    ).toBeInTheDocument();
     expect(screen.getByText("Municipalidad", { selector: "dd" })).toBeInTheDocument();
+  });
+
+  it.each([
+    {
+      caso: "pendiente de revisión",
+      cambios: {},
+      esperado: [
+        "Baches",
+        "ANDE",
+        "Alta",
+        "90 %",
+        "No detectada",
+        "Requerida: no se aplicó al reporte",
+      ],
+    },
+    {
+      caso: "aplicada automáticamente",
+      cambios: { confidence: 0.875, requires_human_review: false },
+      esperado: [
+        "Baches",
+        "ANDE",
+        "Alta",
+        "87,5 %",
+        "No detectada",
+        "Aplicada sin revisión previa",
+      ],
+    },
+    {
+      caso: "sin sugerencia utilizable ni registro de auditoría",
+      cambios: {
+        suggested_category: null,
+        suggested_institution: null,
+        suggested_priority: "",
+        confidence: null,
+        inconsistency_flag: true,
+        requires_human_review: null,
+      },
+      esperado: [
+        "Sin sugerencia",
+        "Sin sugerencia",
+        "Sin sugerencia",
+        "Sin dato",
+        "Detectada",
+        "Sin registro",
+      ],
+    },
+  ])("muestra los seis datos de la sugerencia IA: $caso", async ({ cambios, esperado }) => {
+    vi.mocked(getOperatorReport).mockResolvedValue({
+      ...detail,
+      ai_classification: { ...detail.ai_classification, ...cambios },
+    } as never);
+    render(<OperatorReportDetail id={report.id} initialInstitutionId={municipal.id} />);
+    const titulo = await screen.findByText("Clasificación asistida por IA");
+    const valores = within(titulo.closest("aside")!).getAllByRole("definition");
+    expect(valores.map((valor) => valor.textContent)).toEqual(esperado);
   });
 });

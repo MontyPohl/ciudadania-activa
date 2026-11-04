@@ -12,7 +12,7 @@ test("operador selecciona institución, abre reporte, confirma y valida", async 
   await page.getByRole("link", { name: "Abrir detalle" }).click();
   await expect(page.getByRole("heading", { name: "Línea de tiempo institucional" })).toBeVisible();
   await expect(page.getByText("Luminaria apagada en la esquina.")).toBeVisible();
-  await expect(page.getByText(/no determina la institución ni autoriza/i)).toBeVisible();
+  await expect(page.getByText(/validar o rechazar este reporte es decisión tuya/i)).toBeVisible();
   await page.getByRole("button", { name: "Validar" }).click();
   await expect(page.getByText(/acreditará los incentivos pendientes/i)).toBeVisible();
   await page.getByRole("button", { name: "Confirmar validación" }).click();

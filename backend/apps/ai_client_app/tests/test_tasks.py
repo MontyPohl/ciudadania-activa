@@ -13,7 +13,7 @@ inventados.
 
 import pytest
 
-from apps.admin_app.models import AuditLog
+from apps.admin_app.models import AuditLog, Category
 from apps.ai_client_app import tasks as ai_tasks
 from apps.ai_client_app.adapters import FakeAiClassificationAdapter
 from apps.ai_client_app.adapters.runtime import RuntimeAdapter, get_runtime_adapter
@@ -21,7 +21,7 @@ from apps.ai_client_app.models import AiClassification
 from apps.ai_client_app.orchestration import AUDIT_ACTION
 from apps.ai_client_app.tasks import classify_report
 from apps.core.enums import ActorType, ReportStatus
-from apps.reports_app.models import ReportStatusHistory
+from apps.reports_app.models import Report, ReportStatusHistory
 from config.celery import app
 
 MODEL_NAME = "fake-s8-c"
@@ -131,8 +131,13 @@ def test_el_fake_confirma_la_categoria_y_propone_institucion(report, runtime_fak
     La institución sí cambia: el reporte nace sin ninguna —se fija al validar, en
     el Sprint 9— y el adaptador propone la primera admisible. `has_changes` recoge
     esa diferencia, que es justo lo que el backend deriva en vez de preguntarle al
-    modelo.
+    modelo. Se usa una categoría de ANDE porque esa es la primera admisible: con
+    otra, la policy mandaría el par a revisión y la institución no se aplicaría.
     """
+    Report.objects.filter(pk=report.pk).update(
+        category=Category.objects.get(slug="alumbrado-publico")
+    )
+    report.refresh_from_db()
     original = report.category_id
     assert report.institution_id is None
 
@@ -140,7 +145,7 @@ def test_el_fake_confirma_la_categoria_y_propone_institucion(report, runtime_fak
 
     report.refresh_from_db()
     assert report.category_id == original
-    assert report.institution_id is not None
+    assert report.institution.slug == "ande"
     assert AuditLog.objects.get(action=AUDIT_ACTION).payload["has_changes"] is True
 
 

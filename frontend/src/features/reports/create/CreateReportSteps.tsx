@@ -180,8 +180,9 @@ export function DescriptionStep({
         onChange={(event) => onChange(event.target.value)}
         className="min-h-36 resize-y"
       />
-      <p id="report-description-help" className="text-xs text-muted">
-        Explicá el problema con claridad. Evitá incluir datos personales innecesarios.
+      <p id="report-description-help" className="text-sm text-muted">
+        Explicá el problema con claridad. Tu descripción será pública apenas envíes el reporte,
+        antes de cualquier revisión: no incluyas nombres, teléfonos ni otros datos personales.
       </p>
       {error && (
         <p
@@ -230,8 +231,9 @@ export function ConfirmationStep({
         ))}
       </ul>
       <p className="text-sm text-muted">
-        La foto será pública después de la validación institucional. Evitá caras, patentes y datos
-        personales. La selfie de verificación y el documento de identidad no se publican.
+        Tu descripción será pública apenas envíes el reporte. La foto será pública después de la
+        validación institucional. Evitá caras, patentes y datos personales. La selfie de
+        verificación y el documento de identidad no se publican.
       </p>
 
       <dl className="grid min-w-0 gap-4 sm:grid-cols-2">

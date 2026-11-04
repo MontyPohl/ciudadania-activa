@@ -170,13 +170,22 @@ AI_CONFIDENCE_THRESHOLD = 0.75
 
 | Condición | Efecto |
 | --- | --- |
-| `confidence >= 0.75` **y** `inconsistency == false` **y** todos los valores mapean | sugerencia **elegible** para aplicación automática asistida |
+| `confidence >= 0.75` **y** `inconsistency == false` **y** todos los valores mapean **y** la institución es la de la categoría | sugerencia **elegible** para aplicación automática asistida |
 | `confidence < 0.75` | persistir clasificación · **no** aplicar al `Report` · revisión humana |
 | `inconsistency == true` | persistir clasificación · **no** aplicar al `Report` · revisión humana |
 | algún valor no mapeable | persistir clasificación · **no** aplicar al `Report` · revisión humana |
+| institución distinta de `Category.default_institution` | persistir clasificación con `inconsistency_flag = true` · **no** aplicar al `Report` · revisión humana |
 
 En todos los casos la clasificación **se persiste y se audita**. La diferencia está en si la
 sugerencia se aplica al `Report` o queda como propuesta para el operador.
+
+> **Actualización 2026-11-04, posterior a S11 y al cierre de EX-09/EX-10.** La última fila de
+> la tabla y la condición de institución son nuevas. Antes, la IA podía aplicar «baches» con
+> ANDE aunque el prompt v2 ordena una sola institución por categoría. `default_institution` se
+> usa como comprobación, no como respaldo: la sugerencia se conserva tal como llegó para que
+> la vea el operador. No cambia el esquema, el parser, el umbral ni el prompt. No altera ningún
+> veredicto de S11-D: EX-09 mide con su propio evaluador, sin pasar por esta política, y el
+> adaptador sintético de EX-10 ya devolvía la institución de la categoría.
 
 > **No confundir dos métricas distintas.** `AI_CONFIDENCE_THRESHOLD = 0.75` es la confianza
 > autodeclarada del modelo sobre **un** caso. El **85 %** de CA-4 / RNF-05 es la concordancia
@@ -513,6 +522,7 @@ Si el SDK exige más adelante separar *connect* y *read timeout*, S8-B lo resuel
 | Objetivo de concordancia | `85 %` |
 | Salida del modelo | slugs del catálogo cerrado |
 | Valor de catálogo desconocido | revisión humana, nunca creación |
+| Institución que no es la de la categoría | revisión humana (posterior a S11, D5) |
 | ¿La IA puede rechazar? | **NO** |
 | `CLASIFICADO` | resultado de IA persistido y auditable |
 | Fallo del proveedor | el reporte permanece `CREADO` |

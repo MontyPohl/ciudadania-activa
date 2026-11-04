@@ -18,8 +18,9 @@ from apps.core.enums import ReportPriority
 from ..contracts import ClassificationRequest
 
 # Valores fijos y documentados. La confianza está por encima del umbral de 0.75
-# para que el camino elegible sea el que se ejercita por defecto; las pruebas que
-# necesitan el camino de revisión humana construyen su propia respuesta.
+# para no bloquear por ese motivo. Solo es elegible si la institución resultante es
+# la de la categoría: este adaptador no consulta el catálogo, de modo que sin
+# institución actual propone la primera admisible y puede ir a revisión humana.
 FAKE_CONFIDENCE = 0.95
 FAKE_JUSTIFICATION = "Clasificación simulada determinista para pruebas offline."
 

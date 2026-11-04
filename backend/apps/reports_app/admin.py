@@ -13,7 +13,9 @@ from .models import (
 
 
 @admin.register(Report)
-class ReportAdmin(gis_admin.GISModelAdmin):
+class ReportAdmin(ReadOnlyAdminMixin, gis_admin.GISModelAdmin):
+    # Posterior a S11. Solo inspección: el estado y la institución cambian por los
+    # servicios de dominio, que escriben historial, ledger y auditoría.
     list_display = [
         "created_at",
         "status",
@@ -30,7 +32,6 @@ class ReportAdmin(gis_admin.GISModelAdmin):
     list_select_related = ["category", "institution", "citizen"]
     raw_id_fields = ["citizen", "validated_by"]
     date_hierarchy = "created_at"
-    readonly_fields = ["created_at", "updated_at"]
 
 
 @admin.register(ReportMedia)
