@@ -1,3 +1,6 @@
+from django.conf import settings
+from kombu import Connection
+
 from config.redis_url import with_ssl_cert_reqs
 
 
@@ -16,3 +19,15 @@ def test_rediss_sin_parametro_lo_recibe_y_conserva_credenciales():
 def test_rediss_con_valor_explicito_no_se_pisa():
     url = "rediss://:secreto@host.example:6380/0?ssl_cert_reqs=required"
     assert with_ssl_cert_reqs(url, "none") == url
+
+
+def test_el_transporte_de_celery_acepta_el_cliente_redis_instalado():
+    """Abre el canal de verdad: en modo eager, ninguna otra prueba pasa por el transporte.
+
+    kombu comprueba aquí la versión de redis-py. Heroku v30 cayó en este punto, con la
+    suite en verde: el worker no podía arrancar.
+    """
+    with Connection(settings.CELERY_BROKER_URL) as connection:
+        connection.ensure_connection(max_retries=1, interval_start=0)
+
+        assert connection.default_channel is not None

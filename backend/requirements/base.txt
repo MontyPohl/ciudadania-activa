@@ -24,3 +24,7 @@ google-genai>=2.20,<3.0
 openai==3.19.2
 celery>=5.4,<5.5
 redis>=5.0,<6.0
+# Transporte de Celery. Se fija porque kombu 5.7 exige redis-py >= 6.1 y arriba se fija
+# redis<6: sin este tope, reconstruir la imagen deja al worker sin poder arrancar
+# (Heroku v30, 4/11/2026). Las pruebas usan Celery en modo eager y no lo detectarían solas.
+kombu>=5.4,<5.7
