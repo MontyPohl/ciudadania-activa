@@ -4,13 +4,17 @@ Dos invariantes gobiernan el archivo: nada llega a aplicarse automáticamente po
 accidente, y ninguna ruta del núcleo puede ordenar un rechazo.
 """
 
+import re
 from dataclasses import FrozenInstanceError
 from decimal import Decimal
+from pathlib import Path
 
 import pytest
 
+from apps.admin_app.catalogs import CATEGORIES
 from apps.admin_app.models import Category, Institution
 from apps.ai_client_app import policy as policy_module
+from apps.ai_client_app import prompts as prompts_module
 from apps.ai_client_app.contracts import ParsedClassification
 from apps.ai_client_app.models import AiClassification
 from apps.ai_client_app.policy import (
@@ -147,6 +151,32 @@ def test_slug_nulo_va_a_revision(campo):
     assert resuelta.effective_inconsistency is True
     assert resuelta.requires_human_review is True
     assert resuelta.eligible_for_auto_apply is False
+
+
+@pytest.mark.parametrize(
+    ("categoria", "institucion"),
+    [
+        ("baches", "ande"),
+        ("alumbrado-publico", "municipalidad-de-asuncion"),
+        ("otros", "essap"),
+    ],
+)
+def test_institucion_ajena_a_la_categoria_va_a_revision(categoria, institucion):
+    """Coherente según el modelo, pero el catálogo no une esa categoría con esa institución."""
+    resuelta = resolve_classification(parsed(category_slug=categoria, institution_slug=institucion))
+
+    assert resuelta.parsed.inconsistency is False
+    assert resuelta.effective_inconsistency is True
+    assert resuelta.requires_human_review is True
+    assert resuelta.eligible_for_auto_apply is False
+
+
+def test_la_tabla_del_prompt_v2_coincide_con_el_catalogo():
+    """Si divergieran, la policy mandaría a revisión casos que el prompt da por correctos."""
+    texto = (Path(prompts_module.__file__).parent / "classification_v2.txt").read_text("utf-8")
+    tabla = dict(re.findall(r"^- ([a-z-]+)\s+-> ([a-z-]+)$", texto, flags=re.MULTILINE))
+
+    assert tabla == {slug: institucion for slug, _nombre, institucion, _prioridad in CATEGORIES}
 
 
 def test_categoria_inactiva_va_a_revision(category):

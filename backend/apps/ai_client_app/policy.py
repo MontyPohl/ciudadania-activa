@@ -49,8 +49,9 @@ class ResolvedClassification:
 
     `effective_inconsistency` no es lo mismo que `parsed.inconsistency`: el
     modelo puede declararse plenamente coherente y aun así haber propuesto un
-    slug que no existe. Esa contradicción entre lo que dice y lo que devuelve es
-    una inconsistencia real, aunque él no la vea.
+    slug que no existe, o una institución que no es la de esa categoría. Esa
+    contradicción entre lo que dice y lo que devuelve es una inconsistencia real,
+    aunque él no la vea.
     """
 
     parsed: ParsedClassification
@@ -71,7 +72,10 @@ def resolve_classification(parsed: ParsedClassification) -> ResolvedClassificati
     # es motivo de revisión, no permiso para conservar el valor actual y dar la
     # clasificación por buena.
     unresolved = category is None or institution is None
-    effective_inconsistency = parsed.inconsistency or unresolved
+    # Posterior a S11. El catálogo fija una sola institución por categoría; aquí es
+    # una comprobación, no un respaldo: nunca sustituye lo que propuso el modelo.
+    mismatched = not unresolved and category.default_institution_id != institution.pk
+    effective_inconsistency = parsed.inconsistency or unresolved or mismatched
 
     eligible = (
         parsed.confidence >= confidence_threshold()
