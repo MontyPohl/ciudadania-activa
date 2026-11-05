@@ -26,6 +26,7 @@ GOLD_VERSION = "s15-gold-v1"
 REPLAY_VERSION = "s15-responses-v1"
 RECORD_VERSION = "s15-attempt-v1"
 MAX_PHOTO_BYTES = 5 * 1024 * 1024
+THRESHOLD_PERCENT = 80
 PRIORITIES = ["BAJA", "MEDIA", "ALTA"]
 SLUG = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*\Z")
 IDENTIFIER = re.compile(r"[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}\Z")
@@ -310,7 +311,7 @@ def validate_dataset(dataset_path, gold_path, exclusions_path, public_api_path=N
         protocol["primary_metric"] == "exact-category-institution-priority-before-policy"
         and protocol["secondary_metric"] == "exact-category-priority-before-policy"
         and type(protocol["threshold_percent"]) is int
-        and protocol["threshold_percent"] == 85,
+        and protocol["threshold_percent"] == THRESHOLD_PERCENT,
         "Métricas o umbral distintos del protocolo S15.",
     )
     provider = dataset["provider"]

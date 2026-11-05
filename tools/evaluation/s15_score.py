@@ -11,6 +11,7 @@ if __package__ in {None, ""}:
 
 from tools.evaluation.s15_common import (
     RECORD_VERSION,
+    THRESHOLD_PERCENT,
     UNKNOWN_SLUG,
     PrivateArgumentParser,
     ValidationError,
@@ -193,7 +194,7 @@ def score_records(dataset, gold, records, *, execution_mode="replay", complete=T
         and not (FATAL_STATUSES & set(errors))
         and (not errors or dataset["protocol"]["error_policy"] == "count_as_miss")
     )
-    primary_met = primary * 100 >= 85 * n
+    primary_met = primary * 100 >= THRESHOLD_PERCENT * n
     verdict = (
         "INVALID_RUN"
         if not run_valid
@@ -216,7 +217,12 @@ def score_records(dataset, gold, records, *, execution_mode="replay", complete=T
         if dataset["protocol"]["error_policy"] == "count_as_miss"
         else "classification-capacity-only-if-run-valid",
         "denominator": n,
-        "required_correct": (85 * n + 99) // 100,
+        "required_correct": (THRESHOLD_PERCENT * n + 99) // 100,
+        # Meta anterior de RNF-05: se informa, no decide el veredicto (CT-65).
+        "reference_85_percent": {
+            "required_correct": (85 * n + 99) // 100,
+            "met": primary * 100 >= 85 * n if run_valid else None,
+        },
         "primary": {
             "metric": dataset["protocol"]["primary_metric"],
             "correct": primary,

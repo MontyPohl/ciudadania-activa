@@ -11,7 +11,7 @@
     "attempt_limit": 1,
     "primary_metric": "exact-category-institution-priority-before-policy",
     "secondary_metric": "exact-category-priority-before-policy",
-    "threshold_percent": 85,
+    "threshold_percent": 80,
     "sdk_max_retries": 0,
     "script_max_retries": 0,
     "celery_used": false

@@ -1,10 +1,13 @@
 from django.contrib import admin
 
+from apps.core.admin_mixins import ReadOnlyAdminMixin
+
 from .models import AiClassification
 
 
 @admin.register(AiClassification)
-class AiClassificationAdmin(admin.ModelAdmin):
+class AiClassificationAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
+    # Posterior a S11. Lo que sugirió la IA es evidencia: solo se inspecciona.
     list_display = [
         "created_at",
         "report",
@@ -17,10 +20,3 @@ class AiClassificationAdmin(admin.ModelAdmin):
     list_filter = ["inconsistency_flag", "suggested_priority", "suggested_institution"]
     list_select_related = ["suggested_category", "suggested_institution"]
     raw_id_fields = ["report"]
-    readonly_fields = [
-        "created_at",
-        "updated_at",
-        "input_tokens",
-        "output_tokens",
-        "total_tokens",
-    ]
