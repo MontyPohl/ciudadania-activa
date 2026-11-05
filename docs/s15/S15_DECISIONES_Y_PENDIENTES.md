@@ -115,6 +115,18 @@ Antes de mutar el despliegue: respaldo coordinado DB+objetos, cuentas y casos de
 ensayo identificados y ventana acotada. El [runbook operativo](S15_OPERACION_Y_DEMO.md)
 está preparado; no se prevé reset general. Los harnesses de volumen siguen locales.
 
+**Estabilidad prolongada: resultado parcial (21/10/2026), declarado como parcial.** Entorno local
+`ca-s15-measure` (Gunicorn gthread/4, timeout 30 s, 2 CPU/1 GB), backend `main@9680f32`, datos
+sintéticos, 1 pedido/s sobre seis rutas públicas. Corrieron **1 h 18 min y 4.669 pedidos**, con
+0 fallos, 0 `WORKER TIMEOUT`, 0 reinicios y un máximo absoluto de 224 ms. Se cortó porque la PC se
+suspendió o apagó: no se completaron las 3 h de carga ni la hora de reposo, y el usuario decidió
+no repetirla. No acredita estabilidad prolongada ni cubre la ventana de reposo en la que apareció
+el timeout tardío. **gthread/4 queda sin desplegar**: producción sigue con sync.
+
+**Material recibido (5/11/2026).** El usuario entregó ZIP y Excel con 45 casos, de los que 13 son
+los casos conocidos usados para ajustar el prompt v2: esos no evalúan. Faltan verificar autorización,
+completar la doble revisión y fijar N, que será menor a 100 y se declarará antes de predecir.
+
 ## Trabajo técnico restante
 
 1. **Con material del usuario:** recibir ZIP/Excel, verificar autorización, independencia
@@ -127,8 +139,8 @@ está preparado; no se prevé reset general. Los harnesses de volumen siguen loc
 4. **Operación de consolas:** ejecutar las rotaciones asignadas al usuario en S14-D19
    y verificarlas. No rotar rutinariamente HMAC de identidad conservando perfiles.
 5. **Entrega técnica:** PR #56 publicado como borrador y CI del código 6/6 aprobado.
-   Antes de publicar el ajuste Gunicorn, comprobar estabilidad prolongada y tratar el
-   timeout tardío preservado; la recuperación controlada acotada ya se comprobó
+   El ajuste Gunicorn no se publica: la estabilidad prolongada quedó parcial (arriba) y el
+   timeout tardío sigue sin tratar; la recuperación controlada acotada ya se comprobó
    en 33,055 s, sin mutación de negocio. Revisar estos pendientes antes del cierre formal de S15;
    la evidencia local ya se consolidó y no espera fotos.
 6. **S16 y diciembre:** crear snapshot propio si cambian período/cupo, ensayar demo

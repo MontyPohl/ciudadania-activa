@@ -1081,7 +1081,29 @@ Valores: `fuera_de_competencia`, `duplicado`, `informacion_insuficiente` o
 `contenido_inapropiado`. El rechazo cambia el reporte a `RECHAZADO` y anula sus incentivos todavía
 pendientes; no asigna una institución al reporte.
 
-Ambas rutas responden `200` con el estado persistido:
+#### `POST /api/v1/operator/reports/{id}/reassign/?institution_id={uuid}`
+
+Posterior a S11. Pasa a otra institución un reporte nunca validado ni rechazado; uno con una validación
+revertida responde `409 REPORT_STATE_NOT_ALLOWED`, para no trasladar sus métricas históricas. El cuerpo admite
+exactamente estos dos campos, con un motivo de hasta 500 caracteres:
+
+```json
+{"category_id": "22222222-2222-4222-8222-222222222222", "reason": "La luminaria es de ANDE."}
+```
+
+La institución sale de la categoría elegida, que debe estar activa y pertenecer a otra institución
+activa; si no, responde `400 INVALID_REASSIGNMENT_TARGET`. No cambia estado, prioridad ni puntos, no
+agrega fila al historial de estados y no avisa al ciudadano. El motivo se guarda en
+`report_reassignments` y nunca se publica. Desde ese momento, el reporte responde `404` a la
+institución que lo pasó. Si un operador ya lo reasignó, una clasificación de IA posterior queda
+registrada, pero no se aplica.
+
+#### `GET /api/v1/operator/reports/{id}/reassignment-context/?institution_id={uuid}`
+
+Devuelve `options` (destinos posibles: `category` e `institution`) y `history` (reasignaciones previas
+con `from_category`, `to_category`, `from_institution`, `to_institution`, `reason` y `created_at`).
+
+Las rutas `validate`, `reject` y `reassign` responden `200` con el estado persistido:
 
 ```json
 {
@@ -1894,6 +1916,8 @@ Redis; el estado operativo sigue requiriendo inspeccionar el JSON (§1.1).
 | GET | `/api/v1/operator/reports/{id}/history/` | `IsInstitutionOperator` | GET → 401 | §7.4 |
 | POST | `/api/v1/operator/reports/{id}/validate/` | `IsAuthenticated` (+ operador) | POST → 401 | §7.5 |
 | POST | `/api/v1/operator/reports/{id}/reject/` | `IsAuthenticated` (+ operador) | POST → 401 | §7.5 |
+| POST | `/api/v1/operator/reports/{id}/reassign/` | `IsAuthenticated` (+ operador) | POST → 401 | §7.5 |
+| GET | `/api/v1/operator/reports/{id}/reassignment-context/` | `IsInstitutionOperator` | GET → 401 | §7.5 |
 | PATCH | `/api/v1/operator/reports/{id}/status/` | `IsAuthenticated` (+ operador) | PATCH → 401 | §7.6 |
 | GET, POST | `/api/v1/operator/reports/{id}/evidence/` | `IsAuthenticated` (+ operador) | GET → 401 | §7.6 |
 | GET | `/api/v1/admin/audit-logs/` | `IsAuthenticated` + `IsAdmin` | GET → 401 | §7.6, §8.7 |

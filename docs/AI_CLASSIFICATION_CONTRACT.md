@@ -523,6 +523,7 @@ Si el SDK exige más adelante separar *connect* y *read timeout*, S8-B lo resuel
 | Salida del modelo | slugs del catálogo cerrado |
 | Valor de catálogo desconocido | revisión humana, nunca creación |
 | Institución que no es la de la categoría | revisión humana (posterior a S11, D5) |
+| Reporte ya reasignado por un operador | la sugerencia se registra, pero no se aplica (posterior a S11) |
 | ¿La IA puede rechazar? | **NO** |
 | `CLASIFICADO` | resultado de IA persistido y auditable |
 | Fallo del proveedor | el reporte permanece `CREADO` |

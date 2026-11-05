@@ -44,7 +44,7 @@ un sprint concreto — ver [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md) y [PROGRESO_
 > las migraciones se aplicaron en Heroku y el frontend se desplegó en Vercel. El smoke
 > productivo sin canjear quedó verificado; el autenticado con Google sigue pendiente del
 > usuario. Los tres tests preexistentes de EX-10/S11 se corrigieron en PR #48;
-> el defecto real de enumeración se trata en PR #50, abierto al corte del 20/10. `RECOMPENSA_DISPONIBLE` y los reintentos automáticos
+> el defecto real de enumeración se corrigió en PR #50, integrado el 20/10. `RECOMPENSA_DISPONIBLE` y los reintentos automáticos
 > quedan para S13.
 
 ## Prioridad Media
@@ -74,7 +74,7 @@ un sprint concreto — ver [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md) y [PROGRESO_
 | Correo Brevo | Configurado en v23/v24; las dos aprobaciones `ENVIADO` son del 23/08 y 29/08 (previas a Heroku); el primer envío con esta configuración aún no se observó. Plantillas desplegadas: identidad aprobada/rechazada, canje, eventos de reporte y recompensa disponible (S13, v25; conservadas en v26) |
 | Medición v2 independiente | Pendiente: nuevas fotos de la planilla del usuario, incluida la foto del bache; los 13 casos conocidos tienen sesgo optimista |
 | Dominio propio para correo | Pendiente: autenticar el dominio para resolver advertencias de DKIM/DMARC y reducir riesgo de spam del remitente Gmail |
-| EX-10 | Tres tests corregidos en PR #48; **en PR #50**, abierto/CI corriendo, se corrige descriptor compartido tras fork. Nueva corrida requiere reaprobación de fuentes; no cambia el resultado histórico |
+| EX-10 | Tres tests corregidos en PR #48; PR #50, integrado el 20/10, corrige el descriptor compartido tras fork. Nueva corrida requiere reaprobación de fuentes; no cambia el resultado histórico |
 | Edición manual de prioridad | Función inexistente: definir permisos, contrato, UI y auditoría antes de implementarla |
 | Notificaciones S13 | Cerrado: desplegadas el 20/10 (v25); primer envío real observado pendiente (CT-59) |
 | Motivo del rechazo visible en el panel | Post-MVP (S14-D16): el detalle de un reporte `RECHAZADO` responde 404 y el correo no puede prometer el motivo. Mostrarlo exige funcionalidad nueva y cambiar el contrato del detalle, con parser estricto; puede reconsiderarse para la demo de S15 por decisión del usuario |
@@ -99,7 +99,7 @@ un sprint concreto — ver [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md) y [PROGRESO_
 | Reportes duplicados | Medio | Advertencia de proximidad (`ST_DWithin`) y opción de confirmar el reporte existente | S6 |
 | Fotos repetidas | Medio | Hash exacto (`file_hash` SHA-256) en el MVP; similitud perceptual queda como mejora futura | S6 |
 | Errores de IA | Medio | Revisión humana y auditoría; sin rechazo automático | S8 · S9 |
-| Privacidad del ranking | Medio | Visibilidad configurable (`FULL_NAME` por defecto), modo "Usuario privado" | S4 · S12 |
+| Privacidad del ranking | Medio | Visibilidad configurable (`PRIVATE` por defecto en perfiles nuevos, posterior a S11), modo "Usuario privado" | S4 · S12 |
 | Costos o cambio de proveedor de IA | Medio | Arquitectura desacoplada (`ai_client_app`) y mocks de prueba | S8 |
 | Privacidad de cédulas/selfies | Alto | HMAC-SHA-256, almacenamiento privado y acceso restringido | S4 |
 | Presupuesto real de recompensas | Alto | El MVP usa vales simulados; convenios reales quedan fuera de alcance | S12 |
