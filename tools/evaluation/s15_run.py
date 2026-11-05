@@ -453,7 +453,8 @@ def main(argv=None):
             )
             print(
                 f"VALIDATED_OFFLINE: N={dataset['frozen_n']}; "
-                f"minimum={(THRESHOLD_PERCENT * dataset['frozen_n'] + 99) // 100}; no provider called"
+                f"minimum={(THRESHOLD_PERCENT * dataset['frozen_n'] + 99) // 100}; "
+                "no provider called"
             )
             return 0
         require(bool(args.output), "La ejecución requiere directorio de evidencia privado.")
