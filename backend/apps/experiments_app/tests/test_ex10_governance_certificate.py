@@ -764,13 +764,14 @@ def test_governance_plan(fixture, case):
                 "backend/requirements/base.txt",
                 "backend/requirements/test.txt",
             ):
-                # Security caps raised after B3 (Pillow 13, DRF 3.18.2, pytest 9.0.3),
+                # Security caps raised after B3 (Pillow 13, DRF 3.18.2, pytest 9.0.3)
+                # and the kombu cap that keeps the worker able to start (kombu<5.7),
                 # admitted by the owner. The baseline stays historical; the admitted
                 # delta stays byte-exact.
                 admitted = {
                     "backend/requirements/base.txt": (
                         "82b87da8518a8c0e248e613dab51d423fc1e35c156b225de06cb041166e34c19",
-                        "86192ab46c16da60c36f3e0c2a32798ce7a9d1758384a5803edff6d4ca7eda22",
+                        "19c3f8027656266a1b6b1dac4638ceee7ac6e08f0c600acb32eaac5f50f7c2c4",
                     ),
                     "backend/requirements/test.txt": (
                         "2cbcb5e4ec25d7c294b97a173378595b778e782c50927a585f0a873dee873fad",
