@@ -87,7 +87,7 @@ con el usuario**: nace cuando el ciudadano envía su verificación (Sprint 4).
 | `verified_at` | `timestamptz` | nullable | — | Fecha de la revisión administrativa, se haya aprobado o rechazado |
 | `verified_by_id` | UUID | nullable | `SET_NULL` | Administrador revisor. **No figura en el Anexo A.1** → CT-42 |
 | `rejection_reason` | `text` | **not null** (Sprint 4) | — | Motivo del rechazo en texto libre, **sin catálogo**. Vacío salvo rechazo vigente. **No figura en el Anexo A.1** → CT-44 |
-| `ranking_visibility` | `varchar(20)` | not null, `default 'FULL_NAME'` | — | `RankingVisibility` (RF-07) |
+| `ranking_visibility` | `varchar(20)` | not null, `default 'PRIVATE'` (posterior a S11; antes `FULL_NAME`, los perfiles existentes conservan su valor) | — | `RankingVisibility` (RF-07) |
 | `ranking_alias` | `varchar(60)` | blank | — | Alias del ranking. **No es único**: dos ciudadanos pueden elegir el mismo (ADR-0011) → CT-46 |
 
 **Tres precisiones del Sprint 4 sobre esta tabla:**
@@ -174,6 +174,11 @@ asiento inicial), `new_status`, `resolution_cycle` (entero, default 0,
 `report_history_cycle_nonnegative` exige ≥ 0), `changed_by_id` (nullable, `SET_NULL`: el cierre automático
 a 72 h no tiene actor humano), `reason` (`text`, blank). S9-B2 añade una fila por decisión
 institucional confirmada; un conflicto o rollback no deja historial parcial.
+
+**`report_reassignments`** (posterior a S11) — `report_id` (`CASCADE`), `from_category_id`,
+`to_category_id`, `from_institution_id`, `to_institution_id` (todas `PROTECT`), `reassigned_by_id`
+(nullable, `SET_NULL`), `reason` (`text`). Una fila por cada traspaso antes de validar. El motivo es
+solo para operadores y administradores: no pasa por `report_status_history`, que ve el ciudadano.
 
 **`resolution_evidences`** — `report_id` (`CASCADE`), `description`, `evidence_url`
 (clave de objeto privado, no URL), `uploaded_by_id` (nullable, `SET_NULL`),

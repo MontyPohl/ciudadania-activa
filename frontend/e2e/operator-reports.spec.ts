@@ -41,6 +41,27 @@ test("operador selecciona motivo, confirma y rechaza", async ({ page }) => {
   expect(metrics.detailGets).toBeGreaterThanOrEqual(2);
 });
 
+test("operador reasigna a otra institución con categoría y motivo", async ({ page }) => {
+  const metrics = await openOperatorQueue(page);
+  await page.getByLabel("Contexto institucional").selectOption(ANDE_ID);
+  await page.getByRole("link", { name: "Abrir detalle" }).click();
+  await page.getByRole("button", { name: "No me corresponde" }).click();
+  await page.getByLabel("Categoría correcta").selectOption({ label: "Baches (Municipalidad)" });
+  await page.getByLabel("Motivo").fill("Es un bache en la calzada.");
+  await page.getByRole("button", { name: "Continuar" }).click();
+  await expect(page.getByText(/Los puntos del ciudadano no cambian/)).toBeVisible();
+  await page.getByRole("button", { name: "Confirmar reasignación" }).click();
+  await expect(page.getByText("Reporte reasignado a Municipalidad.")).toBeVisible();
+  await expect(page.getByText("Ya no aparece en tu bandeja.")).toBeVisible();
+
+  expect(metrics.reassignBodies).toEqual([
+    {
+      category_id: "77777777-7777-4777-8777-777777777777",
+      reason: "Es un bache en la calzada.",
+    },
+  ]);
+});
+
 test("@F5 operador completa ciclo con evidencia y cierre", async ({ page }) => {
   const metrics = await openOperatorQueue(page);
   await page.getByLabel("Contexto institucional").selectOption(ANDE_ID);

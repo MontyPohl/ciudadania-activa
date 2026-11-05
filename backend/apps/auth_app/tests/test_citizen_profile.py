@@ -14,7 +14,7 @@ def _perfil(user, hmac="a" * 64):
 def test_perfil_valido_con_preferencias_por_defecto(citizen):
     perfil = _perfil(citizen)
 
-    assert perfil.ranking_visibility == RankingVisibility.FULL_NAME
+    assert perfil.ranking_visibility == RankingVisibility.PRIVATE
     assert perfil.ranking_alias == ""
     assert perfil.verified_at is None
     assert perfil.verified_by is None

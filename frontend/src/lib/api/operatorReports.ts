@@ -1,6 +1,7 @@
 import { ApiError, apiFetch, apiFetchAuthenticatedNoReplay } from "@/lib/api/client";
 import type {
   OperatorAiClassification,
+  OperatorReassignmentContext,
   OperatorReport,
   OperatorReportActionResult,
   OperatorReportDetail,
@@ -391,6 +392,56 @@ export async function getOperatorReportHistory(
   }
 }
 
+function reassignmentContext(value: unknown): value is OperatorReassignmentContext {
+  return (
+    record(value) &&
+    exact(value, ["options", "history"]) &&
+    Array.isArray(value.options) &&
+    value.options.every(
+      (option) =>
+        record(option) &&
+        exact(option, ["category", "institution"]) &&
+        category(option.category) &&
+        institution(option.institution),
+    ) &&
+    Array.isArray(value.history) &&
+    value.history.every(
+      (item) =>
+        record(item) &&
+        exact(item, [
+          "from_category",
+          "to_category",
+          "from_institution",
+          "to_institution",
+          "reason",
+          "created_at",
+        ]) &&
+        category(item.from_category) &&
+        category(item.to_category) &&
+        institution(item.from_institution) &&
+        institution(item.to_institution) &&
+        typeof item.reason === "string" &&
+        typeof item.created_at === "string",
+    )
+  );
+}
+
+export async function getOperatorReassignmentContext(
+  id: string,
+  institutionId: string,
+): Promise<OperatorReassignmentContext> {
+  if (!uuid(id)) throw new OperatorApiError("INVALID_RESPONSE");
+  try {
+    const value = await apiFetch<unknown>(
+      `/api/v1/operator/reports/${id}/reassignment-context/?${contextQuery(institutionId)}`,
+    );
+    if (!reassignmentContext(value)) throw new OperatorApiError("INVALID_RESPONSE");
+    return value;
+  } catch (error) {
+    throw normalizeReadError(error);
+  }
+}
+
 function normalizeReadError(error: unknown): OperatorApiError {
   if (error instanceof OperatorApiError) return error;
   if (error instanceof ApiError) {
@@ -443,15 +494,15 @@ async function mutationError(response: Response): Promise<never> {
 async function mutate(
   id: string,
   institutionId: string,
-  action: "validate" | "reject",
-  reason?: RejectionReason,
+  action: "validate" | "reject" | "reassign",
+  body?: Record<string, string>,
 ): Promise<OperatorReportActionResult> {
   if (!uuid(id)) throw new OperatorApiError("INVALID_RESPONSE");
   try {
     const init: RequestInit = { method: "POST" };
-    if (action === "reject") {
+    if (body !== undefined) {
       init.headers = { "Content-Type": "application/json" };
-      init.body = JSON.stringify({ reason });
+      init.body = JSON.stringify(body);
     }
     const value = await apiFetchAuthenticatedNoReplay<unknown>(
       `/api/v1/operator/reports/${id}/${action}/?${contextQuery(institutionId)}`,
@@ -473,7 +524,14 @@ export const validateOperatorReport = (id: string, institutionId: string) =>
   mutate(id, institutionId, "validate");
 
 export const rejectOperatorReport = (id: string, institutionId: string, reason: RejectionReason) =>
-  mutate(id, institutionId, "reject", reason);
+  mutate(id, institutionId, "reject", { reason });
+
+export const reassignOperatorReport = (
+  id: string,
+  institutionId: string,
+  categoryId: string,
+  reason: string,
+) => mutate(id, institutionId, "reassign", { category_id: categoryId, reason });
 
 export type OperatorLifecycleTarget = "EN_PROCESO" | "RESUELTO" | "CERRADO";
 

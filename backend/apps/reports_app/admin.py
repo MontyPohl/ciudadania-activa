@@ -7,6 +7,7 @@ from .models import (
     Report,
     ReportConfirmation,
     ReportMedia,
+    ReportReassignment,
     ReportStatusHistory,
     ResolutionEvidence,
 )
@@ -48,6 +49,12 @@ class ReportStatusHistoryAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
     list_display = ["created_at", "report", "previous_status", "new_status", "changed_by"]
     list_filter = ["new_status", "previous_status"]
     raw_id_fields = ["report", "changed_by"]
+
+
+@admin.register(ReportReassignment)
+class ReportReassignmentAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
+    list_display = ["created_at", "report", "from_institution", "to_institution", "reassigned_by"]
+    raw_id_fields = ["report", "reassigned_by"]
 
 
 @admin.register(ResolutionEvidence)

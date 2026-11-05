@@ -1,5 +1,8 @@
 # Ciudadanía Activa
 
+**Estado al 5/11/2026:** S15 en curso; Heroku en v32 con los cambios de cierre posteriores a S11
+([registro](docs/PROGRESO_SPRINTS.md#cambios-de-cierre-posteriores-a-s11-45112026)).
+
 **Estado al 20/10/2026:** S14 completado — implementado, desplegado y verificado.
 El [PR #54](https://github.com/MontyPohl/ciudadania-activa/pull/54) se integró en `main`
 como `4bd05fb`, con CI del candidato `f9a9da0` 6/6 verde; Heroku v26 desplegó la reconciliación `a7f775d`.

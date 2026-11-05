@@ -221,7 +221,8 @@ def test_backfill_rechaza_ownership_contradictorio_y_deja_cero_escrituras():
     finally:
         Reward.objects.filter(pk=contradictory.pk).delete()
         Confirmation.objects.filter(pk=confirmation.pk).delete()
-        get_user_model().objects.filter(pk=user.pk).delete()
+        # Modelo histórico: el esquema sigue en MIGRATE_FROM, sin las tablas posteriores.
+        old_apps.get_model("auth_app", "User").objects.filter(pk=user.pk).delete()
         _restore_latest()
 
 
@@ -316,7 +317,7 @@ def test_backfill_rechaza_evidencia_inconsistente_sin_ninguna_escritura(scenario
         AuditLog.objects.filter(pk__in=created_audit_ids).delete()
         Report.objects.filter(pk=first.pk).update(citizen_id=None)
         if user is not None:
-            get_user_model().objects.filter(pk=user.pk).delete()
+            old_apps.get_model("auth_app", "User").objects.filter(pk=user.pk).delete()
         _restore_latest()
 
 

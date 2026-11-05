@@ -5174,6 +5174,25 @@ merge `433eb61`. Trazabilidad completa en el [runbook §15](runbooks/HEROKU_MIGR
 Este smoke no demuestra estabilidad prolongada ni cierra S15: siguen pendientes
 el dataset de IA, el piloto y los recorridos reales.
 
+### Cambios de cierre posteriores a S11 (4–5/11/2026)
+
+Sin efecto sobre los veredictos de S11-D; detalle en `CT-63` y `CT-64` de
+[cambios de tesis pendientes](CAMBIOS_TESIS_PENDIENTES.md).
+
+- [PR #64](https://github.com/MontyPohl/ciudadania-activa/pull/64) (`8866df4`): el operador ve la
+  sugerencia completa de la IA, aviso de publicación inmediata de la descripción, coherencia
+  categoría-institución para autoaplicar, `ReportAdmin` de solo lectura y HSTS de 1 h. Se agregó un
+  aviso de prototipo y se quitó antes de integrar, por decisión del usuario; esa limitación se
+  explica en el material de defensa.
+- **Incidente de Heroku v30 (4/11):** reconstruir la imagen instaló kombu 5.7, que exige redis-py ≥ 6.1
+  mientras el proyecto fija `redis<6`. Worker y `beat` quedaron caídos unos 27 minutos, hasta el
+  rollback a v31. La consulta posterior dio 0 reportes creados en esa ventana. La CI no lo detectó porque
+  las pruebas usan Celery en modo eager.
+- [PR #65](https://github.com/MontyPohl/ciudadania-activa/pull/65) (`a8c05e9`): tope `kombu<5.7`, prueba que
+  abre el transporte real y hash de `base.txt` admitido por el dueño. **Heroku v32 (5/11)**
+  [verificado](runbooks/HEROKU_MIGRATION.md#15-operación-vigente--corte-20102026-0125-utc): desde ahí rigen
+  la coherencia de la IA, el admin de solo lectura y HSTS.
+
 ### Observaciones y desvíos respecto del plan
 
 P0-L permite preparar y verificar instrumentos locales; P0-M conserva los requisitos

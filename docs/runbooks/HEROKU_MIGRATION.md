@@ -703,6 +703,32 @@ Rollback disponible: `heroku releases:rollback v26 --app ciudadania-activa-api`
 y revert del merge `433eb61`. S15 permanece abierto: siguen pendientes la
 estabilidad prolongada, el dataset de IA, el piloto y los recorridos reales.
 
+### Despliegues de noviembre de 2026 (posteriores a S11)
+
+**v30 (4/11, 17:25 −03), caída del worker.** `Deploy 8bc38497`, candidato `8866df4`. No hay lockfile:
+reconstruir la imagen instaló kombu 5.7, que exige redis-py ≥ 6.1 contra `redis<6`, y worker y `beat`
+quedaron caídos con `VersionMismatch`. **v31 (17:52 −03):** rollback a la imagen de v29. Web siguió
+disponible; la consulta posterior dio 0 reportes creados en la ventana.
+
+**v32 (5/11, 08:09 −03).** `Deploy d849874c`:
+
+| Campo | Valor |
+|---|---|
+| Candidato (`CA_RELEASE_SHA`) | `a8c05e97d639e8717b16088f22c0bb623223fc1d` |
+| Remote previo (`CA_REMOTE_SHA`) | `8bc38497087d4e28423a18f2a810d2b56445ae42` |
+| Split (`CA_SPLIT_SHA`) | `c3081c68a510eea9752e5152875e4217e41ff565` |
+| Árbol backend (`CA_BACKEND_TREE`) | `befba72fa1a64e0f4fcf3da77ae0cbdb0ca0561a` |
+| Reconciliación (`CA_RECONCILIATION_SHA`) | `d849874c0dd9de5647c31fbb592542fb58925f89` |
+
+Sin migraciones ni mantenimiento. Comprobado a los 14 minutos: web, worker y `beat` arriba; kombu 5.6.2 y
+redis 5.3.1; worker `ready`, con `notifications.dispatch_due` procesada a las 08:10; 0 `VersionMismatch` ni
+`Traceback` en las últimas 200 líneas del worker; `migrate --check` y `check` con salida 0; health,
+categorías, ranking mensual y métricas en **200**; HSTS `max-age=3600`. Es una observación acotada.
+
+**Después de cada despliegue,** revisar el worker además de web: la CI usa Celery en modo eager, y una
+reconstrucción puede mover otras dependencias sin tope. Rollback vigente:
+`heroku releases:rollback v31 --app ciudadania-activa-api` y revert del merge `a8c05e9`.
+
 ### IA, Brevo y comprobación productiva
 
 **v22 (20/10 00:35 UTC):** migración `ai_client_app.0003` aplicada y clasificación

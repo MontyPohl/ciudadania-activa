@@ -195,6 +195,39 @@ class ReportStatusHistory(BaseModel):
         return f"{self.previous_status or '-'} -> {self.new_status}"
 
 
+class ReportReassignment(BaseModel):
+    """Traspaso de un reporte a otra institución antes de validar. Posterior a S11.
+
+    Tabla propia y no `report_status_history`: el estado no cambia, ese historial lo
+    consumen las métricas y el ciudadano, y este motivo es solo para operadores.
+    """
+
+    report = models.ForeignKey(
+        Report,
+        on_delete=models.CASCADE,
+        related_name="reassignments",
+    )
+    from_category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name="+")
+    to_category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name="+")
+    from_institution = models.ForeignKey(Institution, on_delete=models.PROTECT, related_name="+")
+    to_institution = models.ForeignKey(Institution, on_delete=models.PROTECT, related_name="+")
+    reassigned_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    reason = models.TextField()
+
+    class Meta:
+        db_table = "report_reassignments"
+        ordering = ["created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.from_institution_id} -> {self.to_institution_id}"
+
+
 class ResolutionEvidence(BaseModel):
     """Evidencia de resolución cargada por el operador (RF-15, CU-07)."""
 

@@ -32,6 +32,11 @@ class OperatorRejectInputSerializer(StrictInputMixin, serializers.Serializer):
     reason = serializers.ChoiceField(choices=RejectionReason.values)
 
 
+class OperatorReassignInputSerializer(StrictInputMixin, serializers.Serializer):
+    category_id = serializers.UUIDField()
+    reason = serializers.CharField(max_length=500, trim_whitespace=True)
+
+
 class ResolutionEvidenceInputSerializer(StrictInputMixin, serializers.Serializer):
     file = serializers.FileField(allow_empty_file=False)
     description = serializers.CharField(trim_whitespace=False, allow_blank=True)
@@ -100,6 +105,20 @@ class OperatorInstitutionSerializer(serializers.Serializer):
     id = serializers.UUIDField(read_only=True)
     name = serializers.CharField(read_only=True)
     slug = serializers.SlugField(read_only=True)
+
+
+class OperatorReassignmentOptionSerializer(serializers.Serializer):
+    category = OperatorCategorySerializer(source="*", read_only=True)
+    institution = OperatorInstitutionSerializer(source="default_institution", read_only=True)
+
+
+class OperatorReassignmentSerializer(serializers.Serializer):
+    from_category = OperatorCategorySerializer(read_only=True)
+    to_category = OperatorCategorySerializer(read_only=True)
+    from_institution = OperatorInstitutionSerializer(read_only=True)
+    to_institution = OperatorInstitutionSerializer(read_only=True)
+    reason = serializers.CharField(read_only=True)
+    created_at = serializers.DateTimeField(read_only=True)
 
 
 class OperatorLifecycleResponseSerializer(serializers.Serializer):
