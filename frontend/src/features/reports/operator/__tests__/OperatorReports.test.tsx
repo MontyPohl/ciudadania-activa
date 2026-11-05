@@ -7,6 +7,7 @@ import { OperatorReportQueue } from "@/features/reports/operator/OperatorReportQ
 import {
   createOperatorEvidence,
   getOperatorEvidence,
+  getOperatorReassignmentContext,
   getOperatorReport,
   getOperatorReportHistory,
   getOperatorReports,
@@ -24,6 +25,7 @@ vi.mock("@/lib/api/operatorReports", async (original) => {
     getOperatorReports: vi.fn(),
     getOperatorReport: vi.fn(),
     getOperatorReportHistory: vi.fn(),
+    getOperatorReassignmentContext: vi.fn(),
     getOperatorEvidence: vi.fn(),
     createOperatorEvidence: vi.fn(),
     transitionOperatorReport: vi.fn(),
@@ -122,6 +124,7 @@ describe("interfaz institucional S9-B2", () => {
       results: [report],
     });
     vi.mocked(getOperatorReport).mockResolvedValue(detail);
+    vi.mocked(getOperatorReassignmentContext).mockResolvedValue({ options: [], history: [] });
     vi.mocked(getOperatorReportHistory).mockResolvedValue({
       count: 1,
       next: null,
@@ -303,6 +306,39 @@ describe("interfaz institucional S9-B2", () => {
     await user.click(screen.getByRole("button", { name: "Confirmar validación" }));
     await waitFor(() => expect(validateOperatorReport).toHaveBeenCalledOnce());
     await waitFor(() => expect(getOperatorReport).toHaveBeenCalledTimes(2));
+  });
+
+  it("muestra a quien recibe un reporte de dónde vino y por qué", async () => {
+    vi.mocked(getOperatorReassignmentContext).mockResolvedValue({
+      options: [],
+      history: [
+        {
+          from_category: report.category,
+          to_category: report.category,
+          from_institution: municipal,
+          to_institution: ande,
+          reason: "La luminaria es de ANDE.",
+          created_at: "2026-09-01T10:30:00Z",
+        },
+      ],
+    });
+    render(<OperatorReportDetail id={report.id} initialInstitutionId={ande.id} />);
+
+    expect(await screen.findByText("Motivo: La luminaria es de ANDE.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "No me corresponde" })).not.toBeInTheDocument();
+  });
+
+  it("avisa si no cargaron las reasignaciones y permite reintentar", async () => {
+    vi.mocked(getOperatorReassignmentContext).mockRejectedValueOnce(new Error("caída"));
+    render(<OperatorReportDetail id={report.id} initialInstitutionId={ande.id} />);
+
+    const reintentar = await screen.findByRole("button", { name: "Reintentar" });
+    await userEvent.click(reintentar);
+
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Reintentar" })).not.toBeInTheDocument(),
+    );
+    expect(getOperatorReassignmentContext).toHaveBeenCalledTimes(2);
   });
 
   it("requiere motivo y confirmación antes de rechazar", async () => {

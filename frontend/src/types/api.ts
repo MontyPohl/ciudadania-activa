@@ -81,6 +81,25 @@ export interface OperatorReportDetail extends OperatorReport {
   ai_classification: OperatorAiClassification | null;
 }
 
+export interface OperatorReassignmentOption {
+  category: OperatorCategory;
+  institution: SessionInstitution;
+}
+
+export interface OperatorReassignment {
+  from_category: OperatorCategory;
+  to_category: OperatorCategory;
+  from_institution: SessionInstitution;
+  to_institution: SessionInstitution;
+  reason: string;
+  created_at: ISODateTime;
+}
+
+export interface OperatorReassignmentContext {
+  options: OperatorReassignmentOption[];
+  history: OperatorReassignment[];
+}
+
 export interface OperatorReportActionResult {
   id: UUID;
   status: ReportStatus;

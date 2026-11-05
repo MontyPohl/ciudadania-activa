@@ -13,7 +13,7 @@ from apps.core.enums import ActorType, RejectionReason, ReportStatus
 from apps.core.services import audit
 from apps.map_app.cache import invalidate_public_reports_cache
 from apps.reports_app.enums import OPERABLE_REPORT_STATUSES
-from apps.reports_app.models import Report, ReportStatusHistory
+from apps.reports_app.models import Report, ReportReassignment, ReportStatusHistory
 from apps.rewards_app.services import ledger
 
 ALREADY_VALIDATED = "ALREADY_VALIDATED"
@@ -44,6 +44,10 @@ class ReportInstitutionMismatch(ValueError):
     """El reporte ya no pertenece al scope institucional esperado."""
 
 
+class InvalidReassignmentTarget(ValueError):
+    """La categoría de destino no existe, no está activa o no cambia de institución."""
+
+
 @dataclass(frozen=True)
 class ValidationResult:
     report: Report
@@ -54,6 +58,11 @@ class ValidationResult:
 class RejectionResult:
     report: Report
     ledger_result: ledger.RejectionLedgerResult
+
+
+@dataclass(frozen=True)
+class ReassignmentResult:
+    report: Report
 
 
 def validate_report(*, report_id, operator, institution) -> ValidationResult:
@@ -174,6 +183,86 @@ def reject_report(*, report_id, operator, institution, reason) -> RejectionResul
     return RejectionResult(report=report, ledger_result=ledger_result)
 
 
+def reassignment_targets(*, institution):
+    """Categorías activas de otras instituciones activas: la institución sale de la categoría."""
+    return (
+        Category.objects.filter(is_active=True, default_institution__is_active=True)
+        .exclude(default_institution_id=institution.pk)
+        .select_related("default_institution")
+        .order_by("name")
+    )
+
+
+def reassign_report(*, report_id, operator, institution, category_id, reason) -> ReassignmentResult:
+    """Pasa un reporte sin validar a la institución de otra categoría. Posterior a S11.
+
+    No toca estado, prioridad ni puntos, y no avisa al ciudadano (decisión de D3).
+    """
+    with transaction.atomic():
+        report = _lock_report(report_id)
+        # Mismas condiciones que el rechazo: solo mientras el reporte sigue sin decidir.
+        _ensure_reject_allowed(report)
+        # Un ciclo previo es una validación revertida: las métricas atribuyen ese historial a
+        # la institución actual, así que traspasarlo se lo adjudicaría a otra.
+        if report.resolution_cycle > 0:
+            raise ReportActionConflict(REPORT_STATE_NOT_ALLOWED)
+
+        # Filas ordenadas: dos traspasos cruzados (A→B y B→A) no se bloquean entre sí, y el
+        # destino no puede desactivarse ni cambiar de institución antes del commit.
+        categories = _lock_ordered(Category, {report.category_id, category_id})
+        target = categories.get(category_id)
+        expected_institution_id = (
+            report.institution_id or categories[report.category_id].default_institution_id
+        )
+        target_institution_id = target.default_institution_id if target else None
+        institutions = _lock_ordered(Institution, {institution.pk, target_institution_id} - {None})
+        institution = institutions[institution.pk]
+        if not institution.is_active:
+            raise InactiveInstitution("La institución no está activa.")
+        _ensure_institution_scope(
+            expected_institution_id=expected_institution_id,
+            institution=institution,
+        )
+        if (
+            target is None
+            or not target.is_active
+            or target_institution_id == institution.pk
+            or not institutions[target_institution_id].is_active
+        ):
+            raise InvalidReassignmentTarget("La categoría de destino no es válida.")
+
+        previous_category_id = report.category_id
+        report.category = target
+        report.institution_id = target_institution_id
+        report.save(update_fields=["category", "institution", "updated_at"])
+        reassignment = ReportReassignment.objects.create(
+            report=report,
+            from_category_id=previous_category_id,
+            to_category=target,
+            from_institution=institution,
+            to_institution_id=target_institution_id,
+            reassigned_by=operator,
+            reason=reason,
+        )
+        # El motivo queda en su tabla: la auditoría guarda solo referencias.
+        audit.log(
+            operator,
+            "report.reassigned",
+            {
+                "report_id": str(report.pk),
+                "reassignment_id": str(reassignment.pk),
+                "from_institution_id": str(institution.pk),
+                "to_institution_id": str(target_institution_id),
+                "from_category_id": str(previous_category_id),
+                "to_category_id": str(target.pk),
+            },
+            actor_type=ActorType.HUMAN,
+        )
+        transaction.on_commit(_invalidate_public_map_cache, robust=True)
+
+    return ReassignmentResult(report=report)
+
+
 def _notify(report, notification_type: str, **kwargs) -> None:
     """Aviso por correo al autor (S13).
 
@@ -193,6 +282,11 @@ def _invalidate_public_map_cache() -> None:
 
 def _lock_report(report_id) -> Report:
     return Report.objects.select_for_update().get(pk=report_id)
+
+
+def _lock_ordered(model, pks) -> dict:
+    rows = model.objects.select_for_update().filter(pk__in=pks).order_by("pk")
+    return {row.pk: row for row in rows}
 
 
 def _lock_expected_institution_id(report: Report):

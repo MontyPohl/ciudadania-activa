@@ -21,6 +21,7 @@ export interface OperatorMetrics {
   contexts: string[];
   validateBodies: Array<Buffer | null>;
   rejectBodies: unknown[];
+  reassignBodies: unknown[];
   lifecycleBodies: unknown[];
   evidenceBodies: string[];
   evidenceKeys: Array<string | null>;
@@ -52,6 +53,7 @@ export async function openOperatorQueue(page: Page): Promise<OperatorMetrics> {
     contexts: [],
     validateBodies: [],
     rejectBodies: [],
+    reassignBodies: [],
     lifecycleBodies: [],
     evidenceBodies: [],
     evidenceKeys: [],
@@ -151,6 +153,40 @@ export async function openOperatorQueue(page: Page): Promise<OperatorMetrics> {
           next: null,
           previous: null,
           results: [...history].reverse(),
+        },
+      });
+      return;
+    }
+    if (url.pathname.endsWith("/reassignment-context/")) {
+      await route.fulfill({
+        status: 200,
+        json: {
+          options: [
+            {
+              category: {
+                id: "77777777-7777-4777-8777-777777777777",
+                name: "Baches",
+                slug: "baches",
+              },
+              institution: municipal,
+            },
+          ],
+          history: [],
+        },
+      });
+      return;
+    }
+    if (url.pathname.endsWith("/reassign/")) {
+      metrics.reassignBodies.push(request.postDataJSON());
+      await route.fulfill({
+        status: 200,
+        json: {
+          id: OPERATOR_REPORT_ID,
+          status,
+          institution: municipal,
+          validated_at: null,
+          validated_by: null,
+          rejection_reason: "",
         },
       });
       return;

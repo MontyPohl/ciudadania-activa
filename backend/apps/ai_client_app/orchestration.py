@@ -128,7 +128,9 @@ def process_report_classification(
             total_tokens=usage.total_tokens if usage is not None else None,
         )
 
-        applied = resolved.eligible_for_auto_apply
+        # Posterior a S11. Si un operador ya reasignó el reporte, su decisión prevalece: la
+        # sugerencia queda registrada, pero no se aplica.
+        applied = resolved.eligible_for_auto_apply and not report.reassignments.exists()
         campos = ["status", "updated_at"]
         if applied:
             # Solo estos tres. La descripción, la ubicación, la evidencia y todo lo
@@ -165,7 +167,8 @@ def process_report_classification(
                 "raw_response": raw_response[:MAX_RAW_RESPONSE_CHARS],
                 "decision": DECISION_AUTO_APPLY if applied else DECISION_HUMAN_REVIEW,
                 "applied": applied,
-                "requires_human_review": resolved.requires_human_review,
+                # También cuando una reasignación previa impidió aplicarla (posterior a S11).
+                "requires_human_review": resolved.requires_human_review or not applied,
                 "has_changes": has_changes,
             },
             actor_type=ActorType.AI,

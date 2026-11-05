@@ -5,6 +5,8 @@ from apps.reports_app.operator_views import (
     OperatorReportEvidenceView,
     OperatorReportHistoryView,
     OperatorReportListView,
+    OperatorReportReassignmentContextView,
+    OperatorReportReassignView,
     OperatorReportRejectView,
     OperatorReportStatusView,
     OperatorReportValidateView,
@@ -36,6 +38,16 @@ urlpatterns = [
         "reports/<uuid:report_id>/reject/",
         OperatorReportRejectView.as_view(),
         name="operator-report-reject",
+    ),
+    path(
+        "reports/<uuid:report_id>/reassign/",
+        OperatorReportReassignView.as_view(),
+        name="operator-report-reassign",
+    ),
+    path(
+        "reports/<uuid:report_id>/reassignment-context/",
+        OperatorReportReassignmentContextView.as_view(),
+        name="operator-report-reassignment-context",
     ),
     path(
         "reports/<uuid:report_id>/",

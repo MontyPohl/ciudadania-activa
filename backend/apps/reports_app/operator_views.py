@@ -25,6 +25,9 @@ from apps.core.services import storage
 from apps.reports_app.models import Report, ReportStatusHistory
 from apps.reports_app.operator_serializers import (
     OperatorLifecycleResponseSerializer,
+    OperatorReassignInputSerializer,
+    OperatorReassignmentOptionSerializer,
+    OperatorReassignmentSerializer,
     OperatorRejectInputSerializer,
     OperatorReportActionQuerySerializer,
     OperatorReportActionResponseSerializer,
@@ -142,6 +145,31 @@ class OperatorReportHistoryView(_OperatorInstitutionContextMixin, ListAPIView):
         )
 
 
+class OperatorReportReassignmentContextView(_OperatorInstitutionContextMixin, APIView):
+    """Destinos posibles y traspasos previos. Vista aparte: no cambia el contrato del detalle."""
+
+    query_serializer_class = OperatorReportActionQuerySerializer
+
+    def get(self, request, report_id):
+        institution = self._institution()
+        report = (
+            operator_reports_for_institution(institution=institution).filter(pk=report_id).first()
+        )
+        if report is None:
+            raise NotFound({"detail": REPORT_NOT_FOUND, "code": "REPORT_NOT_FOUND"})
+        history = report.reassignments.select_related(
+            "from_category", "to_category", "from_institution", "to_institution"
+        )
+        return Response(
+            {
+                "options": OperatorReassignmentOptionSerializer(
+                    validation.reassignment_targets(institution=institution), many=True
+                ).data,
+                "history": OperatorReassignmentSerializer(history, many=True).data,
+            }
+        )
+
+
 class _OperatorReportActionView(APIView):
     """Adaptador HTTP común; toda la mutación de dominio permanece en S9-B1."""
 
@@ -255,6 +283,11 @@ class _OperatorReportActionView(APIView):
                 {"detail": INVALID_REJECTION_REASON, "code": "INVALID_REJECTION_REASON"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        except validation.InvalidReassignmentTarget as exc:
+            return Response(
+                {"detail": str(exc), "code": "INVALID_REASSIGNMENT_TARGET"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         except validation.InactiveInstitution:
             return Response(
                 {"detail": "La institución no está activa.", "code": "INSTITUTION_INACTIVE"},
@@ -290,6 +323,19 @@ class OperatorReportRejectView(_OperatorReportActionView):
             report_id=report_id,
             operator=operator,
             institution=institution,
+            reason=data["reason"],
+        )
+
+
+class OperatorReportReassignView(_OperatorReportActionView):
+    input_serializer_class = OperatorReassignInputSerializer
+
+    def _execute(self, *, report_id, operator, institution, data):
+        return validation.reassign_report(
+            report_id=report_id,
+            operator=operator,
+            institution=institution,
+            category_id=data["category_id"],
             reason=data["reason"],
         )
 

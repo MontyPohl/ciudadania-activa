@@ -20,17 +20,21 @@ import {
 import {
   createOperatorEvidence,
   getOperatorEvidence,
+  getOperatorReassignmentContext,
   getOperatorReport,
   getOperatorReportHistory,
   OperatorApiError,
   type OperatorLifecycleTarget,
   operatorErrorMessage,
+  reassignOperatorReport,
   rejectOperatorReport,
   transitionOperatorReport,
   validateOperatorReport,
 } from "@/lib/api/operatorReports";
 import type {
   OperatorAiClassification,
+  OperatorReassignment,
+  OperatorReassignmentContext,
   OperatorReportDetail as Detail,
   ReportHistoryPage,
   ResolutionEvidence,
@@ -71,7 +75,15 @@ const SUCCESS_MESSAGES: Record<OperatorLifecycleTarget, string> = {
   CERRADO: "El reporte quedó cerrado.",
 };
 
-type Decision = "none" | "validate" | "reject-reason" | "reject-confirm" | "lifecycle";
+type Decision =
+  | "none"
+  | "validate"
+  | "reject-reason"
+  | "reject-confirm"
+  | "reassign-form"
+  | "reassign-confirm"
+  | "lifecycle";
+const REASSIGN_REASON_MAX = 500;
 type EvidenceState =
   | { phase: "loading" }
   | { phase: "ready"; items: ResolutionEvidence[] }
@@ -109,6 +121,11 @@ export function OperatorReportDetail({
   const [reason, setReason] = useState<RejectionReason | "">("");
   const [description, setDescription] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [reassignment, setReassignment] = useState<OperatorReassignmentContext | null>(null);
+  const [targetCategoryId, setTargetCategoryId] = useState("");
+  const [reassignReason, setReassignReason] = useState("");
+  const [reassignedTo, setReassignedTo] = useState<string | null>(null);
+  const [reassignmentFailed, setReassignmentFailed] = useState(false);
   const evidenceKey = useRef<string | null>(null);
   const decisionHeading = useRef<HTMLHeadingElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -137,10 +154,22 @@ export function OperatorReportDetail({
     [id, institutionId],
   );
 
+  const loadReassignment = useCallback(async () => {
+    if (!institutionId) return;
+    setReassignmentFailed(false);
+    try {
+      setReassignment(await getOperatorReassignmentContext(id, institutionId));
+    } catch {
+      setReassignment(null);
+      setReassignmentFailed(true);
+    }
+  }, [id, institutionId]);
+
   const refresh = useCallback(async () => {
     if (!institutionId) return;
     setLoading(true);
     void loadHistory(1);
+    void loadReassignment();
     try {
       const nextDetail = await getOperatorReport(id, institutionId);
       setDetail(nextDetail);
@@ -152,7 +181,7 @@ export function OperatorReportDetail({
     } finally {
       setLoading(false);
     }
-  }, [id, institutionId, loadEvidence, loadHistory]);
+  }, [id, institutionId, loadEvidence, loadHistory, loadReassignment]);
 
   useEffect(() => {
     if (!institutionId) return;
@@ -206,6 +235,25 @@ export function OperatorReportDetail({
   }, [id, institutionId]);
 
   useEffect(() => {
+    if (!institutionId) return;
+    let cancelled = false;
+    getOperatorReassignmentContext(id, institutionId)
+      .then((context) => {
+        if (!cancelled) setReassignment(context);
+      })
+      .catch(() => {
+        // Sin este dato el operador conserva validar y rechazar; solo falta reasignar.
+        if (!cancelled) {
+          setReassignment(null);
+          setReassignmentFailed(true);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id, institutionId]);
+
+  useEffect(() => {
     if (decision !== "none") decisionHeading.current?.focus();
   }, [decision]);
 
@@ -223,6 +271,28 @@ export function OperatorReportDetail({
           : "Reporte rechazado correctamente.",
       );
       await refresh();
+    } catch (error) {
+      const normalized = normalizedError(error);
+      setMessage(normalized.message);
+      if (normalized.status === 409) {
+        setDecision("none");
+        await refresh();
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function executeReassign(destination: string) {
+    if (busy) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      await reassignOperatorReport(id, institutionId, targetCategoryId, reassignReason.trim());
+      // Desde acá el reporte es de otra institución: volver a pedirlo respondería 404.
+      setDecision("none");
+      setDetail(null);
+      setReassignedTo(destination);
     } catch (error) {
       const normalized = normalizedError(error);
       setMessage(normalized.message);
@@ -315,6 +385,9 @@ export function OperatorReportDetail({
     detail && evidenceState.phase === "ready"
       ? evidenceState.items.filter((item) => item.cycle === detail.cycle).length
       : 0;
+  const reassignTarget = reassignment?.options.find(
+    (option) => option.category.id === targetCategoryId,
+  );
 
   return (
     <section className="flex flex-col gap-6" aria-label="Detalle institucional del reporte">
@@ -328,6 +401,12 @@ export function OperatorReportDetail({
           setSelectedInstitutionId(value);
           setDecision("none");
           setMessage(null);
+          // Opciones y borrador eran de la institución anterior.
+          setReassignedTo(null);
+          setReassignment(null);
+          setReassignmentFailed(false);
+          setTargetCategoryId("");
+          setReassignReason("");
         }}
         disabled={busy}
       />
@@ -340,7 +419,13 @@ export function OperatorReportDetail({
           {message}
         </p>
       )}
-      {!loading && detail === null && (
+      {reassignedTo !== null && (
+        <Card role="status" className="p-5 ring-1 ring-border">
+          <p className="font-semibold">Reporte reasignado a {reassignedTo}.</p>
+          <p className="mt-1 text-sm text-muted">Ya no aparece en tu bandeja.</p>
+        </Card>
+      )}
+      {!loading && detail === null && reassignedTo === null && (
         <Button
           variant="primary"
           type="button"
@@ -459,6 +544,10 @@ export function OperatorReportDetail({
             )}
           </Card>
 
+          {reassignment !== null && reassignment.history.length > 0 && (
+            <ReassignmentHistory items={reassignment.history} />
+          )}
+
           {operable && decision === "none" && (
             <div className="flex flex-wrap gap-3">
               <Button variant="primary" type="button" onClick={() => setDecision("validate")}>
@@ -470,6 +559,29 @@ export function OperatorReportDetail({
                 onClick={() => setDecision("reject-reason")}
               >
                 Rechazar
+              </Button>
+              {detail.cycle === 0 && reassignment !== null && reassignment.options.length > 0 && (
+                <Button
+                  variant="secondary"
+                  type="button"
+                  onClick={() => setDecision("reassign-form")}
+                >
+                  No me corresponde
+                </Button>
+              )}
+            </div>
+          )}
+
+          {reassignmentFailed && (
+            <div role="alert" className="flex flex-wrap items-center gap-3 text-sm">
+              <p>No pudimos cargar las reasignaciones de este reporte.</p>
+              <Button
+                variant="secondary"
+                type="button"
+                onClick={() => void loadReassignment()}
+                className="text-sm"
+              >
+                Reintentar
               </Button>
             </div>
           )}
@@ -555,6 +667,73 @@ export function OperatorReportDetail({
               tone="orange"
               onConfirm={() => void executeInitialDecision("reject")}
               onCancel={() => setDecision("reject-reason")}
+              cancelLabel="Volver"
+            />
+          )}
+
+          {decision === "reassign-form" && reassignment !== null && (
+            <form
+              className="rounded-2xl bg-surface p-5 text-ink shadow-sm ring-1 ring-warning/40"
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (targetCategoryId === "" || reassignReason.trim() === "") {
+                  setMessage("Elegí la categoría correcta y explicá el motivo.");
+                  return;
+                }
+                setMessage(null);
+                setDecision("reassign-confirm");
+              }}
+            >
+              <h2 ref={decisionHeading} tabIndex={-1} className="font-semibold focus:outline-none">
+                Reasignar a otra institución
+              </h2>
+              <label className="mt-3 flex flex-col gap-1 text-sm font-medium">
+                Categoría correcta
+                <Select
+                  required
+                  value={targetCategoryId}
+                  onChange={(event) => setTargetCategoryId(event.target.value)}
+                >
+                  <option value="">Seleccionar categoría</option>
+                  {reassignment.options.map((option) => (
+                    <option key={option.category.id} value={option.category.id}>
+                      {option.category.name} ({option.institution.name})
+                    </option>
+                  ))}
+                </Select>
+              </label>
+              <label className="mt-3 flex flex-col gap-1 text-sm font-medium">
+                Motivo
+                <Textarea
+                  required
+                  rows={3}
+                  maxLength={REASSIGN_REASON_MAX}
+                  value={reassignReason}
+                  onChange={(event) => setReassignReason(event.target.value)}
+                />
+                <span className="text-xs font-normal text-muted">
+                  Lo ve la institución que lo recibe. No incluyas datos personales.
+                </span>
+              </label>
+              <ActionRow
+                primaryLabel="Continuar"
+                busy={busy}
+                onPrimary={() => undefined}
+                primaryType="submit"
+                onSecondary={() => setDecision("none")}
+              />
+            </form>
+          )}
+
+          {decision === "reassign-confirm" && reassignTarget && (
+            <Confirmation
+              headingRef={decisionHeading}
+              title="Confirmar reasignación"
+              explanation={`El reporte pasará a ${reassignTarget.institution.name} con la categoría ${reassignTarget.category.name} y dejará de aparecer en tu bandeja. Los puntos del ciudadano no cambian.`}
+              confirmLabel="Confirmar reasignación"
+              busy={busy}
+              onConfirm={() => void executeReassign(reassignTarget.institution.name)}
+              onCancel={() => setDecision("reassign-form")}
               cancelLabel="Volver"
             />
           )}
@@ -743,6 +922,26 @@ function AiSuggestion({ classification }: { classification: OperatorAiClassifica
       </dl>
       <p className="mt-4 text-muted">{classification.justification}</p>
     </aside>
+  );
+}
+
+function ReassignmentHistory({ items }: { items: OperatorReassignment[] }) {
+  return (
+    <Card className="p-5 ring-1 ring-border">
+      <h2 className="font-semibold">Reasignaciones de este reporte</h2>
+      <ul className="mt-3 space-y-3 text-sm">
+        {items.map((item) => (
+          <li key={item.created_at}>
+            <p className="font-medium">
+              De {item.from_institution.name} ({item.from_category.name}) a{" "}
+              {item.to_institution.name} ({item.to_category.name})
+            </p>
+            <p className="whitespace-pre-wrap break-words">Motivo: {item.reason}</p>
+            <p className="text-xs text-muted">{formatReportDate(item.created_at)}</p>
+          </li>
+        ))}
+      </ul>
+    </Card>
   );
 }
 

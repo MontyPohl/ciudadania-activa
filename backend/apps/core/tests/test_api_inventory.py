@@ -55,6 +55,8 @@ ENDPOINTS = [
     (f"/api/v1/operator/reports/{EXAMPLE_ID}/history/", {"GET"}, "get", 401, "7.4"),
     (f"/api/v1/operator/reports/{EXAMPLE_ID}/validate/", {"POST"}, "post", 401, "7.5"),
     (f"/api/v1/operator/reports/{EXAMPLE_ID}/reject/", {"POST"}, "post", 401, "7.5"),
+    (f"/api/v1/operator/reports/{EXAMPLE_ID}/reassign/", {"POST"}, "post", 401, "7.5"),
+    (f"/api/v1/operator/reports/{EXAMPLE_ID}/reassignment-context/", {"GET"}, "get", 401, "7.5"),
     (f"/api/v1/operator/reports/{EXAMPLE_ID}/status/", {"PATCH"}, "patch", 401, "7.6"),
     (f"/api/v1/operator/reports/{EXAMPLE_ID}/evidence/", {"GET", "POST"}, "get", 401, "7.6"),
     ("/api/v1/admin/audit-logs/", {"GET"}, "get", 401, "7.6, 8.7"),
