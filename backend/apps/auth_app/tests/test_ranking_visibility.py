@@ -88,8 +88,8 @@ def test_la_modalidad_alias_se_guarda_con_su_alias(como, citizen, perfil_factory
     assert perfil.ranking_alias == "Vecina del barrio"
 
 
-def test_el_valor_por_defecto_es_nombre_completo(citizen, perfil_factory):
-    assert perfil_factory(citizen).ranking_visibility == RankingVisibility.FULL_NAME
+def test_el_valor_por_defecto_es_usuario_privado(citizen, perfil_factory):
+    assert perfil_factory(citizen).ranking_visibility == RankingVisibility.PRIVATE
 
 
 # --------------------------------------------------------------------------- #

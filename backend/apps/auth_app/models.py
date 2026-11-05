@@ -120,7 +120,8 @@ class CitizenProfile(BaseModel):
     ranking_visibility = models.CharField(
         max_length=20,
         choices=RankingVisibility.choices,
-        default=RankingVisibility.FULL_NAME,
+        # Posterior a S11. Si la persona no elige nada, su nombre no se publica.
+        default=RankingVisibility.PRIVATE,
     )
     ranking_alias = models.CharField(max_length=60, blank=True)
 
