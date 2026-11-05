@@ -5192,6 +5192,11 @@ Sin efecto sobre los veredictos de S11-D; detalle en `CT-63` y `CT-64` de
   abre el transporte real y hash de `base.txt` admitido por el dueño. **Heroku v32 (5/11)**
   [verificado](runbooks/HEROKU_MIGRATION.md#15-operación-vigente--corte-20102026-0125-utc): desde ahí rigen
   la coherencia de la IA, el admin de solo lectura y HSTS.
+- [PR #66](https://github.com/MontyPohl/ciudadania-activa/pull/66) (`4603c29`, CI 8/8): ranking privado por defecto en
+  perfiles nuevos y reasignación antes de la primera validación, con motivo obligatorio y tabla
+  `report_reassignments`. **Heroku v33 (5/11)**, con respaldo, mantenimiento y migraciones. Falta probar la reasignación
+  con cuentas reales de operador.
+- RNF-05 baja de 85 % a 80 % (`CT-65`), antes de la evaluación de S15. No cambia EX-09 ni HT-2.
 
 ### Observaciones y desvíos respecto del plan
 

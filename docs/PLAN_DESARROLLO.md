@@ -177,7 +177,7 @@ Adicionalmente, `docs/PROMPT_PLANIFICACION_CLAUDE.md` fija las reglas de trabajo
 | RNF-02 | Latencia P99 bajo carga | ≤ 2.000 ms |
 | RNF-03 | Throughput de creación de reportes | ≥ 50 reportes/min |
 | RNF-04 | Cobertura de pruebas del backend crítico | ≥ 80 % |
-| RNF-05 | Concordancia de la IA contra etiquetas de oro | ≥ 85 % |
+| RNF-05 | Concordancia de la IA contra etiquetas de oro | ≥ 80 % desde el 5/11/2026, antes de la evaluación de S15 (antes ≥ 85 %; EX-09 y HT-2 se juzgaron con 85 % y no cambian, ver CT-65) |
 | RNF-06 | Flujos E2E críticos exitosos | 100 % |
 | RNF-07 | Reglas de incentivos correctas en escenarios sintéticos | 100 % |
 | RNF-08 | Comunicaciones sobre HTTPS/TLS; secretos por variables de entorno | — |
