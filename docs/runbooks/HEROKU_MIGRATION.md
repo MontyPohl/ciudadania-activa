@@ -725,9 +725,28 @@ redis 5.3.1; worker `ready`, con `notifications.dispatch_due` procesada a las 08
 `Traceback` en las últimas 200 líneas del worker; `migrate --check` y `check` con salida 0; health,
 categorías, ranking mensual y métricas en **200**; HSTS `max-age=3600`. Es una observación acotada.
 
+**v33 (5/11, 11:11 −03), con migraciones.** `Deploy fde1327b`:
+
+| Campo | Valor |
+|---|---|
+| Candidato (`CA_RELEASE_SHA`) | `4603c294e57db72613d4ea5363457cf320292073` |
+| Remote previo (`CA_REMOTE_SHA`) | `d849874c0dd9de5647c31fbb592542fb58925f89` |
+| Split (`CA_SPLIT_SHA`) | `3e89efa5dccf71f89e87c17459c424c48fb70b9f` |
+| Árbol backend (`CA_BACKEND_TREE`) | `ab15e5a281697a21fe092920d7778fca8f9729e5` |
+| Reconciliación (`CA_RECONCILIATION_SHA`) | `fde1327ba12da65328bdad91e22cbdf954ec34a5` |
+
+Respaldo previo `ciudadania_activa_20261105_110715_pre_a5_b1.dump` (SHA-256 `bf91ab0890058c13…`, 65 tablas con
+datos) y posterior `ciudadania_activa_20261105_111650_post_a5_b1.dump` (SHA-256 `a6ccd7cdc5cb3bc6…`, 66), en
+`~/backups/ciudadania-activa/`. Con mantenimiento y procesos en 0, `migrate --plan` listó solo `auth_app.0005` y
+`reports_app.0009`; aplicadas, con `migrate --check` y `check` en 0. Se levantaron web, worker y `beat` en ese orden.
+Comprobado: health con DB y Redis; categorías, ranking mensual y métricas en **200**; las dos rutas nuevas en **401**
+sin sesión; HSTS `max-age=3600`; kombu 5.6.2; `notifications.dispatch_due` procesada a las 11:20; frontend `/`,
+`/ranking` y `/mapa` en **200**. En los logs solo hay `H80` por el mantenimiento y dos `H27` previos. La pantalla de
+reasignación con una cuenta de operador no se probó en producción.
+
 **Después de cada despliegue,** revisar el worker además de web: la CI usa Celery en modo eager, y una
 reconstrucción puede mover otras dependencias sin tope. Rollback vigente:
-`heroku releases:rollback v31 --app ciudadania-activa-api` y revert del merge `a8c05e9`.
+revert del merge `4603c29` y despliegue nuevo; `heroku releases:rollback v32` solo revierte la aplicación, no el esquema, y las dos migraciones quedarían aplicadas.
 
 ### IA, Brevo y comprobación productiva
 

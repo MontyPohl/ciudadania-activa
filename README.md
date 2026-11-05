@@ -1,6 +1,6 @@
 # Ciudadanía Activa
 
-**Estado al 5/11/2026:** S15 en curso; Heroku en v32 con los cambios de cierre posteriores a S11
+**Estado al 5/11/2026:** S15 en curso; Heroku en v33 con los cambios de cierre posteriores a S11
 ([registro](docs/PROGRESO_SPRINTS.md#cambios-de-cierre-posteriores-a-s11-45112026)).
 
 **Estado al 20/10/2026:** S14 completado — implementado, desplegado y verificado.

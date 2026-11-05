@@ -63,7 +63,7 @@ usan medios sintéticos y no aumentan esta cuota de fotos reales.
 Dos ángulos de una misma incidencia no son dos casos independientes. Si una cuota no es
 viable, se revisa antes de congelar N y ejecutar la evaluación; no se inventan prioridades
 para llenar casillas. Diez casos por categoría permiten describir fallos, con precisión
-limitada por categoría. En N=100, el objetivo observado del 85 % exige 85 aciertos exactos.
+limitada por categoría. El objetivo pasó del 85 % al **80 %** el 5/11/2026, antes de observar predicciones (CT-65): en N=100 exige 80 aciertos exactos y en N=26, 21. Se informa también si llega al 85 %.
 Las cuotas se cubren con material disponible y autorizado; no se recrean ni se buscan
 situaciones peligrosas para completarlas.
 
