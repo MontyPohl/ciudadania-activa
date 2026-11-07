@@ -484,6 +484,23 @@ def test_la_imagen_viaja_inline_como_data_url_en_base64():
     assert base64.b64decode(imagenes[0]["image_url"][len(prefijo) :]) == imagen
 
 
+def test_una_imagen_que_excede_el_lado_maximo_se_achica_antes_de_enviarse():
+    """El proveedor rechaza con 400 las imágenes de más de ~30 MP (S15, 7/11/2026)."""
+    import io
+
+    from PIL import Image
+
+    original = io.BytesIO()
+    Image.new("RGB", (3000, 1500), "gray").save(original, "JPEG")
+    adapter, responses = build_adapter(responder())
+
+    adapter.classify(build_request(image_bytes=original.getvalue(), image_mime_type="image/jpeg"))
+
+    bloque = next(b for b in contenido_enviado(responses.calls[0]) if b["type"] == "input_image")
+    enviada = Image.open(io.BytesIO(base64.b64decode(bloque["image_url"].split(",", 1)[1])))
+    assert (enviada.format, enviada.size) == ("JPEG", (2048, 1024))
+
+
 def test_sin_mime_type_se_declara_jpeg():
     adapter, responses = build_adapter(responder())
 
