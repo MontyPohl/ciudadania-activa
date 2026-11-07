@@ -23,10 +23,12 @@ código HTTP en `status_code`, para las respuestas de error.
 from __future__ import annotations
 
 import base64
+import io
 import json
 from dataclasses import dataclass
 
 from openai import APIConnectionError, APIStatusError, OpenAI
+from PIL import Image
 
 from apps.core.enums import ReportPriority
 
@@ -54,6 +56,13 @@ _CODIGO_SIN_CUOTA = "insufficient_quota"
 # Resolución con la que el modelo analiza la imagen. `auto` deja al proveedor
 # elegir según el tamaño; la pipeline ya normaliza la imagen antes de enviarla.
 _DETALLE_DE_IMAGEN = "auto"
+
+# Lado mayor de la copia que se envía. El proveedor rechaza con 400 las imágenes
+# que superan 30000 parches (unos 30 megapíxeles; S15, 7/11/2026), y la pipeline
+# solo limita bytes, no píxeles. 2048 queda lejos de ese tope. La foto guardada
+# del reporte no cambia: se achica únicamente la copia de la petición.
+_LADO_MAXIMO_DE_IMAGEN = 2048
+_CALIDAD_JPEG = 90
 
 
 def build_classification_schema() -> dict:
@@ -254,7 +263,8 @@ def _build_input(request: ClassificationRequest) -> list[dict]:
 
     if request.image_bytes:
         mime_type = request.image_mime_type or "image/jpeg"
-        datos = base64.b64encode(request.image_bytes).decode("ascii")
+        imagen = _achicar_si_excede(request.image_bytes)
+        datos = base64.b64encode(imagen).decode("ascii")
         bloques.append(
             {
                 "type": "input_image",
@@ -263,6 +273,33 @@ def _build_input(request: ClassificationRequest) -> list[dict]:
             }
         )
     return bloques
+
+
+def _achicar_si_excede(contenido: bytes) -> bytes:
+    """Reduce la imagen a `_LADO_MAXIMO_DE_IMAGEN` si la excede, en el mismo formato.
+
+    Una imagen dentro del límite viaja con los bytes exactos que recibió. Si Pillow
+    no puede leerla, también: decidir sobre una imagen inválida le corresponde al
+    proveedor, no a este paso.
+    """
+    try:
+        with Image.open(io.BytesIO(contenido)) as imagen:
+            if max(imagen.size) <= _LADO_MAXIMO_DE_IMAGEN:
+                return contenido
+            formato = imagen.format
+            # En JPEG decodifica ya reducida: una foto de 33 MP no ocupa memoria completa.
+            imagen.draft(imagen.mode, (_LADO_MAXIMO_DE_IMAGEN, _LADO_MAXIMO_DE_IMAGEN))
+            copia = imagen.copy()
+    except (OSError, ValueError, Image.DecompressionBombError):
+        return contenido
+
+    copia.thumbnail((_LADO_MAXIMO_DE_IMAGEN, _LADO_MAXIMO_DE_IMAGEN), Image.Resampling.LANCZOS)
+    salida = io.BytesIO()
+    if formato == "JPEG":
+        copia.save(salida, "JPEG", quality=_CALIDAD_JPEG)
+    else:
+        copia.save(salida, formato or "PNG")
+    return salida.getvalue()
 
 
 def _build_user_text(request: ClassificationRequest) -> str:
