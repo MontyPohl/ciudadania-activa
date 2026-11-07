@@ -53,7 +53,7 @@ class EvaluationTest(unittest.TestCase):
                 "attempt_limit": 1,
                 "primary_metric": "exact-category-institution-priority-before-policy",
                 "secondary_metric": "exact-category-priority-before-policy",
-                "threshold_percent": 85,
+                "threshold_percent": 80,
                 "sdk_max_retries": 0,
                 "script_max_retries": 0,
                 "celery_used": False,
@@ -290,7 +290,7 @@ class EvaluationTest(unittest.TestCase):
         self.assertEqual(score["primary"]["correct"], 2)
         self.assertEqual(score["errors"], {"missing": 1})
 
-    def test_exact_85_percent_integer_boundary_no_rounding(self):
+    def test_exact_80_percent_integer_boundary_no_rounding(self):
         self.dataset["frozen_n"] = 101
         self.dataset["cases"] = [
             dict(self.dataset["cases"][i % 3], case_id=f"test-{i}") for i in range(101)
@@ -301,7 +301,7 @@ class EvaluationTest(unittest.TestCase):
         records = {}
         for index in range(101):
             case = self.dataset["cases"][index]
-            record = self.record(0, priority="MEDIA" if index < 85 else "ALTA")
+            record = self.record(0, priority="MEDIA" if index < 80 else "ALTA")
             record.update(
                 case_id=case["case_id"],
                 request_sha256=common.request_hash(case, self.dataset["catalog"]),
@@ -310,15 +310,13 @@ class EvaluationTest(unittest.TestCase):
             )
             records[case["case_id"]] = record
         score = scorer.score_records(self.dataset, self.gold, records, execution_mode="live")
-        self.assertEqual(score["required_correct"], 86)
+        self.assertEqual(score["required_correct"], 81)
+        self.assertEqual(score["reference_85_percent"]["required_correct"], 86)
         self.assertEqual(score["verdict"], "FAIL")
-        records["test-85"]["prediction"]["priority"] = "MEDIA"
-        self.assertEqual(
-            scorer.score_records(self.dataset, self.gold, records, execution_mode="live")[
-                "verdict"
-            ],
-            "PASS",
-        )
+        records["test-80"]["prediction"]["priority"] = "MEDIA"
+        score = scorer.score_records(self.dataset, self.gold, records, execution_mode="live")
+        self.assertEqual(score["verdict"], "PASS")
+        self.assertFalse(score["reference_85_percent"]["met"])
 
     def test_unknown_tokens_are_not_zero(self):
         score = scorer.score_records(self.dataset, self.gold, self.all_records())

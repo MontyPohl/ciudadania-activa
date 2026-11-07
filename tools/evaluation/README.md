@@ -166,8 +166,9 @@ desconocido aunque la política productiva fuera a resolverlo a nulo. Confianza 
 inconsistencia no alteran el numerador primario. No se ejecuta policy ni se
 atribuyen cobertura de aplicación, persistencia, worker o reintentos productivos.
 
-Se decide con `100 * correct >= 85 * N`, mínimo `(85*N + 99)//100`; ningún
-redondeo de porcentaje cambia el veredicto. Por ejemplo, 85/101 falla y 86/101
+Se decide con `100 * correct >= 80 * N`, mínimo `(80*N + 99)//100` (RNF-05 desde el 5/11/2026, CT-65;
+`score.json` informa aparte si llega al 85 % anterior, sin que decida el veredicto). Ningún
+redondeo de porcentaje cambia el veredicto. Por ejemplo, 80/101 falla y 81/101
 alcanza el umbral. Las cifras de ese ejemplo son pruebas aritméticas.
 
 ## Evidencia, recuperación y custodia

@@ -36,12 +36,12 @@ class ReportAdmin(ReadOnlyAdminMixin, gis_admin.GISModelAdmin):
 
 
 @admin.register(ReportMedia)
-class ReportMediaAdmin(admin.ModelAdmin):
+class ReportMediaAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
+    # Posterior a S11. La foto es evidencia: solo se inspecciona.
     list_display = ["created_at", "report", "media_type", "file_hash"]
     list_filter = ["media_type"]
     search_fields = ["file_hash"]
     raw_id_fields = ["report", "uploaded_by"]
-    readonly_fields = ["created_at", "updated_at"]
 
 
 @admin.register(ReportStatusHistory)

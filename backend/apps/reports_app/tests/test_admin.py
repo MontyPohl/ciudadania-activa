@@ -4,17 +4,21 @@ from django.contrib.auth import get_user_model
 from django.test import Client
 from django.urls import reverse
 
+from apps.ai_client_app.admin import AiClassificationAdmin
+from apps.ai_client_app.models import AiClassification
 from apps.core.enums import ReportStatus
 from apps.core.tests.fake_request import FakeRequest
 from apps.reports_app.admin import (
     ReportAdmin,
     ReportConfirmationAdmin,
+    ReportMediaAdmin,
     ReportStatusHistoryAdmin,
     ResolutionEvidenceAdmin,
 )
 from apps.reports_app.models import (
     Report,
     ReportConfirmation,
+    ReportMedia,
     ReportStatusHistory,
     ResolutionEvidence,
 )
@@ -28,6 +32,8 @@ def test_reportes_confirmaciones_e_historial_son_read_only_estrictos():
         (ReportConfirmationAdmin, ReportConfirmation),
         (ReportStatusHistoryAdmin, ReportStatusHistory),
         (ResolutionEvidenceAdmin, ResolutionEvidence),
+        (ReportMediaAdmin, ReportMedia),
+        (AiClassificationAdmin, AiClassification),
     ):
         model_admin = admin_class(model, AdminSite())
         assert model_admin.has_add_permission(request) is False

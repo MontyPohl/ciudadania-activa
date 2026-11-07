@@ -50,7 +50,7 @@
           "const": "exact-category-priority-before-policy"
         },
         "threshold_percent": {
-          "const": 85
+          "const": 80
         },
         "sdk_max_retries": {
           "const": 0
